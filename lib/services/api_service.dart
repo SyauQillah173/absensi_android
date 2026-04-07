@@ -17,7 +17,8 @@ class ApiService {
   // HP fisik (1 WiFi): ganti ke IP laptop
   // Untuk cari IP laptop: buka CMD → ketik `ipconfig` → lihat IPv4 Address
   // static String baseUrl = 'http://192.168.0.101:8000/api';
-  static String baseUrl = 'http://10.180.254.198:8000/api';
+  // static String baseUrl = 'http://10.180.254.198:8000/api';
+  static String baseUrl = 'https://mom-litigation-sip-receipt.trycloudflare.com/api';
   // ==================================
 
   static final Map<String, String> _headers = {

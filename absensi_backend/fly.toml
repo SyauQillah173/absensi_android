@@ -1,0 +1,31 @@
+app = "absensi-syauqillah-api"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  APP_ENV = "production"
+  APP_DEBUG = "false"
+  APP_NAME = "Absensi Madrasah"
+  PORT = "10000"
+  DB_CONNECTION = "pgsql"
+  DB_SSLMODE = "require"
+  CACHE_STORE = "database"
+  SESSION_DRIVER = "database"
+  QUEUE_CONNECTION = "database"
+  FILESYSTEM_DISK = "local"
+  LOG_CHANNEL = "stack"
+
+[http_service]
+  internal_port = 10000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

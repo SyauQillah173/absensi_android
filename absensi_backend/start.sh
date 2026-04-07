@@ -2,7 +2,7 @@
 set -e
 
 if [ -z "${APP_KEY:-}" ]; then
-  echo "APP_KEY belum diisi. Tambahkan APP_KEY di environment variables Render."
+  echo "APP_KEY belum diisi. Tambahkan APP_KEY di environment variables hosting kamu."
   exit 1
 fi
 
