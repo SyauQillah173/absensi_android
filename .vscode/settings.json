@@ -1,0 +1,16 @@
+{
+    "php.validate.executablePath": null,
+    "php.problems.exclude": {
+        "**/vendor/**": true,
+        "**/node_modules/**": true
+    },
+    "[php]": {
+        "editor.defaultFormatter": null
+    },
+    "files.exclude": {
+        "**/.gradle": true,
+        "**/.dart_tool": true
+    },
+    "java.import.gradle.java.home": "C:\\Program Files\\Java\\jdk-25.0.2",
+    "java.import.gradle.wrapper.enabled": true
+}
