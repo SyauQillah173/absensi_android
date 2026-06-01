@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../services/api_service.dart';
 import '../../services/cache_service.dart';
 import '../../services/excel_import_service.dart';
+import '../../services/session_service.dart';
+import '../../widgets/adaptive_bottom_sheet.dart';
 import 'edit_user_screen.dart';
 
 class DataAdminScreen extends StatefulWidget {
@@ -14,7 +17,7 @@ class DataAdminScreen extends StatefulWidget {
 
 class _DataAdminScreenState extends State<DataAdminScreen>
     with SingleTickerProviderStateMixin {
-  static const _cacheKey = 'users_all';
+  static const _cacheKey = 'users_all_v2_admin';
 
   late final AnimationController _animController;
   late final Animation<double> _fadeIn;
@@ -73,7 +76,11 @@ class _DataAdminScreenState extends State<DataAdminScreen>
     }
 
     try {
-      final result = await ApiService.getAllUsers();
+      final viewerUserId = await SessionService.getUserId();
+      final result = await ApiService.getAllUsers(
+        viewerUserId: viewerUserId,
+        includePasswords: true,
+      );
       await CacheService.save(_cacheKey, result);
 
       if (!mounted) return;
@@ -153,24 +160,20 @@ class _DataAdminScreenState extends State<DataAdminScreen>
               ? const Color(0xFFE65100)
               : _getTipeColor(role),
         ),
-        transitionsBuilder: (
-          context,
-          animation,
-          secondaryAnimation,
-          child,
-        ) {
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
             opacity: animation,
             child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.05),
-                end: Offset.zero,
-              ).animate(
-                CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeOutCubic,
-                ),
-              ),
+              position:
+                  Tween<Offset>(
+                    begin: const Offset(0, 0.05),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  ),
               child: child,
             ),
           );
@@ -278,7 +281,10 @@ class _DataAdminScreenState extends State<DataAdminScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildSummaryLine('Total baris', '${result['total_baris'] ?? 0}'),
+                _buildSummaryLine(
+                  'Total baris',
+                  '${result['total_baris'] ?? 0}',
+                ),
                 _buildSummaryLine('Berhasil', '${result['berhasil'] ?? 0}'),
                 _buildSummaryLine('Gagal', '${result['gagal'] ?? 0}'),
                 if (errors.isNotEmpty) ...[
@@ -333,10 +339,7 @@ class _DataAdminScreenState extends State<DataAdminScreen>
             width: 80,
             child: Text(
               label,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFF636E72),
-              ),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF636E72)),
             ),
           ),
           const Text(': '),
@@ -438,10 +441,7 @@ class _DataAdminScreenState extends State<DataAdminScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFE65100),
             ),
-            child: const Text(
-              'Hapus',
-              style: TextStyle(color: Colors.white),
-            ),
+            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -459,16 +459,132 @@ class _DataAdminScreenState extends State<DataAdminScreen>
     }
   }
 
+  Future<void> _handleResetPassword(Map<String, dynamic> user) async {
+    setState(() => _expandedIndex = null);
+    if (_isOfflineMode) {
+      _showOfflineActionMessage();
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Reset Password',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          'Reset password "${user['name']}"? User akan memakai password sementara baru dari admin.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6C3483),
+            ),
+            child: const Text('Reset', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final result = await ApiService.resetUserPassword(user['id'] as int);
+      final data = Map<String, dynamic>.from(result['data'] ?? {});
+      final password = data['password']?.toString() ?? '';
+
+      await _clearUserCaches();
+      await _loadUsers(forceRefresh: true);
+      if (!mounted) return;
+      _showResetPasswordResult(user, password);
+    } catch (e) {
+      _showSnack('Gagal reset password: $e', isError: true);
+    }
+  }
+
+  void _showResetPasswordResult(Map<String, dynamic> user, String password) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Password Baru',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              user['name']?.toString() ?? '-',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF2D3436),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0EBFF),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: SelectableText(
+                password,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF6C3483),
+                  letterSpacing: 0,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Berikan password ini ke user. Setelah user mengganti password sendiri, password akan kembali menjadi privat.',
+              style: TextStyle(
+                fontSize: 11,
+                color: Color(0xFF636E72),
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: password));
+              if (ctx.mounted) Navigator.pop(ctx);
+              _showSnack('Password berhasil disalin.');
+            },
+            icon: const Icon(Icons.copy_rounded),
+            label: const Text('Salin'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Tutup'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showQuickActions() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-        decoration: const BoxDecoration(
-          color: Color(0xFFE1EFF7),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-        ),
+      builder: (ctx) => AdaptiveBottomSheet(
+        maxHeightFactor: 0.84,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -494,7 +610,8 @@ class _DataAdminScreenState extends State<DataAdminScreen>
               icon: Icons.person_add_alt_1_rounded,
               color: const Color(0xFFE65100),
               title: 'Tambah User Baru',
-              subtitle: 'Buat akun admin, guru, atau wali langsung ke database.',
+              subtitle:
+                  'Buat akun admin, guru, atau wali langsung ke database.',
               onTap: () {
                 Navigator.pop(ctx);
                 _openUserForm();
@@ -590,10 +707,7 @@ class _DataAdminScreenState extends State<DataAdminScreen>
                 ],
               ),
             ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: Color(0xFF636E72),
-            ),
+            const Icon(Icons.chevron_right_rounded, color: Color(0xFF636E72)),
           ],
         ),
       ),
@@ -626,6 +740,24 @@ class _DataAdminScreenState extends State<DataAdminScreen>
     }
   }
 
+  String _adminTypeLabel(Map<String, dynamic> user) {
+    final adminType = _val(user, 'admin_type', 'utama');
+    switch (adminType) {
+      case 'bendahara':
+        return 'Admin Bendahara';
+      case 'akademik':
+        return 'Admin Akademik';
+      case 'pondok':
+        return 'Admin Pondok';
+      case 'absensi':
+        return 'Admin Absensi';
+      case 'lainnya':
+        return 'Admin Lainnya';
+      default:
+        return 'Admin Utama';
+    }
+  }
+
   IconData _getTipeIcon(String tipe) {
     switch (tipe) {
       case 'admin':
@@ -642,7 +774,7 @@ class _DataAdminScreenState extends State<DataAdminScreen>
   String _getHakAkses(String tipe) {
     switch (tipe) {
       case 'admin':
-        return 'Full akses: CRUD data utama, kelola user, kelola informasi.';
+        return 'Admin Utama full access; admin lain mengikuti hak akses yang diberikan.';
       case 'guru':
         return 'Absensi, pengelolaan kelas/mapel, dan monitoring data ajar.';
       case 'wali':
@@ -667,6 +799,7 @@ class _DataAdminScreenState extends State<DataAdminScreen>
       return _val(user, 'name').toLowerCase().contains(q) ||
           _val(user, 'email').toLowerCase().contains(q) ||
           _val(user, 'role').toLowerCase().contains(q) ||
+          _val(user, 'admin_type').toLowerCase().contains(q) ||
           _val(user, 'no_hp').toLowerCase().contains(q);
     }).toList();
   }
@@ -701,7 +834,10 @@ class _DataAdminScreenState extends State<DataAdminScreen>
                 const Expanded(child: _LoadingState())
               else if (_errorMessage != null)
                 Expanded(
-                  child: _ErrorState(message: _errorMessage!, onRetry: _loadUsers),
+                  child: _ErrorState(
+                    message: _errorMessage!,
+                    onRetry: _loadUsers,
+                  ),
                 )
               else ...[
                 Padding(
@@ -719,19 +855,25 @@ class _DataAdminScreenState extends State<DataAdminScreen>
                       const Spacer(),
                       _buildRoleChip(
                         'Admin',
-                        _adminList.where((item) => item['role'] == 'admin').length,
+                        _adminList
+                            .where((item) => item['role'] == 'admin')
+                            .length,
                         const Color(0xFFE65100),
                       ),
                       const SizedBox(width: 4),
                       _buildRoleChip(
                         'Guru',
-                        _adminList.where((item) => item['role'] == 'guru').length,
+                        _adminList
+                            .where((item) => item['role'] == 'guru')
+                            .length,
                         const Color(0xFF138F81),
                       ),
                       const SizedBox(width: 4),
                       _buildRoleChip(
                         'Wali',
-                        _adminList.where((item) => item['role'] == 'wali').length,
+                        _adminList
+                            .where((item) => item['role'] == 'wali')
+                            .length,
                         const Color(0xFF6C3483),
                       ),
                     ],
@@ -931,10 +1073,7 @@ class _DataAdminScreenState extends State<DataAdminScreen>
                 decoration: const InputDecoration(
                   hintText: 'Cari Nama / Email / Role...',
                   border: InputBorder.none,
-                  hintStyle: TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF636E72),
-                  ),
+                  hintStyle: TextStyle(fontSize: 13, color: Color(0xFF636E72)),
                 ),
                 style: const TextStyle(fontSize: 13),
               ),
@@ -950,7 +1089,7 @@ class _DataAdminScreenState extends State<DataAdminScreen>
     final role = _val(user, 'role', 'admin');
     final color = _getTipeColor(role);
     final icon = _getTipeIcon(role);
-    final label = _getTipeLabel(role);
+    final label = role == 'admin' ? _adminTypeLabel(user) : _getTipeLabel(role);
     final name = _val(user, 'name');
     final status = _val(user, 'status', 'Aktif');
 
@@ -1058,7 +1197,9 @@ class _DataAdminScreenState extends State<DataAdminScreen>
                         Container(
                           margin: const EdgeInsets.symmetric(horizontal: 14),
                           height: 1,
-                          color: const Color(0xFF000000).withValues(alpha: 0.06),
+                          color: const Color(
+                            0xFF000000,
+                          ).withValues(alpha: 0.06),
                         ),
                         Padding(
                           padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
@@ -1067,7 +1208,20 @@ class _DataAdminScreenState extends State<DataAdminScreen>
                               _buildDetailRow('Nama Lengkap', name),
                               _buildDetailRow('Email', _val(user, 'email')),
                               _buildDetailRow('Role', label),
+                              if (role == 'admin')
+                                _buildDetailRow(
+                                  'Tipe Admin',
+                                  _adminTypeLabel(user),
+                                ),
                               _buildDetailRow('No. HP', _val(user, 'no_hp')),
+                              _buildDetailRow(
+                                _val(
+                                  user,
+                                  'password_display_label',
+                                  'Password Aktif',
+                                ),
+                                _val(user, 'password_display'),
+                              ),
                               _buildDetailRow('NIS', _val(user, 'nis')),
                               _buildDetailRow(
                                 'Jenis Kelamin',
@@ -1108,6 +1262,13 @@ class _DataAdminScreenState extends State<DataAdminScreen>
                                 Icons.toggle_on_rounded,
                                 const Color(0xFFFFB74D),
                                 () => _handleEditStatus(user),
+                              ),
+                              const SizedBox(width: 6),
+                              _buildActionBtn(
+                                'Reset',
+                                Icons.lock_reset_rounded,
+                                const Color(0xFF6C3483),
+                                () => _handleResetPassword(user),
                               ),
                               const SizedBox(width: 6),
                               _buildActionBtn(

@@ -3,14 +3,23 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ApiAccessToken;
 use App\Models\User;
+use App\Services\ReferenceResolver;
+use App\Services\WaliAccountService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class UserManagementController extends Controller
 {
+    public function __construct(private readonly WaliAccountService $waliAccountService)
+    {
+    }
+
     private const UNIT_OPTIONS = [
         "SMP Assa'adah",
         "SMA Assa'adah",
@@ -30,11 +39,14 @@ class UserManagementController extends Controller
 
     public function index(Request $request)
     {
+        $viewerCanSeePasswords = $this->viewerCanSeePasswords($request);
         $query = User::select(
             'id',
             'name',
             'email',
             'role',
+            'role_id',
+            'admin_type',
             'nis',
             'nisn',
             'no_hp',
@@ -42,20 +54,48 @@ class UserManagementController extends Controller
             'foto_profil',
             'nik_user',
             'status',
+            'user_status_id',
             'kode_guru',
             'alamat',
             'unit_kerja',
             'kategori_guru',
-            'created_at'
+            'created_at',
+            ...($viewerCanSeePasswords
+                ? ['password_default_encrypted', 'password_changed_at']
+                : [])
         )->orderBy('name');
 
         if ($request->filled('role')) {
-            $query->where('role', $request->role);
+            $roleId = app(ReferenceResolver::class)->roleId($request->role);
+            $roleId ? $query->where('role_id', $roleId) : $query->whereRaw('1 = 0');
         }
+        if ($request->filled('role_id')) {
+            $query->where('role_id', $request->integer('role_id'));
+        }
+        if ($request->filled('status')) {
+            $statusId = app(ReferenceResolver::class)->userStatusId($request->status);
+            $statusId ? $query->where('user_status_id', $statusId) : $query->whereRaw('1 = 0');
+        }
+        if ($request->filled('user_status_id')) {
+            $query->where('user_status_id', $request->integer('user_status_id'));
+        }
+
+        $users = $query->get()->map(function (User $user) use ($viewerCanSeePasswords) {
+            $row = $user->toArray();
+
+            if ($viewerCanSeePasswords) {
+                $row = [
+                    ...$row,
+                    ...$this->buildPasswordDisplayMeta($user),
+                ];
+            }
+
+            return $row;
+        })->values();
 
         return response()->json([
             'success' => true,
-            'data' => $query->get(),
+            'data' => $users,
         ]);
     }
 
@@ -65,6 +105,9 @@ class UserManagementController extends Controller
         $payload = $this->normalizePayload($validated, true);
 
         $user = User::create($payload);
+        if ($user->role === 'wali') {
+            $this->waliAccountService->attachMatchingStudents($user);
+        }
 
         return response()->json([
             'success' => true,
@@ -76,9 +119,12 @@ class UserManagementController extends Controller
     public function update(Request $request, User $user)
     {
         $validated = $this->validateUserPayload($request, user: $user);
-        $payload = $this->normalizePayload($validated, false);
+        $payload = $this->normalizePayload($validated, false, $user);
 
         $user->update($payload);
+        if ($user->role === 'wali') {
+            $this->waliAccountService->attachMatchingStudents($user);
+        }
 
         return response()->json([
             'success' => true,
@@ -133,6 +179,45 @@ class UserManagementController extends Controller
         ]);
     }
 
+    public function resetPassword(Request $request, User $user)
+    {
+        $admin = $request->user();
+        if (!$admin || $admin->role !== 'admin' || ($admin->status ?? 'Aktif') !== 'Aktif') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya admin aktif yang dapat reset password user.',
+            ], 403);
+        }
+
+        $plainPassword = $this->generateTemporaryPassword($user);
+
+        $user->forceFill([
+            'password' => Hash::make($plainPassword),
+            'password_default_encrypted' => Crypt::encryptString($plainPassword),
+            'password_current_encrypted' => null,
+            'password_changed_at' => null,
+        ])->save();
+
+        if ((int) $user->id !== (int) $admin->id) {
+            ApiAccessToken::query()->where('user_id', $user->id)->delete();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password user berhasil direset.',
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'role' => $user->role,
+                'admin_type' => $user->admin_type,
+                'password' => $plainPassword,
+                'password_display' => $plainPassword,
+                'password_display_label' => 'Password Reset Admin',
+                'password_changed_at' => null,
+            ],
+        ]);
+    }
+
     private function processRows(array $rows, bool $guruOnly): array
     {
         $success = 0;
@@ -164,11 +249,18 @@ class UserManagementController extends Controller
                 continue;
             }
 
-            $payload = $this->normalizePayload($validator->validated(), true);
+            $existing = null;
+            if ($guruOnly) {
+                $existing = User::where('email', trim((string) ($data['email'] ?? '')))->first();
+            }
+            $payload = $this->normalizePayload(
+                $validator->validated(),
+                !$existing,
+                $existing
+            );
 
             try {
                 if ($guruOnly) {
-                    $existing = User::where('email', $payload['email'])->first();
                     if ($existing && $existing->role !== 'guru') {
                         throw new \RuntimeException('Email sudah dipakai role lain');
                     }
@@ -179,7 +271,10 @@ class UserManagementController extends Controller
                         User::create($payload);
                     }
                 } else {
-                    User::create($payload);
+                    $user = User::create($payload);
+                    if ($user->role === 'wali') {
+                        $this->waliAccountService->attachMatchingStudents($user);
+                    }
                 }
 
                 $success++;
@@ -224,24 +319,26 @@ class UserManagementController extends Controller
         bool $requirePassword = false,
         bool $guruOnly = false
     ): array {
-        $required = $user ? 'sometimes|required' : 'required';
+        $requiredRules = $user ? ['sometimes', 'required'] : ['required'];
         $passwordRule = $requirePassword
-            ? 'required|string|min:6'
-            : 'nullable|string|min:6';
+            ? ['required', 'string', 'min:6']
+            : ['nullable', 'string', 'min:6'];
 
         $roleRule = $guruOnly
-            ? ($user ? 'sometimes|required|in:guru' : 'required|in:guru')
-            : "$required|in:admin,guru,wali";
+            ? [...$requiredRules, 'in:guru']
+            : [...$requiredRules, 'in:admin,guru,wali'];
 
         return [
-            'name' => "$required|string|max:255",
+            'name' => [...$requiredRules, 'string', 'max:255'],
             'email' => [
-                $required,
+                ...$requiredRules,
                 'email',
                 'max:255',
                 Rule::unique('users', 'email')->ignore($user?->id),
             ],
             'role' => $roleRule,
+            'role_id' => 'nullable|integer|exists:roles,id',
+            'admin_type' => 'nullable|in:utama,bendahara,akademik,pondok,absensi,lainnya',
             'nis' => [
                 'nullable',
                 'string',
@@ -254,10 +351,11 @@ class UserManagementController extends Controller
                 'max:50',
                 Rule::unique('users', 'nisn')->ignore($user?->id),
             ],
-            'no_hp' => "$required|string|max:50",
             'jenis_kelamin' => 'nullable|in:L,P',
             'nik_user' => 'nullable|string|max:50',
-            'status' => "$required|in:Aktif,Nonaktif",
+            'no_hp' => [...$requiredRules, 'string', 'max:50'],
+            'status' => [...$requiredRules, 'in:Aktif,Nonaktif'],
+            'user_status_id' => 'nullable|integer|exists:user_statuses,id',
             'password' => $passwordRule,
             'kode_guru' => [
                 'nullable',
@@ -267,9 +365,9 @@ class UserManagementController extends Controller
             ],
             'alamat' => 'nullable|string',
             'unit_kerja' => 'nullable|array',
-            'unit_kerja.*' => ['string', Rule::in(self::UNIT_OPTIONS)],
+            'unit_kerja.*' => ['string'],
             'kategori_guru' => 'nullable|array',
-            'kategori_guru.*' => ['string', Rule::in(self::GURU_CATEGORY_OPTIONS)],
+            'kategori_guru.*' => ['string'],
         ];
     }
 
@@ -287,17 +385,9 @@ class UserManagementController extends Controller
         if (($guruOnly || array_key_exists('kode_guru', $data)) && empty(trim((string) ($data['kode_guru'] ?? '')))) {
             $validator->errors()->add('kode_guru', 'Kode guru wajib diisi');
         }
-
-        if (($guruOnly || array_key_exists('unit_kerja', $data)) && empty($data['unit_kerja'])) {
-            $validator->errors()->add('unit_kerja', 'Unit mengajar wajib dipilih minimal 1');
-        }
-
-        if (($guruOnly || array_key_exists('kategori_guru', $data)) && empty($data['kategori_guru'])) {
-            $validator->errors()->add('kategori_guru', 'Status guru/karyawan wajib dipilih minimal 1');
-        }
     }
 
-    private function normalizePayload(array $validated, bool $createMode): array
+    private function normalizePayload(array $validated, bool $createMode, ?User $existingUser = null): array
     {
         foreach ([
             'email',
@@ -328,11 +418,29 @@ class UserManagementController extends Controller
             }
         }
 
+        if (array_key_exists('unit_kerja', $validated)) {
+            $validated['unit_kerja'] = $this->canonicalTeacherUnits($validated['unit_kerja']);
+        }
+
+        if (array_key_exists('kategori_guru', $validated)) {
+            $validated['kategori_guru'] = $this->canonicalTeacherCategories($validated['kategori_guru']);
+        }
+
         if (array_key_exists('password', $validated)) {
-            if (empty($validated['password']) && !$createMode) {
+            $plainPassword = trim((string) $validated['password']);
+
+            if ($plainPassword === '' && !$createMode) {
                 unset($validated['password']);
             } else {
-                $validated['password'] = Hash::make($validated['password']);
+                $validated['password'] = Hash::make($plainPassword);
+                $validated['password_current_encrypted'] = null;
+                if ($createMode) {
+                    $validated['password_default_encrypted'] = Crypt::encryptString($plainPassword);
+                    $validated['password_changed_at'] = null;
+                } else {
+                    $validated['password_default_encrypted'] = $existingUser?->password_default_encrypted;
+                    $validated['password_changed_at'] = now();
+                }
             }
         }
 
@@ -343,6 +451,134 @@ class UserManagementController extends Controller
             $validated['kategori_guru'] = null;
         }
 
+        if (($validated['role'] ?? $existingUser?->role) === 'admin') {
+            $validated['admin_type'] = $validated['admin_type'] ?? $existingUser?->admin_type ?? 'utama';
+        } else {
+            $validated['admin_type'] = null;
+        }
+
+        if (isset($validated['role'])) {
+            $validated['role_id'] = $validated['role_id']
+                ?? app(ReferenceResolver::class)->roleId($validated['role']);
+            $validated['role'] = app(ReferenceResolver::class)->nameById('roles', $validated['role_id'], 'code')
+                ?? $validated['role'];
+        }
+
+        if (isset($validated['status'])) {
+            $validated['user_status_id'] = $validated['user_status_id']
+                ?? app(ReferenceResolver::class)->userStatusId($validated['status']);
+            $validated['status'] = app(ReferenceResolver::class)->userStatusName($validated['user_status_id'])
+                ?? $validated['status'];
+        }
+
         return $validated;
+    }
+
+    private function canonicalTeacherUnits(array $values): array
+    {
+        $rows = DB::table('teacher_units')->get(['name']);
+        $lookup = [];
+        foreach ($rows as $row) {
+            $lookup[strtolower(trim($row->name))] = $row->name;
+        }
+
+        return collect($values)
+            ->map(function ($value) use ($lookup) {
+                $key = strtolower(trim((string) $value));
+                if ($key === '') {
+                    return null;
+                }
+                return $lookup[$key] ?? null;
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function canonicalTeacherCategories(array $values): array
+    {
+        $rows = DB::table('teacher_categories')->get(['code', 'name']);
+        $lookup = [];
+        foreach ($rows as $row) {
+            $lookup[strtolower(trim($row->code))] = $row->code;
+            $lookup[strtolower(trim($row->name))] = $row->code;
+        }
+
+        return collect($values)
+            ->map(function ($value) use ($lookup) {
+                $key = strtolower(trim((string) $value));
+                if ($key === '') {
+                    return null;
+                }
+                return $lookup[$key] ?? null;
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function viewerCanSeePasswords(Request $request): bool
+    {
+        if (!$request->boolean('include_passwords')) {
+            return false;
+        }
+
+        $viewer = $request->user();
+
+        return $viewer->role === 'admin' && ($viewer->status ?? 'Aktif') === 'Aktif';
+    }
+
+    private function buildPasswordDisplayMeta(User $user): array
+    {
+        $defaultPassword = $this->decryptOperationalPassword($user->password_default_encrypted);
+
+        if ($user->password_changed_at) {
+            return [
+                'password_display' => 'Sudah diganti user',
+                'password_display_label' => 'Password Privat',
+                'password_changed_at' => $user->password_changed_at?->toIso8601String(),
+            ];
+        }
+
+        if ($defaultPassword !== null && $defaultPassword !== '') {
+            return [
+                'password_display' => $defaultPassword,
+                'password_display_label' => 'Password Default',
+                'password_changed_at' => null,
+            ];
+        }
+
+        return [
+            'password_display' => 'Belum tercatat',
+            'password_display_label' => 'Password Belum Tercatat',
+            'password_changed_at' => null,
+        ];
+    }
+
+    private function decryptOperationalPassword(?string $value): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        try {
+            return Crypt::decryptString($value);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function generateTemporaryPassword(User $user): string
+    {
+        $prefix = match ($user->role) {
+            'guru' => 'Guru',
+            'wali' => 'Wali',
+            'admin' => 'Admin',
+            default => 'User',
+        };
+
+        return $prefix . random_int(100000, 999999);
     }
 }

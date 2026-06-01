@@ -4,32 +4,36 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\MataPelajaran;
-use App\Models\User;
+use App\Services\ActorResolver;
+use App\Services\MapelAccessService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class MataPelajaranController extends Controller
 {
+    public function __construct(
+        private readonly MapelAccessService $mapelAccessService,
+    ) {
+    }
+
     public function index(Request $request)
     {
-        $query = MataPelajaran::with(['guru', 'jadwal']);
+        $actor = app(ActorResolver::class)->active($request);
 
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('nama', 'ilike', '%' . $search . '%')
-                  ->orWhere('kode', 'ilike', '%' . $search . '%')
-                  ->orWhereHas('guru', function ($q2) use ($search) {
-                      $q2->where('name', 'ilike', '%' . $search . '%');
-                  });
-            });
-        }
+        $query = $this->mapelAccessService->buildMapelQuery($actor, [
+            'status' => $request->input('status'),
+            'search' => $request->input('search'),
+            'kelas' => $request->input('kelas'),
+            'class_id' => $request->input('class_id'),
+            'hari' => $request->input('hari'),
+            'day_id' => $request->input('day_id'),
+            'require_jadwal' => $request->boolean('require_jadwal'),
+        ]);
 
         return response()->json([
             'success' => true,
-            'data' => $query->orderBy('nama')->get(),
+            'data' => $query->get(),
         ]);
     }
 
@@ -40,24 +44,31 @@ class MataPelajaranController extends Controller
             'kode' => 'nullable|string|max:10',
             'status' => 'required|in:Aktif,Nonaktif',
             'guru_ids' => 'nullable|array',
-            'guru_ids.*' => 'exists:users,id',
+            'guru_ids.*' => ['integer', Rule::exists('users', 'id')->where('role', 'guru')],
         ]);
 
-        $mapel = MataPelajaran::create([
-            'nama' => $validated['nama'],
-            'kode' => $validated['kode'] ?? null,
-            'status' => $validated['status'],
-        ]);
+        $mapel = DB::transaction(function () use ($validated) {
+            $mapel = MataPelajaran::create([
+                'nama' => $validated['nama'],
+                'kode' => $validated['kode'] ?? null,
+                'status' => $validated['status'],
+            ]);
 
-        // Sync guru assignments
-        if (isset($validated['guru_ids'])) {
-            $mapel->guru()->sync($validated['guru_ids']);
-        }
+            if (isset($validated['guru_ids'])) {
+                $mapel->guru()->sync($validated['guru_ids']);
+                $this->mapelAccessService->syncScheduleTeachers(
+                    $mapel,
+                    $validated['guru_ids'],
+                );
+            }
+
+            return $mapel;
+        });
 
         return response()->json([
             'success' => true,
             'message' => 'Mata pelajaran berhasil ditambahkan',
-            'data' => $mapel->load(['guru', 'jadwal']),
+            'data' => $this->loadOperationalRelations($mapel),
         ], 201);
     }
 
@@ -65,7 +76,7 @@ class MataPelajaranController extends Controller
     {
         return response()->json([
             'success' => true,
-            'data' => $mataPelajaran->load(['guru', 'jadwal']),
+            'data' => $this->loadOperationalRelations($mataPelajaran),
         ]);
     }
 
@@ -76,21 +87,28 @@ class MataPelajaranController extends Controller
             'kode' => 'nullable|string|max:10',
             'status' => 'sometimes|in:Aktif,Nonaktif',
             'guru_ids' => 'nullable|array',
-            'guru_ids.*' => 'exists:users,id',
+            'guru_ids.*' => ['integer', Rule::exists('users', 'id')->where('role', 'guru')],
         ]);
 
-        $mapel = $mataPelajaran;
-        $mapel->update(array_intersect_key($validated, array_flip(['nama', 'kode', 'status'])));
+        $mapel = DB::transaction(function () use ($validated, $mataPelajaran) {
+            $mapel = $mataPelajaran;
+            $mapel->update(array_intersect_key($validated, array_flip(['nama', 'kode', 'status'])));
 
-        // Sync guru assignments if provided
-        if (isset($validated['guru_ids'])) {
-            $mapel->guru()->sync($validated['guru_ids']);
-        }
+            if (isset($validated['guru_ids'])) {
+                $mapel->guru()->sync($validated['guru_ids']);
+                $this->mapelAccessService->syncScheduleTeachers(
+                    $mapel,
+                    $validated['guru_ids'],
+                );
+            }
+
+            return $mapel;
+        });
 
         return response()->json([
             'success' => true,
             'message' => 'Mata pelajaran berhasil diupdate',
-            'data' => $mapel->load(['guru', 'jadwal']),
+            'data' => $this->loadOperationalRelations($mapel),
         ]);
     }
 
@@ -103,5 +121,24 @@ class MataPelajaranController extends Controller
             'message' => 'Mata pelajaran berhasil dihapus',
         ]);
     }
-}
 
+    private function loadOperationalRelations(MataPelajaran $mapel): MataPelajaran
+    {
+        return $mapel->fresh()->load([
+            'guru',
+            'jadwal' => fn ($query) => $query
+                ->where('status', 'Aktif')
+                ->orderByRaw("CASE hari
+                    WHEN 'Ahad' THEN 1
+                    WHEN 'Senin' THEN 2
+                    WHEN 'Selasa' THEN 3
+                    WHEN 'Rabu' THEN 4
+                    WHEN 'Kamis' THEN 5
+                    WHEN 'Jumat' THEN 6
+                    WHEN 'Sabtu' THEN 7
+                    ELSE 99
+                END")
+                ->orderBy('jam_mulai'),
+        ]);
+    }
+}

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/api_service.dart';
+import '../../services/sync_service.dart';
 
 class EditKelompokSifirScreen extends StatefulWidget {
   final int kelompokId;
@@ -50,7 +51,7 @@ class _EditKelompokSifirScreenState extends State<EditKelompokSifirScreen>
     try {
       final results = await Future.wait([
         ApiService.getKelompokDetail(widget.kelompokId),
-        ApiService.getSiswa(),
+        ApiService.getSiswa(status: 'Aktif'),
       ]);
 
       if (mounted) {
@@ -83,6 +84,10 @@ class _EditKelompokSifirScreenState extends State<EditKelompokSifirScreen>
   Future<void> _addStudent(Map<String, dynamic> siswa) async {
     try {
       await ApiService.addSiswaToKelompok(widget.kelompokId, siswa['id']);
+      await SyncService.notifyDataChanged(
+        SyncTopics.kelas,
+        message: 'Keanggotaan kelas telah diperbarui',
+      );
       await _loadData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -112,6 +117,10 @@ class _EditKelompokSifirScreenState extends State<EditKelompokSifirScreen>
   Future<void> _removeStudent(Map<String, dynamic> siswa) async {
     try {
       await ApiService.removeSiswaFromKelompok(widget.kelompokId, siswa['id']);
+      await SyncService.notifyDataChanged(
+        SyncTopics.kelas,
+        message: 'Keanggotaan kelas telah diperbarui',
+      );
       await _loadData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

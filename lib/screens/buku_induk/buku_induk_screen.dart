@@ -5,7 +5,9 @@ import '../../services/cache_service.dart';
 import '../sifir/kelompok_belajar_screen.dart';
 import 'data_admin_screen.dart';
 import 'data_guru_screen.dart';
+import 'data_pondok_screen.dart';
 import 'data_siswa_screen.dart';
+import 'setting_akademik_screen.dart';
 
 class BukuIndukScreen extends StatefulWidget {
   final String userRole;
@@ -306,10 +308,34 @@ class _BukuIndukScreenState extends State<BukuIndukScreen>
                             onTap: () => _navigateTo(const DataAdminScreen()),
                           ),
                           const SizedBox(height: 16),
+                          _buildCategoryCard(
+                            index: 3,
+                            icon: Icons.calendar_month_rounded,
+                            title: 'Setting Akademik',
+                            subtitle: 'Tahun ajaran & semester aktif',
+                            description:
+                                'Atur periode aktif tanpa menghapus riwayat.',
+                            color: const Color(0xFF138F81),
+                            onTap: () =>
+                                _navigateTo(const SettingAkademikScreen()),
+                          ),
+                          const SizedBox(height: 16),
+                          _buildCategoryCard(
+                            index: 4,
+                            icon: Icons.apartment_rounded,
+                            title: 'Data Pondok',
+                            subtitle: 'Setting Pondok',
+                            description:
+                                'Kelola komplek, kamar, dan santri pondok.',
+                            color: const Color(0xFF138F81),
+                            onTap: () =>
+                                _navigateTo(const DataPondokScreen()),
+                          ),
+                          const SizedBox(height: 16),
                         ],
                         // Both admin and guru
                         _buildCategoryCard(
-                          index: widget.userRole == 'guru' ? 0 : 3,
+                          index: widget.userRole == 'guru' ? 0 : 5,
                           icon: Icons.groups_rounded,
                           title: 'Kelompok Belajar',
                           subtitle: _isLoadingCounts
@@ -318,7 +344,8 @@ class _BukuIndukScreenState extends State<BukuIndukScreen>
                           description:
                               'Kelola anggota sifir, tambah/hapus siswa.',
                           color: const Color(0xFF6C5CE7),
-                          onTap: () => _navigateTo(const KelompokBelajarScreen()),
+                          onTap: () =>
+                              _navigateTo(const KelompokBelajarScreen()),
                         ),
                         const SizedBox(height: 24),
                       ],

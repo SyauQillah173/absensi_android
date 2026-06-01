@@ -1,9 +1,12 @@
-import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/api_service.dart';
+import '../../services/cache_service.dart';
+import '../../services/nilai_export_service.dart';
+import '../../services/session_service.dart';
+import '../../services/sync_service.dart';
 
 class NilaiOrtuScreen extends StatefulWidget {
   const NilaiOrtuScreen({super.key});
@@ -16,24 +19,30 @@ class _NilaiOrtuScreenState extends State<NilaiOrtuScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _fadeIn;
+  StreamSubscription<AppDataEvent>? _syncSub;
 
   bool _isLoading = true;
+  bool _isUsingCache = false;
+  String _statusMessage = '';
   String _errorMessage = '';
 
-  // Data anak
+  int _waliId = 0;
   List<Map<String, dynamic>> _anakList = [];
   int _activeSiswaId = 0;
   String _activeSiswaName = '';
 
-  // Nilai data
-  double _rataRataTotal = 0;
-  String _predikatTotal = '';
+  double _rataRataPelajaran = 0;
+  double _rataRataHafalan = 0;
+  String _predikatPelajaran = '-';
   int _totalMapel = 0;
-  List<dynamic> _nilaiPerMapel = [];
-  List<dynamic> _semesters = [];
+  String _capaianHafalan = '0/0';
+  List<Map<String, dynamic>> _nilaiPelajaran = [];
+  List<Map<String, dynamic>> _nilaiHafalan = [];
+  List<dynamic> _tahunAjaranOptions = [];
+  List<dynamic> _semesterOptions = [];
   String? _selectedSemester;
+  String? _selectedTahunAjaran;
 
-  // Expanded mapel detail
   final Set<int> _expandedMapel = {};
 
   @override
@@ -44,40 +53,65 @@ class _NilaiOrtuScreenState extends State<NilaiOrtuScreen>
       duration: const Duration(milliseconds: 600),
     );
     _fadeIn = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
+      begin: 0,
+      end: 1,
     ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
     _loadAnakData();
+    _syncSub = SyncService.dataEvents.listen((event) {
+      if (!mounted) return;
+      if (event.topic == SyncTopics.session ||
+          event.topic == SyncTopics.nilai ||
+          event.topic == SyncTopics.hafalan ||
+          event.topic == SyncTopics.heartbeat) {
+        _loadAnakData(refreshOnly: true);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _syncSub?.cancel();
     _animController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadAnakData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final anakJson = prefs.getString('anak_list') ?? '[]';
-    final anakList = List<Map<String, dynamic>>.from(
-      (jsonDecode(anakJson) as List).map((a) => Map<String, dynamic>.from(a)),
-    );
-    final activeSiswaId = prefs.getInt('active_siswa_id') ?? 0;
-    final activeSiswaName = prefs.getString('active_siswa_nama') ?? '';
+  Future<void> _loadAnakData({bool refreshOnly = false}) async {
+    final waliId = await SessionService.getUserId();
+    final anakList = await SessionService.getAnakList();
+    final activeSiswaId = await SessionService.getActiveSiswaId();
+    final activeSiswaName = await SessionService.getActiveSiswaNama();
 
-    setState(() {
+    final firstAnak = anakList.isNotEmpty
+        ? anakList.first
+        : <String, dynamic>{};
+    final resolvedSiswaId = activeSiswaId > 0
+        ? activeSiswaId
+        : int.tryParse(firstAnak['id']?.toString() ?? '') ?? 0;
+    final resolvedSiswaName = activeSiswaName.isNotEmpty
+        ? activeSiswaName
+        : firstAnak['nama']?.toString() ?? '';
+
+    if (!refreshOnly && mounted) {
+      setState(() {
+        _waliId = waliId;
+        _anakList = anakList;
+        _activeSiswaId = resolvedSiswaId;
+        _activeSiswaName = resolvedSiswaName;
+      });
+    } else {
+      _waliId = waliId;
       _anakList = anakList;
-      _activeSiswaId = activeSiswaId;
-      _activeSiswaName = activeSiswaName;
-    });
+      _activeSiswaId = resolvedSiswaId;
+      _activeSiswaName = resolvedSiswaName;
+    }
 
     if (_activeSiswaId > 0) {
-      _loadNilai();
-    } else {
+      await _loadNilai();
+    } else if (mounted) {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Data anak tidak ditemukan';
+        _errorMessage = 'Data anak belum tersedia di sesi login';
       });
     }
   }
@@ -86,44 +120,181 @@ class _NilaiOrtuScreenState extends State<NilaiOrtuScreen>
     setState(() {
       _isLoading = true;
       _errorMessage = '';
+      _statusMessage = '';
     });
+
+    final cacheKey =
+        'nilai_ortu_v3_${_waliId}_${_activeSiswaId}_${_selectedTahunAjaran ?? 'all'}_${_selectedSemester ?? 'all'}';
+    final cached = await CacheService.get(cacheKey);
+    if (cached is Map<String, dynamic> && mounted) {
+      _applyPayload(cached, fromCache: true);
+    }
 
     try {
       final result = await ApiService.getNilaiAnak(
         _activeSiswaId,
         semester: _selectedSemester,
+        tahunAjaran: _selectedTahunAjaran,
+        waliId: _waliId,
       );
-
-      if (mounted) {
-        if (result['success'] == true) {
-          setState(() {
-            _rataRataTotal = (result['rata_rata_total'] ?? 0).toDouble();
-            _predikatTotal = result['predikat_total']?.toString() ?? '-';
-            _totalMapel = result['total_mapel'] ?? 0;
-            _nilaiPerMapel = List.from(result['data'] ?? []);
-            _semesters = List.from(result['semesters'] ?? []);
-            _isLoading = false;
-
-            // Auto-select first semester if not selected
-            if (_selectedSemester == null && _semesters.isNotEmpty) {
-              _selectedSemester = _semesters.first.toString();
-            }
-          });
+      await CacheService.save(cacheKey, result);
+      if (!mounted) return;
+      _applyPayload(result, fromCache: false);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        if (cached == null) {
+          _errorMessage =
+              'Tidak ada koneksi internet. Data nilai belum bisa dimuat saat offline.';
         } else {
-          setState(() {
-            _errorMessage = result['message'] ?? 'Gagal memuat data';
-            _isLoading = false;
-          });
+          _statusMessage =
+              'Offline. Menampilkan data nilai terakhir yang sudah tersinkron.';
         }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Tidak dapat terhubung ke server';
-          _isLoading = false;
-        });
-      }
+      });
     }
+  }
+
+  void _applyPayload(Map<String, dynamic> result, {required bool fromCache}) {
+    var shouldReloadWithDefaultFilter = false;
+
+    setState(() {
+      _rataRataPelajaran = (result['rata_rata_total'] as num?)?.toDouble() ?? 0;
+      _predikatPelajaran = result['predikat_total']?.toString() ?? '-';
+      _totalMapel = (result['total_mapel'] as num?)?.toInt() ?? 0;
+      _rataRataHafalan = (result['rata_rata_hafalan'] as num?)?.toDouble() ?? 0;
+      _capaianHafalan = result['capaian_hafalan']?.toString() ?? '0/0';
+      _nilaiPelajaran = List<Map<String, dynamic>>.from(
+        result['nilai_pelajaran'] ?? const [],
+      );
+      _nilaiHafalan = List<Map<String, dynamic>>.from(
+        result['nilai_hafalan'] ?? const [],
+      );
+      _tahunAjaranOptions = List.from(
+        result['tahun_ajaran_options'] ?? const [],
+      );
+      _semesterOptions = List.from(result['semester_options'] ?? const []);
+      _isUsingCache = fromCache;
+      _isLoading = false;
+      _selectedTahunAjaran ??= result['selected_tahun_ajaran']?.toString();
+      _selectedSemester ??= result['selected_semester']?.toString();
+      if (_selectedTahunAjaran != null &&
+          !_tahunAjaranOptions.contains(_selectedTahunAjaran)) {
+        _selectedTahunAjaran = null;
+      }
+      if (_selectedSemester != null &&
+          !_semesterOptions.contains(_selectedSemester)) {
+        _selectedSemester = null;
+      }
+      if ((_selectedTahunAjaran == null || _selectedTahunAjaran!.isEmpty) &&
+          _tahunAjaranOptions.isNotEmpty) {
+        _selectedTahunAjaran = _tahunAjaranOptions.first.toString();
+        shouldReloadWithDefaultFilter =
+            shouldReloadWithDefaultFilter ||
+            (result['selected_tahun_ajaran']?.toString().isEmpty ?? true);
+      }
+      if ((_selectedSemester == null || _selectedSemester!.isEmpty) &&
+          _semesterOptions.isNotEmpty) {
+        _selectedSemester = _semesterOptions.first.toString();
+        shouldReloadWithDefaultFilter =
+            shouldReloadWithDefaultFilter ||
+            (result['selected_semester']?.toString().isEmpty ?? true);
+      }
+    });
+
+    if (!fromCache &&
+        shouldReloadWithDefaultFilter &&
+        _selectedTahunAjaran != null &&
+        _selectedSemester != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _loadNilai();
+        }
+      });
+    }
+  }
+
+  Future<void> _selectAnak(int siswaId, String siswaNama) async {
+    await SessionService.setActiveSiswa(siswaId: siswaId, siswaNama: siswaNama);
+    setState(() {
+      _activeSiswaId = siswaId;
+      _activeSiswaName = siswaNama;
+      _selectedTahunAjaran = null;
+      _selectedSemester = null;
+      _expandedMapel.clear();
+    });
+    await _loadNilai();
+  }
+
+  Future<void> _showExportOptions() async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        Widget option(String label, String scope) {
+          return ListTile(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            tileColor: const Color(0xFFE1EFF7),
+            title: Text(label),
+            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+            onTap: () async {
+              Navigator.pop(context);
+              try {
+                final payload = await ApiService.getPenilaianDokumen(
+                  userId: _waliId,
+                  siswaId: _activeSiswaId,
+                  semester: _selectedSemester,
+                  tahunAjaran: _selectedTahunAjaran,
+                  reportScope: scope,
+                );
+                await NilaiExportService.printStudentReport(
+                  payload,
+                  reportScope: scope,
+                );
+              } catch (_) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Gagal membuat dokumen nilai'),
+                    backgroundColor: const Color(0xFFD63031),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                );
+              }
+            },
+          );
+        }
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Download / Cetak Dokumen Nilai',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 14),
+                option('Nilai Pelajaran', 'pelajaran'),
+                const SizedBox(height: 8),
+                option('Nilai Hafalan', 'hafalan'),
+                const SizedBox(height: 8),
+                option('Gabungan Nilai + Hafalan', 'gabungan'),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Color _getPredikatColor(String predikat) {
@@ -132,27 +303,27 @@ class _NilaiOrtuScreenState extends State<NilaiOrtuScreen>
         return const Color(0xFF138F81);
       case 'B':
         return const Color(0xFF2E86DE);
+      case 'BC':
+        return const Color(0xFF6C5CE7);
       case 'C':
-        return const Color(0xFFE65100);
+        return const Color(0xFFFFB74D);
       case 'D':
-        return const Color(0xFFD63031);
+        return const Color(0xFFE65100);
       default:
         return const Color(0xFF636E72);
     }
   }
 
-  Color _getJenisUjianColor(String jenis) {
-    switch (jenis) {
-      case 'UTS':
-        return const Color(0xFF2E86DE);
-      case 'UAS':
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'Selesai':
         return const Color(0xFF138F81);
-      case 'Hafalan':
-        return const Color(0xFF6C5CE7);
-      case 'Tugas':
-        return const Color(0xFFE65100);
-      default:
+      case 'Proses':
+        return const Color(0xFFFFB74D);
+      case 'Belum':
         return const Color(0xFF636E72);
+      default:
+        return const Color(0xFF6C5CE7);
     }
   }
 
@@ -165,8 +336,8 @@ class _NilaiOrtuScreenState extends State<NilaiOrtuScreen>
           opacity: _fadeIn,
           child: Column(
             children: [
-              _buildProfileBar(),
-              const SizedBox(height: 12),
+              _buildHeader(),
+              const SizedBox(height: 10),
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: _loadNilai,
@@ -180,11 +351,25 @@ class _NilaiOrtuScreenState extends State<NilaiOrtuScreen>
                       children: [
                         if (_anakList.length > 1) _buildAnakSelector(),
                         if (_anakList.length > 1) const SizedBox(height: 10),
+                        if (_statusMessage.isNotEmpty || _isUsingCache)
+                          _buildStatusBanner(),
+                        if (_statusMessage.isNotEmpty || _isUsingCache)
+                          const SizedBox(height: 10),
                         _buildSummaryCard(),
+                        const SizedBox(height: 12),
+                        if (_tahunAjaranOptions.length > 1)
+                          _buildTahunAjaranSelector(),
+                        if (_tahunAjaranOptions.length > 1)
+                          const SizedBox(height: 10),
+                        if (_semesterOptions.length > 1)
+                          _buildSemesterSelector(),
+                        if (_semesterOptions.length > 1)
+                          const SizedBox(height: 10),
+                        _buildActionRow(),
                         const SizedBox(height: 14),
-                        if (_semesters.length > 1) _buildSemesterSelector(),
-                        if (_semesters.length > 1) const SizedBox(height: 10),
-                        _buildNilaiList(),
+                        _buildPelajaranSection(),
+                        const SizedBox(height: 14),
+                        _buildHafalanSection(),
                         const SizedBox(height: 20),
                       ],
                     ),
@@ -198,7 +383,7 @@ class _NilaiOrtuScreenState extends State<NilaiOrtuScreen>
     );
   }
 
-  Widget _buildProfileBar() {
+  Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: Container(
@@ -238,8 +423,11 @@ class _NilaiOrtuScreenState extends State<NilaiOrtuScreen>
                   Text(
                     _activeSiswaName.isNotEmpty
                         ? _activeSiswaName
-                        : 'Memuat...',
-                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                        : 'Memuat data anak...',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF636E72),
+                    ),
                   ),
                 ],
               ),
@@ -264,8 +452,9 @@ class _NilaiOrtuScreenState extends State<NilaiOrtuScreen>
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
-          value: _activeSiswaId,
+          value: _activeSiswaId > 0 ? _activeSiswaId : null,
           isExpanded: true,
+          hint: const Text('Pilih anak'),
           icon: const Icon(Icons.keyboard_arrow_down_rounded),
           style: const TextStyle(
             fontSize: 14,
@@ -274,27 +463,219 @@ class _NilaiOrtuScreenState extends State<NilaiOrtuScreen>
           ),
           items: _anakList.map((anak) {
             return DropdownMenuItem<int>(
-              value: anak['id'] as int,
+              value: (anak['id'] as num?)?.toInt(),
               child: Text(
-                '${anak['nama']} — ${anak['kelas'] ?? ''}',
+                '${anak['nama']} - ${anak['kelas'] ?? ''}',
                 style: const TextStyle(fontSize: 13),
               ),
             );
           }).toList(),
-          onChanged: (value) async {
-            if (value != null && value != _activeSiswaId) {
-              final anak = _anakList.firstWhere((a) => a['id'] == value);
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setInt('active_siswa_id', value);
-              await prefs.setString('active_siswa_nama', anak['nama'] ?? '');
-              setState(() {
-                _activeSiswaId = value;
-                _activeSiswaName = anak['nama'] ?? '';
-              });
-              _loadNilai();
-            }
+          onChanged: (value) {
+            if (value == null || value == _activeSiswaId) return;
+            final anak = _anakList.firstWhere((item) => item['id'] == value);
+            _selectAnak(value, anak['nama']?.toString() ?? '');
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildStatusBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: _isUsingCache
+            ? const Color(0xFFFFF3E0)
+            : const Color(0xFFE8F7F5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color:
+              (_isUsingCache
+                      ? const Color(0xFFE65100)
+                      : const Color(0xFF138F81))
+                  .withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            _isUsingCache ? Icons.cloud_off_rounded : Icons.info_rounded,
+            size: 18,
+            color: _isUsingCache
+                ? const Color(0xFFE65100)
+                : const Color(0xFF138F81),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _statusMessage.isNotEmpty
+                  ? _statusMessage
+                  : 'Offline. Menampilkan data nilai terakhir yang sudah tersinkron.',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: _isUsingCache
+                    ? const Color(0xFFE65100)
+                    : const Color(0xFF138F81),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard() {
+    if (_isLoading) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE1EFF7),
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(color: Color(0xFF138F81)),
+        ),
+      );
+    }
+
+    if (_errorMessage.isNotEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE1EFF7),
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 42,
+              color: Color(0xFFD63031),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              _errorMessage,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF636E72)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF138F81), Color(0xFF0984E3), Color(0xFF6C5CE7)],
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Rata-rata Pelajaran',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _rataRataPelajaran.toStringAsFixed(1),
+                      style: const TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 62,
+                height: 62,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Center(
+                  child: Text(
+                    _predikatPelajaran,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _summaryMini('Jumlah Mapel', '$_totalMapel mapel'),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: _summaryMini('Capaian Hafalan', _capaianHafalan)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _summaryMini(
+                  'Rata-rata Hafalan',
+                  _rataRataHafalan.toStringAsFixed(1),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryMini(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: Colors.white.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -318,486 +699,464 @@ class _NilaiOrtuScreenState extends State<NilaiOrtuScreen>
             fontWeight: FontWeight.w600,
             color: Color(0xFF2D3436),
           ),
-          items: _semesters.map((sem) {
+          items: _semesterOptions.map((semester) {
             return DropdownMenuItem<String>(
-              value: sem.toString(),
-              child: Text(sem.toString(), style: const TextStyle(fontSize: 13)),
+              value: semester.toString(),
+              child: Text(
+                semester.toString(),
+                style: const TextStyle(fontSize: 13),
+              ),
             );
           }).toList(),
           onChanged: (value) {
-            if (value != null) {
-              setState(() => _selectedSemester = value);
-              _loadNilai();
-            }
+            if (value == null) return;
+            setState(() => _selectedSemester = value);
+            _loadNilai();
           },
         ),
       ),
     );
   }
 
-  Widget _buildSummaryCard() {
-    // ignore: unused_local_variable
-    final predikatColor = _getPredikatColor(_predikatTotal);
-
+  Widget _buildTahunAjaranSelector() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF138F81), Color(0xFF0984E3), Color(0xFF6C5CE7)],
-        ),
+        color: const Color(0xFFE1EFF7),
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'RATA-RATA',
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white.withValues(alpha: 0.6),
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _rataRataTotal.toStringAsFixed(1),
-                    style: const TextStyle(
-                      fontSize: 42,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      height: 1,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Center(
-                  child: Text(
-                    _predikatTotal,
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedTahunAjaran,
+          isExpanded: true,
+          hint: const Text('Pilih Tahun Ajaran'),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded),
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF2D3436),
           ),
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'JUMLAH MAPEL',
-                    style: TextStyle(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white.withValues(alpha: 0.5),
-                      letterSpacing: 1,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '$_totalMapel Mata Pelajaran',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
+          items: _tahunAjaranOptions.map((tahun) {
+            return DropdownMenuItem<String>(
+              value: tahun.toString(),
+              child: Text(
+                tahun.toString(),
+                style: const TextStyle(fontSize: 13),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'PREDIKAT',
-                    style: TextStyle(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white.withValues(alpha: 0.5),
-                      letterSpacing: 1,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      _predikatTotal == 'A'
-                          ? 'Sangat Baik'
-                          : _predikatTotal == 'B'
-                          ? 'Baik'
-                          : _predikatTotal == 'C'
-                          ? 'Cukup'
-                          : 'Kurang',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
+            );
+          }).toList(),
+          onChanged: (value) {
+            if (value == null) return;
+            setState(() {
+              _selectedTahunAjaran = value;
+              _selectedSemester = null;
+            });
+            _loadNilai();
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildNilaiList() {
-    if (_isLoading) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 40),
-        child: Center(
-          child: CircularProgressIndicator(color: Color(0xFF138F81)),
-        ),
-      );
-    }
-
-    if (_errorMessage.isNotEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 40),
-        child: Center(
-          child: Column(
-            children: [
-              const Icon(
-                Icons.error_outline,
-                size: 48,
-                color: Color(0xFFD63031),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _errorMessage,
-                style: const TextStyle(color: Color(0xFF636E72), fontSize: 13),
-              ),
-            ],
+  Widget _buildActionRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE1EFF7),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Ringkasan Wali',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF2D3436),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  [
+                        if (_selectedSemester != null &&
+                            _selectedSemester!.trim().isNotEmpty)
+                          _selectedSemester,
+                        if (_selectedTahunAjaran != null &&
+                            _selectedTahunAjaran!.trim().isNotEmpty)
+                          _selectedTahunAjaran,
+                      ].join(' • ').isNotEmpty
+                      ? [
+                          if (_selectedSemester != null &&
+                              _selectedSemester!.trim().isNotEmpty)
+                            _selectedSemester,
+                          if (_selectedTahunAjaran != null &&
+                              _selectedTahunAjaran!.trim().isNotEmpty)
+                            _selectedTahunAjaran,
+                        ].join(' • ')
+                      : 'Periode aktif',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF636E72),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      );
-    }
-
-    if (_nilaiPerMapel.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 40),
-        child: Center(
-          child: Column(
-            children: [
-              Icon(Icons.school_rounded, size: 48, color: Colors.grey[400]),
-              const SizedBox(height: 8),
-              Text(
-                'Belum ada data nilai',
-                style: TextStyle(color: Colors.grey[500], fontSize: 13),
-              ),
-            ],
+        const SizedBox(width: 10),
+        ElevatedButton.icon(
+          onPressed: _activeSiswaId > 0 ? _showExportOptions : null,
+          icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+          label: const Text('Dokumen'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF138F81),
+            foregroundColor: Colors.white,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
           ),
         ),
-      );
-    }
+      ],
+    );
+  }
 
+  Widget _buildPelajaranSection() {
+    return _buildSectionContainer(
+      title: 'Nilai Pelajaran',
+      subtitle: 'Nilai akademik per mata pelajaran',
+      icon: Icons.menu_book_rounded,
+      iconColor: const Color(0xFF138F81),
+      child: _nilaiPelajaran.isEmpty
+          ? _emptyState('Belum ada nilai pelajaran untuk semester ini')
+          : Column(children: _nilaiPelajaran.map(_buildMapelCard).toList()),
+    );
+  }
+
+  Widget _buildHafalanSection() {
+    return _buildSectionContainer(
+      title: 'Hafalan Al-Quran',
+      subtitle: 'Capaian hafalan ditampilkan terpisah',
+      icon: Icons.auto_stories_rounded,
+      iconColor: const Color(0xFF6C5CE7),
+      child: _nilaiHafalan.isEmpty
+          ? _emptyState('Belum ada data hafalan untuk semester ini')
+          : Column(children: _nilaiHafalan.map(_buildHafalanCard).toList()),
+    );
+  }
+
+  Widget _buildSectionContainer({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    required Widget child,
+  }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFFE1EFF7),
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Nilai Per Mata Pelajaran',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF2D3436),
-            ),
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF2D3436),
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF636E72),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
-          ...List.generate(
-            _nilaiPerMapel.length,
-            (index) => _buildMapelCard(_nilaiPerMapel[index], index),
-          ),
+          child,
         ],
       ),
     );
   }
 
-  Widget _buildMapelCard(dynamic mapelData, int index) {
-    final mapelNama = mapelData['mapel_nama']?.toString() ?? '-';
-    final mapelKode = mapelData['mapel_kode']?.toString() ?? '-';
-    final rataRata = (mapelData['rata_rata'] ?? 0).toDouble();
-    final predikat = mapelData['predikat']?.toString() ?? '-';
-    final detail = List.from(mapelData['detail'] ?? []);
-    final predikatColor = _getPredikatColor(predikat);
-    final isExpanded = _expandedMapel.contains(index);
+  Widget _buildMapelCard(Map<String, dynamic> item) {
+    final mapelId = (item['mapel_id'] as num?)?.toInt() ?? 0;
+    final expanded = _expandedMapel.contains(mapelId);
+    final predikat = item['predikat']?.toString() ?? '-';
+    final detail = List<Map<String, dynamic>>.from(item['detail'] ?? const []);
+    final color = _getPredikatColor(predikat);
 
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: Duration(milliseconds: 400 + (index * 80)),
-      curve: Curves.easeOutCubic,
-      builder: (context, value, child) {
-        return Opacity(
-          opacity: value,
-          child: Transform.translate(
-            offset: Offset(0, 20 * (1 - value)),
-            child: child,
-          ),
-        );
-      },
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            if (isExpanded) {
-              _expandedMapel.remove(index);
-            } else {
-              _expandedMapel.add(index);
-            }
-          });
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        children: [
+          InkWell(
             borderRadius: BorderRadius.circular(16),
-            border: isExpanded
-                ? Border.all(
-                    color: predikatColor.withValues(alpha: 0.3),
-                    width: 1.5,
-                  )
-                : null,
-          ),
-          child: Column(
-            children: [
-              // Header row
-              Row(
-                children: [
-                  // Mapel initial
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: predikatColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              setState(() {
+                if (expanded) {
+                  _expandedMapel.remove(mapelId);
+                } else {
+                  _expandedMapel.add(mapelId);
+                }
+              });
+            },
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['mapel_nama']?.toString() ?? '-',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF2D3436),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Penilai: ${item['penilai_nama'] ?? '-'} (${item['penilai_role'] ?? '-'})',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF636E72),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${item['rata_rata'] ?? 0}',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: color,
+                      ),
                     ),
-                    child: Center(
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       child: Text(
-                        mapelKode,
+                        predikat,
                         style: TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: predikatColor,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Mapel name + progress
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          mapelNama,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF2D3436),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        // Progress bar
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: rataRata / 100,
-                            backgroundColor: predikatColor.withValues(
-                              alpha: 0.1,
-                            ),
-                            valueColor: AlwaysStoppedAnimation(predikatColor),
-                            minHeight: 6,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Score + predikat
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        rataRata.toStringAsFixed(1),
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: predikatColor,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: predikatColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          predikat,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: predikatColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    isExpanded
-                        ? Icons.keyboard_arrow_up_rounded
-                        : Icons.keyboard_arrow_down_rounded,
-                    size: 20,
-                    color: Colors.grey[400],
-                  ),
-                ],
-              ),
-
-              // Expanded detail
-              if (isExpanded) ...[
-                const SizedBox(height: 12),
-                Container(
-                  height: 1,
-                  color: const Color(0xFF2D3436).withValues(alpha: 0.08),
-                ),
-                const SizedBox(height: 10),
-                // Detail per jenis ujian
-                ...detail.map<Widget>((d) {
-                  final jenisUjian = d['jenis_ujian']?.toString() ?? '';
-                  final nilai = (d['nilai'] ?? 0).toDouble();
-                  final ujianColor = _getJenisUjianColor(jenisUjian);
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: ujianColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            jenisUjian == 'Hafalan'
-                                ? Icons.menu_book_rounded
-                                : jenisUjian == 'Tugas'
-                                ? Icons.assignment_rounded
-                                : Icons.quiz_rounded,
-                            size: 14,
-                            color: ujianColor,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            jenisUjian,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF2D3436),
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: ujianColor.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            nilai.toStringAsFixed(0),
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                              color: ujianColor,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                // Average footer
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: predikatColor.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Rata-rata',
-                        style: TextStyle(
-                          fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: predikatColor,
+                          color: color,
                         ),
                       ),
-                      Text(
-                        '${rataRata.toStringAsFixed(1)} — Predikat $predikat',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: predikatColor,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  expanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  color: const Color(0xFF636E72),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          LinearProgressIndicator(
+            value: ((item['rata_rata'] as num?)?.toDouble() ?? 0) / 100,
+            minHeight: 6,
+            borderRadius: BorderRadius.circular(6),
+            color: color,
+            backgroundColor: color.withValues(alpha: 0.15),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Update terakhir: ${item['updated_at'] ?? '-'}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF636E72),
+                  ),
+                ),
+              ),
+              Text(
+                'Komponen: ${detail.length}',
+                style: const TextStyle(fontSize: 11, color: Color(0xFF636E72)),
+              ),
             ],
           ),
+          if (expanded) ...[
+            const SizedBox(height: 10),
+            const Divider(height: 1),
+            const SizedBox(height: 10),
+            ...detail.map((detailItem) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        detailItem['jenis_ujian']?.toString() ?? '-',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF2D3436),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${detailItem['nilai'] ?? '-'} (${detailItem['predikat'] ?? '-'})',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF2D3436),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHafalanCard(Map<String, dynamic> item) {
+    final status = item['status']?.toString() ?? '-';
+    final statusColor = _getStatusColor(status);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  item['item_label']?.toString() ?? '-',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF2D3436),
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  status,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Nilai/Capaian: ${item['nilai'] ?? '-'}',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF2D3436),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Penilai: ${item['penilai_nama'] ?? '-'} (${item['penilai_role'] ?? '-'})',
+            style: const TextStyle(fontSize: 11, color: Color(0xFF636E72)),
+          ),
+          Text(
+            'Update terakhir: ${item['updated_at'] ?? '-'}',
+            style: const TextStyle(fontSize: 11, color: Color(0xFF636E72)),
+          ),
+          if ((item['keterangan']?.toString() ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              item['keterangan'].toString(),
+              style: const TextStyle(fontSize: 11, color: Color(0xFF2D3436)),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyState(String message) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(Icons.assignment_rounded, size: 44, color: Colors.grey[400]),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF636E72)),
+            ),
+          ],
         ),
       ),
     );

@@ -3,16 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Jadwal;
 use App\Models\KelompokBelajar;
 use App\Models\Siswa;
+use App\Services\ReferenceResolver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class KelompokBelajarController extends Controller
 {
     // GET /api/kelompok-belajar — list semua kelompok + jumlah siswa
     public function index(Request $request)
     {
-        $query = KelompokBelajar::withCount('siswa');
+        $query = KelompokBelajar::query();
 
         if ($request->has('sifir')) {
             $query->where('sifir', $request->sifir);
@@ -22,17 +25,27 @@ class KelompokBelajarController extends Controller
         }
 
         $data = $query->orderBy('kategori')->orderBy('nama')->get();
+        $activeStatusId = app(ReferenceResolver::class)->studentStatusId('Aktif');
+        $teacherId = $request->integer('user_id') ?: null;
+        $teacherName = $teacherId
+            ? DB::table('users')->where('id', $teacherId)->where('role', 'guru')->value('name')
+            : null;
+        if ($teacherId && !$teacherName) {
+            $teacherId = null;
+        }
 
         // Group by kategori
-        $grouped = $data->groupBy('kategori')->map(function ($items, $kategori) {
+        $grouped = $data->groupBy('kategori')->map(function ($items, $kategori) use ($activeStatusId, $teacherId, $teacherName) {
             return [
                 'kategori' => $kategori,
-                'kelas' => $items->map(function ($k) {
+                'kelas' => $items->map(function ($k) use ($activeStatusId, $teacherId, $teacherName) {
                     return [
                         'id' => $k->id,
+                        'class_id' => $k->class_id,
                         'nama' => $k->nama,
                         'sifir' => $k->sifir,
-                        'jumlah_siswa' => $k->siswa_count,
+                        'jumlah_siswa' => $this->activeStudentCount($k, $activeStatusId),
+                        'jumlah_mapel_aktif' => $this->activeMapelCount($k, $teacherId, $teacherName),
                     ];
                 })->values(),
             ];
@@ -45,18 +58,55 @@ class KelompokBelajarController extends Controller
     }
 
     // GET /api/kelompok-belajar/{id} — detail dengan list siswa
+    private function activeStudentCount(KelompokBelajar $kelompokBelajar, ?int $activeStatusId): int
+    {
+        return $this->activeStudentQuery($kelompokBelajar, $activeStatusId)->count();
+    }
+
+    private function activeMapelCount(KelompokBelajar $kelompokBelajar, ?int $teacherId = null, ?string $teacherName = null): int
+    {
+        return Jadwal::query()
+            ->where('status', 'Aktif')
+            ->whereNotNull('mapel_id')
+            ->when($teacherId, function ($query) use ($teacherId, $teacherName) {
+                $normalizedName = mb_strtolower(trim((string) $teacherName));
+                $query->where(function ($nested) use ($teacherId, $normalizedName) {
+                    $nested->where('teacher_id', $teacherId);
+                    if ($normalizedName !== '') {
+                        $nested->orWhereRaw('LOWER(TRIM(COALESCE(guru, \'\'))) = ?', [$normalizedName]);
+                    }
+                });
+            })
+            ->where(function ($query) use ($kelompokBelajar) {
+                if ($kelompokBelajar->class_id) {
+                    $query->where('class_id', $kelompokBelajar->class_id);
+                }
+                if ($kelompokBelajar->nama) {
+                    $method = $kelompokBelajar->class_id ? 'orWhere' : 'where';
+                    $query->{$method}('sifir', $kelompokBelajar->nama);
+                }
+            })
+            ->whereHas('mataPelajaran', fn ($query) => $query->where('status', 'Aktif'))
+            ->distinct()
+            ->count('mapel_id');
+    }
+
     public function show(KelompokBelajar $kelompokBelajar)
     {
-        $kelompokBelajar->load('siswa');
+        $activeStatusId = app(ReferenceResolver::class)->studentStatusId('Aktif');
+        $siswa = $this->activeStudentQuery($kelompokBelajar, $activeStatusId)
+            ->orderBy('nama')
+            ->get();
 
         return response()->json([
             'success' => true,
             'data' => [
                 'id' => $kelompokBelajar->id,
+                'class_id' => $kelompokBelajar->class_id,
                 'nama' => $kelompokBelajar->nama,
                 'kategori' => $kelompokBelajar->kategori,
                 'sifir' => $kelompokBelajar->sifir,
-                'siswa' => $kelompokBelajar->siswa->map(function ($s) {
+                'siswa' => $siswa->map(function ($s) {
                     return [
                         'id' => $s->id,
                         'nis' => $s->nis,
@@ -74,9 +124,12 @@ class KelompokBelajarController extends Controller
     {
         $validated = $request->validate([
             'nama' => 'required|string',
+            'class_id' => 'nullable|integer|exists:classes,id',
             'kategori' => 'required|string',
             'sifir' => 'required|string',
         ]);
+        $validated['class_id'] = $validated['class_id']
+            ?? app(ReferenceResolver::class)->classId($validated['nama'], false);
 
         $kelompok = KelompokBelajar::create($validated);
 
@@ -105,7 +158,10 @@ class KelompokBelajarController extends Controller
         $kelompokBelajar->siswa()->attach($validated['siswa_id']);
 
         // Update kelas siswa to match kelompok
-        Siswa::where('id', $validated['siswa_id'])->update(['kelas' => $kelompokBelajar->nama]);
+        Siswa::where('id', $validated['siswa_id'])->update([
+            'kelas' => $kelompokBelajar->nama,
+            'class_id' => $kelompokBelajar->class_id,
+        ]);
 
         return response()->json([
             'success' => true,
@@ -128,7 +184,11 @@ class KelompokBelajarController extends Controller
     // GET /api/kelompok-belajar/by-kelas/{nama} — ambil siswa berdasarkan nama kelas
     public function byKelas($nama)
     {
-        $kelompok = KelompokBelajar::where('nama', $nama)->first();
+        $classId = app(ReferenceResolver::class)->classId($nama, false);
+        $kelompok = KelompokBelajar::query()
+            ->where('nama', $nama)
+            ->when($classId, fn ($query) => $query->orWhere('class_id', $classId))
+            ->first();
 
         if (!$kelompok) {
             return response()->json([
@@ -137,7 +197,8 @@ class KelompokBelajarController extends Controller
             ]);
         }
 
-        $siswa = $kelompok->siswa()->orderBy('nama')->get()->map(function ($s) {
+        $activeStatusId = app(ReferenceResolver::class)->studentStatusId('Aktif');
+        $siswa = $this->activeStudentQuery($kelompok, $activeStatusId)->orderBy('nama')->get()->map(function ($s) {
             return [
                 'id' => $s->id,
                 'nis' => $s->nis,
@@ -153,19 +214,49 @@ class KelompokBelajarController extends Controller
         ]);
     }
 
+    private function activeStudentQuery(KelompokBelajar $kelompokBelajar, ?int $activeStatusId)
+    {
+        return Siswa::query()
+            ->where(function ($query) use ($kelompokBelajar) {
+                if ($kelompokBelajar->class_id) {
+                    $query->where('class_id', $kelompokBelajar->class_id);
+                }
+                if ($kelompokBelajar->nama) {
+                    $method = $kelompokBelajar->class_id ? 'orWhere' : 'where';
+                    $query->{$method}('kelas', $kelompokBelajar->nama);
+                }
+                $pivotIds = $kelompokBelajar->siswa()->pluck('siswa.id');
+                if ($pivotIds->isNotEmpty()) {
+                    $query->orWhereIn('id', $pivotIds);
+                }
+            })
+            ->when(
+                $activeStatusId,
+                fn ($query) => $query->where('student_status_id', $activeStatusId),
+                fn ($query) => $query->where('status', 'Aktif')
+            );
+    }
+
     // PUT /api/kelompok-belajar/{id} — update kelompok
     public function update(Request $request, KelompokBelajar $kelompokBelajar)
     {
         $validated = $request->validate([
             'nama' => 'sometimes|string',
+            'class_id' => 'nullable|integer|exists:classes,id',
             'kategori' => 'sometimes|string',
             'sifir' => 'sometimes|string',
         ]);
+        if (array_key_exists('nama', $validated) && !array_key_exists('class_id', $validated)) {
+            $validated['class_id'] = app(ReferenceResolver::class)->classId($validated['nama'], false);
+        }
 
         // If nama changed, also update siswa.kelas for all attached siswa
         if (isset($validated['nama']) && $validated['nama'] !== $kelompokBelajar->nama) {
             Siswa::whereIn('id', $kelompokBelajar->siswa()->pluck('siswa_id'))
-                ->update(['kelas' => $validated['nama']]);
+                ->update([
+                    'kelas' => $validated['nama'],
+                    'class_id' => $validated['class_id'] ?? $kelompokBelajar->class_id,
+                ]);
         }
 
         $kelompokBelajar->update($validated);

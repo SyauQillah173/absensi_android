@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../services/api_service.dart';
 import '../../services/cache_service.dart';
+import '../../services/sync_service.dart';
+import '../../widgets/adaptive_bottom_sheet.dart';
 import 'edit_mapel_screen.dart';
 
 class MataPelajaranScreen extends StatefulWidget {
@@ -12,9 +16,19 @@ class MataPelajaranScreen extends StatefulWidget {
 }
 
 class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
-  static const _cacheKey = 'mata_pelajaran_all';
+  static const _cacheKey = 'mata_pelajaran_all_v2';
+  static const List<String> _orderedHari = <String>[
+    'Ahad',
+    'Senin',
+    'Selasa',
+    'Rabu',
+    'Kamis',
+    'Jumat',
+    'Sabtu',
+  ];
 
   final TextEditingController _searchController = TextEditingController();
+  StreamSubscription<AppDataEvent>? _syncSubscription;
 
   List<Map<String, dynamic>> _allMapel = [];
   List<Map<String, dynamic>> _filteredMapel = [];
@@ -23,15 +37,31 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
   bool _isSyncing = false;
   String _searchQuery = '';
   String? _errorMessage;
+  final Set<int> _pendingToggleIds = <int>{};
+  final Set<int> _pendingDeleteIds = <int>{};
+  int _skipNextMapelSyncReloads = 0;
 
   @override
   void initState() {
     super.initState();
     _loadMapel();
+    _syncSubscription = SyncService.dataEvents.listen((event) {
+      if (!mounted) return;
+      if (event.topic == SyncTopics.mapel) {
+        if (_skipNextMapelSyncReloads > 0) {
+          _skipNextMapelSyncReloads--;
+          return;
+        }
+        _loadMapel();
+      } else if (event.topic == SyncTopics.heartbeat) {
+        _loadMapel();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _syncSubscription?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -56,7 +86,7 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
     if (cached is Map<String, dynamic> &&
         mounted &&
         cached['success'] == true &&
-        (_allMapel.isEmpty || !forceRefresh)) {
+        _allMapel.isEmpty) {
       final cachedList = List<Map<String, dynamic>>.from(cached['data'] ?? []);
       setState(() {
         _allMapel = cachedList;
@@ -121,9 +151,51 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
     }).toList();
   }
 
+  void _setLocalMapelList(List<Map<String, dynamic>> items) {
+    _allMapel = List<Map<String, dynamic>>.from(
+      items.map((item) => Map<String, dynamic>.from(item)),
+    );
+    _applySearch();
+  }
+
+  Future<void> _persistLocalCache() async {
+    await CacheService.save(_cacheKey, {'success': true, 'data': _allMapel});
+  }
+
+  void _replaceLocalMapel(Map<String, dynamic> updated) {
+    final id = (updated['id'] as num?)?.toInt();
+    if (id == null) return;
+
+    final next = List<Map<String, dynamic>>.from(_allMapel);
+    final index = next.indexWhere((item) => item['id'] == id);
+    if (index >= 0) {
+      next[index] = Map<String, dynamic>.from(updated);
+    } else {
+      next.add(Map<String, dynamic>.from(updated));
+    }
+    next.sort((a, b) {
+      final left = a['nama']?.toString() ?? '';
+      final right = b['nama']?.toString() ?? '';
+      return left.compareTo(right);
+    });
+    _setLocalMapelList(next);
+  }
+
+  void _removeLocalMapel(int id) {
+    final next = List<Map<String, dynamic>>.from(_allMapel)
+      ..removeWhere((item) => item['id'] == id);
+    _setLocalMapelList(next);
+  }
+
+  void _suppressNextMapelSyncReload() {
+    _skipNextMapelSyncReloads++;
+  }
+
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
       SnackBar(
         content: Text(message),
         backgroundColor: isError
@@ -136,16 +208,45 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
   }
 
   Future<void> _toggleStatus(Map<String, dynamic> mapel) async {
-    final id = mapel['id'] as int;
+    final id = (mapel['id'] as num?)?.toInt();
+    if (id == null) return;
+    if (_pendingToggleIds.contains(id)) return;
+    final mapelName = (mapel['nama']?.toString().trim().isNotEmpty ?? false)
+        ? mapel['nama'].toString().trim()
+        : 'Mata pelajaran';
     final currentStatus = mapel['status']?.toString() ?? 'Aktif';
     final newStatus = currentStatus == 'Aktif' ? 'Nonaktif' : 'Aktif';
+    final previous = Map<String, dynamic>.from(mapel);
+
+    setState(() {
+      _pendingToggleIds.add(id);
+      _replaceLocalMapel({...previous, 'status': newStatus});
+    });
 
     try {
-      await ApiService.toggleMapelStatus(id, newStatus);
-      _showSnackBar('${mapel['nama']} -> $newStatus');
-      await _loadMapel(forceRefresh: true);
+      final result = await ApiService.toggleMapelStatus(id, newStatus);
+      final updated = result['data'];
+      if (updated is Map) {
+        _replaceLocalMapel(Map<String, dynamic>.from(updated));
+      }
+      await _persistLocalCache();
+      _suppressNextMapelSyncReload();
+      await SyncService.notifyDataChanged(
+        SyncTopics.mapel,
+        message: 'Data mata pelajaran telah diperbarui',
+      );
+      _showSnackBar('$mapelName -> $newStatus');
     } catch (e) {
+      if (mounted) {
+        setState(() => _replaceLocalMapel(previous));
+      }
       _showSnackBar('Gagal mengubah status: $e', isError: true);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _pendingToggleIds.remove(id);
+        });
+      }
     }
   }
 
@@ -155,9 +256,7 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Hapus Mata Pelajaran?'),
-        content: Text(
-          'Apakah kamu yakin ingin menghapus "${mapel['nama']}"?',
-        ),
+        content: Text('Apakah kamu yakin ingin menghapus "${mapel['nama']}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -168,23 +267,35 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFE65100),
             ),
-            child: const Text(
-              'Hapus',
-              style: TextStyle(color: Colors.white),
-            ),
+            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
 
     if (confirm != true) return;
+    final id = mapel['id'] as int;
+    if (_pendingDeleteIds.contains(id)) return;
 
     try {
-      await ApiService.deleteMataPelajaran(mapel['id'] as int);
+      setState(() => _pendingDeleteIds.add(id));
+      await ApiService.deleteMataPelajaran(id);
+      if (mounted) {
+        setState(() => _removeLocalMapel(id));
+      }
+      await _persistLocalCache();
+      _suppressNextMapelSyncReload();
+      await SyncService.notifyDataChanged(
+        SyncTopics.mapel,
+        message: 'Data mata pelajaran telah diperbarui',
+      );
       _showSnackBar('${mapel['nama']} berhasil dihapus');
-      await _loadMapel(forceRefresh: true);
     } catch (e) {
       _showSnackBar('Gagal menghapus: $e', isError: true);
+    } finally {
+      if (mounted) {
+        setState(() => _pendingDeleteIds.remove(id));
+      }
     }
   }
 
@@ -196,17 +307,8 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: EdgeInsets.fromLTRB(
-          24,
-          20,
-          24,
-          MediaQuery.of(ctx).viewInsets.bottom + 24,
-        ),
-        decoration: const BoxDecoration(
-          color: Color(0xFFE1EFF7),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-        ),
+      builder: (ctx) => AdaptiveBottomSheet(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -286,18 +388,31 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
                   }
 
                   try {
-                    await ApiService.createMataPelajaran({
+                    final result = await ApiService.createMataPelajaran({
                       'nama': namaController.text.trim().toUpperCase(),
                       'kode': kodeController.text.trim().isEmpty
                           ? null
                           : kodeController.text.trim().toUpperCase(),
                       'status': 'Aktif',
                     });
+                    final created = result['data'];
+                    if (created is Map && mounted) {
+                      setState(
+                        () => _replaceLocalMapel(
+                          Map<String, dynamic>.from(created),
+                        ),
+                      );
+                      await _persistLocalCache();
+                    }
+                    _suppressNextMapelSyncReload();
+                    await SyncService.notifyDataChanged(
+                      SyncTopics.mapel,
+                      message: 'Mata pelajaran baru sudah tersedia',
+                    );
                     if (ctx.mounted) Navigator.pop(ctx);
                     _showSnackBar(
                       '${namaController.text.trim().toUpperCase()} berhasil ditambahkan',
                     );
-                    await _loadMapel(forceRefresh: true);
                   } catch (e) {
                     _showSnackBar('Gagal menambah mapel: $e', isError: true);
                   }
@@ -432,10 +547,7 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
                       color: Color(0xFF636E72),
                     ),
                     border: InputBorder.none,
-                    icon: Icon(
-                      Icons.search_rounded,
-                      color: Color(0xFF138F81),
-                    ),
+                    icon: Icon(Icons.search_rounded, color: Color(0xFF138F81)),
                   ),
                 ),
               ),
@@ -554,10 +666,7 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
               _allMapel.isEmpty
                   ? 'Belum ada mata pelajaran tersimpan'
                   : 'Tidak ada hasil yang cocok',
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF636E72),
-              ),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF636E72)),
             ),
           ],
         ),
@@ -579,10 +688,7 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
     );
   }
 
-  Widget _buildTinyStatusChip({
-    required String label,
-    required Color color,
-  }) {
+  Widget _buildTinyStatusChip({required String label, required Color color}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
@@ -648,15 +754,63 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
     );
   }
 
+  List<Map<String, dynamic>> _groupJadwalForCard(
+    List<Map<String, dynamic>> jadwalList,
+  ) {
+    final grouped = <String, List<Map<String, dynamic>>>{};
+    for (final jadwal in jadwalList) {
+      final key = [
+        jadwal['guru']?.toString().trim().toLowerCase() ?? '',
+        jadwal['hari']?.toString().trim().toLowerCase() ?? '',
+        jadwal['jam_mulai']?.toString().trim() ?? '',
+        jadwal['jam_selesai']?.toString().trim() ?? '',
+      ].join('|');
+      grouped.putIfAbsent(key, () => []).add(Map<String, dynamic>.from(jadwal));
+    }
+
+    final values = grouped.values.map((items) {
+      final kelasSet =
+          items
+              .map((item) => item['sifir']?.toString().trim() ?? '')
+              .where((item) => item.isNotEmpty)
+              .toSet()
+              .toList()
+            ..sort();
+      return {
+        'hari': items.first['hari'],
+        'jam_mulai': items.first['jam_mulai'],
+        'jam_selesai': items.first['jam_selesai'],
+        'kelas_count': kelasSet.length,
+      };
+    }).toList();
+
+    values.sort((a, b) {
+      final leftHari = a['hari']?.toString() ?? '';
+      final rightHari = b['hari']?.toString() ?? '';
+      final dayCompare = _compareHari(leftHari, rightHari);
+      if (dayCompare != 0) return dayCompare;
+      return (a['jam_mulai']?.toString() ?? '').compareTo(
+        b['jam_mulai']?.toString() ?? '',
+      );
+    });
+
+    return values;
+  }
+
   Widget _buildMapelCard(Map<String, dynamic> mapel) {
+    final mapelId = (mapel['id'] as num?)?.toInt() ?? 0;
     final isActive = mapel['status'] == 'Aktif';
+    final isToggleLoading = _pendingToggleIds.contains(mapelId);
+    final isDeleteLoading = _pendingDeleteIds.contains(mapelId);
     final guruList = List<Map<String, dynamic>>.from(mapel['guru'] ?? []);
     final jadwalList = List<Map<String, dynamic>>.from(mapel['jadwal'] ?? []);
+    final jadwalGroups = _groupJadwalForCard(jadwalList);
     final guruNames = guruList.isNotEmpty
         ? guruList.map((guru) => guru['name'] ?? '').join(', ')
         : 'Belum ada guru';
 
     return Padding(
+      key: ValueKey('mapel_card_$mapelId'),
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
@@ -689,9 +843,7 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
                         ? Icons.check_circle_rounded
                         : Icons.pause_circle_rounded,
                     size: 18,
-                    color: isActive
-                        ? const Color(0xFF138F81)
-                        : Colors.grey,
+                    color: isActive ? const Color(0xFF138F81) : Colors.grey,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -737,20 +889,20 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
                     style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w700,
-                      color: isActive
-                          ? const Color(0xFF138F81)
-                          : Colors.grey,
+                      color: isActive ? const Color(0xFF138F81) : Colors.grey,
                     ),
                   ),
                 ),
               ],
             ),
-            if (jadwalList.isNotEmpty) ...[
+            if (jadwalGroups.isNotEmpty) ...[
               const SizedBox(height: 8),
               Wrap(
                 spacing: 6,
                 runSpacing: 4,
-                children: jadwalList.take(3).map((jadwal) {
+                children: jadwalGroups.take(3).map((jadwal) {
+                  final kelasCount =
+                      (jadwal['kelas_count'] as num?)?.toInt() ?? 0;
                   return Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -761,7 +913,7 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      '${jadwal['hari']} ${jadwal['jam_mulai']}-${jadwal['jam_selesai']}',
+                      '${jadwal['hari']} ${jadwal['jam_mulai']}-${jadwal['jam_selesai']}${kelasCount > 1 ? ' • $kelasCount kelas' : ''}',
                       style: const TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.w600,
@@ -778,13 +930,27 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
               children: [
                 GestureDetector(
                   onTap: () async {
-                    await Navigator.push(
+                    final result = await Navigator.push<dynamic>(
                       context,
                       MaterialPageRoute(
                         builder: (_) => EditMapelScreen(mapelData: mapel),
                       ),
                     );
-                    await _loadMapel(forceRefresh: true);
+                    if (result is Map<String, dynamic>) {
+                      if (!mounted) return;
+                      setState(() => _replaceLocalMapel(result));
+                      await _persistLocalCache();
+                      _suppressNextMapelSyncReload();
+                      await SyncService.notifyDataChanged(
+                        SyncTopics.mapel,
+                        message: 'Data mata pelajaran telah diperbarui',
+                      );
+                      _showSnackBar(
+                        '${result['nama'] ?? 'Mata pelajaran'} berhasil diperbarui',
+                      );
+                    } else if (result == true) {
+                      await _loadMapel(forceRefresh: true);
+                    }
                   },
                   child: _buildActionChip(
                     label: 'Edit',
@@ -794,7 +960,7 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
                 ),
                 const SizedBox(width: 8),
                 GestureDetector(
-                  onTap: () => _toggleStatus(mapel),
+                  onTap: isToggleLoading ? null : () => _toggleStatus(mapel),
                   child: _buildActionChip(
                     label: isActive ? 'Nonaktifkan' : 'Aktifkan',
                     icon: isActive
@@ -803,11 +969,12 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
                     color: isActive
                         ? const Color(0xFFE65100)
                         : const Color(0xFF138F81),
+                    isLoading: isToggleLoading,
                   ),
                 ),
                 const SizedBox(width: 8),
                 GestureDetector(
-                  onTap: () => _deleteMapel(mapel),
+                  onTap: isDeleteLoading ? null : () => _deleteMapel(mapel),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
@@ -817,11 +984,20 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
                       color: const Color(0xFFE65100).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(
-                      Icons.delete_rounded,
-                      size: 14,
-                      color: Color(0xFFE65100),
-                    ),
+                    child: isDeleteLoading
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFFE65100),
+                            ),
+                          )
+                        : const Icon(
+                            Icons.delete_rounded,
+                            size: 14,
+                            color: Color(0xFFE65100),
+                          ),
                   ),
                 ),
               ],
@@ -836,6 +1012,7 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
     required String label,
     required IconData icon,
     required Color color,
+    bool isLoading = false,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -845,7 +1022,14 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 12, color: color),
+          if (isLoading)
+            SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(strokeWidth: 2, color: color),
+            )
+          else
+            Icon(icon, size: 12, color: color),
           const SizedBox(width: 4),
           Text(
             label,
@@ -858,5 +1042,19 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
         ],
       ),
     );
+  }
+
+  int _hariRank(String? hari) {
+    final normalized = (hari ?? '').trim().toLowerCase();
+    final index = _orderedHari.indexWhere(
+      (item) => item.toLowerCase() == normalized,
+    );
+    return index >= 0 ? index : _orderedHari.length;
+  }
+
+  int _compareHari(String? left, String? right) {
+    final rankCompare = _hariRank(left).compareTo(_hariRank(right));
+    if (rankCompare != 0) return rankCompare;
+    return (left ?? '').compareTo(right ?? '');
   }
 }

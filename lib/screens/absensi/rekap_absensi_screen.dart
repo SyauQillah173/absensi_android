@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../services/api_service.dart';
 import '../../services/cache_service.dart';
+import '../../services/reference_data_service.dart';
 
 class RekapAbsensiScreen extends StatefulWidget {
   const RekapAbsensiScreen({super.key});
@@ -31,6 +32,7 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen>
   bool _isLoading = false;
   String? _errorMessage;
   bool _isExporting = false;
+  List<String> _kelasList = [];
 
   final List<String> _bulanNames = [
     'Januari',
@@ -47,20 +49,6 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen>
     'Desember',
   ];
 
-  final List<String> _kelasList = [
-    'Sifir Awal A PA',
-    'Sifir Awal B PA',
-    'Sifir Awal A PI',
-    'Sifir Awal B PI',
-    'Sifir Tsani A PA',
-    'Sifir Tsani B PA',
-    'Sifir Tsani A PI',
-    'Sifir Tsani B PI',
-    'Sifir Tsalits PA',
-    'Sifir Tsalits PI',
-    'Sifir Robi',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -73,7 +61,31 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen>
       end: 1,
     ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
+    _loadReferenceKelas();
     _loadRekap();
+  }
+
+  Future<void> _loadReferenceKelas() async {
+    final cached = await ReferenceDataService.getCached();
+    if (cached != null && mounted && _kelasList.isEmpty) {
+      setState(() {
+        _kelasList = cached.kelas
+            .map((item) => item['nama']?.toString() ?? '')
+            .where((item) => item.isNotEmpty)
+            .toList();
+      });
+    }
+
+    try {
+      final fresh = await ReferenceDataService.refresh();
+      if (!mounted) return;
+      setState(() {
+        _kelasList = fresh.kelas
+            .map((item) => item['nama']?.toString() ?? '')
+            .where((item) => item.isNotEmpty)
+            .toList();
+      });
+    } catch (_) {}
   }
 
   Future<void> _loadRekap() async {

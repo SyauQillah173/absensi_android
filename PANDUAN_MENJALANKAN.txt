@@ -1,0 +1,1095 @@
+# PANDUAN MENJALANKAN PROJECT
+
+Update: 2 Juni 2026
+Project: Absensi Android + Laravel Backend
+
+Panduan ini menjelaskan cara menjalankan backend Laravel, database PostgreSQL, dan aplikasi Flutter Android setelah rombak besar database.
+
+## 1. Struktur Project
+
+Folder utama:
+
+```text
+absensi_android
+```
+
+Backend Laravel:
+
+```text
+absensi_backend
+```
+
+Frontend Android Flutter berada di root project.
+
+Database:
+
+```text
+PostgreSQL
+Database name: absensi_db
+```
+
+## 2. Persiapan Wajib
+
+Pastikan sudah terpasang:
+
+- PHP sesuai kebutuhan Laravel;
+- Composer;
+- PostgreSQL;
+- Flutter SDK;
+- Android Studio atau emulator Android;
+- Git;
+- koneksi internet untuk import wilayah resmi pertama kali.
+
+## 3. Cek File Environment Backend
+
+Masuk folder backend:
+
+```bash
+cd absensi_backend
+```
+
+Cek file:
+
+```text
+.env
+```
+
+Pastikan koneksi database mengarah ke PostgreSQL:
+
+```env
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=absensi_db
+DB_USERNAME=postgres
+DB_PASSWORD=password_kamu
+```
+
+Sesuaikan username dan password dengan PostgreSQL lokal.
+
+## 4. Install Dependency Backend
+
+```bash
+composer install
+```
+
+Generate app key kalau belum ada:
+
+```bash
+php artisan key:generate
+```
+
+## 5. Reset dan Isi Database
+
+Karena database sudah dirombak besar, cara paling bersih adalah:
+
+```bash
+php artisan migrate:fresh --seed
+```
+
+Catatan Windows jika `psql` tidak dikenali:
+
+```text
+'psql' is not recognized as an internal or external command
+```
+
+Laravel PostgreSQL memakai command `psql` untuk load schema dump. Pastikan folder `bin` PostgreSQL masuk PATH Windows. Contoh sementara di PowerShell:
+
+```powershell
+$env:Path = "C:\Program Files\PostgreSQL\18\bin;$env:Path"
+```
+
+Jika versi PostgreSQL berbeda, sesuaikan angka foldernya. Setelah PATH benar, jalankan ulang:
+
+```bash
+php artisan migrate:fresh --seed
+```
+
+Lalu import wilayah resmi:
+
+```bash
+php -d memory_limit=512M artisan regions:import-sql
+```
+
+Jika database sudah ada dan tidak di-reset, jalankan migration terbaru agar master izin `Tugas Luar`, master asal sekolah, jenis santri resmi terbaru, kolom `attendance_key` absensi, dan metadata asal sekolah terbaru masuk ke database existing:
+
+```bash
+php artisan migrate
+```
+
+Setelah update 13 Mei 2026, jalankan juga generator tagihan agar rule pembayaran aktif membuat tagihan aktual:
+
+```bash
+php artisan payments:generate-bills
+```
+
+Setelah migration absensi terbaru, cek dan repair data absensi lama yang mungkin duplicate:
+
+```bash
+php artisan attendance:repair-duplicates --dry-run
+php artisan attendance:repair-duplicates --apply
+php artisan migrate
+```
+
+Jika butuh data uji realtime, jalankan seeder dummy idempotent:
+
+```bash
+php artisan db:seed --class=RealtimeDummySeeder
+```
+
+Catatan penting:
+
+- `migrate:fresh --seed` menghapus semua data lama.
+- Setelah menjalankan `migrate:fresh --seed`, wilayah harus di-import ulang.
+- Import wilayah butuh memory lebih besar karena data desa/kelurahan banyak.
+- Migration terbaru menambahkan master izin `Tugas Luar`, tabel `school_origins`, kolom `siswa.school_origin_id`, opsi jenis santri resmi, `absensi.attendance_key`, unique index `attendance_key`, serta metadata opsional `school_origins.city_id/npsn/jenjang/alamat/status_sekolah` tanpa menghapus data lama.
+- Migration 13 Mei 2026 menambahkan `school_origins.province_id/district_id/source/external_id`, field `previous_school_origin_id/previous_asal_sekolah` pada `siswa`, tabel tagihan otomatis, dan `pembayaran.payment_bill_id`.
+- Migration 15 Mei 2026 menambahkan tabel hak akses menu dan audit: `app_menus`, `role_menu_permissions`, dan `audit_logs`.
+- Migration 16 Mei 2026 menambahkan field profil santri, status mondok, tanggal diterima pondok/sekolah, field tahun ajaran aktif, dan relasi periode akademik nullable pada tabel operasional.
+- Migration 16 Mei 2026 lanjutan menambahkan periode akademik pada `hafalan` agar nilai/hafalan bisa mengikuti filter tahun ajaran dan semester.
+- Migration 17 Mei 2026 menambahkan tabel `siswa_tahun_ajaran` untuk sinkronisasi santri per tahun ajaran/semester, index pembayaran/tagihan, dan guard pembayaran bulanan agar SPP per bulan tidak dobel.
+- Migration `school_origins` men-seed master asal sekolah dari data siswa existing dan menormalisasi awalan umum seperti `MI`, `SD`, `MTs`, `SMP`, `MA`, `SMA`, dan `SMK`.
+- Migration 9 Mei 2026 untuk `school_origins` sudah divalidasi dengan `php artisan migrate --pretend`; jalankan `php artisan migrate` untuk menerapkannya ke database existing.
+- Migration 13 Mei 2026 sudah divalidasi dengan `php artisan migrate --pretend --no-interaction`; jalankan `php artisan migrate` untuk menerapkannya ke database existing.
+- `attendance_key` dipakai agar 1 siswa, 1 tanggal, 1 kelas, 1 mapel, dan 1 jadwal hanya punya 1 absensi.
+- Untuk database lama, jalankan repair duplicate sebelum unique index aktif penuh.
+
+## 6. Jalankan Storage Link
+
+Untuk upload foto profil, logo dokumen, dan file public storage:
+
+```bash
+php artisan storage:link
+```
+
+Kalau foto atau logo 404 dari `/storage/...`, biasanya storage link belum dibuat atau file tidak ada di disk.
+
+## 7. Jalankan Backend
+
+Untuk emulator Android, pakai host yang bisa diakses dari HP/emulator.
+
+Mode lokal biasa:
+
+```bash
+php artisan serve --host=0.0.0.0 --port=8000
+```
+
+Jika `php artisan serve` sering gagal di laptop, boleh pakai server PHP bawaan:
+
+```bash
+php -S 0.0.0.0:8000 -t public
+```
+
+Backend akan aktif di:
+
+```text
+http://127.0.0.1:8000
+http://IP-LAPTOP:8000
+```
+
+Untuk emulator Android Studio, biasanya host laptop bisa diakses dengan:
+
+```text
+http://10.0.2.2:8000
+```
+
+Untuk HP fisik, gunakan IP WiFi laptop, contoh:
+
+```text
+http://192.168.1.10:8000
+```
+
+## 8. Jalankan Backend Online Sementara dengan Cloudflare
+
+Selama belum memakai VPS, laptop boleh dianggap sebagai server sementara.
+
+Terminal 1:
+
+```bash
+cd C:\Users\Nobita\absensi_android\absensi_backend
+php -S 0.0.0.0:8000 -t public
+```
+
+Terminal 2:
+
+```bash
+cloudflared tunnel --protocol http2 --edge-ip-version 4 --url http://127.0.0.1:8000
+```
+
+Jika jaringan mendukung QUIC dengan stabil, command pendek ini juga bisa dipakai:
+
+```bash
+cloudflared tunnel --url http://localhost:8000
+```
+
+Alur online sementara:
+
+```text
+APK di HP -> URL Cloudflare -> laptop -> Laravel -> PostgreSQL
+```
+
+Catatan:
+
+- terminal backend dan terminal Cloudflare harus tetap hidup;
+- jika URL Cloudflare berubah, APK lama tidak akan konek;
+- jika URL berubah, ubah `ApiService.baseUrl`, ubah `APP_URL` di `.env`, lalu build APK ulang.
+- error QUIC biasanya masalah jaringan/UDP/firewall, bukan berarti Laravel rusak.
+
+## 9. Jalankan Flutter Mode Development
+
+Kembali ke root project:
+
+```bash
+cd ..
+```
+
+Install dependency Flutter:
+
+```bash
+flutter pub get
+```
+
+Cek error statis:
+
+```bash
+flutter analyze --no-pub
+```
+
+Jalankan aplikasi:
+
+```bash
+flutter run
+```
+
+`flutter run` dipakai untuk development/debugging. Untuk uji coba mendekati rilis, gunakan APK release.
+
+## 10. Build dan Install APK Release
+
+Build APK release:
+
+```bash
+cd C:\Users\Nobita\absensi_android
+flutter build apk --release
+```
+
+Hasil APK:
+
+```text
+C:\Users\Nobita\absensi_android\build\app\outputs\apk\release\app-release.apk
+```
+
+APK release pernah berhasil dibuat pada 28 April 2026 dengan ukuran sekitar 73 MB. Validasi 6 Mei 2026: `flutter analyze --no-pub` bersih, tetapi `flutter build apk --release --no-pub` timeout setelah 10 menit dan perlu dijalankan ulang manual sebelum dibagikan ke HP uji.
+
+Setelah APK dipasang di HP:
+
+- tidak perlu `flutter run` lagi untuk uji coba biasa;
+- cukup nyalakan backend dan Cloudflare tunnel;
+- install ulang hanya perlu jika kode aplikasi berubah atau URL backend berubah.
+
+## 11. API Penting yang Harus Hidup
+
+Cek route API:
+
+```bash
+php artisan route:list --path=api --except-vendor
+```
+
+Endpoint wilayah:
+
+```text
+GET /api/regions/provinces
+GET /api/regions/cities?province_id=...
+GET /api/regions/districts?city_id=...
+GET /api/regions/villages?district_id=...
+```
+
+Endpoint ini dipakai agar input wilayah tidak typo.
+
+Endpoint master referensi umum:
+
+```text
+GET /api/references/occupations
+GET /api/references/income_ranges
+GET /api/references/education_levels
+GET /api/references/residence_types
+GET /api/references/transport_modes
+GET /api/references/blood_types
+GET /api/references/guardian_relationships
+GET /api/references/teacher_units
+GET /api/references/teacher_categories
+GET /api/references/student_types
+```
+
+Endpoint ini dipakai frontend untuk dropdown resmi Edit Data Santri dan Edit Data User Guru. `leave_types` tidak lagi dibuka di endpoint ini karena fitur Izin Guru sedang dinonaktifkan.
+
+Endpoint master sekolah:
+
+```text
+GET /api/school-origins?province_id=...&city_id=...&district_id=...&search=...&limit=...
+POST /api/school-origins
+PUT /api/school-origins/{id}
+DELETE /api/school-origins/{id}
+```
+
+Endpoint tagihan otomatis:
+
+```text
+GET /api/payment-bills
+GET /api/payment-bills/student-summary
+GET /api/payment-bills/monthly-options
+GET /api/payment-bill-rules
+POST /api/payment-bills/generate
+POST /api/payment-bills/{paymentBill}/notify
+```
+
+Endpoint periode akademik dan sinkronisasi santri:
+
+```text
+GET /api/academic-periods
+POST /api/academic-periods
+POST /api/academic-periods/{academicYear}/activate
+POST /api/academic-periods/{academicYear}/semester
+POST /api/academic-periods/{academicYear}/sync-siswa
+GET /api/siswa?academic_year_id=...&semester_id=...&for_payment=1
+```
+
+Command tagihan otomatis:
+
+```bash
+php artisan payments:generate-bills
+php artisan payments:generate-bills --through=2026-12-31
+php artisan payments:generate-bills --rule=1
+```
+
+## 12. Alur Login dan Role
+
+Role utama:
+
+- admin;
+- guru;
+- orang tua/wali.
+
+Aturan umum:
+
+- admin mengelola data utama;
+- guru hanya mengakses data yang berhubungan dengan guru tersebut;
+- orang tua hanya melihat data siswa yang terhubung;
+- permission harus berbasis ID, bukan nama text.
+
+## 13. Export PDF dan Logo Dokumen
+
+Logo dokumen diatur dari pengaturan admin.
+
+Aturan:
+
+- admin bisa upload logo;
+- PDF dan cetak dokumen memakai logo aktif;
+- kalau belum ada logo upload, sistem memakai logo default;
+- storage link wajib aktif agar file logo bisa dibaca.
+
+Kalau logo tidak muncul:
+
+```bash
+php artisan storage:link
+php artisan config:clear
+php artisan cache:clear
+```
+
+Lalu cek file benar-benar ada di:
+
+```text
+absensi_backend/storage/app/public
+```
+
+## 14. Troubleshooting Cepat
+
+Backend tidak konek database:
+
+- cek PostgreSQL hidup;
+- cek `.env`;
+- cek nama database `absensi_db`;
+- jalankan `php artisan config:clear`.
+
+Foto profil 404:
+
+- jalankan `php artisan storage:link`;
+- cek file di `storage/app/public`;
+- cek URL `/storage/...`;
+- upload ulang jika file fisik memang hilang.
+
+Wilayah kosong:
+
+- jalankan ulang `php -d memory_limit=512M artisan regions:import-sql`;
+- cek tabel `provinces`, `cities`, `districts`, `villages`.
+
+Import siswa menampilkan warning:
+
+- cek kolom opsional seperti `jenis_santri`, wilayah, pendidikan, pekerjaan, penghasilan, tempat tinggal, transportasi, dan golongan darah;
+- cek juga `asal_sekolah`; nilai harus cocok master `school_origins` jika diisi;
+- warning berarti field opsional tidak cocok master lalu dikosongkan;
+- NIS, nama lengkap, jenis kelamin, NIS duplikat, tanggal invalid, dan email invalid tetap menjadi error.
+- jenis santri input baru hanya `Santri Pondok`, `Santri Madin`, atau `Keduanya`.
+
+Asal sekolah tidak muncul di Edit Data Santri:
+
+- jalankan `php artisan migrate` agar tabel `school_origins` dan `siswa.school_origin_id` ada;
+- cek endpoint `php artisan route:list --path=api/school-origins`;
+- pastikan user login admin/guru dan backend yang aktif sudah kode terbaru.
+- update 9 Mei 2026: endpoint mendukung `GET /api/school-origins?city_id=...&search=...&limit=...`; jika filter kota kosong, cek apakah data `school_origins.city_id` sudah terisi atau nama sekolah legacy masih mengandung nama kota.
+- update 13 Mei 2026: endpoint juga mendukung `province_id` dan `district_id`; jika filter terlalu sempit, cek apakah master sekolah sudah punya `province_id/city_id/district_id` yang benar.
+- Edit Data Santri sekarang punya dua field: `Sekolah Asal Sebelumnya` dan `Sekolah Asal Siswa Sekarang`.
+- master sekolah nasional sebaiknya di-import/cache lokal dari sumber resmi NPSN/Kemendikbud, bukan mengambil internet langsung setiap picker dibuka.
+
+Tagihan bulanan tidak muncul di wali/admin:
+
+- jalankan `php artisan migrate` agar tabel `payment_bill_rules`, `payment_bills`, dan `payment_bill_notifications` tersedia;
+- jalankan `php artisan payments:generate-bills`;
+- cek route `php artisan route:list --path=payment`;
+- pastikan tipe pembayaran berstatus `Aktif`;
+- pastikan siswa target berstatus aktif dan punya `wali_id` jika ingin muncul di akun wali;
+- generator aman dijalankan berulang karena mencegah duplikat per rule, siswa, dan periode.
+
+Pekerjaan Ayah masih menampilkan `Ibu Rumah Tangga`:
+
+- pastikan APK sudah dari kode update 9 Mei 2026;
+- backend tetap memakai satu master `occupations`;
+- filtering dilakukan di UI: pekerjaan ayah menyembunyikan `Ibu Rumah Tangga`, pekerjaan ibu/wali tetap menampilkan.
+
+Menu Nilai tidak menampilkan pilihan kelas:
+
+- jalankan `php artisan migrate` agar master `classes` tersedia dari baseline/migration;
+- cek endpoint `php artisan route:list --path=api/classes`;
+- pastikan data kelas aktif ada di tabel `classes`;
+- untuk admin, mapel yang muncul adalah semua mata pelajaran `Aktif`;
+- untuk guru, mapel yang muncul tetap mengikuti mata pelajaran dan jadwal aktif yang ditugaskan admin.
+
+Menu Biodata Siswa wali tidak muncul atau kosong:
+
+- pastikan APK sudah dari kode terbaru karena menu ini ada di dashboard role wali;
+- cek route `php artisan route:list --path=api/wali/biodata --except-vendor`;
+- pastikan siswa terhubung ke akun wali lewat `wali_id` atau `guardian_profile_id`;
+- wali hanya bisa melihat biodata anak sendiri dan tidak punya akses edit.
+- jika `Wali Sama Dengan` adalah `Ayah` atau `Ibu`, pekerjaan wali harus ikut pekerjaan ayah/ibu; jika masih `-`, pastikan APK dan backend sudah dari update 7 Mei 2026.
+
+Menu Izin Guru tidak muncul:
+
+- ini kondisi sengaja sejak update 8 Mei 2026;
+- fitur Izin Guru dinonaktifkan karena bug dan akan dibuat ulang nanti;
+- menu admin/guru, screen Flutter, service export, method API Flutter, route `guru-izin`, controller, dan model sudah dibersihkan;
+- database/schema/migration `guru_izin` dan `leave_types` tetap dipertahankan agar data lama aman.
+
+Route `guru-izin` masih muncul:
+
+- pastikan backend yang berjalan sudah kode terbaru;
+- jalankan `php artisan route:list --path=api --except-vendor`;
+- pada update 8 Mei 2026, route `guru-izin` seharusnya tidak tampil.
+
+Edit Data Santri pilihan wali kembali ke `Ibu`:
+
+- pastikan kode terbaru sudah terpasang;
+- pilihan resmi yang dikirim adalah `Ayah`, `Ibu`, atau `Wali`;
+- tombol UI `Lainnya` disimpan sebagai `Wali`;
+- buka ulang detail setelah simpan untuk memastikan label detail mengikuti data terbaru.
+- update 7 Mei 2026 juga mensinkronkan pekerjaan wali, `guardian_occupation_id`, alamat wali, dan nomor telepon wali dari ayah/ibu.
+
+Tempat Lahir siswa/orang tua masih bisa typo:
+
+- pastikan layar Edit Data Santri sudah memakai picker Kota/Kabupaten;
+- picker memakai master `cities` lewat `GET /api/regions/cities`;
+- jika daftar kota kosong, jalankan `php -d memory_limit=512M artisan regions:import-sql`;
+- nilai tempat lahir masih disimpan sebagai label kota/kabupaten resmi, belum ada kolom `birth_city_id`.
+- update 8 Mei 2026: saat picker dibuka ulang, daftar kota/kabupaten harus tampil penuh, bukan hanya kota terakhir yang pernah dipilih seperti Kabupaten Gresik.
+- update 8 Mei 2026 lanjutan: picker Tempat Lahir siswa/ayah/ibu memakai bottom sheet mandiri agar tidak muncul layar merah `'_dependents.isEmpty'` saat memilih kota.
+- data lama seperti `Gresik` akan dicoba dinormalisasi menjadi `Kabupaten Gresik` jika cocok dengan master `cities`.
+- jika teks terlihat terpotong seperti `abupaten Gresik`, pastikan APK sudah dari kode terbaru karena controller text harus di-reset ke posisi awal setelah kota dipilih.
+
+Jadwal mapel gagal dengan pesan `day_id`:
+
+- pastikan backend sudah kode update 8 Mei 2026;
+- `JadwalController` sekarang otomatis resolve `hari` ke `day_id` sebelum validasi jadwal aktif;
+- jika masih gagal, cek tabel `days` berisi `Ahad`, `Senin`, `Selasa`, `Rabu`, `Kamis`, `Jumat`, dan `Sabtu`;
+- tambah Guru Pengajar dulu sampai muncul pesan sukses, baru tambah Jadwal Pelajaran.
+
+Jadwal mapel gagal karena bentrok kelas:
+
+- update 9 Mei 2026: yang tetap ditolak adalah bentrok guru yang sama pada hari/jam overlap;
+- jadwal paralel untuk guru/mapel berbeda boleh disimpan walaupun kelas/hari/jam sama sesuai arahan terbaru;
+- jika masih muncul pesan bentrok kelas, pastikan backend yang berjalan sudah kode terbaru dan jalankan `php artisan optimize:clear`.
+
+Pembayaran gagal simpan dengan log `POST /api/pembayaran [500]`:
+
+- buka `absensi_backend/storage/logs/laravel.log`;
+- jika muncul `pembayaran_jenis_check`, artinya tipe pembayaran custom masuk ke kolom legacy `pembayaran.jenis`;
+- backend terbaru sudah memetakan tipe custom agar kolom legacy aman, misalnya `Kitab` menjadi `Buku & Kitab`;
+- restart backend setelah update kode agar fix aktif;
+- pastikan tipe pembayaran yang dipilih aktif dan metode bayar didukung oleh tipe tersebut.
+
+Rekap PDF pembayaran wali gagal:
+
+- jalankan `php artisan optimize:clear` setelah update route;
+- cek `php artisan route:list --path=api/pembayaran/rekap-siswa --except-vendor`;
+- route harus muncul satu kali dan bisa dipakai role `admin,wali`;
+- role wali tetap hanya bisa rekap pembayaran anak yang terhubung ke akun wali aktif;
+- jika dialog cetak/download HP gagal, aplikasi akan mencoba fallback simpan file sementara dan share PDF.
+- jika siswa belum punya transaksi pembayaran, tombol download rekap memang disembunyikan.
+
+Edit Data Santri gagal karena email/telepon kosong:
+
+- pastikan APK sudah dibuild dari kode terbaru;
+- field opsional kosong harus tetap kosong/null, bukan `-`;
+- field wajib tetap `NIS`, `Nama Lengkap`, dan `Jenis Kelamin`;
+- jika error masih muncul, cek pesan validasi apakah ada value `-` yang terkirim ke `email_siswa`.
+
+Upload foto santri atau dokumen akta:
+
+- pastikan backend aktif dan storage link sudah dibuat;
+- jalankan `php artisan storage:link` jika file tidak bisa dilihat dari aplikasi;
+- file siswa diupload ke `/api/upload`, lalu database menyimpan path server;
+- foto santri memakai image, dokumen akta boleh image/PDF;
+- batas file backend 5 MB.
+
+Upload materi/kegiatan gagal saat offline:
+
+- pastikan internet dan server backend aktif;
+- upload tidak dijalankan jika data referensi hanya dari cache/offline;
+- materi wajib memilih kelas dan mapel resmi;
+- kegiatan wajib memilih kelas resmi.
+
+Absensi offline gagal sync:
+
+- cek pesan gagal di data pending karena sekarang sistem menyimpan detail error backend jika tersedia;
+- pastikan `class_id`, `mapel_id`, `jadwal_id`, dan `attendance_status_id` masih valid.
+- jika pesan conflict muncul, artinya data server sudah masuk lebih dulu dan pending offline tidak menimpa data server.
+- pending offline hanya bisa diedit oleh akun/actor yang membuat pending tersebut.
+
+Absensi muncul double atau dashboard menampilkan `Unknown`:
+
+- pastikan backend sudah migration terbaru yang menambahkan `absensi.attendance_key`;
+- simpan absensi baru dan edit absensi lama harus memakai scope lengkap `tanggal`, `class_id`, `mapel_id`, `jadwal_id`, dan `siswa_id`;
+- jalankan `php artisan attendance:repair-duplicates --dry-run` untuk audit data lama;
+- jika hasil dry run aman di database uji, lanjutkan `php artisan attendance:repair-duplicates --apply`;
+- jalankan `php artisan migrate` setelah repair agar unique `attendance_key` aktif;
+- dashboard terbaru tidak menampilkan absensi yang scope jadwalnya tidak lengkap, jadi data `Unknown` berarti backend/APK yang berjalan belum kode terbaru atau ada cache lama.
+
+Absensi sudah completed online lalu HP offline:
+
+- data completed dari server dikunci di mode offline;
+- tidak boleh absen ulang, edit, atau batal sampai koneksi online kembali;
+- admin tetap full access saat online, tetapi pending offline admin tetap kalah jika data server sudah ada lebih dulu.
+
+Jumlah santri/mapel di daftar Absensi tidak sama dengan detail:
+
+- pastikan backend memakai update 8 Mei 2026 lanjutan pada `KelompokBelajarController`;
+- daftar Absensi Sifir harus memakai `class_id` asli, bukan id kelompok belajar;
+- `jumlah_siswa` dihitung dari siswa aktif berdasarkan `class_id`, sama seperti layar detail absensi;
+- `jumlah_mapel_aktif` dihitung dari jadwal aktif dan mapel aktif untuk kelas tersebut;
+- jika angka masih 0 tetapi detail ada siswa, restart backend dan tarik refresh menu Absensi.
+
+Mata pelajaran/jadwal guru tidak muncul:
+
+- pastikan jadwal aktif memiliki `class_id`, `mapel_id`, `teacher_id`, hari, jam mulai, dan jam selesai;
+- guru hanya melihat jadwal/mapel yang menjadi assignment dirinya;
+- jadwal aktif sekarang menolak bentrok guru yang sama pada hari/jam yang overlap; jadwal paralel guru/mapel berbeda boleh disimpan.
+- saat tambah/edit jadwal dari Edit Mata Pelajaran, guru pengajar harus sudah tersimpan di relasi `mapel_guru` sebelum `sync-group` dipanggil.
+- jika muncul "Semua guru sudah ditambahkan" padahal kosong, pastikan endpoint `GET /api/guru` mengembalikan guru aktif dengan ID valid dan APK sudah kode terbaru.
+- update 9 Mei 2026: Edit Mata Pelajaran memakai cache guru aktif dan retry loading; jika data guru belum termuat, tunggu loading/retry, jangan langsung menekan tambah jadwal.
+
+Mata pelajaran di menu Absensi admin tidak muncul:
+
+- pastikan APK sudah memakai kode terbaru;
+- khusus admin, menu Absensi harus menampilkan semua mata pelajaran `Aktif`;
+- mapel `Nonaktif` memang tidak muncul sampai diaktifkan kembali oleh admin;
+- jika mapel aktif belum punya jadwal untuk kelas yang dipilih, mapel tetap terlihat tetapi belum bisa dipakai simpan absensi sampai jadwal kelas dibuat;
+- khusus guru, menu Absensi tetap hanya menampilkan mapel/jadwal yang ditugaskan admin.
+- update 9 Mei 2026: kartu mapel Absensi admin menampilkan guru bertugas dan jam jadwal agar admin tahu guru yang seharusnya melakukan absensi.
+
+Guru bisa absen sebelum hari atau jam jadwal:
+
+- pastikan APK dan backend sudah update 9 Mei 2026;
+- role guru dikunci sampai hari jadwal dan `jam_mulai`, lalu boleh input sampai akhir hari jadwal;
+- backend juga menolak input guru di luar jadwal, jadi aturan tidak hanya dari UI;
+- admin tetap full access tanpa lock waktu.
+
+Guru B melihat data Guru A di Absensi:
+
+- pastikan `AbsensiSifirScreen` mengirim user aktif guru dan backend menghitung `jumlah_mapel_aktif` sesuai guru tersebut;
+- guru tanpa assignment tidak boleh melihat mapel/count milik guru lain;
+- tarik refresh atau restart app setelah admin mengubah jadwal/guru pengajar.
+
+Menu Data Diri Guru tidak muncul:
+
+- pastikan APK sudah dari kode update 9 Mei 2026;
+- role guru sekarang memakai menu `Data Diri Guru`, bukan `Buku Induk`;
+- data diambil dari endpoint profile dan refresh saat screen dibuka atau saat admin mengubah data guru.
+
+Realtime in-app tidak langsung terlihat:
+
+- realtime saat ini adalah refresh dalam aplikasi saat screen aktif atau saat app dibuka, bukan push notification saat app tertutup;
+- pastikan backend hidup dan HP masih terhubung ke server/tunnel;
+- tarik refresh manual jika ingin memastikan data terbaru;
+- perubahan mapel/guru/jadwal mengirim topic mapel dan absensi; perubahan data guru mengirim topic user/profile;
+- push notification sungguhan perlu Firebase/FCM pada tahap berikutnya.
+
+Dashboard tidak muncul animasi tarik refresh:
+
+- pastikan APK sudah dari kode terbaru;
+- tarik halaman Beranda dari area konten utama;
+- refresh dashboard memakai `AppRefreshIndicator` yang sama dengan menu lain.
+
+Layout berbeda di HP lain atau terlihat terpotong:
+
+- pastikan APK sudah dari kode terbaru;
+- layar prioritas sudah memakai fondasi `AppResponsive`: Login, Dashboard, Pembayaran Wali, Nilai, Data/Edit/Detail Santri;
+- jika masih ada layar lain yang terpotong, catat nama menu dan screenshot untuk tahap responsif berikutnya.
+
+Flutter tidak bisa akses backend:
+
+- cek base URL;
+- emulator Android biasanya memakai `10.0.2.2`;
+- HP fisik memakai IP WiFi laptop;
+- pastikan firewall tidak memblok port 8000.
+
+Route baru tidak muncul:
+
+```bash
+php artisan optimize:clear
+php artisan route:list --path=api --except-vendor
+```
+
+## 15. Urutan Aman Saat Ingin Menjalankan dari Nol
+
+```bash
+cd absensi_backend
+composer install
+php artisan key:generate
+php artisan migrate:fresh --seed
+php -d memory_limit=512M artisan regions:import-sql
+php artisan migrate
+php artisan attendance:repair-duplicates --dry-run
+php artisan attendance:repair-duplicates --apply
+php artisan migrate
+php artisan db:seed --class=RealtimeDummySeeder
+php artisan storage:link
+php -S 0.0.0.0:8000 -t public
+```
+
+Terminal baru:
+
+```bash
+cloudflared tunnel --protocol http2 --edge-ip-version 4 --url http://127.0.0.1:8000
+```
+
+Jika ingin build APK release:
+
+```bash
+cd c:\Users\Nobita\absensi_android
+flutter pub get
+flutter analyze --no-pub
+flutter build apk --release
+```
+
+## 16. Status Validasi Terakhir
+
+Validasi utama sebelumnya sampai 4 Mei 2026:
+
+```text
+psql --version                                      : berhasil
+php artisan migrate:status                          : migration strict reference sudah Ran
+php artisan route:list                              : berhasil, 106 route
+php artisan route:list --path=api/pembayaran/rekap-siswa : berhasil, 1 route
+php -l pada routes/api.php                          : no syntax errors
+php -l pada SiswaController.php                     : no syntax errors
+php -l pada GuruIzinController.php                  : no syntax errors (historis sebelum cleanup 8 Mei)
+php -l pada PembayaranController.php                : no syntax errors
+php -l pada migration Tugas Luar                    : no syntax errors
+flutter analyze --no-pub                            : no issues found
+flutter build apk --release                         : berhasil membuat APK release
+php artisan test                                    : no tests found
+flutter test --no-pub                               : folder test belum tersedia
+```
+
+Tambahan validasi 5 Mei 2026:
+
+```text
+php -l pada ReferenceController.php                 : no syntax errors
+php -l pada migration school_origins/student_types  : no syntax errors
+php artisan route:list --path=api/classes           : 1 route
+php artisan route:list --path=api/school-origins    : 1 route
+php artisan migrate --pretend migration 2026_05_05  : berhasil
+flutter analyze --no-pub                            : no issues found
+php artisan test                                    : no tests found
+```
+
+Tambahan validasi 6 Mei 2026:
+
+```text
+php -l pada AbsensiController.php                   : no syntax errors
+php -l pada DashboardController.php                 : no syntax errors
+php -l pada JadwalController.php                    : no syntax errors
+php -l pada ReferenceController.php                 : no syntax errors
+php -l pada migration attendance_key                : no syntax errors
+php -l pada migration enforce attendance_key unique : no syntax errors
+php -l pada RealtimeDummySeeder.php                 : no syntax errors
+php -l pada routes/console.php                      : no syntax errors
+php artisan route:list --path=api --except-vendor   : berhasil, 109 route
+php artisan migrate --force                         : berhasil
+php artisan attendance:repair-duplicates --dry-run  : 0 group duplicate
+php artisan attendance:repair-duplicates --apply    : berhasil, 0 duplicate dihapus
+php artisan migrate --pretend migration unique key  : berhasil
+php artisan db:seed --class=RealtimeDummySeeder     : berhasil
+php artisan test                                    : no tests found
+dart analyze lib/screens/absensi/absensi_mapel_screen.dart : no issues found
+flutter analyze --no-pub                            : no issues found
+flutter build apk --release --no-pub                : timeout setelah 10 menit, perlu dijalankan ulang manual
+```
+
+Tambahan validasi 7 Mei 2026:
+
+```text
+php -l pada ReferenceController.php                 : no syntax errors
+php -l pada SiswaController.php                     : no syntax errors
+php -l pada GuruIzinController.php                  : no syntax errors (historis sebelum cleanup 8 Mei)
+php -l pada UserManagementController.php            : no syntax errors
+php artisan route:list --path=api/references        : berhasil, 1 route
+php artisan route:list --path=api/guru              : route guru dan guru-izin tampil (historis sebelum cleanup 8 Mei)
+flutter analyze --no-pub                            : no issues found
+php artisan test                                    : no tests found
+```
+
+Tambahan validasi 8 Mei 2026:
+
+```text
+Izin Guru app layer                                : menu, screen, service, route, controller, model dihapus
+Database Izin Guru                                : schema/migration/tabel tetap dipertahankan
+php -l pada routes/api.php                        : no syntax errors
+php artisan route:list --path=api --except-vendor : berhasil, 106 route, tidak ada route guru-izin
+flutter analyze targeted file Izin Guru cleanup   : no issues found
+php -l pada JadwalController.php                  : no syntax errors
+php -l pada RegionController.php                  : no syntax errors
+flutter analyze targeted wilayah/mapel/api        : no issues found
+php -l pada KelompokBelajarController.php         : no syntax errors
+flutter analyze targeted tempat lahir/absensi     : no issues found
+```
+
+Tambahan validasi 9 Mei 2026:
+
+```text
+php -l pada ReferenceController.php                : no syntax errors
+php -l pada AbsensiController.php                  : no syntax errors
+php -l pada UserProfileController.php              : no syntax errors
+php -l pada migration school_origins location      : no syntax errors
+php artisan migrate --pretend migration 2026_05_09 : berhasil
+flutter analyze targeted master/profile/absensi/mapel : no issues found
+```
+
+Tambahan validasi 13 Mei 2026:
+
+```text
+php -l pada model PaymentBillRule/PaymentBill/PaymentBillNotification : no syntax errors
+php -l pada PaymentBillService dan GuruAttendanceStatusService        : no syntax errors
+php -l pada PaymentBillController                                     : no syntax errors
+php -l pada controller backend terkait jadwal/absensi/payment/wali     : no syntax errors
+php -l pada migration 2026_05_13 sekolah dan tagihan                  : no syntax errors
+php -l pada routes/api.php dan routes/console.php                     : no syntax errors
+php artisan route:list --path=payment                                 : route payment-bills/payment-types tampil
+php artisan route:list --path=school-origins                          : route school-origins tampil
+php artisan list payments                                             : command payments:generate-bills tampil
+php artisan migrate --pretend --no-interaction                        : berhasil
+dart format --output=none pada file Flutter terkait                   : berhasil
+dart analyze targeted file besar                                      : timeout di environment ini, perlu diulang manual jika butuh hasil penuh
+```
+
+Tambahan validasi 15 Mei 2026:
+
+```text
+php -l pada PermissionService/AuditLogService/EnsureMenuPermission : no syntax errors
+php -l pada PermissionController dan controller terdampak          : no syntax errors
+php -l pada routes/api.php                                        : no syntax errors
+php artisan route:list --path=settings                            : route settings/menus dan settings/permissions tampil
+php artisan route:list --path=absensi                             : route absensi tetap tampil
+php artisan route:list --path=hafalan                             : route hafalan tetap tampil
+php artisan route:list --path=payment-types                       : route payment-types tetap tampil
+php artisan migrate --pretend migration permission/audit          : SQL migration berhasil dibuat
+dart format targeted permission/dashboard/settings/api            : berhasil
+flutter analyze targeted permission/dashboard/settings/api        : no issues found
+```
+
+Tambahan validasi 16 Mei 2026:
+
+```text
+php -l pada AcademicPeriodService dan AcademicPeriodController       : no syntax errors
+php -l pada SiswaController/ReferenceController/model terkait        : no syntax errors
+php -l pada PaymentBillService/PembayaranController/PaymentHistory   : no syntax errors
+php -l pada migration profil santri dan periode akademik             : no syntax errors
+php artisan route:list --except-vendor                               : berhasil, route academic-periods tampil
+php artisan migrate --force                                          : berhasil
+php artisan migrate:status                                           : migration 16 Mei status Ran
+php artisan test                                                     : no tests found
+dart analyze targeted Buku Induk/Setting Akademik/ApiService         : no issues found
+```
+
+Tambahan validasi 16 Mei 2026 lanjutan:
+
+```text
+php -l pada MapelAccessService/JadwalController/MataPelajaranController : no syntax errors
+php -l pada StudentBillingSummaryService/PaymentBillController          : no syntax errors
+php -l pada WaliController/PembayaranController/HafalanController       : no syntax errors
+php -l pada model Hafalan dan migration periode hafalan                 : no syntax errors
+php artisan route:list --path=api/payment-bills --except-vendor         : route payment-bills/student-summary tampil
+php artisan migrate --force                                             : migration 2026_05_16_000002 berhasil
+php artisan migrate:status                                              : migration 2026_05_16_000002 status Ran
+smoke test StudentBillingSummaryService                                 : berhasil return JSON student/groups/tagihan
+flutter analyze targeted mapel/pembayaran/api/widget                    : no issues found
+```
+
+Tambahan validasi 17 Mei 2026:
+
+```text
+php -l pada AcademicPeriodService/AcademicPeriodController             : no syntax errors
+php -l pada PaymentBillService/PaymentBillController/PembayaranController : no syntax errors
+php -l pada SiswaController/JadwalController/SiswaTahunAjaran          : no syntax errors
+php -l pada migration siswa_tahun_ajaran                               : no syntax errors
+php artisan migrate --force                                            : migration 2026_05_17_000001 berhasil
+php artisan migrate:status                                             : migration 2026_05_17_000001 status Ran
+php artisan route:list --path=api/academic-periods --except-vendor     : route sync-siswa tampil
+php artisan route:list --path=api/payment-bills --except-vendor        : route monthly-options dan student-summary tampil
+flutter analyze targeted setting akademik/pembayaran/api/mapel         : no issues found
+```
+
+Catatan:
+
+- `php artisan test` belum menguji fitur karena test case belum tersedia.
+- Saat reset database di Windows, error `psql` berarti PATH PostgreSQL belum benar, bukan berarti schema Laravel rusak.
+- File frontend terakhir dicek penuh dengan `flutter analyze --no-pub`.
+- APK release terakhir yang sudah ada berada di `build/app/outputs/apk/release/app-release.apk`; build terbaru 6 Mei 2026 timeout dan perlu diulang manual jika ingin APK dari kode paling baru.
+
+## 16B. Update 29 Mei 2026: Menjalankan Absensi Pondok / Jama'ah Sholat
+
+Setelah update Absensi Pondok, jalankan migration backend:
+
+```powershell
+cd C:\Users\Nobita\absensi_android\absensi_backend
+php artisan migrate
+```
+
+Import data awal komplek/kamar dari Excel:
+
+```powershell
+php artisan boarding:import-excel "C:\Users\Nobita\Downloads\PONPES QOMARAUDDIN 1747.xlsx" --show-warnings
+```
+
+Catatan import:
+
+- Sheet yang dipakai hanya `KOMPLEK 1`, `KOMPLEK 3`, dan `KOMPLEK TAHFIZ`.
+- Sheet `SPP 24-25` diabaikan karena itu data pembayaran.
+- Import mencocokkan nama santri dan kelas dengan data aplikasi.
+- Santri yang tidak cocok tidak dibuat otomatis; cek warning lalu perbaiki manual di Buku Induk atau pengelola kamar.
+
+Alur uji aplikasi:
+
+1. Hidupkan backend Laravel dan tunnel seperti biasa.
+2. Login sebagai admin atau guru.
+3. Buka menu `Absensi`.
+4. Pilih submenu `Absensi Jama'ah Sholat`.
+5. Pilih tanggal, komplek, dan kamar.
+6. Isi status `M`, `I`, atau `S` untuk santri.
+7. Simpan.
+8. Uji offline dengan mematikan koneksi, input lagi, lalu nyalakan koneksi agar auto-sync berjalan.
+
+Endpoint yang harus tersedia setelah backend hidup:
+
+```text
+GET  /api/boarding/complexes
+GET  /api/boarding/students
+POST /api/boarding/complexes
+PUT  /api/boarding/complexes/{complex}
+POST /api/boarding/rooms
+PUT  /api/boarding/rooms/{room}
+POST /api/boarding/assign-students
+GET  /api/absensi-sholat
+GET  /api/absensi-sholat/context
+GET  /api/absensi-sholat/rekap
+POST /api/absensi-sholat/bulk
+```
+
+Validasi terakhir update 29 Mei 2026:
+
+```text
+php -l file backend Absensi Pondok : no syntax errors
+dart analyze targeted file terkait : no error
+php artisan route:list             : sempat timeout di environment lokal, ulangi manual jika perlu
+php artisan migrate --pretend      : sempat timeout di environment lokal, ulangi manual jika perlu
+```
+
+## 16C. Update 29 Mei 2026 Lanjutan: Menjalankan Data Pondok dan Pembayaran Periode
+
+Setelah update lanjutan, jalankan migration:
+
+```powershell
+cd C:\Users\Nobita\absensi_android\absensi_backend
+php artisan migrate
+```
+
+Migration penting update ini:
+
+```text
+2026_05_29_000002_enhance_boarding_settings.php
+```
+
+Migration tersebut:
+
+- menambah `description` pada `boarding_complexes`;
+- menambah `capacity` dan `description` pada `boarding_rooms`;
+- membuat tabel `santri_pondok`;
+- memigrasikan data lama dari `siswa.boarding_room_id/status_mondok` ke `santri_pondok` secara aman.
+
+Alur uji Data Pondok:
+
+1. Hidupkan backend Laravel.
+2. Jalankan aplikasi Flutter.
+3. Login sebagai admin.
+4. Buka `Buku Induk`.
+5. Pilih `Data Pondok`.
+6. Tambah Komplek.
+7. Tambah Kamar pada Komplek.
+8. Masuk tab Santri, pilih siswa, pilih kamar, aktifkan ikut kegiatan sholat.
+9. Buka `Absensi > Absensi Jama'ah Sholat`.
+10. Pilih tanggal, komplek, kamar, lalu cek daftar santri.
+
+Alur uji pembayaran setelah update ini:
+
+1. Buka `Keuangan`.
+2. Klik `Tambah Data`.
+3. Cari siswa dengan nama kecil, misalnya `zaki`, atau pakai NIS/NISN.
+4. Pilih tahun ajaran dan semester.
+5. Pilih tipe SPP/bulanan.
+6. Pastikan bulan yang tampil mengikuti semester:
+   - Ganjil hanya `Jul-Des`;
+   - Genap hanya `Jan-Jun`.
+7. Simpan pembayaran.
+8. Buka tab `Per Santri`, cek bulan yang dibayar sudah `Lunas`.
+9. Login wali dan pastikan data pembayaran anak muncul, tanpa menampilkan siswa lain.
+
+Endpoint tambahan Data Pondok:
+
+```text
+DELETE /api/boarding/complexes/{complex}
+DELETE /api/boarding/rooms/{room}
+POST   /api/boarding/santri
+PUT    /api/boarding/santri/{santri}
+DELETE /api/boarding/santri/{santri}
+```
+
+Validasi terakhir update lanjutan 29 Mei 2026:
+
+```text
+php -l controller/service/model/migration terkait : no syntax errors
+php artisan migrate --pretend migration pondok lanjutan : berhasil menampilkan SQL
+php artisan route:list --path=api/boarding              : 12 route tampil
+php artisan route:list --path=api/absensi-sholat        : route tampil
+php artisan route:list --path=api/payment-bills         : route tampil
+dart analyze targeted file terkait                      : no issues found
+```
+
+## 17. Catatan Penting
+
+- Jangan reset database kalau sudah ada data sungguhan tanpa backup.
+- Jangan ubah UI hanya untuk menyesuaikan database.
+- Jangan input master data langsung dari typo user.
+- Setelah reset database, import wilayah harus diulang.
+- Kalau nanti sudah production, pakai migration bertahap, bukan `migrate:fresh`.
+- Refactor terbaru tidak mengubah desain UI/UX utama aplikasi.
+- Perbaikan terbaru hanya menambah pesan/status kecil untuk membantu user memahami error, tanpa mengubah layout utama.
+- Selama backend masih di laptop, aplikasi online hanya aktif jika backend dan Cloudflare tunnel hidup.
+- Kalau URL Cloudflare berubah, APK harus dibuild ulang dengan URL backend baru.
+- Setelah update hak akses dan audit, jalankan `php artisan migrate` agar tabel `app_menus`, `role_menu_permissions`, dan `audit_logs` tersedia.
+- Setelah migration, admin bisa membuka Pengaturan > Hak Akses Menu untuk mengatur menu Guru/Wali.
+- Jika permission dimatikan, frontend menyembunyikan menu dan backend menolak API dengan HTTP 403.
+- Setelah update 16 Mei 2026, admin bisa membuka Buku Induk > Setting Akademik untuk mengatur tahun ajaran dan semester aktif.
+- Jika belum ada tahun ajaran aktif, backend membuat fallback periode berjalan agar aplikasi tidak crash, tetapi production tetap sebaiknya membuat periode resmi dari menu Setting Akademik.
+- Setelah update lanjutan 16 Mei 2026, admin bisa membuka Pembayaran > Per Santri untuk cek tagihan santri per tahun ajaran/semester.
+- Role Wali membaca ringkasan tagihan dari payload `billing_summary` pada `GET /api/wali/pembayaran`.
+- Jika jadwal guru pengajar dihapus dari mapel, jadwal yang punya histori absensi akan menjadi `Nonaktif`; jadwal nonaktif tidak tampil di dashboard guru/absensi aktif.
+- Setelah update 17 Mei 2026, tahun ajaran baru tidak otomatis berisi santri. Admin harus membuka Buku Induk > Setting Akademik lalu klik `Sinkronisasi Data Santri`.
+- Jika dropdown siswa pembayaran kosong pada periode tertentu, cek dulu apakah periode itu sudah disinkronkan di Setting Akademik.
+- Jika cek tagihan kosong setelah sinkronisasi, itu normal selama belum ada tagihan/pembayaran pada periode tersebut. Sinkronisasi hanya mendaftarkan santri, bukan menyalin transaksi.
+- Jika bulan SPP tidak bisa dipilih, kemungkinan bulan tersebut sudah `Lunas` atau tagihannya dibatalkan.
+
+## 18. Update 2 Juni 2026: Menjalankan Setelah Cleanup dan Update CMS
+
+Jika cache project baru dibersihkan, folder berikut boleh hilang:
+
+```text
+build/
+.dart_tool/
+android/.gradle/
+.flutter-plugins-dependencies
+```
+
+Itu aman karena semuanya generated. Jalankan ulang:
+
+```powershell
+cd C:\Users\Nobita\absensi_android
+flutter pub get
+```
+
+Jika di Windows muncul pesan:
+
+```text
+Building with plugins requires symlink support.
+You must build from a terminal run as administrator.
+```
+
+Solusinya:
+
+```text
+1. Jalankan Android Studio / terminal sebagai Administrator; atau
+2. Aktifkan Windows Developer Mode.
+```
+
+Setelah itu jalankan backend:
+
+```powershell
+cd C:\Users\Nobita\absensi_android\absensi_backend
+php artisan serve
+```
+
+Jalankan migration terbaru:
+
+```powershell
+php artisan migrate
+```
+
+Route penting yang harus ada:
+
+```text
+GET/POST/PUT/DELETE /api/payment-methods
+GET/POST/PUT/DELETE /api/payment-period-types
+GET /api/absensi-sholat/context
+POST /api/absensi-sholat/bulk
+POST /api/absensi-sholat/cancel
+GET /api/absensi-sholat/rekap
+GET/POST/PUT/DELETE /api/boarding/*
+GET /api/wali/absensi-sholat
+```
+
+Alur uji cepat setelah update:
+
+1. Login admin utama.
+2. Buka Buku Induk > Data Pondok.
+3. Nonaktifkan santri pondok, lalu aktifkan lagi.
+4. Pastikan badge `Aktif` dan `Ikut sholat` muncul.
+5. Buka Absensi > Absensi Jama'ah Sholat.
+6. Simpan absensi, lalu cek dashboard admin.
+7. Buka Keuangan > Tipe Bayar, cek metode/periode pembayaran.
+8. Input pembayaran umum kurang bayar dan pastikan status bukan `Lunas`.
+9. Input SPP bulanan dan cek centang bulan di Per Santri.
+10. Login wali dan pastikan hanya data anak sendiri yang tampil.
+
+Validasi terakhir:
+
+```text
+dart analyze                       : No issues found
+php -l backend                     : PHP syntax OK, 135 files checked
+php artisan route:list --path=api  : 154 route terbaca
+```

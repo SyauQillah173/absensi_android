@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../services/api_service.dart';
+import '../../services/session_service.dart';
 import 'file_library_screen.dart';
 import 'kelola_profil_screen.dart';
 import 'pengaturan_screen.dart';
@@ -81,8 +82,10 @@ class AkunScreen extends StatelessWidget {
                   iconColor: const Color(0xFF138F81),
                   label: 'Kelola Profil',
                   index: 0,
-                  onTap: () =>
-                      _navigateWithAnimation(context, const KelolaProfilScreen()),
+                  onTap: () => _navigateWithAnimation(
+                    context,
+                    const KelolaProfilScreen(),
+                  ),
                 ),
                 const SizedBox(height: 14),
                 _buildMenuItem(
@@ -192,11 +195,7 @@ class AkunScreen extends StatelessWidget {
                     color: iconColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    icon,
-                    size: 22,
-                    color: iconColor,
-                  ),
+                  child: Icon(icon, size: 22, color: iconColor),
                 ),
                 const SizedBox(width: 14),
                 Text(
@@ -241,16 +240,16 @@ class AkunScreen extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () async {
+                try {
+                  await ApiService.logout();
+                } catch (_) {
+                  // Logout lokal tetap berjalan walaupun server sedang offline.
+                }
+
                 // === FIX: Clear session data sebelum logout ===
                 // Tanpa ini, app buka ulang → is_logged_in masih true
                 // → flash ke dashboard → redirect ke login (berat)
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.setBool('is_logged_in', false);
-                await prefs.remove('user_id');
-                await prefs.remove('user_name');
-                await prefs.remove('user_role');
-                await prefs.remove('user_email');
-                await prefs.remove('user_foto_url');
+                await SessionService.clearSession();
 
                 if (context.mounted) {
                   Navigator.pop(context);

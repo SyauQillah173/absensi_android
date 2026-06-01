@@ -99,4 +99,16 @@ class CacheService {
       return null; // No cache available
     }
   }
+
+  static String userScopedKey(
+    String baseKey, {
+    required String role,
+    required int userId,
+  }) {
+    final normalizedRole = role.trim().isEmpty
+        ? 'guest'
+        : role.trim().toLowerCase().replaceAll(' ', '_');
+    final normalizedUserId = userId > 0 ? userId.toString() : 'guest';
+    return '${baseKey}_${normalizedRole}_$normalizedUserId';
+  }
 }

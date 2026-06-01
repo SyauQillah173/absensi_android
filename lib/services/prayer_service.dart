@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' as foundation;
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
@@ -23,6 +23,12 @@ class PrayerTimeService {
   static double? _cachedLat;
   // ignore: unused_field
   static double? _cachedLng;
+
+  static void debugPrint(String? message, {int? wrapWidth}) {
+    if (foundation.kDebugMode) {
+      foundation.debugPrint(message, wrapWidth: wrapWidth);
+    }
+  }
 
   /// Hijri month names in Indonesian
   static const _hijriMonthsId = {

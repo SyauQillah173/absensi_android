@@ -1,0 +1,2336 @@
+# PANDUAN BELAJAR FUNDAMENTAL KODING
+
+Update: 26 April 2026
+Project: Absensi Android + Laravel Backend
+
+Dokumen ini dibuat khusus untuk belajar dasar-dasar koding yang dipakai dalam project ini. Isinya bukan sekadar teori umum, 
+tetapi dikaitkan langsung dengan pola aplikasi Absensi Android: Flutter di frontend, Laravel di backend, PostgreSQL di database, 
+REST API sebagai penghubung, dan sistem offline/cache di sisi Android.
+
+## 1. Gambaran Besar Cara Kerja Aplikasi
+
+Sebelum belajar kode satu per satu, pahami alur besarnya dulu.
+
+```text
+User membuka aplikasi Android
+-> Flutter menampilkan UI
+-> Flutter memanggil ApiService
+-> ApiService mengirim HTTP request ke Laravel
+-> Laravel route mengarah ke Controller
+-> Controller memanggil Model/Service
+-> Model membaca/menulis PostgreSQL
+-> Laravel mengirim JSON response
+-> Flutter membaca JSON
+-> UI berubah sesuai data
+```
+
+Contoh sederhana:
+
+```text
+Admin buka menu Keuangan
+-> Flutter request /api/payment-types
+-> Laravel PaymentTypeController mengambil data payment_types
+-> Backend kirim JSON daftar tipe pembayaran
+-> Flutter tampilkan kartu pembayaran
+```
+
+Intinya:
+
+- Flutter bertugas menampilkan dan mengirim input user.
+- Laravel bertugas mengatur logic dan validasi.
+- PostgreSQL menyimpan data utama.
+- API JSON menjadi jembatan antara Flutter dan Laravel.
+
+## 2. Bahasa dan Teknologi yang Dipakai
+
+Frontend Android:
+
+```text
+Dart
+Flutter
+Material Design 3
+```
+
+Backend:
+
+```text
+PHP
+Laravel
+Eloquent ORM
+REST API
+```
+
+Database:
+
+```text
+PostgreSQL
+SQL
+Foreign key
+Index
+Constraint
+```
+
+Local storage Android:
+
+```text
+sqflite
+shared_preferences
+cache service
+```
+
+Format komunikasi:
+
+```text
+JSON
+HTTP request/response
+```
+
+## 3. Fundamental Dart
+
+Dart adalah bahasa yang dipakai Flutter.
+
+Contoh variable:
+
+```dart
+final nama = 'Diki';
+int umur = 20;
+bool aktif = true;
+double nilai = 88.5;
+```
+
+Penjelasan:
+
+- `final` berarti nilai hanya diisi sekali.
+- `String` untuk teks.
+- `int` untuk angka bulat.
+- `double` untuk angka desimal.
+- `bool` untuk benar/salah.
+
+Contoh list:
+
+```dart
+final siswa = ['Ahmad', 'Fatimah', 'Zainab'];
+```
+
+Contoh map:
+
+```dart
+final user = {
+  'id': 1,
+  'nama': 'Admin',
+  'role': 'admin',
+};
+```
+
+List dipakai untuk banyak data. Map dipakai untuk data yang punya key dan value.
+
+## 4. Function
+
+Function adalah blok kode yang bisa dipanggil ulang.
+
+Contoh:
+
+```dart
+String formatNama(String nama) {
+  return nama.trim();
+}
+```
+
+Penjelasan:
+
+- `String` pertama adalah tipe hasil.
+- `formatNama` adalah nama function.
+- `(String nama)` adalah parameter.
+- `return` mengembalikan hasil.
+
+Contoh function async:
+
+```dart
+Future<void> loadData() async {
+  final data = await ApiService.getSiswa();
+  print(data);
+}
+```
+
+Penjelasan:
+
+- `Future` berarti hasil datang nanti.
+- `async` berarti function boleh menunggu proses.
+- `await` menunggu request selesai.
+
+Di project ini, function async banyak dipakai untuk:
+
+- ambil data API;
+- simpan cache;
+- upload file;
+- import/export;
+- sync offline.
+
+## 5. Class dan Object
+
+Class adalah cetakan. Object adalah hasil dari cetakan itu.
+
+Contoh:
+
+```dart
+class Siswa {
+  final int id;
+  final String nama;
+
+  Siswa({required this.id, required this.nama});
+}
+```
+
+Membuat object:
+
+```dart
+final siswa = Siswa(id: 1, nama: 'Ahmad');
+```
+
+Penjelasan:
+
+- `class Siswa` membuat tipe data baru.
+- `id` dan `nama` adalah property.
+- constructor dipakai untuk membuat object.
+
+Di project ini class dipakai untuk:
+
+- screen Flutter;
+- service;
+- controller Laravel;
+- model Laravel;
+- helper/export.
+
+## 6. Flutter Widget
+
+Di Flutter, semua tampilan adalah widget.
+
+Contoh widget paling sederhana:
+
+```dart
+Text('Data Siswa')
+```
+
+Contoh icon:
+
+```dart
+Icon(Icons.person_rounded)
+```
+
+Contoh tombol:
+
+```dart
+ElevatedButton(
+  onPressed: () {},
+  child: Text('Simpan'),
+)
+```
+
+Contoh container:
+
+```dart
+Container(
+  padding: EdgeInsets.all(16),
+  decoration: BoxDecoration(
+    color: Color(0xFFE1EFF7),
+    borderRadius: BorderRadius.circular(20),
+  ),
+  child: Text('Isi kartu'),
+)
+```
+
+Widget penting yang sering dipakai:
+
+```text
+Scaffold        : rangka halaman
+SafeArea        : agar tidak kena status bar
+SingleChildScrollView : agar layar bisa scroll
+ListView        : daftar data
+Container       : kotak/panel/card
+Text            : teks
+Icon            : icon
+Row             : susunan horizontal
+Column          : susunan vertikal
+Stack           : susunan bertumpuk
+TextField       : input teks
+ElevatedButton  : tombol utama
+```
+
+## 7. StatelessWidget dan StatefulWidget
+
+`StatelessWidget` dipakai jika tampilan tidak berubah karena state internal.
+
+```dart
+class JudulPage extends StatelessWidget {
+  const JudulPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text('Judul');
+  }
+}
+```
+
+`StatefulWidget` dipakai jika tampilan bisa berubah.
+
+```dart
+class CounterPage extends StatefulWidget {
+  const CounterPage({super.key});
+
+  @override
+  State<CounterPage> createState() => _CounterPageState();
+}
+
+class _CounterPageState extends State<CounterPage> {
+  int count = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: () {
+        setState(() {
+          count++;
+        });
+      },
+      child: Text('$count'),
+    );
+  }
+}
+```
+
+Penjelasan:
+
+- `setState` memberi tahu Flutter bahwa tampilan perlu digambar ulang.
+- Data seperti loading, list siswa, pilihan filter, dan form biasanya disimpan sebagai state.
+
+## 8. State Loading, Success, Error
+
+Saat aplikasi mengambil data, biasanya ada tiga kondisi:
+
+```text
+loading
+success
+error
+```
+
+Contoh:
+
+```dart
+bool isLoading = false;
+String? errorMessage;
+List<Map<String, dynamic>> data = [];
+```
+
+Pola umumnya:
+
+```dart
+Future<void> fetchData() async {
+  setState(() {
+    isLoading = true;
+    errorMessage = null;
+  });
+
+  try {
+    final result = await ApiService.getSiswa();
+    setState(() {
+      data = result;
+    });
+  } catch (e) {
+    setState(() {
+      errorMessage = e.toString();
+    });
+  } finally {
+    setState(() {
+      isLoading = false;
+    });
+  }
+}
+```
+
+Penjelasan:
+
+- `try` mencoba menjalankan kode.
+- `catch` menangkap error.
+- `finally` tetap jalan setelah selesai, baik sukses atau gagal.
+
+## 9. API Service di Flutter
+
+API Service adalah file yang menghubungkan Flutter ke Laravel.
+
+Tugas API Service:
+
+- membuat URL endpoint;
+- mengirim request;
+- membawa token/session jika diperlukan;
+- membaca JSON response;
+- melempar error jika gagal.
+
+Contoh konsep:
+
+```dart
+final response = await http.get(Uri.parse('$baseUrl/api/siswa'));
+```
+
+Jika backend mengirim JSON:
+
+```json
+{
+  "success": true,
+  "data": [
+    { "id": 1, "nama": "Ahmad" }
+  ]
+}
+```
+
+Flutter membaca:
+
+```dart
+final body = jsonDecode(response.body);
+final data = body['data'];
+```
+
+Aturan:
+
+- jangan menaruh logic bisnis terlalu banyak di UI;
+- request API sebaiknya lewat service;
+- response harus dicek status code-nya;
+- error harus ditampilkan dengan pesan yang jelas.
+
+## 10. JSON
+
+JSON adalah format data yang dipakai API.
+
+Contoh JSON user:
+
+```json
+{
+  "id": 1,
+  "name": "Admin",
+  "role": "admin",
+  "active": true
+}
+```
+
+Di Dart, JSON biasanya menjadi Map:
+
+```dart
+Map<String, dynamic>
+```
+
+Jika isinya banyak data, menjadi List:
+
+```dart
+List<Map<String, dynamic>>
+```
+
+Aturan penting:
+
+- key JSON harus konsisten;
+- backend dan frontend harus sepakat nama field;
+- ID relasi tetap dikirim sebagai angka;
+- nama boleh dikirim untuk tampilan.
+
+Contoh:
+
+```json
+{
+  "student_id": 5,
+  "student_name": "Ahmad",
+  "class_id": 2,
+  "class_name": "Sifir Awal A"
+}
+```
+
+## 11. Fundamental PHP
+
+PHP dipakai di backend Laravel.
+
+Contoh variable:
+
+```php
+$nama = 'Ahmad';
+$umur = 20;
+$aktif = true;
+```
+
+Contoh array:
+
+```php
+$user = [
+    'id' => 1,
+    'name' => 'Admin',
+    'role' => 'admin',
+];
+```
+
+Contoh function:
+
+```php
+function formatNama(string $nama): string
+{
+    return trim($nama);
+}
+```
+
+Di Laravel, PHP dipakai untuk:
+
+- controller;
+- model;
+- service;
+- seeder;
+- command;
+- validation;
+- route.
+
+## 12. Laravel Route
+
+Route menentukan URL masuk ke controller mana.
+
+Contoh:
+
+```php
+Route::get('siswa', [SiswaController::class, 'index']);
+```
+
+Artinya:
+
+```text
+GET /api/siswa
+-> masuk ke SiswaController method index
+```
+
+Jenis request:
+
+```text
+GET     : mengambil data
+POST    : membuat data
+PUT     : update penuh
+PATCH   : update sebagian
+DELETE  : hapus data
+```
+
+Contoh:
+
+```text
+GET /api/payment-types
+POST /api/payment-types
+PUT /api/payment-types/1
+DELETE /api/payment-types/1
+```
+
+## 13. Laravel Controller
+
+Controller menerima request dari route.
+
+Contoh konsep:
+
+```php
+class SiswaController extends Controller
+{
+    public function index()
+    {
+        $siswa = Siswa::query()->latest()->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $siswa,
+        ]);
+    }
+}
+```
+
+Tugas controller:
+
+- menerima input;
+- validasi request;
+- memanggil model/service;
+- mengirim response JSON;
+- menjaga role access.
+
+Controller jangan terlalu gemuk. Jika logic panjang, pindahkan ke service.
+
+## 14. Laravel Model
+
+Model mewakili tabel database.
+
+Contoh:
+
+```php
+class Siswa extends Model
+{
+    protected $table = 'siswa';
+
+    protected $fillable = [
+        'nama',
+        'nis',
+        'class_id',
+        'student_status_id',
+    ];
+}
+```
+
+Penjelasan:
+
+- `$table` menentukan nama tabel.
+- `$fillable` menentukan kolom yang boleh diisi massal.
+- Model bisa punya relation.
+
+Contoh relation:
+
+```php
+public function kelas()
+{
+    return $this->belongsTo(SchoolClass::class, 'class_id');
+}
+```
+
+Artinya:
+
+```text
+siswa.class_id terhubung ke classes.id
+```
+
+## 15. Service
+
+Service berisi logic yang lebih panjang atau dipakai banyak controller.
+
+Contoh tugas service:
+
+- resolve master data;
+- import Excel;
+- export PDF;
+- sync wilayah;
+- riwayat pembayaran;
+- cache/offline;
+- keamanan pembayaran.
+
+Contoh konsep:
+
+```php
+class PaymentHistoryService
+{
+    public function listForStudent(int $studentId): array
+    {
+        // logic ambil riwayat pembayaran
+    }
+}
+```
+
+Kenapa pakai service?
+
+- controller lebih rapi;
+- logic bisa dipakai ulang;
+- mudah dites;
+- bug lebih mudah dicari.
+
+## 16. Database dan SQL
+
+Database menyimpan data.
+
+Contoh tabel siswa:
+
+```text
+id
+nama
+nis
+class_id
+student_status_id
+created_at
+updated_at
+```
+
+Contoh query SQL:
+
+```sql
+select id, nama, class_id
+from siswa
+order by id desc;
+```
+
+Contoh join:
+
+```sql
+select s.id, s.nama, c.name as kelas
+from siswa s
+left join classes c on c.id = s.class_id;
+```
+
+Penjelasan:
+
+- `select` memilih kolom.
+- `from` memilih tabel.
+- `left join` menghubungkan tabel.
+- `on` menentukan relasi.
+
+## 17. Foreign Key
+
+Foreign key adalah pengaman relasi.
+
+Contoh:
+
+```text
+siswa.class_id -> classes.id
+```
+
+Artinya:
+
+- siswa menyimpan ID kelas;
+- ID kelas harus ada di tabel classes;
+- tidak boleh asal mengetik nama kelas sebagai relasi.
+
+Manfaat:
+
+- data lebih aman;
+- typo berkurang;
+- relasi mudah dilacak;
+- laporan lebih konsisten.
+
+## 18. ID vs Text
+
+Ini bagian penting dalam project.
+
+Text untuk tampilan:
+
+```text
+Nama siswa: Ahmad
+Nama kelas: Sifir Awal A
+Nama kota: Gresik
+```
+
+ID untuk relasi:
+
+```text
+student_id = 5
+class_id = 2
+city_id = 120
+```
+
+Jangan memakai:
+
+```sql
+where nama_guru = 'Diki'
+```
+
+Gunakan:
+
+```sql
+where teacher_id = 2
+```
+
+Kenapa?
+
+- nama bisa typo;
+- nama bisa sama;
+- huruf besar/kecil bisa beda;
+- ID lebih pasti.
+
+## 19. Normalisasi Database
+
+Normalisasi adalah cara membuat database lebih rapi.
+
+Contoh data mentah:
+
+```text
+siswa.kelas = "Sifir Awal A"
+siswa.kota = "Gresik"
+siswa.status = "Aktif"
+```
+
+Lebih matang:
+
+```text
+siswa.class_id = 1
+siswa.city_id = 514
+siswa.student_status_id = 1
+```
+
+Master table:
+
+```text
+classes
+cities
+student_statuses
+```
+
+Manfaat:
+
+- tidak ada banyak versi text;
+- data lebih mudah dicari;
+- relasi jelas;
+- cocok untuk Android dan web.
+
+## 20. Import Excel
+
+Import Excel biasanya mudah untuk admin, tetapi rawan typo.
+
+Aturan:
+
+- Excel boleh berisi nama kelas/kota/mapel;
+- backend harus mencari ID master;
+- kalau tidak ditemukan, tampilkan error;
+- jangan otomatis membuat master dari typo.
+
+Contoh:
+
+```text
+Excel berisi kota: Gresikk
+Backend cek di tabel cities
+Tidak ditemukan
+Tampilkan error: Kota Gresikk tidak ditemukan
+```
+
+## 21. Export PDF dan Excel
+
+Export menampilkan data untuk manusia.
+
+Maka yang tampil boleh:
+
+```text
+nama siswa
+nama kelas
+nama guru
+nama mapel
+status pembayaran
+```
+
+Tetapi sumbernya harus dari relasi ID.
+
+Contoh:
+
+```text
+payment_transactions.payment_method_id -> payment_methods.name
+```
+
+Dengan begitu, laporan tetap rapi dan database tetap kuat.
+
+## 22. Offline Cache
+
+Offline cache membuat aplikasi tetap bisa menyimpan data sementara.
+
+Contoh:
+
+```text
+Guru absen saat internet lambat
+Data disimpan lokal
+Saat online, data dikirim ke backend
+```
+
+Data offline harus menyimpan ID:
+
+```text
+student_id
+class_id
+mapel_id
+attendance_status_id
+```
+
+Label boleh ikut untuk tampilan:
+
+```text
+student_name
+class_name
+status_label
+```
+
+## 23. SharedPreferences
+
+SharedPreferences dipakai untuk menyimpan data kecil.
+
+Contoh:
+
+```text
+user_id
+nama user
+role
+token/session
+pengaturan sederhana
+```
+
+Contoh konsep Dart:
+
+```dart
+final prefs = await SharedPreferences.getInstance();
+await prefs.setString('role', 'admin');
+final role = prefs.getString('role');
+```
+
+Jangan menyimpan data besar di SharedPreferences. Untuk data besar pakai SQLite/sqflite atau cache service.
+
+## 24. sqflite
+
+sqflite adalah SQLite lokal di Android.
+
+Dipakai untuk:
+
+- data offline;
+- pending sync;
+- cache data tertentu;
+- menjaga aplikasi tetap responsif.
+
+Prinsip:
+
+- data penting tetap final di PostgreSQL backend;
+- SQLite hanya penyimpanan lokal;
+- saat online harus sync;
+- konflik harus dicek.
+
+## 25. Error Handling
+
+Error handling adalah cara menangani masalah tanpa membuat aplikasi crash.
+
+Di Flutter:
+
+```dart
+try {
+  await saveData();
+} catch (e) {
+  showMessage('Gagal menyimpan data');
+}
+```
+
+Di Laravel:
+
+```php
+try {
+    // logic simpan
+} catch (\Throwable $e) {
+    return response()->json([
+        'success' => false,
+        'message' => 'Gagal menyimpan data',
+    ], 500);
+}
+```
+
+Aturan:
+
+- jangan menampilkan error teknis mentah ke user;
+- log error teknis untuk developer;
+- user cukup diberi pesan yang bisa dipahami;
+- validasi input sebelum simpan ke database.
+
+## 26. Validasi
+
+Validasi memastikan input benar.
+
+Contoh Laravel:
+
+```php
+$validated = $request->validate([
+    'nama' => ['required', 'string', 'max:255'],
+    'class_id' => ['nullable', 'integer', 'exists:classes,id'],
+]);
+```
+
+Penjelasan:
+
+- `required` wajib diisi;
+- `string` harus teks;
+- `max:255` panjang maksimal;
+- `integer` harus angka;
+- `exists:classes,id` ID harus ada di tabel classes.
+
+Validasi adalah pagar supaya database tidak rusak.
+
+## 27. Role Access
+
+Role menentukan hak akses.
+
+Role utama:
+
+```text
+admin
+guru
+orang tua/wali
+```
+
+Aturan:
+
+- admin boleh mengelola banyak data;
+- guru hanya data yang terkait guru tersebut;
+- orang tua hanya data anaknya;
+- permission harus memakai ID.
+
+Contoh salah:
+
+```text
+Jika nama_guru = "Diki", boleh akses
+```
+
+Contoh benar:
+
+```text
+Jika teacher_id user login sama dengan teacher_id assignment, boleh akses
+```
+
+## 28. Cara Membaca File Project
+
+Kalau ingin memahami fitur, baca dari UI ke backend:
+
+```text
+1. Cari screen Flutter
+2. Cari ApiService yang dipanggil
+3. Cari route API
+4. Cari controller
+5. Cari service jika ada
+6. Cari model
+7. Cari tabel database
+```
+
+Contoh menu pembayaran:
+
+```text
+lib/screens/keuangan/pembayaran_screen.dart
+-> lib/services/api_service.dart
+-> absensi_backend/routes/api.php
+-> PaymentTypeController / PembayaranController
+-> PaymentType / PaymentTransaction / Pembayaran model
+-> payment_types / payment_transactions / pembayaran tables
+```
+
+## 29. Cara Debug Bug
+
+Urutan debug yang rapi:
+
+1. Baca pesan error.
+2. Cari fitur yang error.
+3. Cek input dari UI.
+4. Cek request API.
+5. Cek response backend.
+6. Cek controller.
+7. Cek query/model.
+8. Cek isi database.
+9. Cek cache/offline jika fitur offline.
+10. Perbaiki titik masalahnya.
+
+Jangan langsung mengubah banyak file.
+
+## 30. Command Penting
+
+Flutter:
+
+```bash
+flutter pub get
+flutter analyze --no-pub
+flutter run
+```
+
+Laravel:
+
+```bash
+composer install
+php artisan route:list --path=api
+php artisan migrate:fresh --seed
+php -d memory_limit=512M artisan regions:import-sql
+php artisan storage:link
+php artisan optimize:clear
+```
+
+Database:
+
+```sql
+select count(*) from siswa;
+select count(*) from classes;
+select count(*) from provinces;
+```
+
+## 31. Git Dasar
+
+Git dipakai untuk melihat perubahan.
+
+Command penting:
+
+```bash
+git status
+git diff
+git add .
+git commit -m "pesan commit"
+```
+
+Penjelasan:
+
+- `git status` melihat file berubah.
+- `git diff` melihat isi perubahan.
+- `git add` menyiapkan file untuk commit.
+- `git commit` menyimpan riwayat perubahan.
+
+Jangan commit file rahasia seperti `.env` asli.
+
+## 32. Prinsip Koding yang Baik
+
+Prinsip penting:
+
+- baca kode dulu sebelum mengubah;
+- ubah bagian yang perlu saja;
+- jangan merusak UI karena memperbaiki backend;
+- jangan duplikasi logic;
+- beri nama variable yang jelas;
+- pisahkan UI, service, controller, dan database;
+- validasi input;
+- tangani error;
+- jaga database berbasis ID;
+- dokumentasikan perubahan penting.
+
+## 33. Contoh Alur Fitur Baru
+
+Misal ingin membuat fitur kategori kegiatan.
+
+Langkah matang:
+
+```text
+1. Cek apakah master table sudah ada.
+2. Buat tabel master jika belum ada.
+3. Buat model Laravel.
+4. Buat controller API.
+5. Tambahkan route API.
+6. Tambahkan method di ApiService Flutter.
+7. Buat UI pilihan kategori.
+8. Simpan category_id, bukan nama kategori.
+9. Tampilkan nama kategori dari relasi.
+10. Update export/import jika terdampak.
+11. Test role admin/guru/orang tua.
+```
+
+## 34. Kesalahan Umum Pemula
+
+Kesalahan yang harus dihindari:
+
+- langsung mengubah UI tanpa memahami alur;
+- menyimpan relasi sebagai text;
+- tidak mengecek response API;
+- lupa `setState`;
+- lupa `await`;
+- lupa validasi backend;
+- membuat master data dobel;
+- menghapus data tanpa backup;
+- menampilkan error teknis ke user;
+- menganggap Android dan backend pasti selalu sinkron.
+
+## 35. Cara Belajar Bertahap
+
+Urutan belajar yang disarankan:
+
+1. Pahami alur aplikasi dari UI ke database.
+2. Belajar Dart dasar.
+3. Belajar Flutter widget.
+4. Belajar state dan async.
+5. Belajar HTTP dan JSON.
+6. Belajar PHP dasar.
+7. Belajar Laravel route/controller/model.
+8. Belajar SQL dan relasi.
+9. Belajar foreign key dan normalisasi.
+10. Belajar offline cache dan sync.
+11. Belajar export PDF/Excel.
+12. Belajar debug dari error nyata.
+
+## 36. Ringkasan Super Penting
+
+Jika hanya mengingat beberapa hal, ingat ini:
+
+```text
+Flutter = tampilan Android
+Laravel = logic backend/API
+PostgreSQL = penyimpanan utama
+JSON = format komunikasi
+ID = relasi utama
+Text = tampilan/label
+Service = logic yang bisa dipakai ulang
+Controller = penerima request
+Model = wakil tabel
+Validation = pagar keamanan data
+Foreign key = pengunci relasi
+Cache/offline = data sementara di Android
+```
+
+## 37. Pegangan Project Ini
+
+Project ini harus dijaga dengan dua prinsip besar:
+
+```text
+1. Tampilan tetap konsisten seperti konsep awal.
+2. Sistem data harus makin matang dan berbasis ID.
+```
+
+Kalau dua prinsip ini dijaga, project akan lebih mudah dikembangkan ke versi web, lebih aman untuk data sungguhan, dan lebih mudah dimaintenance.
+
+## 38. Cara Belajar Langsung dari File Project
+
+Bagian ini adalah peta praktik. Buka file yang disebutkan, baca pelan-pelan, lalu cocokkan dengan penjelasannya.
+
+Root project:
+
+```text
+c:\Users\Nobita\absensi_android
+```
+
+Backend Laravel:
+
+```text
+c:\Users\Nobita\absensi_android\absensi_backend
+```
+
+Frontend Flutter:
+
+```text
+c:\Users\Nobita\absensi_android\lib
+```
+
+## 39. Contoh Belajar Entry Point Flutter
+
+File:
+
+```text
+lib/main.dart
+```
+
+Yang dipelajari:
+
+- aplikasi mulai dari `main()`;
+- Flutter perlu `WidgetsFlutterBinding.ensureInitialized()`;
+- `SyncService.init()` dipanggil sebelum aplikasi jalan;
+- session dicek lewat `SessionService.isLoggedIn()`;
+- route awal ditentukan dari status login;
+- theme global memakai warna dan font utama.
+
+Bagian penting:
+
+```dart
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SyncService.init();
+  final isLoggedIn = await SessionService.isLoggedIn();
+  runApp(MyApp(isLoggedIn: isLoggedIn));
+}
+```
+
+Penjelasan:
+
+- `async` artinya function bisa menunggu proses.
+- `await SyncService.init()` menyiapkan service offline/sync.
+- `isLoggedIn` menentukan user masuk dashboard atau splash/login.
+
+Latihan:
+
+```text
+Buka lib/main.dart.
+Cari ThemeData.
+Catat warna primary, secondary, dan surface.
+Jangan ubah dulu, cukup pahami bahwa theme ini menjadi dasar tampilan aplikasi.
+```
+
+## 40. Contoh Belajar Theme, Font, dan Warna
+
+File:
+
+```text
+lib/main.dart
+```
+
+Kode yang dipelajari:
+
+```dart
+theme: ThemeData(
+  colorScheme: ColorScheme.fromSeed(
+    seedColor: const Color(0xFFFFDC80),
+    primary: const Color(0xFF138F81),
+    secondary: const Color(0xFFFFDC80),
+    surface: const Color(0xFFE1EFF7),
+  ),
+  textTheme: GoogleFonts.poppinsTextTheme(),
+  useMaterial3: true,
+)
+```
+
+Artinya:
+
+- `#FFDC80` adalah warna kuning utama background.
+- `#138F81` adalah warna teal utama untuk aksi penting.
+- `#E1EFF7` adalah warna biru muda untuk panel/surface.
+- `GoogleFonts.poppinsTextTheme()` membuat font utama menjadi Poppins.
+- `useMaterial3: true` berarti memakai Material Design 3.
+
+Latihan:
+
+```text
+Buka PANDUAN_DESAIN_TEKNOLOGI_PROYEK.txt.
+Cocokkan daftar warna di panduan dengan ThemeData di lib/main.dart.
+```
+
+## 41. Contoh Belajar Dashboard dan Role Menu
+
+File:
+
+```text
+lib/screens/beranda/dashboard_screen.dart
+```
+
+Yang dipelajari:
+
+- menu dashboard;
+- icon menu;
+- warna gradient menu;
+- menu berdasarkan role;
+- data dashboard;
+- cache dan refresh;
+- navigasi ke halaman lain.
+
+Bagian penting:
+
+```dart
+static const Map<String, IconData> _menuIcons = {
+  'Absensi': Icons.fact_check_rounded,
+  'Mata Pelajaran': Icons.menu_book_rounded,
+  'Nilai Ujian/Hafalan': Icons.school_rounded,
+  'Keuangan': Icons.account_balance_wallet_rounded,
+  'Buku Induk': Icons.library_books_rounded,
+  'Materi & Kegiatan': Icons.photo_library_rounded,
+  'Izin Guru': Icons.assignment_turned_in_rounded,
+};
+```
+
+Artinya:
+
+- setiap menu punya icon;
+- icon memakai `Icons.*_rounded`;
+- ini adalah gaya icon utama aplikasi.
+
+Bagian role:
+
+```dart
+static const List<String> _waliMenuTitles = [
+  'Absensi',
+  'Pembayaran',
+  'Nilai',
+  'Kegiatan Belajar',
+];
+```
+
+Artinya:
+
+- orang tua/wali hanya melihat menu tertentu;
+- menu tidak boleh asal sama dengan admin;
+- role memengaruhi tampilan.
+
+Latihan:
+
+```text
+Buka dashboard_screen.dart.
+Cari _menuIcons.
+Cari _menuColors.
+Cari _waliMenuTitles.
+Cari _guruMenuTitles.
+Pahami bedanya menu admin, guru, dan wali.
+```
+
+## 42. Contoh Belajar Login dan Session
+
+File Flutter:
+
+```text
+lib/screens/auth/login_screen.dart
+lib/services/session_service.dart
+```
+
+File Backend:
+
+```text
+absensi_backend/app/Http/Controllers/Api/AuthController.php
+absensi_backend/routes/api.php
+```
+
+Alur:
+
+```text
+User isi login
+-> login_screen.dart memanggil ApiService/Auth
+-> Laravel AuthController mengecek user
+-> response JSON dikirim
+-> SessionService menyimpan data user
+-> aplikasi masuk DashboardScreen
+```
+
+Yang dipelajari:
+
+- form input;
+- loading saat login;
+- error SnackBar;
+- penyimpanan session lokal;
+- role user.
+
+Latihan:
+
+```text
+Buka login_screen.dart.
+Cari TextField atau field username/password.
+Cari function login.
+Buka session_service.dart.
+Cari key yang disimpan ke SharedPreferences.
+```
+
+## 43. Contoh Belajar API Service
+
+File:
+
+```text
+lib/services/api_service.dart
+```
+
+Yang dipelajari:
+
+- base URL backend;
+- method GET/POST/PUT/DELETE;
+- parsing JSON;
+- upload file;
+- endpoint wilayah;
+- endpoint profil;
+- endpoint pembayaran.
+
+Contoh endpoint wilayah yang sudah ada:
+
+```text
+getProvinces
+getCities
+getDistricts
+getVillages
+```
+
+Hubungannya ke backend:
+
+```text
+GET /api/regions/provinces
+GET /api/regions/cities?province_id=...
+GET /api/regions/districts?city_id=...
+GET /api/regions/villages?district_id=...
+```
+
+Latihan:
+
+```text
+Buka api_service.dart.
+Cari getProvinces.
+Lihat URL yang dipanggil.
+Lalu buka absensi_backend/routes/api.php.
+Cari regions/provinces.
+```
+
+Tujuannya:
+
+```text
+Abang paham bahwa method Flutter selalu punya pasangan route di Laravel.
+```
+
+## 44. Contoh Belajar Route API Laravel
+
+File:
+
+```text
+absensi_backend/routes/api.php
+```
+
+Yang dipelajari:
+
+- daftar endpoint backend;
+- route login;
+- route dashboard;
+- route siswa;
+- route wilayah;
+- route pembayaran;
+- route nilai;
+- route absensi.
+
+Contoh route:
+
+```php
+Route::get('regions/provinces', [RegionController::class, 'provinces']);
+Route::get('regions/cities', [RegionController::class, 'cities']);
+Route::get('regions/districts', [RegionController::class, 'districts']);
+Route::get('regions/villages', [RegionController::class, 'villages']);
+```
+
+Artinya:
+
+```text
+Kalau Flutter memanggil /api/regions/provinces,
+Laravel menjalankan RegionController method provinces.
+```
+
+Latihan:
+
+```text
+Buka routes/api.php.
+Pilih satu route, misalnya payment-types.
+Lihat controller apa yang dipakai.
+Buka controller tersebut.
+```
+
+## 45. Contoh Belajar Controller Wilayah
+
+File:
+
+```text
+absensi_backend/app/Http/Controllers/Api/RegionController.php
+```
+
+Yang dipelajari:
+
+- controller menerima request wilayah;
+- query berdasarkan parent ID;
+- response JSON;
+- data wilayah tidak diketik bebas.
+
+Alur wilayah:
+
+```text
+Flutter pilih provinsi
+-> kirim province_id
+-> backend cari cities dengan province_id itu
+-> Flutter menampilkan kota
+```
+
+Latihan:
+
+```text
+Buka RegionController.php.
+Cari method provinces.
+Cari method cities.
+Perhatikan cities membutuhkan province_id.
+Ini contoh relasi parent-child.
+```
+
+## 46. Contoh Belajar Model Wilayah
+
+File:
+
+```text
+absensi_backend/app/Models/Province.php
+absensi_backend/app/Models/City.php
+absensi_backend/app/Models/District.php
+absensi_backend/app/Models/Village.php
+```
+
+Yang dipelajari:
+
+- satu provinsi punya banyak kota;
+- satu kota punya banyak kecamatan;
+- satu kecamatan punya banyak desa;
+- setiap wilayah punya `external_code`.
+
+Relasi konsep:
+
+```text
+provinces.id -> cities.province_id
+cities.id -> districts.city_id
+districts.id -> villages.district_id
+```
+
+Latihan:
+
+```text
+Buka Province.php dan City.php.
+Cari function relasi seperti hasMany atau belongsTo.
+Catat kolom penghubungnya.
+```
+
+## 47. Contoh Belajar Database Schema
+
+File:
+
+```text
+absensi_backend/database/schema/pgsql-schema.sql
+```
+
+Yang dipelajari:
+
+- daftar tabel;
+- kolom tiap tabel;
+- unique constraint;
+- foreign key;
+- index;
+- relasi database sebenarnya.
+
+Cara mencari:
+
+```text
+Cari teks: CREATE TABLE public.siswa
+Cari teks: siswa_class_id_foreign
+Cari teks: payment_transactions_payment_method_id_foreign
+Cari teks: cities_external_code_unique
+```
+
+Contoh yang harus dipahami:
+
+```text
+siswa.class_id terhubung ke classes.id
+payment_transactions.payment_method_id terhubung ke payment_methods.id
+cities.external_code harus unik
+```
+
+Latihan:
+
+```text
+Buka pgsql-schema.sql.
+Cari tabel siswa.
+Lihat kolom yang berakhiran _id.
+Itulah tanda relasi berbasis ID.
+```
+
+## 48. Contoh Belajar Data Siswa
+
+File Flutter:
+
+```text
+lib/screens/buku_induk/data_siswa_screen.dart
+lib/screens/buku_induk/edit_siswa_screen.dart
+lib/screens/buku_induk/detail_siswa_screen.dart
+```
+
+File Backend:
+
+```text
+absensi_backend/app/Http/Controllers/Api/SiswaController.php
+absensi_backend/app/Models/Siswa.php
+absensi_backend/database/seeders/SiswaSeeder.php
+```
+
+Tabel:
+
+```text
+siswa
+classes
+student_statuses
+provinces
+cities
+districts
+villages
+```
+
+Yang dipelajari:
+
+- data siswa tampil di UI;
+- form siswa mengirim data ke API;
+- backend validasi;
+- database menyimpan ID relasi;
+- text nama tetap tampil untuk user.
+
+Latihan:
+
+```text
+Buka data_siswa_screen.dart.
+Cari ApiService yang dipanggil.
+Buka SiswaController.php.
+Cari method index/store/update.
+Buka Siswa.php.
+Lihat fillable dan relasi.
+```
+
+## 49. Contoh Belajar Data Guru
+
+File Flutter:
+
+```text
+lib/screens/buku_induk/data_guru_screen.dart
+lib/screens/buku_induk/edit_user_screen.dart
+```
+
+File Backend:
+
+```text
+absensi_backend/app/Http/Controllers/Api/UserManagementController.php
+absensi_backend/app/Models/User.php
+absensi_backend/app/Models/TeacherProfile.php
+absensi_backend/app/Models/TeacherCategory.php
+absensi_backend/app/Models/TeacherUnit.php
+```
+
+Tabel:
+
+```text
+users
+roles
+teacher_profiles
+teacher_categories
+teacher_units
+teacher_profile_category
+teacher_profile_unit
+```
+
+Yang dipelajari:
+
+- guru sebenarnya adalah user dengan role guru;
+- data detail guru disimpan di teacher profile;
+- status guru bisa banyak kategori;
+- unit sekolah mengajar bisa opsional;
+- relasi many-to-many memakai pivot table.
+
+Latihan:
+
+```text
+Buka edit_user_screen.dart.
+Cari bagian Unit Sekolah Mengajar.
+Buka UserManagementController.php.
+Cari validasi guru.
+Buka TeacherProfile.php.
+Lihat relasi category/unit.
+```
+
+## 50. Contoh Belajar Keuangan
+
+File Flutter:
+
+```text
+lib/screens/keuangan/pembayaran_screen.dart
+lib/screens/keuangan/payment_security_settings_screen.dart
+lib/services/pembayaran_export_service.dart
+lib/services/payment_security_service.dart
+```
+
+File Backend:
+
+```text
+absensi_backend/app/Http/Controllers/Api/PaymentTypeController.php
+absensi_backend/app/Http/Controllers/Api/PembayaranController.php
+absensi_backend/app/Http/Controllers/Api/AdminPaymentSecuritySettingController.php
+absensi_backend/app/Models/PaymentType.php
+absensi_backend/app/Models/PaymentMethod.php
+absensi_backend/app/Models/PaymentStatus.php
+absensi_backend/app/Models/PaymentTransaction.php
+absensi_backend/app/Services/PaymentHistoryService.php
+```
+
+Tabel:
+
+```text
+payment_types
+payment_methods
+payment_statuses
+payment_transactions
+pembayaran
+payment_type_method
+admin_payment_security_settings
+```
+
+Yang dipelajari:
+
+- tipe pembayaran adalah master tagihan;
+- metode pembayaran adalah master metode;
+- transaksi pembayaran menyimpan ID siswa, tipe, metode, status;
+- riwayat pembayaran dibaca dari service;
+- keamanan pembayaran admin memakai local auth/service.
+
+Latihan:
+
+```text
+Buka pembayaran_screen.dart.
+Cari tombol Tambah Data.
+Cari fungsi edit tipe pembayaran.
+Buka PaymentTypeController.php.
+Lihat validasi method pembayaran.
+Buka PaymentHistoryService.php.
+Pahami cara riwayat pembayaran disusun.
+```
+
+## 51. Contoh Belajar Absensi
+
+File Flutter:
+
+```text
+lib/screens/absensi/absensi_mapel_screen.dart
+lib/screens/absensi/absensi_murid_screen.dart
+lib/screens/absensi/absensi_sifir_screen.dart
+lib/screens/absensi/rekap_absensi_screen.dart
+```
+
+File Backend:
+
+```text
+absensi_backend/app/Http/Controllers/Api/AbsensiController.php
+absensi_backend/app/Models/Absensi.php
+absensi_backend/app/Models/AttendanceStatus.php
+```
+
+Tabel:
+
+```text
+absensi
+attendance_statuses
+siswa
+classes
+mata_pelajaran
+users
+```
+
+Yang dipelajari:
+
+- guru memilih kelas/mapel;
+- daftar siswa tampil;
+- status hadir/sakit/izin/alfa memakai master;
+- data offline bisa disimpan dulu;
+- saat online data dikirim ke backend.
+
+Latihan:
+
+```text
+Buka absensi_murid_screen.dart.
+Cari bagian simpan absensi.
+Buka AbsensiController.php.
+Cari validasi status.
+Buka Absensi.php.
+Lihat relasi siswa, kelas, mapel, dan status.
+```
+
+## 52. Contoh Belajar Nilai dan Hafalan
+
+File Flutter:
+
+```text
+lib/screens/nilai/nilai_input_screen.dart
+lib/screens/nilai/dokumen_nilai_settings_screen.dart
+lib/services/nilai_export_service.dart
+```
+
+File Backend:
+
+```text
+absensi_backend/app/Http/Controllers/Api/NilaiController.php
+absensi_backend/app/Http/Controllers/Api/HafalanController.php
+absensi_backend/app/Http/Controllers/Api/PenilaianController.php
+absensi_backend/app/Models/Nilai.php
+absensi_backend/app/Models/Hafalan.php
+absensi_backend/app/Models/AssessmentType.php
+absensi_backend/app/Models/MemorizationStatus.php
+```
+
+Tabel:
+
+```text
+nilai
+hafalan
+assessment_types
+memorization_statuses
+surahs
+academic_years
+semesters
+```
+
+Yang dipelajari:
+
+- nilai memakai siswa, mapel, semester, tahun ajaran;
+- hafalan memakai status hafalan;
+- export nilai memakai service khusus;
+- setting dokumen nilai mengatur dokumen PDF.
+
+Latihan:
+
+```text
+Buka nilai_input_screen.dart.
+Cari TabBar nilai dan hafalan.
+Buka NilaiController.php.
+Lihat field ID yang divalidasi.
+Buka nilai_export_service.dart.
+Lihat bagaimana data ditulis menjadi PDF.
+```
+
+## 53. Contoh Belajar Materi dan Kegiatan
+
+File Flutter:
+
+```text
+lib/screens/materi/materi_kegiatan_screen.dart
+lib/screens/materi/upload_materi_screen.dart
+lib/screens/materi/upload_kegiatan_screen.dart
+```
+
+File Backend:
+
+```text
+absensi_backend/app/Http/Controllers/Api/MateriController.php
+absensi_backend/app/Http/Controllers/Api/KegiatanController.php
+absensi_backend/app/Models/Materi.php
+absensi_backend/app/Models/Kegiatan.php
+```
+
+Tabel:
+
+```text
+materi
+kegiatan
+classes
+mata_pelajaran
+users
+```
+
+Yang dipelajari:
+
+- guru upload materi;
+- guru upload kegiatan;
+- data bisa terkait kelas dan mapel;
+- file/media perlu path storage;
+- orang tua bisa melihat kegiatan belajar.
+
+Latihan:
+
+```text
+Buka upload_materi_screen.dart.
+Cari ApiService upload.
+Buka MateriController.php.
+Lihat cara request divalidasi.
+Buka Materi.php.
+Lihat relasi class_id dan mapel_id.
+```
+
+## 54. Contoh Belajar Izin Guru
+
+File Flutter:
+
+```text
+lib/screens/izin_guru/izin_guru_screen.dart
+lib/services/guru_izin_export_service.dart
+```
+
+File Backend:
+
+```text
+absensi_backend/app/Http/Controllers/Api/GuruIzinController.php
+absensi_backend/app/Models/GuruIzin.php
+absensi_backend/app/Models/LeaveType.php
+absensi_backend/app/Models/ApprovalStatus.php
+```
+
+Tabel:
+
+```text
+teacher_leaves
+leave_types
+approval_statuses
+users
+teacher_profiles
+```
+
+Yang dipelajari:
+
+- guru membuat izin;
+- jenis izin dari master leave_types;
+- status persetujuan dari approval_statuses;
+- admin bisa memproses;
+- export izin memakai service PDF/Excel.
+
+Latihan:
+
+```text
+Buka izin_guru_screen.dart.
+Cari pilihan jenis izin.
+Buka GuruIzinController.php.
+Lihat bagaimana status izin diproses.
+Buka guru_izin_export_service.dart.
+Lihat format dokumen export.
+```
+
+## 55. Contoh Belajar Profil dan Upload Foto
+
+File Flutter:
+
+```text
+lib/screens/akun/kelola_profil_screen.dart
+lib/screens/akun/akun_screen.dart
+```
+
+File Backend:
+
+```text
+absensi_backend/app/Http/Controllers/Api/UserProfileController.php
+absensi_backend/app/Models/User.php
+```
+
+Storage:
+
+```text
+absensi_backend/storage/app/public
+public/storage
+```
+
+Yang dipelajari:
+
+- ambil foto dari galeri/kamera;
+- upload ke backend;
+- simpan path foto;
+- tampilkan foto dari URL `/storage/...`;
+- hapus foto profil.
+
+Latihan:
+
+```text
+Buka kelola_profil_screen.dart.
+Cari ImagePicker.
+Cari function upload foto.
+Buka UserProfileController.php.
+Cari upload profile photo.
+Pastikan memahami hubungan path database dan file storage.
+```
+
+## 56. Contoh Belajar Pengaturan Logo Dokumen
+
+File Flutter:
+
+```text
+lib/screens/akun/pengaturan_screen.dart
+lib/screens/nilai/dokumen_nilai_settings_screen.dart
+lib/services/cetak_siswa_pdf.dart
+lib/services/pembayaran_export_service.dart
+lib/services/nilai_export_service.dart
+lib/services/guru_izin_export_service.dart
+```
+
+File Backend:
+
+```text
+absensi_backend/app/Http/Controllers/Api/DocumentSettingController.php
+absensi_backend/app/Models/DocumentSetting.php
+```
+
+Asset default:
+
+```text
+assets/images/Madin_Logo.png
+assets/images/Logo_Qomaruddin.png
+```
+
+Yang dipelajari:
+
+- admin bisa upload logo;
+- backend menyimpan pengaturan logo;
+- export PDF membaca logo aktif;
+- jika tidak ada logo upload, pakai logo default.
+
+Latihan:
+
+```text
+Buka DocumentSettingController.php.
+Lihat data apa yang disimpan.
+Buka pembayaran_export_service.dart.
+Cari bagian logo/header dokumen.
+Buka nilai_export_service.dart.
+Bandingkan pola header PDF.
+```
+
+## 57. Contoh Belajar Offline Sync
+
+File:
+
+```text
+lib/services/sync_service.dart
+lib/services/cache_service.dart
+lib/services/local_db_service.dart
+lib/services/session_service.dart
+```
+
+Yang dipelajari:
+
+- inisialisasi sync;
+- cek koneksi internet;
+- simpan data lokal;
+- event data berubah;
+- session user disimpan;
+- pending data dikirim saat online.
+
+Latihan:
+
+```text
+Buka sync_service.dart.
+Cari Connectivity.
+Buka local_db_service.dart.
+Cari tabel lokal yang dibuat.
+Buka cache_service.dart.
+Pahami data apa yang disimpan untuk cache.
+```
+
+## 58. Contoh Belajar Import Excel
+
+File:
+
+```text
+lib/services/excel_import_service.dart
+```
+
+Yang dipelajari:
+
+- membaca file Excel;
+- membuat template Excel;
+- validasi kolom;
+- mapping data;
+- warna/style Excel;
+- risiko typo jika data tidak divalidasi.
+
+Latihan:
+
+```text
+Buka excel_import_service.dart.
+Cari bagian header Excel.
+Cari bagian parsing baris.
+Catat field mana yang harusnya mapping ke ID master.
+```
+
+## 59. Contoh Belajar Export PDF dan Excel
+
+File:
+
+```text
+lib/services/cetak_siswa_pdf.dart
+lib/services/pembayaran_export_service.dart
+lib/services/nilai_export_service.dart
+lib/services/guru_izin_export_service.dart
+```
+
+Yang dipelajari:
+
+- membuat PDF;
+- membuat Excel;
+- header dokumen;
+- logo dokumen;
+- tabel data;
+- font dan warna dokumen;
+- share/print file.
+
+Latihan:
+
+```text
+Buka pembayaran_export_service.dart.
+Cari pw.Document.
+Cari Printing.layoutPdf.
+Cari header dokumen.
+Buka nilai_export_service.dart.
+Bandingkan struktur PDF-nya.
+```
+
+## 60. Contoh Belajar Backend Seeder
+
+File:
+
+```text
+absensi_backend/database/seeders/DatabaseSeeder.php
+absensi_backend/database/seeders/SiswaSeeder.php
+```
+
+Yang dipelajari:
+
+- data awal dibuat dari seeder;
+- user dummy dibuat;
+- master data disiapkan;
+- siswa dummy dibuat;
+- setelah database reset, seeder mengisi data awal.
+
+Latihan:
+
+```text
+Buka DatabaseSeeder.php.
+Lihat urutan data yang dibuat.
+Buka SiswaSeeder.php.
+Lihat contoh data siswa dummy.
+Pahami bahwa data dummy boleh dihapus saat production.
+```
+
+## 61. Contoh Belajar Command Wilayah
+
+File:
+
+```text
+absensi_backend/routes/console.php
+absensi_backend/app/Services/RegionSyncService.php
+```
+
+Command:
+
+```bash
+php -d memory_limit=512M artisan regions:import-sql
+php artisan regions:sync --level=all
+```
+
+Yang dipelajari:
+
+- import data wilayah resmi;
+- sync data wilayah;
+- upsert data ke PostgreSQL;
+- external_code sebagai kode wilayah resmi;
+- wilayah tidak dibuat dari input typo.
+
+Latihan:
+
+```text
+Buka routes/console.php.
+Cari command regions:import-sql.
+Buka RegionSyncService.php.
+Cari function upsert.
+Pahami cara data wilayah disimpan tanpa duplikasi kode resmi.
+```
+
+## 62. Contoh Latihan Membaca Satu Fitur dari Awal sampai Akhir
+
+Ambil contoh fitur wilayah siswa.
+
+Urutan file:
+
+```text
+1. lib/screens/buku_induk/edit_siswa_screen.dart
+2. lib/services/api_service.dart
+3. absensi_backend/routes/api.php
+4. absensi_backend/app/Http/Controllers/Api/RegionController.php
+5. absensi_backend/app/Models/Province.php
+6. absensi_backend/app/Models/City.php
+7. absensi_backend/database/schema/pgsql-schema.sql
+```
+
+Pertanyaan belajar:
+
+```text
+Apa yang dipilih user di UI?
+Apa endpoint yang dipanggil?
+Parameter apa yang dikirim?
+Controller mana yang menerima?
+Tabel mana yang dibaca?
+ID mana yang disimpan?
+Nama mana yang hanya ditampilkan?
+```
+
+Jawaban konsep:
+
+```text
+User melihat nama wilayah.
+Backend menyimpan ID wilayah.
+External_code menjaga kode resmi.
+Typo tidak boleh masuk sebagai kota baru.
+```
+
+## 63. Contoh Latihan Membaca Bug
+
+Misal bug:
+
+```text
+Foto profil sudah upload tetapi tidak tampil.
+```
+
+File yang dicek:
+
+```text
+1. lib/screens/akun/kelola_profil_screen.dart
+2. lib/services/api_service.dart
+3. absensi_backend/app/Http/Controllers/Api/UserProfileController.php
+4. absensi_backend/storage/app/public
+5. public/storage
+```
+
+Pertanyaan debug:
+
+```text
+Apakah Flutter mengirim file?
+Apakah backend menyimpan file?
+Apakah path masuk database?
+Apakah URL memakai /storage/...?
+Apakah php artisan storage:link sudah jalan?
+Apakah file fisik benar-benar ada?
+```
+
+Command terkait:
+
+```bash
+cd absensi_backend
+php artisan storage:link
+php artisan optimize:clear
+```
+
+## 64. Contoh Latihan Membaca Database Relasi
+
+Misal ingin tahu siswa masuk kelas apa.
+
+File yang dicek:
+
+```text
+absensi_backend/app/Models/Siswa.php
+absensi_backend/app/Models/SchoolClass.php
+absensi_backend/database/schema/pgsql-schema.sql
+```
+
+SQL latihan:
+
+```sql
+select s.id, s.nama, s.class_id, c.name as nama_kelas
+from siswa s
+left join classes c on c.id = s.class_id
+order by s.id desc
+limit 20;
+```
+
+Yang dipahami:
+
+```text
+siswa menyimpan class_id.
+Nama kelas tampil dari tabel classes.
+Kalau nama kelas typo di UI, relasi tetap aman selama class_id benar.
+```
+
+## 65. Contoh Latihan Membaca Pembayaran
+
+Misal ingin tahu transaksi pembayaran memakai metode apa.
+
+File yang dicek:
+
+```text
+absensi_backend/app/Models/PaymentTransaction.php
+absensi_backend/app/Models/PaymentMethod.php
+absensi_backend/app/Models/PaymentStatus.php
+absensi_backend/app/Models/PaymentType.php
+```
+
+SQL latihan:
+
+```sql
+select
+  pt.id,
+  pt.siswa_id,
+  pt.payment_type_id,
+  pt.payment_method_id,
+  pm.name as metode,
+  pt.payment_status_id,
+  ps.name as status
+from payment_transactions pt
+left join payment_methods pm on pm.id = pt.payment_method_id
+left join payment_statuses ps on ps.id = pt.payment_status_id
+order by pt.id desc
+limit 20;
+```
+
+Yang dipahami:
+
+```text
+Metode pembayaran tidak bergantung pada text bebas.
+Metode tampil dari payment_methods.
+Status tampil dari payment_statuses.
+```
+
+## 66. Cara Praktek Aman Tanpa Merusak Project
+
+Untuk belajar, lakukan ini:
+
+```text
+1. Baca file.
+2. Catat alur.
+3. Jalankan command pengecekan.
+4. Jangan edit UI dulu.
+5. Kalau ingin coba edit, ubah komentar atau log kecil saja.
+6. Setelah itu pakai git diff untuk melihat perubahan.
+7. Kembalikan jika tidak diperlukan.
+```
+
+Command aman:
+
+```bash
+flutter analyze --no-pub
+php artisan route:list --path=api
+git status
+git diff
+```
+
+Jangan lakukan saat data sungguhan:
+
+```bash
+php artisan migrate:fresh --seed
+```
+
+Kecuali memang database masih dummy dan siap dihapus.

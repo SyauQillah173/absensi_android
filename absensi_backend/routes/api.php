@@ -1,169 +1,245 @@
 <?php
 
-use App\Http\Controllers\Api\SiswaController;
-use App\Http\Controllers\Api\MataPelajaranController;
-use App\Http\Controllers\Api\JadwalController;
 use App\Http\Controllers\Api\AbsensiController;
-use App\Http\Controllers\Api\PembayaranController;
-use App\Http\Controllers\Api\KelompokBelajarController;
+use App\Http\Controllers\Api\AbsensiSholatController;
+use App\Http\Controllers\Api\AcademicPeriodController;
+use App\Http\Controllers\Api\AdminPaymentSecuritySettingController;
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\WaliController;
-use App\Http\Controllers\Api\UserProfileController;
-use App\Http\Controllers\Api\UserManagementController;
-use App\Http\Controllers\Api\PaymentTypeController;
-use App\Http\Controllers\Api\MateriController;
-use App\Http\Controllers\Api\KegiatanController;
-use App\Http\Controllers\Api\NilaiController;
+use App\Http\Controllers\Api\BoardingController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\DocumentSettingController;
 use App\Http\Controllers\Api\HafalanController;
+use App\Http\Controllers\Api\JadwalController;
+use App\Http\Controllers\Api\KegiatanController;
+use App\Http\Controllers\Api\KelompokBelajarController;
+use App\Http\Controllers\Api\MataPelajaranController;
+use App\Http\Controllers\Api\MateriController;
+use App\Http\Controllers\Api\NilaiController;
+use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\PaymentBillController;
+use App\Http\Controllers\Api\PaymentMethodController;
+use App\Http\Controllers\Api\PaymentPeriodTypeController;
+use App\Http\Controllers\Api\PaymentTypeController;
+use App\Http\Controllers\Api\PembayaranController;
+use App\Http\Controllers\Api\PenilaianController;
+use App\Http\Controllers\Api\PermissionController;
+use App\Http\Controllers\Api\ReferenceController;
+use App\Http\Controllers\Api\RegionController;
+use App\Http\Controllers\Api\SiswaController;
+use App\Http\Controllers\Api\UserManagementController;
+use App\Http\Controllers\Api\UserProfileController;
+use App\Http\Controllers\Api\WaliController;
+use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
-// ===== AUTH =====
+// Public auth endpoints.
+Route::get('health', fn () => response()->json([
+    'success' => true,
+    'message' => 'API aktif',
+    'timestamp' => now()->toIso8601String(),
+]));
 Route::post('login', [AuthController::class, 'login']);
+Route::post('change-password', [AuthController::class, 'changePassword']);
 
-/*
-|--------------------------------------------------------------------------
-| API Routes — Absensi Madrasah Diniah
-|--------------------------------------------------------------------------
-|
-| Semua endpoint di bawah ini otomatis punya prefix /api/
-| Contoh: GET /api/siswa → SiswaController@index
-|
-*/
+Route::middleware('api.auth')->group(function () {
+    Route::post('logout', [AuthController::class, 'logout']);
 
-// ===== SISWA =====
-Route::apiResource('siswa', SiswaController::class);
+    // Shared authenticated endpoints.
+    Route::get('dashboard', [DashboardController::class, 'index']);
+    Route::get('academic-periods/active', [AcademicPeriodController::class, 'active']);
+    Route::get('profile', [UserProfileController::class, 'show']);
+    Route::put('profile', [UserProfileController::class, 'update']);
+    Route::post('profile/foto', [UserProfileController::class, 'uploadFoto']);
+    Route::delete('profile/foto', [UserProfileController::class, 'deleteFoto']);
+    Route::get('notifications', [NotificationController::class, 'index']);
+    Route::patch('notifications/{notification}/read', [NotificationController::class, 'markRead']);
 
-// ===== MATA PELAJARAN =====
-Route::apiResource('mata-pelajaran', MataPelajaranController::class);
+    Route::middleware('role:admin,wali')->group(function () {
+        Route::get('pembayaran/rekap-siswa', [PembayaranController::class, 'studentRekap'])
+            ->middleware('permission:pembayaran_wali,view');
+    });
 
-// ===== JADWAL =====
-Route::apiResource('jadwal', JadwalController::class);
+    // Wali can only monitor data connected to their own token account.
+    Route::middleware('role:wali')->group(function () {
+        Route::get('wali/anak', [WaliController::class, 'anak']);
+        Route::get('wali/biodata', [WaliController::class, 'biodata'])->middleware('permission:biodata_siswa,view');
+        Route::get('wali/absensi', [WaliController::class, 'absensi'])->middleware('permission:absensi,view');
+        Route::get('wali/absensi-sholat', [WaliController::class, 'absensiSholat'])->middleware('permission:absensi,view');
+        Route::get('wali/pembayaran', [WaliController::class, 'pembayaran'])->middleware('permission:pembayaran_wali,view');
+        Route::get('wali/nilai', [WaliController::class, 'nilai'])->middleware('permission:nilai_wali,view');
+        Route::get('wali/materi', [MateriController::class, 'materiAnak'])->middleware('permission:kegiatan_belajar,view');
+        Route::get('wali/kegiatan', [KegiatanController::class, 'kegiatanWali'])->middleware('permission:kegiatan_belajar,view');
+    });
 
-// ===== ABSENSI =====
-Route::get('absensi', [AbsensiController::class, 'index']);
-Route::post('absensi', [AbsensiController::class, 'store']);
-Route::post('absensi/bulk', [AbsensiController::class, 'storeBulk']);
-Route::get('absensi/rekap', [AbsensiController::class, 'rekap']);
-Route::put('absensi/{absensi}', [AbsensiController::class, 'update']);
-Route::delete('absensi/{absensi}', [AbsensiController::class, 'destroy']);
+    // Read access needed by admin and guru operational screens.
+    Route::middleware('role:admin,guru')->group(function () {
+        Route::get('siswa', [SiswaController::class, 'index']);
+        Route::get('siswa/{siswa}', [SiswaController::class, 'show']);
 
-// ===== PEMBAYARAN =====
-Route::apiResource('pembayaran', PembayaranController::class);
+        Route::get('regions/provinces', [RegionController::class, 'provinces']);
+        Route::get('regions/cities', [RegionController::class, 'cities']);
+        Route::get('regions/districts', [RegionController::class, 'districts']);
+        Route::get('regions/villages', [RegionController::class, 'villages']);
+        Route::get('classes', [ReferenceController::class, 'classes']);
+        Route::get('school-origins', [ReferenceController::class, 'schoolOrigins']);
+        Route::get('references/{table}', [ReferenceController::class, 'master']);
 
-// ===== KELOMPOK BELAJAR =====
-Route::get('kelompok-belajar', [KelompokBelajarController::class, 'index']);
-Route::get('kelompok-belajar/by-kelas/{nama}', [KelompokBelajarController::class, 'byKelas']);
-Route::get('kelompok-belajar/{kelompokBelajar}', [KelompokBelajarController::class, 'show']);
-Route::post('kelompok-belajar', [KelompokBelajarController::class, 'store']);
-Route::post('kelompok-belajar/{kelompokBelajar}/siswa', [KelompokBelajarController::class, 'addSiswa']);
-Route::put('kelompok-belajar/{kelompokBelajar}', [KelompokBelajarController::class, 'update']);
-Route::delete('kelompok-belajar/{kelompokBelajar}', [KelompokBelajarController::class, 'destroy']);
-Route::delete('kelompok-belajar/{kelompokBelajar}/siswa/{siswaId}', [KelompokBelajarController::class, 'removeSiswa']);
+        Route::get('mata-pelajaran', [MataPelajaranController::class, 'index'])->middleware('permission:mata_pelajaran,view');
+        Route::get('mata-pelajaran/{mataPelajaran}', [MataPelajaranController::class, 'show'])->middleware('permission:mata_pelajaran,view');
 
-// ===== NILAI =====
-Route::get('nilai', [NilaiController::class, 'index']);
-Route::post('nilai', [NilaiController::class, 'store']);
-Route::post('nilai/bulk', [NilaiController::class, 'storeBulk']);
-Route::get('nilai/rekap', [NilaiController::class, 'rekap']);
-Route::get('nilai/{nilai}', [NilaiController::class, 'show']);
-Route::put('nilai/{nilai}', [NilaiController::class, 'update']);
-Route::delete('nilai/{nilai}', [NilaiController::class, 'destroy']);
+        Route::get('jadwal', [JadwalController::class, 'index']);
+        Route::get('jadwal/{jadwal}', [JadwalController::class, 'show']);
 
-// ===== HAFALAN =====
-Route::apiResource('hafalan', HafalanController::class);
+        Route::get('absensi', [AbsensiController::class, 'index'])->middleware('permission:absensi,view');
+        Route::post('absensi', [AbsensiController::class, 'store'])->middleware('permission:absensi,create');
+        Route::post('absensi/bulk', [AbsensiController::class, 'storeBulk'])->middleware('permission:absensi,create');
+        Route::get('absensi/rekap', [AbsensiController::class, 'rekap'])->middleware('permission:absensi,view');
+        Route::put('absensi/{absensi}', [AbsensiController::class, 'update'])->middleware('permission:absensi,update');
+        Route::delete('absensi/{absensi}', [AbsensiController::class, 'destroy'])->middleware('permission:absensi,cancel');
 
-// ===== GURU LIST (for dropdowns) =====
-Route::get('guru', function () {
-    return response()->json([
-        'success' => true,
-        'data' => \App\Models\User::where('role', 'guru')->select('id', 'name', 'email', 'nis')->orderBy('name')->get(),
-    ]);
-});
+        Route::get('boarding/complexes', [BoardingController::class, 'complexes'])->middleware('permission:absensi,view');
+        Route::get('boarding/students', [BoardingController::class, 'students'])->middleware('permission:absensi,view');
+        Route::get('absensi-sholat', [AbsensiSholatController::class, 'index'])->middleware('permission:absensi,view');
+        Route::get('absensi-sholat/context', [AbsensiSholatController::class, 'context'])->middleware('permission:absensi,view');
+        Route::get('absensi-sholat/rekap', [AbsensiSholatController::class, 'rekap'])->middleware('permission:absensi,view');
+        Route::post('absensi-sholat/bulk', [AbsensiSholatController::class, 'storeBulk'])->middleware('permission:absensi,create');
+        Route::post('absensi-sholat/cancel', [AbsensiSholatController::class, 'cancel'])->middleware('permission:absensi,cancel');
 
-// ===== ALL USERS (for Data Admin + Data Guru realtime) =====
-Route::get('users', [UserManagementController::class, 'index']);
-Route::post('users', [UserManagementController::class, 'store']);
-Route::post('users/import', [UserManagementController::class, 'import']);
-Route::post('users/import-guru', [UserManagementController::class, 'importGuru']);
-Route::put('users/{user}', [UserManagementController::class, 'update']);
-Route::delete('users/{user}', [UserManagementController::class, 'destroy']);
+        Route::get('kelompok-belajar', [KelompokBelajarController::class, 'index'])->middleware('permission:ruang_sifir,view');
+        Route::get('kelompok-belajar/by-kelas/{nama}', [KelompokBelajarController::class, 'byKelas'])->middleware('permission:ruang_sifir,view');
+        Route::get('kelompok-belajar/{kelompokBelajar}', [KelompokBelajarController::class, 'show'])->middleware('permission:ruang_sifir,view');
 
-// ===== PAYMENT TYPES =====
-Route::get('payment-types', [PaymentTypeController::class, 'index']);
-Route::post('payment-types', [PaymentTypeController::class, 'store']);
-Route::put('payment-types/{paymentType}', [PaymentTypeController::class, 'update']);
-Route::delete('payment-types/{paymentType}', [PaymentTypeController::class, 'destroy']);
+        Route::get('nilai', [NilaiController::class, 'index'])->middleware('permission:nilai,view');
+        Route::post('nilai', [NilaiController::class, 'store'])->middleware('permission:nilai,create');
+        Route::post('nilai/bulk', [NilaiController::class, 'storeBulk'])->middleware('permission:nilai,create');
+        Route::get('nilai/rekap', [NilaiController::class, 'rekap'])->middleware('permission:nilai,view');
+        Route::get('nilai/{nilai}', [NilaiController::class, 'show'])->middleware('permission:nilai,view');
+        Route::put('nilai/{nilai}', [NilaiController::class, 'update'])->middleware('permission:nilai,update');
 
-// ===== MATERI PELAJARAN =====
-Route::get('materi', [MateriController::class, 'index']);
-Route::post('materi', [MateriController::class, 'store']);
-Route::delete('materi/{id}', [MateriController::class, 'destroy']);
+        Route::get('hafalan', [HafalanController::class, 'index'])->middleware('permission:nilai,view');
+        Route::post('hafalan', [HafalanController::class, 'store'])->middleware('permission:nilai,create');
+        Route::get('hafalan/{hafalan}', [HafalanController::class, 'show'])->middleware('permission:nilai,view');
+        Route::put('hafalan/{hafalan}', [HafalanController::class, 'update'])->middleware('permission:nilai,update');
+        Route::patch('hafalan/{hafalan}', [HafalanController::class, 'update'])->middleware('permission:nilai,update');
 
-// ===== KEGIATAN =====
-Route::get('kegiatan', [KegiatanController::class, 'index']);
-Route::post('kegiatan', [KegiatanController::class, 'store']);
-Route::delete('kegiatan/{id}', [KegiatanController::class, 'destroy']);
+        Route::get('penilaian/dokumen', [PenilaianController::class, 'documentData']);
+        Route::get('penilaian/rekap-export', [PenilaianController::class, 'rekapExport']);
 
-// ===== WALI (ORANG TUA) — Read-only monitoring =====
-Route::get('wali/anak', [WaliController::class, 'anak']);
-Route::get('wali/absensi', [WaliController::class, 'absensi']);
-Route::get('wali/pembayaran', [WaliController::class, 'pembayaran']);
-Route::get('wali/nilai', [WaliController::class, 'nilai']);
-Route::get('wali/materi', [MateriController::class, 'materiAnak']);
-Route::get('wali/kegiatan', [KegiatanController::class, 'kegiatanWali']);
+        Route::get('guru', function () {
+            return response()->json([
+                'success' => true,
+                'data' => User::where('role', 'guru')
+                    ->where('status', 'Aktif')
+                    ->select('id', 'name', 'email', 'nis', 'status')
+                    ->orderBy('name')
+                    ->get(),
+            ]);
+        });
 
-// ===== PROFILE USER =====
-Route::get('profile', [UserProfileController::class, 'show']);
-Route::put('profile', [UserProfileController::class, 'update']);
-Route::post('profile/foto', [UserProfileController::class, 'uploadFoto']);
+        Route::get('materi', [MateriController::class, 'index'])->middleware('permission:materi_kegiatan,view');
+        Route::post('materi', [MateriController::class, 'store'])->middleware('permission:materi_kegiatan,create');
+        Route::delete('materi/{id}', [MateriController::class, 'destroy'])->middleware('permission:materi_kegiatan,delete');
 
-// ===== FILE UPLOAD =====
-Route::post('upload', [SiswaController::class, 'uploadFile']);
+        Route::get('kegiatan', [KegiatanController::class, 'index'])->middleware('permission:materi_kegiatan,view');
+        Route::post('kegiatan', [KegiatanController::class, 'store'])->middleware('permission:materi_kegiatan,create');
+        Route::delete('kegiatan/{id}', [KegiatanController::class, 'destroy'])->middleware('permission:materi_kegiatan,delete');
+    });
 
-// ===== INFO / DASHBOARD =====
-Route::get('dashboard', function () {
-    $today = now()->toDateString();
+    // Admin-only data management and finance endpoints.
+    Route::middleware('role:admin')->group(function () {
+        Route::get('settings/menus', [PermissionController::class, 'menus'])->middleware('permission:hak_akses,view');
+        Route::get('settings/permissions', [PermissionController::class, 'index'])->middleware('permission:hak_akses,view');
+        Route::put('settings/permissions', [PermissionController::class, 'update'])->middleware('permission:hak_akses,update');
 
-    $absensiHariIni = \App\Models\Absensi::with('siswa')->where('tanggal', $today)->get();
-    $pembayaranHariIni = \App\Models\Pembayaran::where('tanggal', $today)->get();
+        Route::get('academic-periods', [AcademicPeriodController::class, 'index'])->middleware('permission:buku_induk,view');
+        Route::post('academic-periods', [AcademicPeriodController::class, 'store'])->middleware('permission:buku_induk,create');
+        Route::put('academic-periods/{academicYear}', [AcademicPeriodController::class, 'update'])->middleware('permission:buku_induk,update');
+        Route::post('academic-periods/{academicYear}/activate', [AcademicPeriodController::class, 'activate'])->middleware('permission:buku_induk,update');
+        Route::post('academic-periods/{academicYear}/semester', [AcademicPeriodController::class, 'semester'])->middleware('permission:buku_induk,update');
+        Route::post('academic-periods/{academicYear}/sync-siswa', [AcademicPeriodController::class, 'syncSiswa'])->middleware('permission:buku_induk,update');
 
-    // Group absensi by kelas + mapel (so each subject gets its own card)
-    $absensiPerKelas = $absensiHariIni->groupBy(function ($item) {
-        return ($item->kelas ?? 'Unknown') . '|' . ($item->mapel ?? '-');
-    })->map(function ($items) {
-        return [
-            'kelas' => $items->first()->kelas ?? 'Unknown',
-            'mapel' => $items->first()->mapel ?? '-',
-            'total' => $items->count(),
-            'hadir' => $items->where('status', 'Hadir')->count(),
-            'izin' => $items->where('status', 'Izin')->count(),
-            'sakit' => $items->where('status', 'Sakit')->count(),
-            'alfa' => $items->where('status', 'Alfa')->count(),
-            'diinput_oleh' => $items->first()->diinput_oleh ?? 'Admin',
-            'diinput_via' => $items->first()->diinput_via ?? 'online',
-            'waktu' => $items->first()->created_at->format('H:i'),
-        ];
-    })->values();
+        Route::post('siswa/import', [SiswaController::class, 'import'])->middleware('permission:buku_induk,create');
+        Route::post('siswa/bulk-status', [SiswaController::class, 'bulkStatus'])->middleware('permission:buku_induk,update');
+        Route::post('siswa', [SiswaController::class, 'store'])->middleware('permission:buku_induk,create');
+        Route::put('siswa/{siswa}', [SiswaController::class, 'update'])->middleware('permission:buku_induk,update');
+        Route::delete('siswa/{siswa}', [SiswaController::class, 'destroy'])->middleware('permission:buku_induk,delete');
 
-    return response()->json([
-        'success' => true,
-        'tanggal' => $today,
-        'absensi' => [
-            'total' => $absensiHariIni->count(),
-            'hadir' => $absensiHariIni->where('status', 'Hadir')->count(),
-            'izin' => $absensiHariIni->where('status', 'Izin')->count(),
-            'sakit' => $absensiHariIni->where('status', 'Sakit')->count(),
-            'alfa' => $absensiHariIni->where('status', 'Alfa')->count(),
-            'per_kelas' => $absensiPerKelas,
-        ],
-        'pembayaran' => [
-            'total_masuk' => $pembayaranHariIni->sum('jumlah'),
-            'jumlah_transaksi' => $pembayaranHariIni->count(),
-        ],
-        'statistik' => [
-            'total_siswa' => \App\Models\Siswa::count(),
-            'siswa_aktif' => \App\Models\Siswa::where('status', 'Aktif')->count(),
-            'total_mapel' => \App\Models\MataPelajaran::where('status', 'Aktif')->count(),
-        ],
-    ]);
+        Route::post('boarding/complexes', [BoardingController::class, 'storeComplex'])->middleware('permission:absensi,create');
+        Route::put('boarding/complexes/{complex}', [BoardingController::class, 'updateComplex'])->middleware('permission:absensi,update');
+        Route::delete('boarding/complexes/{complex}', [BoardingController::class, 'destroyComplex'])->middleware('permission:absensi,delete');
+        Route::post('boarding/rooms', [BoardingController::class, 'storeRoom'])->middleware('permission:absensi,create');
+        Route::put('boarding/rooms/{room}', [BoardingController::class, 'updateRoom'])->middleware('permission:absensi,update');
+        Route::delete('boarding/rooms/{room}', [BoardingController::class, 'destroyRoom'])->middleware('permission:absensi,delete');
+        Route::post('boarding/assign-students', [BoardingController::class, 'assignStudents'])->middleware('permission:absensi,update');
+        Route::post('boarding/santri', [BoardingController::class, 'storeSantri'])->middleware('permission:absensi,update');
+        Route::put('boarding/santri/{santri}', [BoardingController::class, 'updateSantri'])->middleware('permission:absensi,update');
+        Route::delete('boarding/santri/{santri}', [BoardingController::class, 'destroySantri'])->middleware('permission:absensi,delete');
+        Route::get('boarding/guru-access', [BoardingController::class, 'guruAccess'])->middleware('permission:hak_akses,view');
+        Route::post('boarding/guru-access', [BoardingController::class, 'saveGuruAccess'])->middleware('permission:hak_akses,update');
+        Route::delete('boarding/guru-access/{access}', [BoardingController::class, 'deleteGuruAccess'])->middleware('permission:hak_akses,delete');
+
+        Route::post('school-origins', [ReferenceController::class, 'storeSchoolOrigin']);
+        Route::put('school-origins/{schoolOrigin}', [ReferenceController::class, 'updateSchoolOrigin']);
+        Route::delete('school-origins/{schoolOrigin}', [ReferenceController::class, 'destroySchoolOrigin']);
+
+        Route::post('mata-pelajaran', [MataPelajaranController::class, 'store']);
+        Route::put('mata-pelajaran/{mataPelajaran}', [MataPelajaranController::class, 'update']);
+        Route::delete('mata-pelajaran/{mataPelajaran}', [MataPelajaranController::class, 'destroy']);
+
+        Route::post('jadwal/sync-group', [JadwalController::class, 'syncGroup']);
+        Route::post('jadwal/delete-group', [JadwalController::class, 'destroyGroup']);
+        Route::post('jadwal', [JadwalController::class, 'store']);
+        Route::put('jadwal/{jadwal}', [JadwalController::class, 'update']);
+        Route::delete('jadwal/{jadwal}', [JadwalController::class, 'destroy']);
+
+        Route::get('pembayaran/rekap-export', [PembayaranController::class, 'rekapExport'])->middleware('permission:keuangan,view');
+        Route::get('payment-bills', [PaymentBillController::class, 'index'])->middleware('permission:keuangan,view');
+        Route::get('payment-bills/student-summary', [PaymentBillController::class, 'studentSummary'])->middleware('permission:keuangan,view');
+        Route::get('payment-bills/monthly-options', [PaymentBillController::class, 'monthlyOptions'])->middleware('permission:keuangan,view');
+        Route::get('payment-bill-rules', [PaymentBillController::class, 'rules'])->middleware('permission:keuangan,view');
+        Route::post('payment-bills/generate', [PaymentBillController::class, 'generate'])->middleware('permission:keuangan,create');
+        Route::post('payment-bills/{paymentBill}/notify', [PaymentBillController::class, 'notify'])->middleware('permission:keuangan,approve');
+        Route::delete('pembayaran/transaksi/{paymentTransaction}', [PembayaranController::class, 'destroyTransaction'])->middleware('permission:keuangan,delete');
+        Route::apiResource('pembayaran', PembayaranController::class)->middleware('permission:keuangan,view');
+
+        Route::get('payment-security-settings', [AdminPaymentSecuritySettingController::class, 'show']);
+        Route::put('payment-security-settings', [AdminPaymentSecuritySettingController::class, 'update']);
+
+        Route::post('kelompok-belajar', [KelompokBelajarController::class, 'store']);
+        Route::post('kelompok-belajar/{kelompokBelajar}/siswa', [KelompokBelajarController::class, 'addSiswa']);
+        Route::put('kelompok-belajar/{kelompokBelajar}', [KelompokBelajarController::class, 'update']);
+        Route::delete('kelompok-belajar/{kelompokBelajar}', [KelompokBelajarController::class, 'destroy']);
+        Route::delete('kelompok-belajar/{kelompokBelajar}/siswa/{siswaId}', [KelompokBelajarController::class, 'removeSiswa']);
+
+        Route::delete('nilai/{nilai}', [NilaiController::class, 'destroy'])->middleware('permission:nilai,delete');
+        Route::delete('hafalan/{hafalan}', [HafalanController::class, 'destroy'])->middleware('permission:nilai,delete');
+
+        Route::get('document-settings', [DocumentSettingController::class, 'show']);
+        Route::put('document-settings', [DocumentSettingController::class, 'update']);
+        Route::post('document-settings/signature', [DocumentSettingController::class, 'uploadSignature']);
+        Route::post('document-settings/logo', [DocumentSettingController::class, 'uploadLogo']);
+
+        Route::get('users', [UserManagementController::class, 'index']);
+        Route::post('users', [UserManagementController::class, 'store']);
+        Route::post('users/import', [UserManagementController::class, 'import']);
+        Route::post('users/import-guru', [UserManagementController::class, 'importGuru']);
+        Route::post('users/{user}/reset-password', [UserManagementController::class, 'resetPassword']);
+        Route::put('users/{user}', [UserManagementController::class, 'update']);
+        Route::delete('users/{user}', [UserManagementController::class, 'destroy']);
+
+        Route::get('payment-types', [PaymentTypeController::class, 'index'])->middleware('permission:keuangan,view');
+        Route::post('payment-types', [PaymentTypeController::class, 'store'])->middleware('permission:keuangan,create');
+        Route::put('payment-types/{paymentType}', [PaymentTypeController::class, 'update'])->middleware('permission:keuangan,update');
+        Route::delete('payment-types/{paymentType}', [PaymentTypeController::class, 'destroy'])->middleware('permission:keuangan,delete');
+        Route::get('payment-methods', [PaymentMethodController::class, 'index'])->middleware('permission:keuangan,view');
+        Route::post('payment-methods', [PaymentMethodController::class, 'store'])->middleware('permission:keuangan,create');
+        Route::put('payment-methods/{paymentMethod}', [PaymentMethodController::class, 'update'])->middleware('permission:keuangan,update');
+        Route::delete('payment-methods/{paymentMethod}', [PaymentMethodController::class, 'destroy'])->middleware('permission:keuangan,delete');
+        Route::get('payment-period-types', [PaymentPeriodTypeController::class, 'index'])->middleware('permission:keuangan,view');
+        Route::post('payment-period-types', [PaymentPeriodTypeController::class, 'store'])->middleware('permission:keuangan,create');
+        Route::put('payment-period-types/{paymentPeriodType}', [PaymentPeriodTypeController::class, 'update'])->middleware('permission:keuangan,update');
+        Route::delete('payment-period-types/{paymentPeriodType}', [PaymentPeriodTypeController::class, 'destroy'])->middleware('permission:keuangan,delete');
+
+        Route::post('upload', [SiswaController::class, 'uploadFile']);
+    });
 });

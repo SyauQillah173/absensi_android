@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/splash_screen.dart';
+import 'screens/auth/change_password_screen.dart';
 import 'screens/beranda/dashboard_screen.dart';
+import 'services/session_service.dart';
 import 'services/sync_service.dart';
 
 void main() async {
@@ -15,15 +16,21 @@ void main() async {
   // === AUTO-LOGIN: Cek apakah user masih login ===
   // SharedPreferences PERMANEN — guru tidak perlu login ulang
   // setiap buka app. Cukup login 1x, setelahnya langsung dashboard.
-  final prefs = await SharedPreferences.getInstance();
-  final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
+  final isLoggedIn = await SessionService.isLoggedIn();
+  final mustChangePassword = await SessionService.mustChangePassword();
 
-  runApp(MyApp(isLoggedIn: isLoggedIn));
+  runApp(MyApp(isLoggedIn: isLoggedIn, mustChangePassword: mustChangePassword));
 }
 
 class MyApp extends StatelessWidget {
   final bool isLoggedIn;
-  const MyApp({super.key, required this.isLoggedIn});
+  final bool mustChangePassword;
+
+  const MyApp({
+    super.key,
+    required this.isLoggedIn,
+    required this.mustChangePassword,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -52,13 +59,19 @@ class MyApp extends StatelessWidget {
       ),
       // Jika sudah login sebelumnya → langsung ke dashboard
       // Jika belum → tampilkan splash → login
-      initialRoute: isLoggedIn ? '/dashboard' : '/',
+      initialRoute: isLoggedIn
+          ? (mustChangePassword ? '/force-change-password' : '/dashboard')
+          : '/',
       onGenerateRoute: (settings) {
         switch (settings.name) {
           case '/':
             return _fadeSlideRoute(const SplashScreen());
           case '/login':
             return _fadeSlideRoute(const LoginScreen());
+          case '/change-password':
+            return _fadeSlideRoute(const ChangePasswordScreen());
+          case '/force-change-password':
+            return _fadeSlideRoute(const ChangePasswordScreen(forced: true));
           case '/dashboard':
             return _fadeSlideRoute(const DashboardScreen());
           default:

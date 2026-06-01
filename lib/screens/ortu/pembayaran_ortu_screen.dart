@@ -1,9 +1,14 @@
-import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/api_service.dart';
+import '../../services/pembayaran_export_service.dart';
+import '../../services/session_service.dart';
+import '../../services/sync_service.dart';
+import '../../widgets/app_feedback.dart';
+import '../../widgets/billing_summary_view.dart';
+import '../../widgets/responsive_layout.dart';
 
 class PembayaranOrtuScreen extends StatefulWidget {
   const PembayaranOrtuScreen({super.key});
@@ -16,6 +21,7 @@ class _PembayaranOrtuScreenState extends State<PembayaranOrtuScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _fadeIn;
+  StreamSubscription<AppDataEvent>? _syncSubscription;
 
   bool _isLoading = true;
   String _errorMessage = '';
@@ -24,6 +30,7 @@ class _PembayaranOrtuScreenState extends State<PembayaranOrtuScreen>
   List<Map<String, dynamic>> _anakList = [];
   int _activeSiswaId = 0;
   String _activeSiswaName = '';
+  int _waliId = 0;
 
   // Pembayaran data
   int _totalLunas = 0;
@@ -31,6 +38,10 @@ class _PembayaranOrtuScreenState extends State<PembayaranOrtuScreen>
   List<dynamic> _summary = [];
   List<dynamic> _tagihan = [];
   List<dynamic> _riwayat = [];
+  Map<String, dynamic>? _billingSummary;
+  String? _filterTahunAjaran;
+  String? _filterSemester;
+  String _filterStatus = 'Semua';
 
   @override
   void initState() {
@@ -44,28 +55,36 @@ class _PembayaranOrtuScreenState extends State<PembayaranOrtuScreen>
       end: 1.0,
     ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
+    _syncSubscription = SyncService.dataEvents.listen(_handleDataEvent);
     _loadAnakData();
   }
 
   @override
   void dispose() {
+    _syncSubscription?.cancel();
     _animController.dispose();
     super.dispose();
   }
 
+  void _handleDataEvent(AppDataEvent event) {
+    if (!mounted || _activeSiswaId <= 0) return;
+    if (event.topic == SyncTopics.pembayaran ||
+        event.topic == SyncTopics.heartbeat) {
+      unawaited(_loadPembayaran(silent: true));
+    }
+  }
+
   Future<void> _loadAnakData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final anakJson = prefs.getString('anak_list') ?? '[]';
-    final anakList = List<Map<String, dynamic>>.from(
-      (jsonDecode(anakJson) as List).map((a) => Map<String, dynamic>.from(a)),
-    );
-    final activeSiswaId = prefs.getInt('active_siswa_id') ?? 0;
-    final activeSiswaName = prefs.getString('active_siswa_nama') ?? '';
+    final anakList = await SessionService.getAnakList();
+    final activeSiswaId = await SessionService.getActiveSiswaId();
+    final activeSiswaName = await SessionService.getActiveSiswaNama();
+    final waliId = await SessionService.getUserId();
 
     setState(() {
       _anakList = anakList;
       _activeSiswaId = activeSiswaId;
       _activeSiswaName = activeSiswaName;
+      _waliId = waliId;
     });
 
     if (_activeSiswaId > 0) {
@@ -78,14 +97,21 @@ class _PembayaranOrtuScreenState extends State<PembayaranOrtuScreen>
     }
   }
 
-  Future<void> _loadPembayaran() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+  Future<void> _loadPembayaran({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+    }
 
     try {
-      final result = await ApiService.getPembayaranAnak(_activeSiswaId);
+      final result = await ApiService.getPembayaranAnakFiltered(
+        _activeSiswaId,
+        tahunAjaran: _filterTahunAjaran,
+        semester: _filterSemester,
+        status: _filterStatus,
+      );
 
       if (mounted) {
         if (result['success'] == true) {
@@ -95,6 +121,9 @@ class _PembayaranOrtuScreenState extends State<PembayaranOrtuScreen>
             _summary = List.from(result['summary'] ?? []);
             _tagihan = List.from(result['tagihan'] ?? []);
             _riwayat = List.from(result['data'] ?? []);
+            _billingSummary = result['billing_summary'] is Map
+                ? Map<String, dynamic>.from(result['billing_summary'] as Map)
+                : null;
             _isLoading = false;
           });
         } else {
@@ -111,6 +140,56 @@ class _PembayaranOrtuScreenState extends State<PembayaranOrtuScreen>
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _downloadRekapPdf() async {
+    if (_activeSiswaId <= 0 || _waliId <= 0) {
+      setState(() {
+        _errorMessage = 'Data wali atau siswa belum lengkap';
+      });
+      return;
+    }
+
+    try {
+      final payload = await ApiService.getPembayaranStudentRekap(
+        userId: _waliId,
+        siswaId: _activeSiswaId,
+      );
+      final rows = List<Map<String, dynamic>>.from(
+        (payload['data'] as Map<String, dynamic>? ?? const {})['rows'] ??
+            const [],
+      );
+      if (rows.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Belum ada transaksi pembayaran untuk anak ini.',
+            ),
+            backgroundColor: const Color(0xFFE65100),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+        return;
+      }
+
+      await PembayaranExportService.printStudentPaymentReport(payload);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal membuat PDF rekap pembayaran: $e'),
+          backgroundColor: const Color(0xFFE65100),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
     }
   }
 
@@ -189,49 +268,72 @@ class _PembayaranOrtuScreenState extends State<PembayaranOrtuScreen>
               _buildProfileBar(),
               const SizedBox(height: 12),
               Expanded(
-                child: RefreshIndicator(
+                child: AppRefreshIndicator(
                   onRefresh: _loadPembayaran,
-                  color: const Color(0xFF138F81),
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(
                       parent: BouncingScrollPhysics(),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      children: [
-                        if (_anakList.length > 1) _buildAnakSelector(),
-                        if (_anakList.length > 1) const SizedBox(height: 10),
-                        _buildCreditCard(),
-                        const SizedBox(height: 14),
-                        if (!_isLoading && _errorMessage.isEmpty) ...[
-                          _buildTagihanSection(),
-                          if (_tagihan.isNotEmpty) const SizedBox(height: 14),
-                          _buildSummarySection(),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppResponsive.pageMargin(context),
+                    ),
+                    child: AppResponsive(
+                      child: Column(
+                        children: [
+                          if (_anakList.length > 1) _buildAnakSelector(),
+                          if (_anakList.length > 1) const SizedBox(height: 10),
+                          _buildCreditCard(),
+                          if (!_isLoading &&
+                              _errorMessage.isEmpty &&
+                              _riwayat.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            _buildExportButton(),
+                          ],
                           const SizedBox(height: 14),
-                          _buildRiwayatSection(),
+                          if (!_isLoading && _errorMessage.isEmpty) ...[
+                            if (_billingSummary != null)
+                              Column(
+                                children: [
+                                  _buildBillingFilters(),
+                                  const SizedBox(height: 12),
+                                  BillingSummaryView(
+                                    data: _billingSummary!,
+                                    formatCurrency: _formatRupiah,
+                                  ),
+                                ],
+                              )
+                            else ...[
+                              _buildTagihanSection(),
+                              if (_tagihan.isNotEmpty)
+                                const SizedBox(height: 14),
+                              _buildSummarySection(),
+                            ],
+                            const SizedBox(height: 14),
+                            _buildRiwayatSection(),
+                          ],
+                          if (_isLoading)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 40),
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  color: Color(0xFF138F81),
+                                ),
+                              ),
+                            ),
+                          if (_errorMessage.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 40),
+                              child: Text(
+                                _errorMessage,
+                                style: const TextStyle(
+                                  color: Color(0xFF636E72),
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          const SizedBox(height: 20),
                         ],
-                        if (_isLoading)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 40),
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                color: Color(0xFF138F81),
-                              ),
-                            ),
-                          ),
-                        if (_errorMessage.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 40),
-                            child: Text(
-                              _errorMessage,
-                              style: const TextStyle(
-                                color: Color(0xFF636E72),
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 20),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -329,12 +431,13 @@ class _PembayaranOrtuScreenState extends State<PembayaranOrtuScreen>
           onChanged: (value) async {
             if (value != null && value != _activeSiswaId) {
               final anak = _anakList.firstWhere((a) => a['id'] == value);
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setInt('active_siswa_id', value);
-              await prefs.setString('active_siswa_nama', anak['nama'] ?? '');
+              await SessionService.setActiveSiswa(
+                siswaId: value,
+                siswaNama: anak['nama']?.toString() ?? '',
+              );
               setState(() {
                 _activeSiswaId = value;
-                _activeSiswaName = anak['nama'] ?? '';
+                _activeSiswaName = anak['nama']?.toString() ?? '';
               });
               _loadPembayaran();
             }
@@ -483,6 +586,188 @@ class _PembayaranOrtuScreenState extends State<PembayaranOrtuScreen>
     );
   }
 
+  Widget _buildExportButton() {
+    if (_riwayat.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _downloadRekapPdf,
+        icon: const Icon(Icons.picture_as_pdf_rounded),
+        label: const Text(
+          'Download Rekap Pembayaran PDF',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF138F81),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBillingFilters() {
+    final groups = _tagihan.isNotEmpty
+        ? List<Map<String, dynamic>>.from(
+            _tagihan.map((item) => Map<String, dynamic>.from(item as Map)),
+          )
+        : _billingSummary?['groups'] is List
+        ? List<Map<String, dynamic>>.from(
+            (_billingSummary!['groups'] as List).map(
+              (item) => Map<String, dynamic>.from(item as Map),
+            ),
+          )
+        : const <Map<String, dynamic>>[];
+    final years =
+        groups
+            .map((item) => item['tahun_ajaran']?.toString() ?? '')
+            .where((item) => item.isNotEmpty && item != 'Tanpa Periode')
+            .toSet()
+            .toList()
+          ..sort((a, b) => b.compareTo(a));
+    final semesters = groups
+        .where(
+          (item) =>
+              _filterTahunAjaran == null ||
+              item['tahun_ajaran']?.toString() == _filterTahunAjaran,
+        )
+        .map((item) => item['semester']?.toString() ?? '')
+        .where((item) => item.isNotEmpty && item != 'Tanpa Semester')
+        .toSet()
+        .toList();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE1EFF7),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _filterDropdown<String>(
+                  value: years.contains(_filterTahunAjaran)
+                      ? _filterTahunAjaran
+                      : null,
+                  hint: 'Tahun ajaran',
+                  items: years,
+                  onChanged: (value) {
+                    setState(() {
+                      _filterTahunAjaran = value;
+                      _filterSemester = null;
+                    });
+                    _loadPembayaran();
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _filterDropdown<String>(
+                  value: semesters.contains(_filterSemester)
+                      ? _filterSemester
+                      : null,
+                  hint: 'Semester',
+                  items: semesters,
+                  onChanged: (value) {
+                    setState(() => _filterSemester = value);
+                    _loadPembayaran();
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _filterDropdown<String>(
+                  value: _filterStatus,
+                  hint: 'Status',
+                  items: const [
+                    'Semua',
+                    'Lunas',
+                    'Belum Lunas',
+                    'Terlambat',
+                    'Menunggu',
+                  ],
+                  onChanged: (value) {
+                    setState(() => _filterStatus = value ?? 'Semua');
+                    _loadPembayaran();
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _filterTahunAjaran = null;
+                    _filterSemester = null;
+                    _filterStatus = 'Semua';
+                  });
+                  _loadPembayaran();
+                },
+                icon: const Icon(Icons.refresh_rounded, size: 16),
+                label: const Text('Reset'),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF138F81),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterDropdown<T>({
+    required T? value,
+    required String hint,
+    required List<T> items,
+    required ValueChanged<T?> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<T>(
+          value: value,
+          hint: Text(hint, style: const TextStyle(fontSize: 11)),
+          isExpanded: true,
+          items: [
+            DropdownMenuItem<T>(
+              value: null,
+              child: const Text('Semua', style: TextStyle(fontSize: 11)),
+            ),
+            ...items.map(
+              (item) => DropdownMenuItem<T>(
+                value: item,
+                child: Text(
+                  item.toString(),
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11),
+                ),
+              ),
+            ),
+          ],
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
   Widget _buildSummarySection() {
     if (_summary.isEmpty) return const SizedBox.shrink();
 
@@ -585,7 +870,8 @@ class _PembayaranOrtuScreenState extends State<PembayaranOrtuScreen>
     final nama = item['nama']?.toString() ?? '-';
     final periode = item['periode']?.toString() ?? '-';
     final nominal = item['nominal_default'] ?? 0;
-    final statusTagihan = item['status_tagihan']?.toString() ?? 'Belum Ada Pembayaran';
+    final statusTagihan =
+        item['status_tagihan']?.toString() ?? 'Belum Ada Pembayaran';
     final jenisColor = _getJenisColor(nama);
     final isLunas = statusTagihan == 'Lunas';
 
@@ -618,11 +904,7 @@ class _PembayaranOrtuScreenState extends State<PembayaranOrtuScreen>
                 color: jenisColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                _getJenisIcon(nama),
-                size: 18,
-                color: jenisColor,
-              ),
+              child: Icon(_getJenisIcon(nama), size: 18, color: jenisColor),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -651,10 +933,11 @@ class _PembayaranOrtuScreenState extends State<PembayaranOrtuScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: (isLunas
-                        ? const Color(0xFF138F81)
-                        : const Color(0xFFE65100))
-                    .withValues(alpha: 0.1),
+                color:
+                    (isLunas
+                            ? const Color(0xFF138F81)
+                            : const Color(0xFFE65100))
+                        .withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -864,13 +1147,24 @@ class _PembayaranOrtuScreenState extends State<PembayaranOrtuScreen>
   }
 
   Widget _buildRiwayatItem(dynamic item, int index) {
+    final paymentItems = item['payment_items'] is List
+        ? List<Map<String, dynamic>>.from(
+            (item['payment_items'] as List).map(
+              (value) => Map<String, dynamic>.from(value as Map),
+            ),
+          )
+        : const <Map<String, dynamic>>[];
     final paymentType = item['payment_type'] is Map
         ? Map<String, dynamic>.from(item['payment_type'] as Map)
         : item['paymentType'] is Map
         ? Map<String, dynamic>.from(item['paymentType'] as Map)
         : null;
-    final jenis =
-        paymentType?['nama']?.toString() ?? item['jenis']?.toString() ?? '';
+    final jenis = paymentItems.isNotEmpty
+        ? paymentItems
+              .map((value) => value['nama']?.toString() ?? '')
+              .where((value) => value.trim().isNotEmpty)
+              .join(', ')
+        : paymentType?['nama']?.toString() ?? item['jenis']?.toString() ?? '';
     final via = item['via']?.toString() ?? '';
     final jumlah = item['jumlah'] ?? 0;
     final tanggal = item['tanggal']?.toString() ?? '';
@@ -960,6 +1254,34 @@ class _PembayaranOrtuScreenState extends State<PembayaranOrtuScreen>
                 ),
               ],
             ),
+            if (paymentItems.length > 1) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: paymentItems.map((entry) {
+                  final label = entry['nama']?.toString() ?? '-';
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getJenisColor(label).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: _getJenisColor(label),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
             const SizedBox(height: 8),
             Row(
               children: [

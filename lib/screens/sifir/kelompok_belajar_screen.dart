@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../services/cache_service.dart';
+import '../../services/sync_service.dart';
 import 'edit_kelompok_sifir_screen.dart';
 
 class KelompokBelajarScreen extends StatefulWidget {
@@ -250,19 +251,22 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
                           );
                           return;
                         }
-                        try {
-                          await ApiService.createKelompokBelajar({
-                            'nama': nama,
-                            'kategori': kat,
-                            'sifir': sifir,
-                          });
-                          if (ctx.mounted) {
+                          try {
+                            await ApiService.createKelompokBelajar({
+                              'nama': nama,
+                              'kategori': kat,
+                              'sifir': sifir,
+                            });
+                            await SyncService.notifyDataChanged(
+                              SyncTopics.kelas,
+                              message: 'Daftar kelas telah diperbarui',
+                            );
+                            if (!mounted || !ctx.mounted) return;
                             Navigator.pop(ctx);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('Kelas "$nama" berhasil ditambahkan!'), backgroundColor: const Color(0xFF138F81), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                             );
                             _loadKelompok();
-                          }
                         } catch (e) {
                           if (ctx.mounted) {
                             ScaffoldMessenger.of(ctx).showSnackBar(
@@ -335,10 +339,14 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              try {
-                await ApiService.deleteKelompokBelajar(id);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                try {
+                  await ApiService.deleteKelompokBelajar(id);
+                  await SyncService.notifyDataChanged(
+                    SyncTopics.kelas,
+                    message: 'Daftar kelas telah diperbarui',
+                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('"$nama" berhasil dihapus'), backgroundColor: const Color(0xFFD63031), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                   );
                   _loadKelompok();

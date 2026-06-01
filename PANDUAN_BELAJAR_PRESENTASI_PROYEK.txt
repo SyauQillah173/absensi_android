@@ -1,0 +1,1059 @@
+# PANDUAN BELAJAR PRESENTASI PROYEK
+
+Update: 29 Mei 2026
+Project: Absensi Android + Laravel Backend
+
+Dokumen ini untuk belajar menjelaskan proyek secara runtut. Ini bukan pengganti `PANDUAN_BELAJAR_INTI.txt`. File inti tidak diubah.
+
+## 1. Gambaran Umum Aplikasi
+
+Aplikasi ini adalah sistem manajemen madrasah/sekolah berbasis Android dengan backend Laravel.
+
+Fitur utama:
+
+- login multi role;
+- dashboard admin;
+- dashboard guru;
+- data diri guru read-only untuk role guru;
+- dashboard orang tua/wali;
+- biodata siswa untuk wali sebagai monitoring read-only dan PDF;
+- buku induk siswa;
+- data pondok atau setting pondok untuk komplek, kamar, dan santri pondok;
+- data guru;
+- kelas dan mata pelajaran;
+- jadwal;
+- absensi;
+- nilai dan hafalan;
+- pembayaran;
+- export PDF/Excel;
+- upload foto profil;
+- upload logo dokumen;
+- pengaturan tanda tangan dokumen;
+- pengaturan keamanan pembayaran admin;
+- import Excel data siswa, guru, dan admin/user;
+- import siswa otomatis menghubungkan siswa ke kelompok belajar melalui kolom `kelompok_belajar`;
+- import siswa memberi warning untuk data master opsional yang typo, tanpa menyimpan label liar;
+- Data Santri memakai pilihan master resmi dan pilihan wali `Ayah`, `Ibu`, atau `Wali`;
+- tempat lahir santri/ayah/ibu dipilih dari master Kota/Kabupaten agar tidak typo;
+- data wali otomatis mengikuti data ayah/ibu jika wali sama dengan ayah/ibu, termasuk pekerjaan wali;
+- asal sekolah siswa memakai master `school_origins`, bukan text bebas;
+- Data Santri punya dua sekolah asal: sekolah asal sebelumnya dan sekolah asal siswa sekarang/terdaftar;
+- Edit Data Santri memakai picker sekolah yang stabil dan bisa mencari master sekolah tanpa wajib memilih kota terlebih dahulu;
+- master sekolah bisa ditambah/diedit admin dari aplikasi dan tetap masuk ke master `school_origins`;
+- Data Santri memiliki alamat lengkap ayah, alamat lengkap ibu, status mondok, tanggal diterima pondok, dan tanggal diterima sekolah/akademik;
+- admin bisa mengatur tahun ajaran dan semester aktif dari Buku Induk > Setting Akademik;
+- admin bisa mengatur komplek, kamar, dan santri pondok dari Buku Induk > Data Pondok;
+- admin bisa menekan `Sinkronisasi Data Santri` agar santri aktif masuk ke tahun ajaran/semester tertentu sebagai histori;
+- tahun ajaran baru awalnya kosong sampai data santri disinkronkan, sehingga pembayaran/tagihan lama dan baru lebih akuntabel;
+- input akademik dan pembayaran baru mengikuti tahun ajaran/semester aktif, sedangkan data lama tetap menjadi riwayat;
+- admin bisa mengatur hak akses menu role guru dan wali dari aplikasi;
+- backend juga menolak API jika permission dimatikan, jadi bukan hanya menyembunyikan menu di frontend;
+- audit log mencatat perubahan penting untuk jejak keamanan ISO-aligned;
+- master sekolah bisa dicari dan difilter berdasarkan provinsi, kabupaten/kota, dan kecamatan, serta disiapkan untuk import/API resmi;
+- jenis santri input baru hanya `Santri Pondok`, `Santri Madin`, dan `Keduanya`;
+- upload foto santri dan dokumen akta tersimpan sebagai berkas server;
+- wajib ganti password pertama untuk guru dan wali;
+- reset password user oleh admin;
+- feedback sukses dan pull refresh yang lebih hidup tetapi tetap konsisten;
+- realtime in-app untuk refresh data saat aplikasi aktif;
+- tombol PDF pembayaran wali muncul hanya saat transaksi pembayaran sudah ada;
+- pembayaran memiliki sistem tagihan aktual untuk sekali bayar dan bulanan;
+- tagihan bulanan otomatis dibuat per periode, tidak dobel, dan bisa muncul ke admin serta wali;
+- pembayaran SPP/bulanan bisa diproses per bulan akademik Jul-Jun dan bulan yang sudah lunas tidak bisa dibayar ulang;
+- pembayaran SPP/bulanan sekarang mengikuti semester aktif: Ganjil menampilkan Jul-Des dan Genap menampilkan Jan-Jun;
+- cek tagihan per santri membaca data tagihan yang ada tanpa membuat tagihan baru diam-diam;
+- admin bisa membuka Pembayaran > Per Santri untuk mencari santri dan melihat tagihan lengkap per tahun ajaran/semester;
+- Wali Santri melihat ringkasan tagihan anak, pembayaran bulanan, pembayaran umum, dan riwayat dengan tampilan yang sama rapi;
+- pembayaran dan tagihan menampilkan label periode seperti `2025/2026 • Genap`;
+- pembayaran bulanan ditampilkan dengan urutan tahun ajaran `Jul` sampai `Jun`;
+- notifikasi tagihan disiapkan untuk in-app sekarang dan WhatsApp/email pada tahap lanjutan;
+- menu Nilai mengambil kelas dari master resmi dan menampilkan siswa/mapel sesuai kelas;
+- admin full access melihat semua mapel aktif untuk nilai/materi/absensi, sedangkan guru hanya sesuai jadwal dan mapel dari admin;
+- pada menu Absensi admin, mapel aktif tanpa jadwal kelas tetap terlihat tetapi belum bisa dipakai simpan absensi sampai jadwal valid dibuat;
+- absensi diperkuat agar edit atau input ulang data yang sama menjadi update, bukan duplicate;
+- dashboard tidak lagi menampilkan absensi tidak valid sebagai `Unknown`;
+- jadwal aktif menolak bentrok guru yang sama dan membolehkan jadwal paralel guru/mapel berbeda;
+- jadwal multi-kelas dalam satu grup bisa disimpan tanpa bentrok palsu selama memang satu sesi yang sama;
+- jadwal mapel dengan guru, kelas, dan mapel yang sama tetapi hari/jam berbeda tetap tampil semua;
+- hapus guru pengajar dari mata pelajaran membersihkan jadwal guru tersebut dengan aman;
+- jadwal yang punya histori absensi tidak dihapus permanen, tetapi dinonaktifkan agar arsip absensi tetap aman;
+- status absensi guru di dashboard dan menu Absensi sudah sinkron sehingga `Upcoming` tidak membuka form;
+- guru boleh absen mulai jam mulai sampai akhir hari jadwal, sedangkan admin tetap full access;
+- Izin Guru dinonaktifkan sementara dan dibersihkan dari app layer karena bug, tetapi database lamanya tetap disimpan untuk rebuild nanti;
+- tambah Guru Pengajar di Edit Mata Pelajaran sekarang langsung tersimpan ke backend sebelum jadwal dibuat;
+- picker Tempat Lahir kota/kabupaten diperbaiki agar saat dibuka ulang tetap menampilkan daftar lengkap, bukan hanya pilihan terakhir;
+- picker Tempat Lahir siswa/ayah/ibu dibuat lebih aman agar tidak muncul layar merah saat memilih Kota/Kabupaten;
+- nilai lama seperti `Gresik` otomatis diarahkan ke nama master resmi seperti `Kabupaten Gresik` jika cocok;
+- menu Absensi guru/admin menampilkan jumlah santri dan mapel aktif per kelas berdasarkan data realtime `class_id`;
+- admin bisa mengelola master asal sekolah dan Data Santri menyimpan `school_origin_id`;
+- admin bisa membuat tipe pembayaran bulanan dengan tanggal jatuh tempo dan generator tagihan otomatis;
+- form pembayaran admin bisa memilih tahun ajaran dan semester, default mengikuti Setting Akademik aktif;
+- hafalan ikut memiliki tahun ajaran dan semester agar rekap nilai/hafalan lebih konsisten;
+- tersedia 10 siswa dan 10 wali dummy terhubung untuk uji realtime;
+- responsif prioritas diperkuat untuk login, dashboard, pembayaran wali, nilai, buku induk, absensi, mapel, menu grid, dan bottom navigation;
+- mode offline dan sinkronisasi.
+
+## 2. Arsitektur Sederhana
+
+Frontend:
+
+```text
+Flutter Android
+```
+
+Backend:
+
+```text
+Laravel API
+```
+
+Database:
+
+```text
+PostgreSQL
+```
+
+Alur:
+
+```text
+Android UI -> ApiService -> Laravel routes/api.php -> Controller -> Service/Model -> PostgreSQL
+```
+
+Alur uji coba online sementara sebelum VPS:
+
+```text
+APK di HP -> Cloudflare Tunnel -> laptop sebagai server -> Laravel -> PostgreSQL
+```
+
+## 3. Kenapa Database Dirombak
+
+Sebelumnya banyak data berpotensi disimpan sebagai text bebas.
+
+Masalah dari text bebas:
+
+- typo bisa masuk;
+- nama yang sama bisa punya banyak versi;
+- query sulit dilacak;
+- laporan bisa tidak konsisten;
+- import Excel rawan salah;
+- offline sync bisa bentrok;
+- permission role bisa berbahaya jika berdasarkan nama.
+
+Contoh masalah:
+
+```text
+Diki
+DIKI
+Diky
+Diki Ramdhani
+```
+
+Sistem baru diarahkan agar relasi memakai ID.
+
+## 4. Konsep ID sebagai Sumber Kebenaran
+
+Yang ditampilkan ke user:
+
+```text
+Nama guru: Ust. Diki
+Kelas: Sifir Awal A
+Mapel: Akhlaq
+Kota: Gresik
+```
+
+Yang disimpan sebagai relasi utama:
+
+```text
+teacher_id
+class_id
+mapel_id
+city_id
+```
+
+Dengan begitu, kalau ada kesalahan input, data bisa dilacak dari ID.
+
+## 5. Master Data
+
+Master data adalah tabel referensi.
+
+Contoh:
+
+```text
+roles
+student_statuses
+attendance_statuses
+payment_methods
+payment_statuses
+classes
+school_origins
+mapel
+provinces
+cities
+districts
+villages
+```
+
+Manfaat:
+
+- pilihan input lebih terkontrol;
+- data tidak dobel;
+- typo bisa dicegah;
+- laporan lebih konsisten;
+- sistem web dan Android bisa memakai data yang sama.
+
+## 6. Wilayah Indonesia
+
+Wilayah sudah dibuat sebagai master data:
+
+```text
+provinces
+cities
+districts
+villages
+```
+
+Setiap wilayah punya:
+
+```text
+id
+external_code
+name
+parent_id
+```
+
+Saat presentasi, jelaskan:
+
+- user memilih nama wilayah di UI;
+- backend menyimpan ID wilayah;
+- kode resmi wilayah tetap ada di `external_code`;
+- typo seperti `Gresikk` tidak boleh diterima sebagai kota baru.
+
+## 7. Role Aplikasi
+
+Admin:
+
+- mengelola data master;
+- mengelola siswa, guru, pembayaran, laporan, logo dokumen;
+- mengatur hak akses menu guru/wali;
+- mengatur tahun ajaran dan semester aktif;
+- punya akses penuh dan tidak boleh terkunci dari menu inti.
+
+Guru:
+
+- mengisi absensi;
+- mengelola data sesuai jadwal dan mata pelajaran yang dipilihkan admin;
+- tidak boleh melihat data sensitif yang bukan haknya.
+
+Orang tua/wali:
+
+- melihat data anak yang terhubung;
+- melihat nilai, absensi, pembayaran sesuai izin sistem.
+- melihat biodata anak terbaru dan cetak/download PDF biodata;
+- tidak boleh mengedit data akademik, siswa, pembayaran, jadwal, atau mapel.
+
+Catatan penting role:
+
+- Aplikasi hanya punya 3 role login: Admin, Guru, dan Wali Santri.
+- Santri/Siswa bukan akun login; santri/siswa adalah data anak yang dikelola dan dihubungkan ke wali.
+- Hak akses menu guru dan wali bisa diatur admin, tetapi admin tetap full access.
+
+Admin:
+
+- full access untuk semua data aktif;
+- mengatur mapel, jadwal, guru, siswa, nilai, absensi, pembayaran, dan master data;
+- mapel nonaktif tidak muncul di menu operasional sampai diaktifkan kembali.
+
+Permission harus berbasis ID:
+
+```text
+role_id
+user_id
+teacher_id
+guardian_id
+student_id
+```
+
+Pada refactor terbaru, pembacaan user aktif dipusatkan lewat `ActorResolver`. Tujuannya agar controller tidak membaca actor dengan cara berbeda-beda.
+
+## 8. Export PDF dan Excel
+
+Export tetap menampilkan data yang mudah dibaca:
+
+```text
+nama siswa
+nama kelas
+nama mapel
+nama guru
+status pembayaran
+```
+
+Tetapi sumber relasinya harus dari ID.
+
+Logo dokumen:
+
+- admin bisa upload logo;
+- sistem memakai logo aktif untuk PDF/cetak;
+- jika belum ada logo upload, pakai logo default.
+
+## 9. Upload Foto Profil
+
+Sistem profil mendukung:
+
+- upload foto dari galeri;
+- upload foto dari kamera;
+- mengganti foto;
+- menghapus foto profil;
+- foto tidak hilang selama file storage masih ada.
+
+Jika foto 404, cek:
+
+```bash
+php artisan storage:link
+```
+
+## 10. Offline First
+
+Konsep offline:
+
+- aplikasi bisa menyimpan data sementara;
+- saat online, data dikirim ke backend;
+- data offline harus membawa ID relasi;
+- label text boleh disimpan untuk tampilan offline.
+
+Contoh yang baik:
+
+```text
+student_id = 5
+class_id = 2
+attendance_status_id = 1
+label = Hadir
+```
+
+## 11. Penguatan Sistem Terbaru
+
+Bagian ini bisa dijelaskan sebagai peningkatan kualitas sistem, bukan perubahan tampilan.
+
+Yang diperkuat:
+
+- master data siswa dan wilayah tidak otomatis dibuat dari typo;
+- import siswa lebih aman: field wajib tetap error, field master opsional typo dikosongkan dengan `warnings`;
+- template Excel siswa menjelaskan status resmi, jenis santri resmi, dan aturan master data;
+- master asal sekolah `school_origins` mencegah penulisan asal sekolah bebas seperti variasi huruf yang tidak resmi;
+- jenis santri sekarang dibatasi ke `Santri Pondok`, `Santri Madin`, dan `Keduanya`;
+- menu Nilai memakai master kelas `classes`, lalu siswa dan mapel mengikuti `class_id`/jadwal aktif;
+- penilaian menampilkan pesan jelas jika belum ada mapel aktif untuk kelas yang dipilih;
+- absensi memakai `attendance_key` stabil dari tanggal, kelas, mapel, jadwal, dan siswa;
+- absensi create sekarang conflict-safe berbasis `attendance_key`; jika data untuk scope yang sama sudah masuk server, request baru ditolak sebagai conflict dan tidak membuat data double;
+- edit absensi final seperti `Izin` menjadi `Hadir` dilakukan lewat update data lama, bukan create baru;
+- mode offline absensi memakai aturan server-first: pending offline tidak boleh menimpa data yang sudah masuk server lebih dulu;
+- dashboard admin/guru/wali menyaring data absensi incomplete sehingga tidak muncul `Unknown`;
+- data absensi lama bisa diaudit dan diperbaiki dengan command `attendance:repair-duplicates`;
+- dummy realtime bisa dibuat ulang aman dengan `RealtimeDummySeeder` tanpa membuat data ganda;
+- master asal sekolah punya CRUD admin dan tetap disimpan di siswa sebagai `school_origin_id`;
+- master asal sekolah sudah disiapkan untuk filter kota/kabupaten dan metadata NPSN lewat `city_id`, `npsn`, `jenjang`, `alamat`, dan `status_sekolah`;
+- update 13 Mei 2026: master sekolah juga menyimpan `province_id`, `district_id`, `source`, dan `external_id`, sehingga lebih siap untuk import/API resmi;
+- update 13 Mei 2026: Data Santri membedakan sekolah asal sebelumnya dan sekolah asal sekarang agar riwayat siswa lebih jelas;
+- pekerjaan ayah dan ibu tetap berasal dari satu master pekerjaan, tetapi UI menyaring pilihan agar `Ibu Rumah Tangga` hanya tampil untuk ibu/wali;
+- aturan jadwal terbaru menolak bentrok guru yang sama, tetapi membolehkan jadwal paralel untuk guru/mapel berbeda sesuai kebutuhan operasional madrasah;
+- update 13 Mei 2026: validasi bentrok jadwal memakai overlap waktu yang benar dan mengabaikan row dalam grup jadwal yang sedang diedit;
+- jadwal dan mata pelajaran memastikan guru berasal dari user role guru;
+- akses guru ke mapel dibatasi dari assignment `mapel_guru`;
+- absensi memastikan `jadwal_id`, `class_id`, dan `mapel_id` cocok;
+- sync absensi offline menyimpan pesan gagal yang lebih jelas dan memperbarui status saat gagal/conflict;
+- nilai hanya bisa diinput guru yang memang mengajar mapel tersebut;
+- bulk nilai mengirim `user_id` dan `data` sesuai kontrak backend;
+- hafalan menyimpan `examiner_id` agar penguji bisa dilacak;
+- upload materi dan kegiatan membawa `class_id`;
+- upload materi/kegiatan ditahan saat offline/cache/server tidak siap;
+- upload materi wajib punya `class_id` dan `mapel_id` valid, kegiatan wajib punya `class_id` valid;
+- fitur Izin Guru dinonaktifkan sementara dan dibersihkan dari app layer; data/schema lama tetap disimpan agar fitur bisa dibuat ulang dengan lebih rapi;
+- pembayaran memastikan label metode/status cocok dengan ID master;
+- pembayaran multi item memakai transaksi header dan detail item, serta menjaga tipe pembayaran custom tetap aman terhadap constraint database lama;
+- update 13 Mei 2026: pembayaran memiliki tagihan aktual `payment_bills` yang dibuat dari `payment_bill_rules`, termasuk tagihan bulanan otomatis;
+- update 13 Mei 2026: command `payments:generate-bills` bisa dijalankan berulang tanpa membuat tagihan dobel;
+- update 13 Mei 2026: pembayaran bisa melunasi tagihan tertentu lewat `payment_bill_id`;
+- update 16 Mei 2026 lanjutan: pembayaran admin menyimpan tahun ajaran dan semester dari form atau dari tagihan yang dilunasi;
+- update 16 Mei 2026 lanjutan: cek tagihan per santri memakai ringkasan backend yang sama untuk Admin dan Wali;
+- update 16 Mei 2026 lanjutan: tagihan bulanan ditampilkan per bulan tahun ajaran, bukan hanya daftar transaksi biasa;
+- update 16 Mei 2026 lanjutan: Wali tetap hanya bisa melihat tagihan anak sendiri karena backend memvalidasi relasi wali-anak;
+- update 17 Mei 2026: tahun ajaran baru punya data santri sendiri setelah proses sinkronisasi, sehingga data lama bisa menjadi arsip dan data baru tidak tercampur.
+- update 17 Mei 2026: SPP bulanan memakai status per bulan dari `payment_bills`; bulan lunas tidak dihitung lagi sebagai tunggakan.
+- update 17 Mei 2026: form pembayaran membaca siswa dari periode yang sudah sync, jadi admin tidak salah memilih santri pada tahun ajaran yang belum disiapkan.
+- update 17 Mei 2026: jadwal Ahad dan Senin untuk mapel/guru/kelas yang sama tetap tampil sebagai dua jadwal berbeda.
+- pengaturan dokumen dan keamanan pembayaran hanya bisa diubah admin aktif.
+- Data Santri memperbaiki pilihan wali agar detail menampilkan `Ayah`, `Ibu`, atau `Wali` sesuai pilihan terbaru;
+- Edit Data User Guru menormalisasi unit sekolah dan kategori guru dari master, sehingga edit email saja tetap bisa disimpan;
+- Edit Mata Pelajaran menyimpan guru pengajar aktif ke relasi `mapel_guru` langsung saat tombol tambah guru dipakai, menampilkan loading kecil dan pesan sukses sebelum jadwal dibuat;
+- Edit Mata Pelajaran memakai cache/retry data guru aktif agar tambah guru dan tambah jadwal lebih responsif;
+- Edit Mata Pelajaran sekarang juga membersihkan jadwal terkait saat guru pengajar dihapus, sehingga admin bisa menambah guru lagi tanpa red screen `_dependents.isEmpty`;
+- Jadwal mapel menormalisasi `hari` ke `day_id` di backend agar validasi jadwal aktif tidak memunculkan error teknis `day_id`;
+- Absensi guru dikunci sesuai hari dan jam mulai jadwal di frontend dan backend; admin tetap bisa membuka semua data tanpa pembatasan waktu;
+- Absensi admin menampilkan guru bertugas dan jam jadwal pada kartu mata pelajaran;
+- menu role guru `Buku Induk` diganti menjadi `Data Diri Guru` read-only yang ikut berubah saat admin memperbarui data guru;
+- Data Santri memperlakukan email, telepon, dan identitas opsional sebagai data opsional yang boleh kosong;
+- foto santri dan dokumen akta diupload ke backend dulu, lalu disimpan sebagai path server agar bisa dilihat ulang;
+- animasi sukses dan refresh dibuat ringan tanpa mengubah desain utama;
+- dashboard juga bisa ditarik untuk refresh manual dengan animasi yang konsisten;
+- realtime yang sudah dibuat adalah realtime in-app saat aplikasi aktif, sedangkan push notification saat app tertutup masih butuh Firebase/FCM.
+- responsive terbaru fokus menghilangkan overflow tanpa mengganti gaya visual kuning soft, biru muda, teal, Poppins, icon rounded, dan card besar.
+- template import Excel disesuaikan dengan validasi backend;
+- data siswa bisa masuk ke kelompok belajar otomatis jika kolom `kelompok_belajar` cocok dengan master;
+- guru dan wali wajib mengganti password saat login pertama, lalu login ulang.
+
+Kalimat presentasi:
+
+```text
+Refactor terbaru tidak mengubah tampilan aplikasi, tetapi memperkuat
+aturan data di backend. Jadi aplikasi tetap terasa sama untuk user,
+namun data yang masuk lebih terkontrol dan lebih mudah diaudit.
+```
+
+Kalimat tambahan untuk import dan sync:
+
+```text
+Jika data Excel berisi typo pada kolom opsional, sistem tidak membuat
+master baru dari typo tersebut. Field itu dikosongkan dan diberi warning,
+sementara data wajib tetap divalidasi ketat.
+```
+
+## 12. Cara Menjelaskan Saat Presentasi
+
+Urutan penjelasan:
+
+1. Jelaskan masalah sistem sekolah yang ingin diselesaikan.
+2. Jelaskan aplikasi punya tiga role.
+3. Jelaskan Android sebagai frontend dan Laravel sebagai backend.
+4. Jelaskan database PostgreSQL sebagai pusat data.
+5. Jelaskan kenapa data memakai ID, bukan text bebas.
+6. Tunjukkan contoh wilayah atau kelas yang tidak bisa typo.
+7. Jelaskan actor aktif dan assignment guru sebagai pengaman akses.
+8. Tunjukkan alur absensi atau pembayaran.
+9. Tunjukkan export PDF dengan logo/tanda tangan dokumen.
+10. Jelaskan sistem siap dikembangkan ke versi web.
+
+## 13. Kalimat Singkat untuk Presentasi
+
+Gunakan kalimat seperti ini:
+
+```text
+Sistem ini dibuat agar data sekolah tidak hanya tampil rapi di aplikasi,
+tetapi juga kuat di database. Relasi penting seperti siswa, guru, kelas,
+mapel, pembayaran, absensi, dan wilayah disimpan memakai ID agar data
+tidak mudah typo, tidak dobel, dan mudah dilacak.
+```
+
+Kalimat tambahan setelah refactor:
+
+```text
+Selain database yang lebih normalized, backend juga diperkuat dengan
+validasi actor aktif, assignment guru, dan kecocokan ID penting seperti
+kelas, mapel, jadwal, status pembayaran, dan metode pembayaran.
+```
+
+Kalimat tambahan setelah perbaikan terbaru:
+
+```text
+Perbaikan terbaru juga membuat import siswa, upload materi,
+dan sinkronisasi offline lebih aman tanpa mengubah tampilan utama aplikasi.
+```
+
+Kalimat tambahan setelah perbaikan Data Santri dan pembayaran:
+
+```text
+Data Santri dan pembayaran sekarang lebih konsisten dengan master database.
+Pilihan wali, jenis izin, metode pembayaran, status pembayaran, dan tipe tagihan
+tidak lagi dibiarkan menjadi text bebas yang bisa merusak relasi database.
+```
+
+Kalimat tambahan setelah perbaikan rekap wali dan upload berkas:
+
+```text
+Role wali sekarang tetap bisa mendapatkan rekap pembayaran anaknya dalam
+format PDF yang sama rapi, tetapi aksesnya tetap dibatasi hanya untuk anak
+yang terhubung dengan akun wali tersebut. Berkas siswa seperti foto santri
+dan akta juga disimpan di server, sehingga data tidak bergantung pada file
+lokal di HP admin.
+```
+
+Kalimat tambahan untuk realtime:
+
+```text
+Realtime pada tahap ini berarti data di aplikasi otomatis disegarkan ketika
+aplikasi aktif atau dibuka. Untuk notifikasi push saat aplikasi tertutup,
+sistem masih perlu integrasi Firebase/FCM pada tahap berikutnya.
+```
+
+Kalimat tambahan untuk cek tagihan:
+
+```text
+Pada bagian pembayaran, admin tidak hanya melihat transaksi harian, tetapi
+juga bisa mengecek tagihan per santri. Tagihan dikelompokkan berdasarkan
+tahun ajaran dan semester, lalu dibagi menjadi pembayaran bulanan dan
+pembayaran umum. Wali Santri melihat data yang sama rapi, tetapi dibatasi
+hanya untuk anak yang terhubung dengan akun wali tersebut.
+```
+
+Kalimat tambahan untuk Setting Akademik:
+
+```text
+Tahun ajaran dan semester aktif menjadi default input baru. Namun admin
+tetap bisa memilih periode lama ketika memasukkan data lama, sehingga data
+semester sebelumnya tidak hilang dan tetap bisa direkap.
+```
+
+Kalimat tambahan untuk sinkronisasi santri:
+
+```text
+Tahun ajaran baru tidak langsung menyalin transaksi lama. Admin cukup
+menjalankan Sinkronisasi Data Santri untuk mendaftarkan santri aktif ke
+periode tersebut. Setelah itu pembayaran, absensi, nilai, dan tagihan bisa
+diinput sebagai data baru atau histori sesuai periode yang dipilih.
+```
+
+Kalimat tambahan untuk SPP bulanan:
+
+```text
+SPP bulanan disimpan per bulan akademik. Jika Juli, Agustus, dan September
+sudah dibayar, tiga bulan itu otomatis lunas dan tidak akan dihitung lagi
+sebagai tunggakan.
+```
+
+Kalimat tambahan untuk lock jadwal guru:
+
+```text
+Guru hanya bisa mengisi absensi pada hari dan setelah jam mulai jadwal yang
+ditetapkan admin. Aturan ini dicek di tampilan dan backend, sedangkan admin
+tetap punya akses penuh untuk monitoring dan koreksi data.
+```
+
+Kalimat tambahan untuk master sekolah:
+
+```text
+Asal sekolah siswa tidak lagi dibiarkan sebagai text bebas. Sistem memakai
+master school origins yang bisa dikaitkan dengan kota/kabupaten dan NPSN,
+sehingga nanti data sekolah nasional bisa di-import sebagai cache lokal.
+```
+
+Kalimat tambahan setelah perbaikan absensi dan responsive:
+
+```text
+Absensi sekarang dikunci dengan kunci unik per tanggal, kelas, mapel,
+jadwal, dan siswa. Input baru tidak boleh menimpa data server yang sudah
+ada, sedangkan edit absensi final dilakukan lewat update data lama.
+Mode offline memakai aturan server-first sehingga pending offline yang
+terlambat sinkron menjadi conflict, bukan mengganti data server.
+Tampilan juga diperkuat agar tetap rapi di berbagai ukuran HP tanpa
+mengubah identitas desain aplikasi.
+```
+
+## 14. Bagian yang Jangan Diklaim Berlebihan
+
+Jangan bilang:
+
+```text
+Semua bug pasti tidak akan terjadi lagi.
+```
+
+Lebih tepat:
+
+```text
+Struktur database sudah dibuat lebih matang sehingga risiko typo,
+duplikasi, dan data tidak sinkron jauh berkurang.
+```
+
+Jangan bilang:
+
+```text
+Tidak ada text sama sekali di database.
+```
+
+Lebih tepat:
+
+```text
+Text masih ada untuk label dan tampilan, tetapi relasi utama memakai ID.
+```
+
+Jangan bilang:
+
+```text
+Sistem sudah punya test otomatis lengkap.
+```
+
+Lebih tepat:
+
+```text
+Validasi manual dan static check sudah dilakukan, tetapi test otomatis
+fitur masih perlu ditambahkan.
+```
+
+## 15. Checklist Demo
+
+Sebelum demo:
+
+- backend hidup;
+- PostgreSQL hidup;
+- jika demo memakai APK release, Cloudflare tunnel hidup;
+- URL Cloudflare sama dengan `ApiService.baseUrl` di APK;
+- wilayah sudah di-import;
+- command `psql` PostgreSQL sudah tersedia di PATH jika reset database dari Windows;
+- APK release bisa login, bukan hanya `flutter run`;
+- storage link aktif;
+- upload foto profil bisa tampil;
+- logo dokumen tampil di PDF;
+- tanda tangan dokumen sesuai pengaturan;
+- data siswa/guru bisa dibuka;
+- absensi bisa dibuka;
+- absensi dari daftar mapel membawa mapel yang benar;
+- absensi input baru, edit `Izin` menjadi `Hadir`, lalu input ulang scope yang sama tidak membuat duplicate;
+- uji conflict offline: jika pending offline kalah oleh data server yang sudah masuk lebih dulu, data server tetap menang dan pending menjadi conflict;
+- uji completed online lalu offline: data harus terkunci dan tidak bisa absen ulang/edit/batal sampai online;
+- dashboard admin/guru/wali tidak menampilkan card `Unknown`;
+- command `php artisan attendance:repair-duplicates --dry-run` sudah dicek jika memakai data lama;
+- import siswa wajib dicoba dengan data wajib saja dan dengan master opsional typo untuk melihat warning;
+- edit Data Santri wajib dicoba untuk pilihan wali `Ayah`, `Ibu`, dan `Lainnya/Wali`;
+- edit Data Santri wajib coba tempat lahir santri/ayah/ibu dari picker Kota/Kabupaten, bukan ketik bebas;
+- role wali wajib cek pekerjaan wali terisi dari pekerjaan ayah/ibu saat `Wali Sama Dengan` adalah `Ayah` atau `Ibu`;
+- edit Data Santri wajib dicoba tanpa email dan tanpa nomor telepon opsional;
+- upload foto santri dan dokumen akta wajib dicoba lalu buka ulang detail untuk klik `Lihat`;
+- pastikan menu Izin Guru tidak muncul di role admin/guru karena fitur sedang dinonaktifkan sementara;
+- upload materi/kegiatan tidak dikirim saat server/offline tidak siap;
+- sync absensi offline menampilkan status gagal yang lebih jelas jika backend menolak data;
+- pembayaran bisa dibuka;
+- pembayaran multi item seperti `Kitab` dan `SPP Bulanan` wajib dicoba agar tidak muncul error `pembayaran_jenis_check`;
+- role wali wajib mencoba download rekap pembayaran PDF;
+- role wali wajib memastikan tombol PDF tidak muncul saat transaksi masih kosong;
+- menu Nilai wajib dicoba memilih kelas, melihat siswa sesuai kelas, dan mapel aktif sesuai jadwal;
+- login admin wajib cek Nilai/Materi menampilkan semua mapel aktif walaupun belum dijadwalkan;
+- login admin wajib cek menu Absensi menampilkan semua mapel aktif; mapel aktif yang belum punya jadwal kelas harus memberi pesan agar jadwal diatur dulu;
+- login guru wajib cek Nilai/Materi/Absensi hanya menampilkan mapel dan jadwal yang ditugaskan admin;
+- login guru wajib cek absensi sebelum hari/jam jadwal tidak bisa masuk input dan menampilkan pesan lock;
+- edit Mata Pelajaran wajib cek tambah guru, tambah beberapa jadwal, hapus guru, lalu tambah guru lagi tanpa red screen;
+- jadwal yang sudah dipakai absensi wajib dicek menjadi nonaktif saat guru pengajar dihapus, bukan menghapus riwayat absensi;
+- login guru wajib cek menu `Data Diri Guru` menampilkan data guru terbaru dari admin;
+- login admin wajib cek kartu mapel di Absensi menampilkan guru bertugas dan jam jadwal;
+- edit Data Santri wajib cek pekerjaan ayah tidak menampilkan `Ibu Rumah Tangga`, sedangkan pekerjaan ibu tetap menampilkan;
+- edit Data Santri wajib cek sekolah asal mengikuti kota/kabupaten yang dipilih jika data `school_origins.city_id` tersedia;
+- role wali wajib cek menu Biodata Siswa, pilih anak jika lebih dari satu, lalu cetak/download PDF biodata;
+- jika mapel belum tersedia untuk kelas terpilih, pesan kosong penilaian harus jelas;
+- edit Data Santri wajib mencoba asal sekolah dari dropdown master, bukan mengetik bebas;
+- edit Data User Guru wajib dicoba ubah email saja pada guru yang sudah punya `unit_kerja` dan `kategori_guru`;
+- edit Mata Pelajaran wajib dicoba tambah guru pengajar lalu langsung tambah jadwal tanpa error guru pengajar aktif;
+- edit Mata Pelajaran wajib memastikan setelah tambah guru muncul feedback sukses sebelum membuat jadwal;
+- jadwal mapel wajib dicoba simpan setelah memilih hari agar tidak muncul error teknis `day_id`;
+- edit Data Santri wajib mencoba pilih Tempat Lahir siswa, ayah, dan ibu dari picker Kota/Kabupaten tanpa muncul layar merah;
+- buka ulang Edit Data Santri dan pastikan nilai `Gresik` tampil sebagai `Kabupaten Gresik` jika master tersedia;
+- menu Absensi wajib dicek: daftar kelas menampilkan jumlah santri/mapel aktif, lalu detail absensi menampilkan siswa yang sama;
+- admin wajib mencoba tambah/edit/nonaktif/hapus asal sekolah jika fitur master asal sekolah dipresentasikan;
+- jenis santri wajib dicoba hanya dari opsi `Santri Pondok`, `Santri Madin`, dan `Keduanya`;
+- jadwal wajib dicoba dengan kasus bentrok guru/kelas untuk memastikan backend menolak overlap;
+- login admin wajib membuka Pengaturan > Hak Akses Menu.
+- admin wajib mencoba mematikan menu Absensi untuk Guru, lalu login Guru dan pastikan menu Absensi hilang.
+- admin wajib mengaktifkan kembali menu Absensi untuk Guru, lalu login Guru dan pastikan menu Absensi muncul kembali.
+- admin wajib mencoba mematikan Pembayaran untuk Wali, lalu login Wali dan pastikan menu Pembayaran hilang.
+- direct API ke fitur yang permission-nya dimatikan wajib menghasilkan HTTP 403, bukan hanya menu disembunyikan.
+- role Admin wajib tetap bisa membuka menu inti walaupun permission table berubah.
+- setelah update permission, cek tabel `audit_logs` untuk memastikan before/after permission tercatat.
+- setelah create/update/cancel absensi, pembayaran, tipe pembayaran, atau siswa, cek audit log jika fitur audit dipresentasikan.
+- admin wajib membuka Pembayaran > Per Santri, cari santri, dan cek ringkasan tagihan per tahun ajaran/semester.
+- admin wajib cek pembayaran bulanan tampil urutan Jul-Jun dan pembayaran umum tampil sebagai list/card.
+- wali wajib login dan cek Pembayaran hanya menampilkan tagihan anak sendiri.
+- wali wajib cek label tahun ajaran/semester muncul pada tagihan.
+- wali wajib cek filter tahun ajaran, semester, dan status tidak menampilkan data santri lain.
+- admin wajib cek form pembayaran default ke Setting Akademik aktif dan bisa override periode lama.
+- admin wajib tambah tahun ajaran baru, klik `Sinkronisasi Data Santri`, lalu cek summary `Sinkronisasi Completed`.
+- admin wajib ulangi sinkronisasi pada periode yang sama dan pastikan data santri tidak dobel.
+- admin wajib pilih pembayaran pada periode yang belum sync dan pastikan muncul pesan agar sinkronisasi dulu.
+- admin wajib bayar SPP Juli, Agustus, September dan cek ketiganya menjadi lunas di cek tagihan.
+- admin wajib coba bayar ulang bulan SPP yang sudah lunas dan pastikan ditolak/tidak bisa dipilih.
+- admin wajib cek bahwa cek tagihan kosong setelah sync adalah normal jika belum ada pembayaran/tagihan.
+- edit Mata Pelajaran wajib coba dua jadwal beda hari/jam untuk guru-mapel-kelas yang sama dan pastikan keduanya tampil setelah buka ulang.
+- data dummy realtime bisa disiapkan dengan `php artisan db:seed --class=RealtimeDummySeeder`;
+- login/dashboard/pembayaran wali/nilai/buku induk wajib dicek di minimal dua ukuran HP untuk responsif tahap prioritas;
+- cek tambahan responsive: HP kecil, Poco M6, layar besar, dan font scale tinggi tidak boleh overflow;
+- dashboard wajib dicoba tarik refresh manual;
+- layar wali pembayaran/absensi dicek saat app aktif untuk memastikan refresh in-app berjalan;
+- pengaturan PIN pembayaran admin bisa dicek jika fitur dipakai;
+- export bisa dicoba.
+
+APK release terakhir:
+
+```text
+C:\Users\Nobita\absensi_android\build\app\outputs\apk\release\app-release.apk
+```
+
+Command backend sementara:
+
+```bash
+cd C:\Users\Nobita\absensi_android\absensi_backend
+php -S 0.0.0.0:8000 -t public
+```
+
+Command tunnel:
+
+```bash
+cloudflared tunnel --protocol http2 --edge-ip-version 4 --url http://127.0.0.1:8000
+```
+
+Validasi terakhir yang boleh disebut:
+
+```text
+flutter analyze --no-pub          : no issues found
+php -l file PHP terkait           : no syntax errors
+php -l routes/api.php             : no syntax errors
+php -l PembayaranController.php   : no syntax errors
+php -l SiswaController.php        : no syntax errors
+php artisan route:list            : 106 route
+php artisan route:list --path=api/pembayaran/rekap-siswa : 1 route
+php artisan route:list --path=api/classes : 1 route
+php artisan route:list --path=api/school-origins : 1 route
+flutter build apk --release       : berhasil
+php artisan test                  : no tests found
+flutter test --no-pub             : folder test belum tersedia
+```
+
+Tambahan validasi 6 Mei 2026:
+
+```text
+php -l pada AbsensiController.php                   : no syntax errors
+php -l pada DashboardController.php                 : no syntax errors
+php -l pada JadwalController.php                    : no syntax errors
+php -l pada ReferenceController.php                 : no syntax errors
+php -l pada migration attendance_key                : no syntax errors
+php -l pada migration enforce attendance_key unique : no syntax errors
+php -l pada RealtimeDummySeeder.php                 : no syntax errors
+php -l pada routes/console.php                      : no syntax errors
+php artisan route:list --path=api --except-vendor   : berhasil, 109 route
+php artisan migrate --force                         : berhasil
+php artisan attendance:repair-duplicates --dry-run  : 0 group duplicate
+php artisan attendance:repair-duplicates --apply    : berhasil, 0 duplicate dihapus
+php artisan migrate --pretend migration unique key  : berhasil
+php artisan db:seed --class=RealtimeDummySeeder     : berhasil
+php artisan test                                    : no tests found
+dart analyze lib/screens/absensi/absensi_mapel_screen.dart : no issues found
+flutter analyze --no-pub                            : no issues found
+flutter build apk --release --no-pub                : timeout setelah 10 menit, perlu dijalankan ulang manual
+```
+
+Tambahan validasi 7 Mei 2026:
+
+```text
+php -l pada ReferenceController.php                 : no syntax errors
+php -l pada SiswaController.php                     : no syntax errors
+php -l pada GuruIzinController.php                  : no syntax errors (historis sebelum cleanup 8 Mei)
+php -l pada UserManagementController.php            : no syntax errors
+php artisan route:list --path=api/references        : berhasil, 1 route
+php artisan route:list --path=api/guru              : route guru dan guru-izin tampil (historis sebelum cleanup 8 Mei)
+flutter analyze --no-pub                            : no issues found
+php artisan test                                    : no tests found
+```
+
+Tambahan validasi 8 Mei 2026:
+
+```text
+Izin Guru app layer                                : menu, screen, service, route, controller, model dihapus
+Database Izin Guru                                : schema/migration/tabel tetap dipertahankan
+php -l pada routes/api.php                        : no syntax errors
+php artisan route:list --path=api --except-vendor : berhasil, 106 route, tidak ada route guru-izin
+flutter analyze targeted file Izin Guru cleanup   : no issues found
+php -l pada JadwalController.php                  : no syntax errors
+php -l pada RegionController.php                  : no syntax errors
+flutter analyze targeted wilayah/mapel/api        : no issues found
+php -l pada KelompokBelajarController.php         : no syntax errors
+flutter analyze targeted tempat lahir/absensi     : no issues found
+```
+
+Tambahan validasi 9 Mei 2026:
+
+```text
+php -l pada ReferenceController.php                : no syntax errors
+php -l pada AbsensiController.php                  : no syntax errors
+php -l pada UserProfileController.php              : no syntax errors
+php -l pada migration school_origins location      : no syntax errors
+php artisan migrate --pretend migration 2026_05_09 : berhasil
+flutter analyze targeted master/profile/absensi/mapel : no issues found
+```
+
+Tambahan validasi 13 Mei 2026:
+
+```text
+php -l pada model PaymentBillRule/PaymentBill/PaymentBillNotification : no syntax errors
+php -l pada PaymentBillService dan GuruAttendanceStatusService        : no syntax errors
+php -l pada PaymentBillController                                     : no syntax errors
+php -l pada controller backend terkait jadwal/absensi/payment/wali     : no syntax errors
+php -l pada migration 2026_05_13 sekolah dan tagihan                  : no syntax errors
+php -l pada routes/api.php dan routes/console.php                     : no syntax errors
+php artisan route:list --path=payment                                 : route payment-bills/payment-types tampil
+php artisan route:list --path=school-origins                          : route school-origins tampil
+php artisan list payments                                             : command payments:generate-bills tampil
+php artisan migrate --pretend --no-interaction                        : berhasil
+dart format --output=none pada file Flutter terkait                   : berhasil
+dart analyze targeted file besar                                      : timeout di environment ini, perlu diulang manual jika dibutuhkan
+```
+
+Tambahan validasi 15 Mei 2026:
+
+```text
+php -l pada PermissionService/AuditLogService/EnsureMenuPermission : no syntax errors
+php -l pada PermissionController dan controller terdampak          : no syntax errors
+php -l pada routes/api.php                                        : no syntax errors
+php artisan route:list --path=settings                            : route settings permissions tampil
+php artisan route:list --path=absensi                             : route absensi tetap tampil
+php artisan route:list --path=hafalan                             : route hafalan tetap tampil
+php artisan route:list --path=payment-types                       : route payment-types tetap tampil
+php artisan migrate --pretend migration permission/audit          : berhasil
+dart format targeted permission/dashboard/settings/api            : berhasil
+flutter analyze targeted permission/dashboard/settings/api        : no issues found
+```
+
+Tambahan validasi 16 Mei 2026 lanjutan:
+
+```text
+php -l pada MapelAccessService/JadwalController/MataPelajaranController : no syntax errors
+php -l pada StudentBillingSummaryService/PaymentBillController          : no syntax errors
+php -l pada WaliController/PembayaranController/HafalanController       : no syntax errors
+php -l pada model Hafalan dan migration periode hafalan                 : no syntax errors
+php artisan route:list --path=api/payment-bills --except-vendor         : route payment-bills/student-summary tampil
+php artisan migrate --force                                             : migration hafalan periode berhasil
+php artisan migrate:status                                              : migration 2026_05_16_000002 status Ran
+flutter analyze targeted mapel/pembayaran/api/widget                    : no issues found
+```
+
+Tambahan validasi 17 Mei 2026:
+
+```text
+php -l pada AcademicPeriodService/AcademicPeriodController             : no syntax errors
+php -l pada PaymentBillService/PaymentBillController/PembayaranController : no syntax errors
+php -l pada SiswaController/JadwalController/SiswaTahunAjaran          : no syntax errors
+php -l pada migration siswa_tahun_ajaran                               : no syntax errors
+php artisan migrate --force                                            : migration 2026_05_17_000001 berhasil
+php artisan migrate:status                                             : migration 2026_05_17_000001 status Ran
+php artisan route:list --path=api/academic-periods --except-vendor     : route sync-siswa tampil
+php artisan route:list --path=api/payment-bills --except-vendor        : route monthly-options dan student-summary tampil
+flutter analyze targeted setting akademik/pembayaran/api/mapel         : no issues found
+```
+
+Tambahan materi presentasi update 29 Mei 2026:
+
+```text
+Sekarang sistem memiliki dua absensi:
+1. Absensi Madin, yaitu absensi kegiatan belajar berbasis kelas, mata pelajaran, jadwal, dan santri.
+2. Absensi Pondok atau Absensi Jama'ah Sholat, yaitu absensi santri pondok berbasis komplek dan kamar.
+```
+
+Kalimat presentasi yang bisa dipakai:
+
+```text
+Menu Absensi tidak dipecah menjadi menu dashboard baru. Di dalam menu Absensi
+sekarang ada tambahan Absensi Jama'ah Sholat. Jadi admin atau guru bisa memilih
+apakah ingin mengisi Absensi Madin atau Absensi Pondok.
+
+Absensi Madin tetap memakai jadwal pelajaran, sedangkan Absensi Pondok memakai
+data komplek dan kamar. Data awal komplek/kamar dapat diambil dari Excel pondok,
+tetapi santri tidak dibuat otomatis jika belum ada di database. Ini menjaga agar
+data induk santri tetap rapi.
+```
+
+Poin teknis yang bisa dijelaskan:
+
+- Absensi Madin memakai tabel `absensi`.
+- Absensi Pondok memakai tabel `absensi_sholat`.
+- Master komplek/kamar memakai tabel `boarding_complexes` dan `boarding_rooms`.
+- Status Absensi Pondok memakai `M/I/S`, yaitu `Masuk/Izin/Sakit`.
+- Offline Absensi Pondok memakai queue lokal sendiri, `absensi_sholat_pending`.
+- Import Excel kamar/komplek memakai command:
+
+```text
+php artisan boarding:import-excel "C:\Users\Nobita\Downloads\PONPES QOMARAUDDIN 1747.xlsx" --show-warnings
+```
+
+Checklist demo update 29 Mei 2026:
+
+- login admin atau guru;
+- buka menu Absensi;
+- tunjukkan ada submenu `Absensi Jama'ah Sholat`;
+- pilih tanggal, komplek, dan kamar;
+- isi status M/I/S santri;
+- simpan;
+- buka Buku Induk dan tunjukkan field Komplek/Kamar pada santri mondok;
+- jelaskan bahwa Absensi Madin lama tetap berjalan dari alur kelas/mapel/jadwal.
+
+Validasi tambahan 29 Mei 2026:
+
+```text
+php -l pada AbsensiSholatController/BoardingController       : no syntax errors
+php -l pada model/service/migration Absensi Pondok            : no syntax errors
+php -l pada routes/api.php dan routes/console.php             : no syntax errors
+dart analyze targeted file absensi sholat/offline/buku induk  : no error
+php artisan route:list dan migrate --pretend                  : timeout di environment lokal, perlu diulang manual
+```
+
+Tambahan materi presentasi update lanjutan 29 Mei 2026:
+
+```text
+Data Pondok sekarang menjadi master resmi untuk Absensi Jama'ah Sholat.
+Admin tidak perlu mengisi komplek/kamar sebagai text bebas. Admin mengatur
+Komplek, Kamar, lalu menempatkan santri ke kamar tersebut lewat Buku Induk.
+```
+
+Kalimat presentasi yang bisa dipakai:
+
+```text
+Untuk menjaga data pondok tetap rapi, sistem sekarang punya menu Data Pondok.
+Di menu ini admin bisa mengatur Komplek, Kamar, dan Santri Pondok. Absensi
+Jama'ah Sholat mengambil daftar santri dari relasi ini, sehingga data yang
+tampil bukan data acak dan bukan hasil ketikan bebas.
+
+Di pembayaran, SPP bulanan juga dibuat lebih aman. Bulan yang bisa dipilih
+mengikuti semester aktif. Jika semester Ganjil, yang tampil Juli sampai
+Desember. Jika semester Genap, yang tampil Januari sampai Juni. Data semester
+lama tetap tersimpan sebagai riwayat dan tidak ditimpa.
+```
+
+Poin teknis yang bisa dijelaskan:
+
+- relasi resmi santri pondok memakai tabel `santri_pondok`;
+- master komplek/kamar tetap memakai `boarding_complexes` dan `boarding_rooms`;
+- kolom `siswa.komplek` dan `siswa.kamar` hanya label kompatibilitas;
+- Absensi Jama'ah Sholat membaca santri pondok aktif dari `santri_pondok`;
+- Buku Induk > Data Siswa punya fitur `Pilih Semua Siswa` sesuai filter/search;
+- pembayaran bulanan tetap memakai `payment_bills`, bukan tabel detail baru;
+- hapus transaksi pembayaran akan menghitung ulang status tagihan bulan terkait;
+- role wali tetap hanya melihat tagihan anak yang terhubung dengannya.
+
+Checklist demo update lanjutan 29 Mei 2026:
+
+- buka Buku Induk dan tunjukkan menu `Data Pondok`;
+- tambah atau edit Komplek;
+- tambah atau edit Kamar;
+- atur Santri Pondok ke kamar tertentu;
+- buka Absensi Jama'ah Sholat dan tunjukkan daftar santri muncul sesuai kamar;
+- buka Data Siswa, filter Aktif, lalu klik `Pilih Semua Siswa`;
+- buka Keuangan, cari siswa dengan nama/NIS/NISN, lalu tunjukkan bulan SPP sesuai semester;
+- buka Per Santri dan tunjukkan bulan yang lunas sudah tercentang/status lunas;
+- login Wali dan tunjukkan hanya data anak sendiri yang muncul.
+
+Validasi tambahan update lanjutan 29 Mei 2026:
+
+```text
+php -l pada controller/service/model/migration terkait : no syntax errors
+php artisan migrate --pretend migration pondok lanjutan : SQL tampil
+php artisan route:list --path=api/boarding              : route tampil
+php artisan route:list --path=api/absensi-sholat        : route tampil
+php artisan route:list --path=api/payment-bills         : route tampil
+dart analyze targeted file frontend terkait             : no issues found
+```
+
+## Update Presentasi 2 Juni 2026
+
+Poin presentasi terbaru yang bisa disampaikan:
+
+```text
+Sistem sekarang bukan hanya aplikasi absensi kelas, tetapi sudah berkembang
+menjadi aplikasi manajemen madrasah dan pondok yang memiliki master data,
+role access, absensi pondok, pembayaran, dan monitoring wali.
+```
+
+### 1. Data Pondok
+
+Kalimat presentasi:
+
+```text
+Data Pondok dibuat sebagai master resmi untuk mengelola komplek, kamar,
+dan santri pondok. Relasi santri ke kamar tidak memakai text bebas, tetapi
+memakai ID master database agar tidak terjadi typo dan data dobel.
+```
+
+Hal penting:
+
+- Komplek dan kamar adalah master data.
+- Santri pondok hanya boleh punya satu relasi aktif.
+- Santri yang sudah masuk pondok tidak muncul lagi di form tambah.
+- Pindah kamar dilakukan melalui edit, bukan tambah ulang.
+- Santri yang diaktifkan kembali otomatis ikut kegiatan sholat.
+
+### 2. Absensi Jama'ah Sholat
+
+Kalimat presentasi:
+
+```text
+Absensi Jama'ah Sholat mengikuti pola Absensi Madin, tetapi konteksnya
+berdasarkan komplek dan kamar. Admin atau guru bisa menginput status M, I,
+dan S, lalu data langsung masuk ke rekap, dashboard, wali, dan notifikasi.
+```
+
+Hal penting:
+
+- `M` berarti Masuk.
+- `I` berarti Izin.
+- `S` berarti Sakit.
+- Data membaca santri aktif dari Data Pondok.
+- Dashboard menghitung total hari ini.
+- Wali hanya melihat absensi anak sendiri.
+- Guru hanya melihat komplek/kamar sesuai akses jika dibatasi admin.
+
+### 3. Keuangan dan CMS Pembayaran
+
+Kalimat presentasi:
+
+```text
+Keuangan sekarang memakai konsep master tagihan. Admin bisa mengatur tipe
+pembayaran, metode pembayaran, dan periode pembayaran dari CMS, sehingga
+aturan pembayaran tidak perlu di-hardcode di aplikasi.
+```
+
+Hal penting:
+
+- Metode pembayaran bisa aktif/nonaktif.
+- Periode pembayaran bisa bulanan, semesteran, tahunan, sekali bayar, atau umum.
+- Pembayaran umum tidak otomatis lunas jika bayar kurang.
+- Status tagihan dihitung dari tagihan, dibayar, dan kekurangan.
+- Pembayaran bulanan menampilkan centang pada bulan yang sudah lunas.
+- Admin dan wali membaca status tagihan dari sumber yang sama.
+
+### 4. Role dan Hak Akses
+
+Kalimat presentasi:
+
+```text
+Role admin dibuat lebih fleksibel. Admin utama punya full access, sedangkan
+admin bendahara, admin pondok, admin absensi, atau admin akademik bisa dibatasi
+sesuai hak akses menu.
+```
+
+Hal penting:
+
+- Admin utama tidak boleh terkunci dari fitur inti.
+- Bendahara fokus ke keuangan.
+- Admin pondok fokus ke Data Pondok.
+- Admin absensi fokus ke input dan rekap absensi.
+- Wali hanya monitoring data anak.
+
+### 5. Stabilitas dan Optimasi
+
+Kalimat presentasi:
+
+```text
+Project juga dibersihkan dari cache build besar dan file sampah. Validasi
+terakhir menunjukkan Flutter analyze bersih dan backend PHP tidak memiliki
+syntax error.
+```
+
+Validasi terakhir:
+
+```text
+dart analyze                       : No issues found
+php -l backend                     : PHP syntax OK, 135 files checked
+php artisan route:list --path=api  : 154 route terbaca
+```
+
+## 16. Kesimpulan
+
+Inti proyek ini:
+
+```text
+UI tetap konsisten,
+backend lebih rapi,
+database lebih matang,
+data lebih mudah dilacak,
+dan sistem siap dikembangkan jangka panjang.
+```

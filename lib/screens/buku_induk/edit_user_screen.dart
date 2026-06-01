@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/api_service.dart';
 import '../../services/excel_import_service.dart';
+import '../../services/sync_service.dart';
 
 class EditUserScreen extends StatefulWidget {
   final Map<String, dynamic>? user;
@@ -45,10 +46,13 @@ class _EditUserScreenState extends State<EditUserScreen> {
 
   String _gender = '';
   String _role = 'guru';
+  String _adminType = 'utama';
   String _status = 'Aktif';
   bool _isSaving = false;
   List<String> _selectedUnits = [];
   List<String> _selectedGuruCategories = [];
+  List<String> _schoolUnitOptions = ExcelImportService.schoolUnitOptions;
+  List<String> _guruCategoryOptions = ExcelImportService.guruCategoryOptions;
 
   bool get _shouldShowGuruFields =>
       widget.showGuruFields || _role == 'guru' || widget.lockedRole == 'guru';
@@ -57,7 +61,9 @@ class _EditUserScreenState extends State<EditUserScreen> {
   void initState() {
     super.initState();
     final user = widget.user ?? <String, dynamic>{};
-    _nameController = TextEditingController(text: user['name']?.toString() ?? '');
+    _nameController = TextEditingController(
+      text: user['name']?.toString() ?? '',
+    );
     _emailController = TextEditingController(
       text: user['email']?.toString() ?? '',
     );
@@ -73,10 +79,7 @@ class _EditUserScreenState extends State<EditUserScreen> {
     );
     _passwordController = TextEditingController();
     _kodeGuruController = TextEditingController(
-      text:
-          user['kode_guru']?.toString() ??
-          user['nis']?.toString() ??
-          '',
+      text: user['kode_guru']?.toString() ?? user['nis']?.toString() ?? '',
     );
     _alamatController = TextEditingController(
       text: user['alamat']?.toString() ?? '',
@@ -86,11 +89,73 @@ class _EditUserScreenState extends State<EditUserScreen> {
         widget.lockedRole ??
         user['role']?.toString() ??
         (widget.showGuruFields ? 'guru' : 'admin');
+    final adminType = user['admin_type']?.toString() ?? '';
+    _adminType = adminType.isNotEmpty ? adminType : 'utama';
     _status = user['status']?.toString() ?? 'Aktif';
     _selectedUnits = List<String>.from(user['unit_kerja'] ?? const []);
     _selectedGuruCategories = List<String>.from(
       user['kategori_guru'] ?? const [],
     );
+    _loadTeacherMasters();
+  }
+
+  Future<void> _loadTeacherMasters() async {
+    try {
+      final results = await Future.wait([
+        ApiService.getReferenceMaster('teacher_units'),
+        ApiService.getReferenceMaster('teacher_categories'),
+      ]);
+      if (!mounted) return;
+      final unitOptions = _masterNames(results[0]);
+      final categoryOptions = _masterCodesOrNames(results[1]);
+      setState(() {
+        _schoolUnitOptions = unitOptions.isEmpty
+            ? ExcelImportService.schoolUnitOptions
+            : unitOptions;
+        _guruCategoryOptions = categoryOptions.isEmpty
+            ? ExcelImportService.guruCategoryOptions
+            : categoryOptions;
+        _selectedUnits = _canonicalSelected(_selectedUnits, _schoolUnitOptions);
+        _selectedGuruCategories = _canonicalSelected(
+          _selectedGuruCategories,
+          _guruCategoryOptions,
+        );
+      });
+    } catch (_) {}
+  }
+
+  List<String> _masterNames(Map<String, dynamic> result) {
+    final data = result['data'];
+    if (data is! List) return const [];
+    return data
+        .whereType<Map>()
+        .map((item) => item['name']?.toString().trim() ?? '')
+        .where((name) => name.isNotEmpty)
+        .toList();
+  }
+
+  List<String> _masterCodesOrNames(Map<String, dynamic> result) {
+    final data = result['data'];
+    if (data is! List) return const [];
+    return data
+        .whereType<Map>()
+        .map((item) {
+          final code = item['code']?.toString().trim() ?? '';
+          return code.isNotEmpty ? code : item['name']?.toString().trim() ?? '';
+        })
+        .where((value) => value.isNotEmpty)
+        .toList();
+  }
+
+  List<String> _canonicalSelected(List<String> selected, List<String> options) {
+    final byLower = {
+      for (final option in options) option.toLowerCase(): option,
+    };
+    return selected
+        .map((value) => byLower[value.toLowerCase()] ?? value)
+        .where((value) => options.contains(value))
+        .toSet()
+        .toList();
   }
 
   @override
@@ -110,17 +175,6 @@ class _EditUserScreenState extends State<EditUserScreen> {
   Future<void> _handleSave() async {
     if (_isSaving) return;
     if (!_formKey.currentState!.validate()) return;
-
-    if (_shouldShowGuruFields) {
-      if (_selectedUnits.isEmpty) {
-        _showSnackBar('Unit sekolah guru wajib dipilih minimal 1', isError: true);
-        return;
-      }
-      if (_selectedGuruCategories.isEmpty) {
-        _showSnackBar('Status guru/karyawan wajib dipilih minimal 1', isError: true);
-        return;
-      }
-    }
 
     setState(() => _isSaving = true);
 
@@ -142,6 +196,10 @@ class _EditUserScreenState extends State<EditUserScreen> {
       } else if (widget.lockedRole != null) {
         payload['role'] = widget.lockedRole;
       }
+      final payloadRole = payload['role']?.toString() ?? _role;
+      if (payloadRole == 'admin') {
+        payload['admin_type'] = _adminType;
+      }
 
       if (_passwordController.text.trim().isNotEmpty) {
         payload['password'] = _passwordController.text.trim();
@@ -159,6 +217,17 @@ class _EditUserScreenState extends State<EditUserScreen> {
         await ApiService.updateUser(widget.user!['id'] as int, payload);
       }
 
+      await SyncService.notifyDataChanged(
+        SyncTopics.user,
+        message: widget.isCreateMode
+            ? '${widget.title} berhasil ditambahkan'
+            : '${widget.title} berhasil diperbarui',
+      );
+      await SyncService.notifyDataChanged(
+        SyncTopics.profile,
+        message: 'Profil pengguna diperbarui',
+      );
+
       if (!mounted) return;
       Navigator.pop(context, true);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -170,7 +239,9 @@ class _EditUserScreenState extends State<EditUserScreen> {
           ),
           backgroundColor: widget.accentColor,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
     } catch (e) {
@@ -326,11 +397,53 @@ class _EditUserScreenState extends State<EditUserScreen> {
                                   child: Text('Orang Tua / Wali'),
                                 ),
                               ],
-                              onChanged: (value) =>
-                                  setState(() => _role = value ?? _role),
+                              onChanged: (value) => setState(() {
+                                _role = value ?? _role;
+                                if (_role == 'admin' &&
+                                    _adminType.trim().isEmpty) {
+                                  _adminType = 'utama';
+                                }
+                              }),
                             )
                           else
                             _buildLockedRoleCard(),
+                          if (_role == 'admin' ||
+                              widget.lockedRole == 'admin') ...[
+                            const SizedBox(height: 10),
+                            _buildDropdownField(
+                              label: 'Tipe Admin',
+                              icon: Icons.verified_user_rounded,
+                              value: _adminType,
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'utama',
+                                  child: Text('Admin Utama'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'bendahara',
+                                  child: Text('Admin Bendahara'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'akademik',
+                                  child: Text('Admin Akademik'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'pondok',
+                                  child: Text('Admin Pondok'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'absensi',
+                                  child: Text('Admin Absensi'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'lainnya',
+                                  child: Text('Admin Lainnya'),
+                                ),
+                              ],
+                              onChanged: (value) =>
+                                  setState(() => _adminType = value ?? 'utama'),
+                            ),
+                          ],
                           _buildDropdownField(
                             label: 'Status Akun',
                             icon: Icons.toggle_on_rounded,
@@ -393,7 +506,7 @@ class _EditUserScreenState extends State<EditUserScreen> {
                             _buildMultiSelectChips(
                               title: 'Unit Sekolah Mengajar',
                               icon: Icons.apartment_rounded,
-                              values: ExcelImportService.schoolUnitOptions,
+                              values: _schoolUnitOptions,
                               selectedValues: _selectedUnits,
                               onToggle: (value) =>
                                   _toggleMultiValue(_selectedUnits, value),
@@ -402,7 +515,7 @@ class _EditUserScreenState extends State<EditUserScreen> {
                             _buildMultiSelectChips(
                               title: 'Status Sebagai',
                               icon: Icons.workspaces_rounded,
-                              values: ExcelImportService.guruCategoryOptions,
+                              values: _guruCategoryOptions,
                               selectedValues: _selectedGuruCategories,
                               onToggle: (value) => _toggleMultiValue(
                                 _selectedGuruCategories,
@@ -722,7 +835,10 @@ class _EditUserScreenState extends State<EditUserScreen> {
               onTap: () => onToggle(value),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 9,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? widget.accentColor

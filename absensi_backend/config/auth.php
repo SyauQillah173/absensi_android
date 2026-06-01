@@ -112,4 +112,19 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Operational Default Password
+    |--------------------------------------------------------------------------
+    |
+    | Password awal untuk akun yang dibuat lewat seeder, import, atau auto-link
+    | wali. Simpan nilai sebenarnya di .env supaya tidak tersebar di kode.
+    |
+    */
+
+    'operational_default_password' => env(
+        'ABSENSI_DEFAULT_PASSWORD',
+        'Ganti123'
+    ),
+
 ];

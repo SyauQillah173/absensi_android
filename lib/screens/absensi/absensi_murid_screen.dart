@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' as foundation;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -10,11 +13,17 @@ import '../beranda/dashboard_screen.dart';
 class AbsensiMuridScreen extends StatefulWidget {
   final String namaKelas;
   final String namaMapel;
+  final int? classId;
+  final int? mapelId;
+  final int? jadwalId;
 
   const AbsensiMuridScreen({
     super.key,
     required this.namaKelas,
     required this.namaMapel,
+    this.classId,
+    this.mapelId,
+    this.jadwalId,
   });
 
   @override
@@ -25,7 +34,9 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _fadeIn;
+  StreamSubscription<AppDataEvent>? _dataEventsSubscription;
   bool _isSaving = false;
+  bool _isScopeRefreshInFlight = false;
 
   // Student data from API
   List<Map<String, dynamic>> _studentsData = [];
@@ -34,6 +45,7 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
   bool _isOfflineMode = false;
 
   // Logged-in user name for diinput_oleh
+  int _userId = 0;
   String _userName = 'Admin';
   String _userRole = 'admin';
 
@@ -46,6 +58,10 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
       false; // true = sudah diabsen online, tidak bisa edit/batal offline
   String _absensiOwner = ''; // siapa yang input absensi ini
   bool _hasPendingOfflineAbsensi = false;
+  String _scopeStatus = 'new';
+  String _absensiInputRole = '';
+  String _absensiInputName = '';
+  String _absensiInputAtLabel = '';
   bool get _canModifyExistingAbsensi {
     if (!_isEditMode) return true;
     if (_isLockedOffline) return false;
@@ -75,14 +91,24 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
       end: 1.0,
     ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
-    _loadUserName();
-    _loadStudents();
+    _dataEventsSubscription = SyncService.dataEvents.listen(_handleDataEvent);
+    _initAsync();
   }
 
   String _errorMessage = '';
+  bool get _hasCompleteScheduleScope =>
+      (widget.classId ?? 0) > 0 &&
+      (widget.mapelId ?? 0) > 0 &&
+      (widget.jadwalId ?? 0) > 0;
+
+  Future<void> _initAsync() async {
+    await _loadUserName();
+    await _loadStudents();
+  }
 
   Future<void> _loadUserName() async {
     final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('user_id') ?? 0;
     final name = prefs.getString('user_name') ?? 'Admin';
     final role = prefs.getString('user_role') ?? 'admin';
     // Format: "Guru: Nama Guru" or "Admin: Nama Admin"
@@ -90,6 +116,7 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
     final displayName = name.isNotEmpty ? name : roleLabel;
     if (mounted) {
       setState(() {
+        _userId = userId;
         _userName = '$roleLabel: $displayName';
         _userRole = role;
       });
@@ -97,6 +124,18 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
   }
 
   Future<void> _loadStudents() async {
+    if (!_hasCompleteScheduleScope) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage =
+            'Jadwal absensi belum lengkap.\nBuka melalui jadwal/mapel yang sudah diatur admin agar kelas, mapel, dan jadwal terbaca.';
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = '';
@@ -105,6 +144,10 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
       _isLockedOffline = false;
       _absensiOwner = '';
       _hasPendingOfflineAbsensi = false;
+      _scopeStatus = 'new';
+      _absensiInputRole = '';
+      _absensiInputName = '';
+      _absensiInputAtLabel = '';
     });
 
     try {
@@ -116,7 +159,11 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
       final cacheKey = 'siswa_kelas_${widget.namaKelas}';
       Map<String, dynamic>? response = await CacheService.fetchWithCache(
         cacheKey: cacheKey,
-        apiFetch: () => ApiService.getSiswa(kelas: widget.namaKelas),
+        apiFetch: () => ApiService.getSiswa(
+          kelas: widget.namaKelas,
+          classId: widget.classId,
+          status: 'Aktif',
+        ),
       );
 
       // Step 2: FALLBACK ke cache global siswa_list
@@ -191,20 +238,82 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
     }
   }
 
+  Map<String, String> _parseInputOwner(String owner) {
+    final normalized = owner.trim();
+    if (normalized.isEmpty) {
+      return const {'role': '', 'name': ''};
+    }
+
+    final separatorIndex = normalized.indexOf(':');
+    if (separatorIndex <= 0) {
+      return {'role': '', 'name': normalized};
+    }
+
+    return {
+      'role': normalized.substring(0, separatorIndex).trim(),
+      'name': normalized.substring(separatorIndex + 1).trim(),
+    };
+  }
+
+  String _formatInputAtLabel(dynamic rawValue) {
+    final raw = rawValue?.toString().trim() ?? '';
+    if (raw.isEmpty) return '';
+
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) {
+      return raw;
+    }
+
+    final local = parsed.toLocal();
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    final second = local.second.toString().padLeft(2, '0');
+    final day = local.day.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    return '$day/$month/${local.year} $hour:$minute:$second';
+  }
+
+  void _applyInputMetadata({required String owner, String? inputAtLabel}) {
+    final meta = _parseInputOwner(owner);
+    _absensiInputRole = meta['role'] ?? '';
+    _absensiInputName = meta['name'] ?? '';
+    _absensiInputAtLabel = inputAtLabel?.trim() ?? '';
+  }
+
+  String _scopeStatusLabel() {
+    switch (_scopeStatus) {
+      case 'pending_sync':
+        return 'Pending sync';
+      case 'failed_sync':
+        return 'Pending retry';
+      case 'locked':
+        return 'Locked offline';
+      case 'editable_online_only':
+        return 'Final server';
+      case 'synced':
+        return 'Completed';
+      default:
+        return 'Baru';
+    }
+  }
+
   /// Load existing absensi for today + this class to enable edit mode
   /// Works online (API fetch) AND offline (cached completed data)
   Future<void> _loadExistingAbsensi() async {
+    if (_isScopeRefreshInFlight) return;
+    _isScopeRefreshInFlight = true;
     final today = DateTime.now().toIso8601String().split('T')[0];
-    // === FIX BUG 3: JIKA OFFLINE, LANGSUNG CEK CACHE ===
-    // Sebelumnya: selalu coba API dulu, baru catch → checkOfflineCompleted
-    // Masalah: kadang API timeout lama, atau _isOfflineMode sudah true
-    //          tapi tetap coba API → tidak efisien dan bisa gagal
-    // Sekarang: jika sudah tahu offline, langsung cek cache lock
-    if (_isOfflineMode) {
+    final online = await SyncService.isOnline();
+
+    if (!online) {
+      if (mounted && !_isOfflineMode) {
+        setState(() => _isOfflineMode = true);
+      }
       final hasPending = await _loadOfflinePendingAbsensi(today);
       if (!hasPending) {
         await _checkOfflineCompleted();
       }
+      _isScopeRefreshInFlight = false;
       return;
     }
 
@@ -212,26 +321,65 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
       final result = await ApiService.getAbsensi(
         tanggal: today,
         kelas: widget.namaKelas,
+        classId: widget.classId,
         mapel: widget.namaMapel,
+        mapelId: widget.mapelId,
+        jadwalId: widget.jadwalId,
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        _isScopeRefreshInFlight = false;
+        return;
+      }
       if (result['success'] == true) {
+        if (_isOfflineMode) {
+          setState(() => _isOfflineMode = false);
+        }
         final absensiList = List<Map<String, dynamic>>.from(
           result['data'] ?? [],
         );
 
         if (absensiList.isNotEmpty) {
+          await CacheService.save(_scopeCacheKey(today), {
+            'tanggal': today,
+            'kelas': widget.namaKelas,
+            'mapel': widget.namaMapel,
+            'source': 'live',
+            'data': absensiList,
+          });
           _applyExistingAbsensi(absensiList, isOnline: true);
+          _isScopeRefreshInFlight = false;
           return;
         }
+
+        final hasPending = await _loadOfflinePendingAbsensi(today);
+        if (!hasPending && mounted) {
+          setState(() {
+            _isOfflineMode = false;
+            _isEditMode = false;
+            _isLockedOffline = false;
+            _absensiOwner = '';
+            _absensiInputRole = '';
+            _absensiInputName = '';
+            _absensiInputAtLabel = '';
+            _hasPendingOfflineAbsensi = false;
+            _scopeStatus = 'new';
+            _absensiIds = List.filled(_students.length, null);
+          });
+        }
+        await CacheService.delete(_scopeCacheKey(today));
+        _isScopeRefreshInFlight = false;
+        return;
       }
     } catch (_) {
-      // API gagal (offline) → cek cached completed data
+      if (mounted && !_isOfflineMode) {
+        setState(() => _isOfflineMode = true);
+      }
       final hasPending = await _loadOfflinePendingAbsensi(today);
       if (!hasPending) {
         await _checkOfflineCompleted();
       }
+      _isScopeRefreshInFlight = false;
       return;
     }
 
@@ -239,6 +387,7 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
     if (!hasPending) {
       await _checkOfflineCompleted();
     }
+    _isScopeRefreshInFlight = false;
   }
 
   Future<bool> _loadOfflinePendingAbsensi(String today) async {
@@ -247,15 +396,33 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
         tanggal: today,
         kelas: widget.namaKelas,
         mapel: widget.namaMapel,
+        classId: widget.classId,
+        mapelId: widget.mapelId,
+        jadwalId: widget.jadwalId,
+        actorUserId: _userId > 0 ? _userId : null,
       );
 
       if (pendingList.isEmpty) return false;
       if (!mounted) return true;
 
-      _applyExistingAbsensi(pendingList, isOnline: false, isPending: true);
+      final hasFailed = pendingList.any(
+        (row) => row['sync_status']?.toString() == 'failed',
+      );
+      _applyExistingAbsensi(
+        pendingList,
+        isOnline: false,
+        isPending: true,
+        scopeStatus: hasFailed ? 'failed_sync' : 'pending_sync',
+      );
       return true;
     } catch (_) {
       return false;
+    }
+  }
+
+  void debugPrint(String? message, {int? wrapWidth}) {
+    if (foundation.kDebugMode) {
+      foundation.debugPrint(message, wrapWidth: wrapWidth);
     }
   }
 
@@ -267,19 +434,49 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
     debugPrint('   kelas="${widget.namaKelas}" mapel="${widget.namaMapel}"');
     debugPrint('   _isOfflineMode=$_isOfflineMode');
     try {
-      final cached = await CacheService.get('completed_absensi_today');
+      final today = DateTime.now().toIso8601String().split('T')[0];
+      final scopeCache = await CacheService.get(_scopeCacheKey(today));
+      if (scopeCache is Map<String, dynamic> &&
+          scopeCache['tanggal'] == today &&
+          scopeCache['kelas'] == widget.namaKelas &&
+          scopeCache['mapel'] == widget.namaMapel &&
+          scopeCache['source'] == 'live') {
+        final scopeData = List<Map<String, dynamic>>.from(
+          scopeCache['data'] ?? const [],
+        );
+        if (scopeData.isNotEmpty) {
+          _applyExistingAbsensi(
+            scopeData,
+            isOnline: false,
+            scopeStatus: 'locked',
+          );
+          if (mounted) {
+            setState(() {
+              _isLockedOffline = true;
+              _hasPendingOfflineAbsensi = false;
+            });
+          }
+          return;
+        }
+      }
+
+      final cached = await CacheService.get(_completedAbsensiCacheKey());
       debugPrint('   cached = ${cached != null ? "EXISTS" : "NULL"}');
       if (cached == null) {
         debugPrint('   ❌ No cache found — NOT locking');
         return;
       }
 
-      final today = DateTime.now().toIso8601String().split('T')[0];
       debugPrint(
         '   cached tanggal = "${cached['tanggal']}" vs today = "$today"',
       );
+      debugPrint('   cached source = "${cached['source']}"');
       if (cached['tanggal'] != today) {
         debugPrint('   ❌ Date mismatch — NOT locking');
+        return;
+      }
+      if ((cached['source']?.toString() ?? '') != 'live') {
+        debugPrint('   ❌ Cache is not from live server data — NOT locking');
         return;
       }
 
@@ -299,13 +496,16 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
         if (kelasName == widget.namaKelas && mapelName == widget.namaMapel) {
           // === KELAS INI SUDAH DIABSEN ONLINE ===
           final owner = kelas['diinput_oleh']?.toString() ?? 'Admin';
+          final inputAtLabel = kelas['waktu']?.toString() ?? '';
           debugPrint('   ✅ MATCH FOUND — LOCKING! owner="$owner"');
           if (mounted) {
             setState(() {
               _isEditMode = true;
               _isLockedOffline = true;
               _absensiOwner = owner;
+              _applyInputMetadata(owner: owner, inputAtLabel: inputAtLabel);
               _hasPendingOfflineAbsensi = false;
+              _scopeStatus = 'locked';
             });
             // SnackBar dihapus — cukup banner gembok di atas saja
           }
@@ -326,10 +526,12 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
     List<Map<String, dynamic>> absensiList, {
     required bool isOnline,
     bool isPending = false,
+    String? scopeStatus,
   }) {
     final statusMap = {'Hadir': 0, 'Sakit': 1, 'Izin': 2, 'Alfa': 3};
     bool hasMatch = false;
     String owner = '';
+    String inputAtLabel = '';
 
     if (!isOnline) {
       _absensiIds = List.filled(_students.length, null);
@@ -348,6 +550,9 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
         }
         if (owner.isEmpty) {
           owner = match['diinput_oleh']?.toString() ?? '';
+          inputAtLabel = _formatInputAtLabel(
+            match['created_at'] ?? match['synced_at'] ?? match['waktu'],
+          );
         }
         hasMatch = true;
       }
@@ -358,7 +563,11 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
         _isEditMode = true;
         _isLockedOffline = false;
         _absensiOwner = owner;
+        _applyInputMetadata(owner: owner, inputAtLabel: inputAtLabel);
         _hasPendingOfflineAbsensi = isPending;
+        _scopeStatus =
+            scopeStatus ??
+            (isPending ? 'pending_sync' : 'editable_online_only');
       });
     }
   }
@@ -366,8 +575,92 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
   @override
   void dispose() {
     _animController.dispose();
+    _dataEventsSubscription?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  String _completedAbsensiCacheKey() {
+    return CacheService.userScopedKey(
+      'completed_absensi_today',
+      role: _userRole,
+      userId: _userId,
+    );
+  }
+
+  String _scopeCacheKey(String tanggal) {
+    final kelas = widget.namaKelas.replaceAll(' ', '_').toLowerCase();
+    final mapel = widget.namaMapel.replaceAll(' ', '_').toLowerCase();
+    return CacheService.userScopedKey(
+      'absensi_scope_final_${tanggal}_${kelas}_$mapel',
+      role: _userRole,
+      userId: _userId,
+    );
+  }
+
+  void _handleDataEvent(AppDataEvent event) {
+    if (!mounted || _isSaving) return;
+    if (event.topic == SyncTopics.absensi ||
+        event.topic == SyncTopics.connectivity) {
+      unawaited(_loadExistingAbsensi());
+      return;
+    }
+    if (event.topic == SyncTopics.heartbeat &&
+        (_hasPendingOfflineAbsensi || _isLockedOffline || _isOfflineMode)) {
+      unawaited(_loadExistingAbsensi());
+    }
+  }
+
+  Widget _buildEditModeInfo() {
+    final message = _isLockedOffline
+        ? 'Sudah tersimpan di server. Sambungkan internet untuk edit.'
+        : !_canModifyExistingAbsensi
+        ? 'Diabsen oleh $_absensiOwner dan hanya bisa dipantau.'
+        : _userRole == 'admin'
+        ? 'Mode pantau & edit admin aktif untuk absensi ini.'
+        : _hasPendingOfflineAbsensi
+        ? 'Pending tersimpan. Anda bisa perbarui atau batalkan.'
+        : 'Mode Edit - absensi sudah diinput hari ini.';
+
+    final messageColor = _isLockedOffline
+        ? const Color(0xFFC62828)
+        : !_canModifyExistingAbsensi
+        ? const Color(0xFFE65100)
+        : const Color(0xFF1565C0);
+    final inputLabel = _absensiInputName.isNotEmpty
+        ? _absensiInputRole.isNotEmpty
+              ? '$_absensiInputRole: $_absensiInputName'
+              : _absensiInputName
+        : _absensiOwner;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          message,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: messageColor,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Input oleh: ${inputLabel.isNotEmpty ? inputLabel : '-'}',
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF2D3436),
+          ),
+        ),
+        Text(
+          _absensiInputAtLabel.isNotEmpty
+              ? 'Status: ${_scopeStatusLabel()} • Waktu input: $_absensiInputAtLabel'
+              : 'Status: ${_scopeStatusLabel()}',
+          style: const TextStyle(fontSize: 10, color: Color(0xFF636E72)),
+        ),
+      ],
+    );
   }
 
   List<int> get _filteredIndices {
@@ -397,8 +690,47 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
     }
   }
 
+  Future<bool> _isServerReachable() async {
+    final online = await SyncService.isOnline();
+    if (!online) return false;
+    return ApiService.testConnection();
+  }
+
   Future<void> _handleSave() async {
     if (_isSaving || _studentsData.isEmpty) return;
+    if (!_hasCompleteScheduleScope) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Absensi tidak bisa disimpan karena jadwal belum lengkap. Pilih jadwal dari menu admin/mapel.',
+          ),
+          backgroundColor: Color(0xFFE65100),
+        ),
+      );
+      return;
+    }
+    final isEditingFinalServerData = _isEditMode && !_hasPendingOfflineAbsensi;
+    if (isEditingFinalServerData) {
+      final serverReachable = await _isServerReachable();
+      if (!mounted) return;
+      if (!serverReachable) {
+        if (mounted) {
+          setState(() {
+            _isLockedOffline = true;
+            _scopeStatus = 'locked';
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Data final server sedang locked karena perangkat offline. Ubah data ini hanya saat online.',
+              ),
+              backgroundColor: Color(0xFFE65100),
+            ),
+          );
+        }
+        return;
+      }
+    }
     // === PERMISSION CHECK ===
     if (!_canModifyExistingAbsensi && _isEditMode) {
       if (mounted) {
@@ -415,6 +747,7 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
       }
       return;
     }
+    if (!mounted) return;
     setState(() => _isSaving = true);
 
     final wasEditMode = _isEditMode;
@@ -443,64 +776,148 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
       }
     }
 
-    for (int i = 0; i < _studentsData.length; i++) {
-      final newStatus = statusMap[_attendanceStatus[i]] ?? 'Hadir';
-      final keterangan = newStatus == 'Alfa' ? (_keteranganAlfa[i] ?? '') : '';
+    var bulkHandled = false;
+    if (!wasEditMode && !wasPendingOffline) {
+      try {
+        final serverOk = await ApiService.testConnection();
+        if (serverOk) {
+          final bulkPayload = List<Map<String, dynamic>>.generate(
+            _studentsData.length,
+            (i) {
+              final newStatus = statusMap[_attendanceStatus[i]] ?? 'Hadir';
+              return {
+                'siswa_id': _studentsData[i]['id'] as int,
+                'tanggal': today,
+                'status': newStatus,
+                'keterangan': newStatus == 'Alfa'
+                    ? (_keteranganAlfa[i] ?? '')
+                    : '',
+                'kelas': widget.namaKelas,
+                'class_id': widget.classId,
+                'mapel': widget.namaMapel,
+                'mapel_id': widget.mapelId,
+                'jadwal_id': widget.jadwalId,
+                'diinput_oleh': _userName,
+                'actor_user_id': _userId > 0 ? _userId : null,
+                'diinput_via': 'online',
+              };
+            },
+          );
+          final response = await ApiService.createAbsensiBulk(bulkPayload);
+          final createdRows = response['created'] is List
+              ? response['created'] as List
+              : const [];
+          final updatedRows = response['updated'] is List
+              ? response['updated'] as List
+              : const [];
+          final failedRows = response['failed'] is List
+              ? response['failed'] as List
+              : const [];
+          online = createdRows.length;
+          updated = updatedRows.length;
+          conflict = failedRows.length;
+          bulkHandled = true;
+        }
+      } catch (_) {
+        bulkHandled = false;
+      }
+    }
 
-      if (_isEditMode && wasPendingOffline) {
-        await LocalDbService.insertAbsensiPending({
-          'siswa_id': _studentsData[i]['id'] as int,
-          'tanggal': today,
-          'status': newStatus,
-          'keterangan': keterangan,
-          'kelas': widget.namaKelas,
-          'mapel': widget.namaMapel,
-          'diinput_oleh': _userName,
-        });
-        updated++;
-      } else if (_isEditMode && _absensiIds[i] != null) {
-        // UPDATE existing absensi
-        try {
-          await ApiService.updateAbsensi(_absensiIds[i]!, {
+    if (!bulkHandled) {
+      for (int i = 0; i < _studentsData.length; i++) {
+        final newStatus = statusMap[_attendanceStatus[i]] ?? 'Hadir';
+        final keterangan = newStatus == 'Alfa'
+            ? (_keteranganAlfa[i] ?? '')
+            : '';
+
+        if (_isEditMode && wasPendingOffline) {
+          if (i == 0) {
+            await LocalDbService.deletePendingByScope(
+              tanggal: today,
+              kelas: widget.namaKelas,
+              mapel: widget.namaMapel,
+              classId: widget.classId,
+              mapelId: widget.mapelId,
+              jadwalId: widget.jadwalId,
+              actorUserId: _userId > 0 ? _userId : null,
+            );
+          }
+          final pendingId = await LocalDbService.insertAbsensiPending({
+            'siswa_id': _studentsData[i]['id'] as int,
+            'tanggal': today,
             'status': newStatus,
             'keterangan': keterangan,
+            'kelas': widget.namaKelas,
+            'class_id': widget.classId,
+            'mapel': widget.namaMapel,
+            'mapel_id': widget.mapelId,
+            'jadwal_id': widget.jadwalId,
             'diinput_oleh': _userName,
-            'actor_role': _userRole,
-            'actor_name': _userName,
+            'actor_user_id': _userId > 0 ? _userId : null,
           });
-          updated++;
-        } catch (_) {
-          conflict++;
-        }
-      } else {
-        // CREATE new absensi via SyncService (supports offline)
-        final result = await SyncService.inputAbsensi(
-          siswaId: _studentsData[i]['id'] as int,
-          tanggal: today,
-          status: newStatus,
-          kelas: widget.namaKelas,
-          mapel: widget.namaMapel,
-          keterangan: keterangan,
-          diinputOleh: _userName,
-        );
-        if (result.mode == 'online') {
-          online++;
-        } else if (result.mode == 'offline') {
-          offline++;
+          pendingId < 0 ? conflict++ : updated++;
+        } else if (_isEditMode && _absensiIds[i] != null) {
+          // UPDATE existing absensi
+          try {
+            await ApiService.updateAbsensi(_absensiIds[i]!, {
+              'status': newStatus,
+              'keterangan': keterangan,
+              'diinput_oleh': _userName,
+              'actor_role': _userRole,
+              'actor_name': _userName,
+              'actor_user_id': _userId > 0 ? _userId : null,
+            });
+            updated++;
+          } catch (_) {
+            conflict++;
+          }
         } else {
-          conflict++;
+          // CREATE new absensi via SyncService (supports offline)
+          final result = await SyncService.inputAbsensi(
+            siswaId: _studentsData[i]['id'] as int,
+            tanggal: today,
+            status: newStatus,
+            kelas: widget.namaKelas,
+            classId: widget.classId,
+            mapel: widget.namaMapel,
+            mapelId: widget.mapelId,
+            jadwalId: widget.jadwalId,
+            keterangan: keterangan,
+            diinputOleh: _userName,
+            actorUserId: _userId > 0 ? _userId : null,
+          );
+          if (result.mode == 'online') {
+            online++;
+          } else if (result.mode == 'offline') {
+            offline++;
+          } else {
+            conflict++;
+          }
         }
       }
     }
 
+    if (!mounted) return;
+    final savedCount = online + offline + updated;
     setState(() {
       _isSaving = false;
-      // === SETELAH SIMPAN → MASUK EDIT MODE ===
-      // Guru tetap di halaman absensi, bisa ubah status lalu "Perbarui"
-      // Guru bisa "Batal Absen" untuk reset dari awal
-      // Guru kembali ke dashboard hanya jika tekan tombol back sendiri
-      _isEditMode = true;
-      _absensiOwner = _userName;
+      if (savedCount > 0) {
+        // === SETELAH SIMPAN → MASUK EDIT MODE ===
+        // Guru tetap di halaman absensi, bisa ubah status lalu "Perbarui"
+        // Guru bisa "Batal Absen" untuk reset dari awal
+        // Guru kembali ke dashboard hanya jika tekan tombol back sendiri
+        _isEditMode = true;
+        _absensiOwner = _userName;
+        _applyInputMetadata(
+          owner: _userName,
+          inputAtLabel: _formatInputAtLabel(DateTime.now().toIso8601String()),
+        );
+        _scopeStatus = offline > 0
+            ? 'pending_sync'
+            : online > 0
+            ? 'synced'
+            : _scopeStatus;
+      }
     });
 
     // Signal dashboard to refresh when user returns
@@ -540,6 +957,12 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
     if (wasPendingOffline) {
       SyncService.syncPendingAbsensi();
     }
+    unawaited(
+      SyncService.notifyDataChanged(
+        SyncTopics.absensi,
+        message: '${widget.namaKelas} • ${widget.namaMapel} diperbarui',
+      ),
+    );
 
     if (!mounted) return;
     showDialog(
@@ -725,6 +1148,28 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
 
     if (confirm != true || !mounted) return;
 
+    final isEditingFinalServerData = _isEditMode && !_hasPendingOfflineAbsensi;
+    if (isEditingFinalServerData) {
+      final serverReachable = await _isServerReachable();
+      if (!serverReachable) {
+        if (mounted) {
+          setState(() {
+            _isLockedOffline = true;
+            _scopeStatus = 'locked';
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Data final server tidak bisa dibatalkan saat offline. Sambungkan internet terlebih dahulu.',
+              ),
+              backgroundColor: Color(0xFFE65100),
+            ),
+          );
+        }
+        return;
+      }
+    }
+
     setState(() => _isSaving = true);
 
     int deleted = 0, failed = 0;
@@ -734,6 +1179,10 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
           tanggal: DateTime.now().toIso8601String().split('T')[0],
           kelas: widget.namaKelas,
           mapel: widget.namaMapel,
+          classId: widget.classId,
+          mapelId: widget.mapelId,
+          jadwalId: widget.jadwalId,
+          actorUserId: _userId > 0 ? _userId : null,
         );
       } catch (_) {
         failed++;
@@ -747,6 +1196,7 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
             _absensiIds[i]!,
             actorRole: _userRole,
             actorName: _userName,
+            actorUserId: _userId > 0 ? _userId : null,
           );
           deleted++;
         } catch (_) {
@@ -760,13 +1210,26 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
       _isEditMode = false;
       _isLockedOffline = false;
       _absensiOwner = '';
+      _absensiInputRole = '';
+      _absensiInputName = '';
+      _absensiInputAtLabel = '';
       _hasPendingOfflineAbsensi = false;
+      _scopeStatus = 'new';
       _attendanceStatus = List.filled(_students.length, 0);
       _keteranganAlfa = List.filled(_students.length, null);
       _absensiIds = List.filled(_students.length, null);
     });
+    await CacheService.delete(
+      _scopeCacheKey(DateTime.now().toIso8601String().split('T')[0]),
+    );
 
     DashboardScreen.needsRefresh = true;
+    unawaited(
+      SyncService.notifyDataChanged(
+        SyncTopics.absensi,
+        message: '${widget.namaKelas} • ${widget.namaMapel} dibatalkan',
+      ),
+    );
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -967,26 +1430,7 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
                               : const Color(0xFF1565C0),
                         ),
                         const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _isLockedOffline
-                                ? '🔒 Sudah tersimpan di server. Sambungkan internet untuk edit.'
-                                : !_canModifyExistingAbsensi
-                                ? '🔒 Diabsen oleh $_absensiOwner — tidak bisa edit'
-                                : _hasPendingOfflineAbsensi
-                                ? 'Pending tersimpan. Anda bisa perbarui atau batalkan.'
-                                : 'Mode Edit — absensi sudah diinput hari ini',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: _isLockedOffline
-                                  ? const Color(0xFFC62828)
-                                  : !_canModifyExistingAbsensi
-                                  ? const Color(0xFFE65100)
-                                  : const Color(0xFF1565C0),
-                            ),
-                          ),
-                        ),
+                        Expanded(child: _buildEditModeInfo()),
                         // Batal button — hanya tampil jika punya akses
                         if (_canModifyExistingAbsensi)
                           GestureDetector(
@@ -1338,6 +1782,10 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
+          final selectedValue = selected == 'custom'
+              ? 99
+              : (selected == null ? 0 : options.indexOf(selected!));
+
           return AlertDialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
@@ -1347,59 +1795,63 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
             ),
             content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ...options.asMap().entries.map((entry) {
-                    final idx = entry.key;
-                    final opt = entry.value;
-                    return RadioListTile<int>(
-                      title: Text(opt, style: const TextStyle(fontSize: 12)),
-                      value: idx,
-                      groupValue: selected == opt
-                          ? idx
-                          : (selected == null && idx == 0 ? 0 : -1),
+              child: RadioGroup<int>(
+                groupValue: selectedValue,
+                onChanged: (val) {
+                  if (val == null) return;
+
+                  if (val == 99) {
+                    setDialogState(() => selected = 'custom');
+                    return;
+                  }
+
+                  final opt = options[val];
+                  setDialogState(() {
+                    selected = opt;
+                    customController.clear();
+                  });
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ...options.asMap().entries.map((entry) {
+                      final idx = entry.key;
+                      final opt = entry.value;
+                      return RadioListTile<int>(
+                        title: Text(opt, style: const TextStyle(fontSize: 12)),
+                        value: idx,
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        activeColor: const Color(0xFF138F81),
+                      );
+                    }),
+                    const RadioListTile<int>(
+                      title: Text(
+                        'Tulis sendiri...',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      value: 99,
                       dense: true,
                       contentPadding: EdgeInsets.zero,
-                      onChanged: (val) {
-                        setDialogState(() {
-                          selected = opt;
-                          customController.clear();
-                        });
-                      },
-                      activeColor: const Color(0xFF138F81),
-                    );
-                  }),
-                  RadioListTile<int>(
-                    title: const Text(
-                      'Tulis sendiri...',
-                      style: TextStyle(fontSize: 12),
+                      activeColor: Color(0xFF138F81),
                     ),
-                    value: 99,
-                    groupValue: selected == 'custom' ? 99 : -1,
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    onChanged: (val) {
-                      setDialogState(() => selected = 'custom');
-                    },
-                    activeColor: const Color(0xFF138F81),
-                  ),
-                  if (selected == 'custom')
-                    Padding(
-                      padding: const EdgeInsets.only(left: 16, top: 4),
-                      child: TextField(
-                        controller: customController,
-                        decoration: const InputDecoration(
-                          hintText: 'Ketik alasan...',
-                          hintStyle: TextStyle(fontSize: 12),
-                          isDense: true,
-                          border: OutlineInputBorder(),
+                    if (selected == 'custom')
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16, top: 4),
+                        child: TextField(
+                          controller: customController,
+                          decoration: const InputDecoration(
+                            hintText: 'Ketik alasan...',
+                            hintStyle: TextStyle(fontSize: 12),
+                            isDense: true,
+                            border: OutlineInputBorder(),
+                          ),
+                          style: const TextStyle(fontSize: 12),
+                          maxLines: 2,
                         ),
-                        style: const TextStyle(fontSize: 12),
-                        maxLines: 2,
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
             actions: [

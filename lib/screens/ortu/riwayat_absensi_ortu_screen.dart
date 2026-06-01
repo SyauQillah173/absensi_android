@@ -1,9 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/api_service.dart';
+import '../../services/cache_service.dart';
+import '../../services/sync_service.dart';
+import '../../widgets/app_feedback.dart';
 
 class RiwayatAbsensiOrtuScreen extends StatefulWidget {
   const RiwayatAbsensiOrtuScreen({super.key});
@@ -17,8 +21,10 @@ class _RiwayatAbsensiOrtuScreenState extends State<RiwayatAbsensiOrtuScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _fadeIn;
+  StreamSubscription<AppDataEvent>? _syncSubscription;
 
   bool _isLoading = true;
+  bool _isOfflineMode = false;
   String _errorMessage = '';
 
   // Data anak
@@ -29,6 +35,7 @@ class _RiwayatAbsensiOrtuScreenState extends State<RiwayatAbsensiOrtuScreen>
   // Absensi data
   Map<String, dynamic> _stats = {};
   List<dynamic> _absensiGrouped = [];
+  String _jenisAbsensi = 'madin';
 
   // Filter bulan
   int _selectedBulan = DateTime.now().month;
@@ -61,13 +68,24 @@ class _RiwayatAbsensiOrtuScreenState extends State<RiwayatAbsensiOrtuScreen>
       end: 1.0,
     ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
+    _syncSubscription = SyncService.dataEvents.listen(_handleDataEvent);
     _loadAnakData();
   }
 
   @override
   void dispose() {
+    _syncSubscription?.cancel();
     _animController.dispose();
     super.dispose();
+  }
+
+  void _handleDataEvent(AppDataEvent event) {
+    if (!mounted || _activeSiswaId <= 0) return;
+    if (event.topic == SyncTopics.absensi ||
+        event.topic == SyncTopics.absensiSholat ||
+        event.topic == SyncTopics.heartbeat) {
+      unawaited(_loadAbsensi(silent: true));
+    }
   }
 
   Future<void> _loadAnakData() async {
@@ -95,25 +113,38 @@ class _RiwayatAbsensiOrtuScreenState extends State<RiwayatAbsensiOrtuScreen>
     }
   }
 
-  Future<void> _loadAbsensi() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+  Future<void> _loadAbsensi({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+    }
+
+    final cacheKey =
+        'wali_absensi_${_jenisAbsensi}_${_activeSiswaId}_${_selectedBulan}_$_selectedTahun';
 
     try {
-      final result = await ApiService.getAbsensiAnak(
-        _activeSiswaId,
-        bulan: _selectedBulan,
-        tahun: _selectedTahun,
-      );
+      final result = _jenisAbsensi == 'sholat'
+          ? await ApiService.getAbsensiSholatAnak(
+              _activeSiswaId,
+              bulan: _selectedBulan,
+              tahun: _selectedTahun,
+            )
+          : await ApiService.getAbsensiAnak(
+              _activeSiswaId,
+              bulan: _selectedBulan,
+              tahun: _selectedTahun,
+            );
 
       if (mounted) {
         if (result['success'] == true) {
+          await CacheService.save(cacheKey, result);
           setState(() {
             _stats = Map<String, dynamic>.from(result['stats'] ?? {});
             _absensiGrouped = List.from(result['data'] ?? []);
             _isLoading = false;
+            _isOfflineMode = false;
           });
         } else {
           setState(() {
@@ -123,10 +154,23 @@ class _RiwayatAbsensiOrtuScreenState extends State<RiwayatAbsensiOrtuScreen>
         }
       }
     } catch (e) {
+      final cached = await CacheService.get(cacheKey);
+      if (cached is Map<String, dynamic> && mounted) {
+        setState(() {
+          _stats = Map<String, dynamic>.from(cached['stats'] ?? {});
+          _absensiGrouped = List.from(cached['data'] ?? []);
+          _isLoading = false;
+          _isOfflineMode = true;
+          _errorMessage = '';
+        });
+        return;
+      }
+
       if (mounted) {
         setState(() {
           _errorMessage = 'Tidak dapat terhubung ke server';
           _isLoading = false;
+          _isOfflineMode = false;
         });
       }
     }
@@ -135,6 +179,7 @@ class _RiwayatAbsensiOrtuScreenState extends State<RiwayatAbsensiOrtuScreen>
   Color _getStatusColor(String status) {
     switch (status) {
       case 'Hadir':
+      case 'Masuk':
         return const Color(0xFF138F81);
       case 'Sakit':
         return const Color(0xFF2E86DE);
@@ -150,6 +195,7 @@ class _RiwayatAbsensiOrtuScreenState extends State<RiwayatAbsensiOrtuScreen>
   IconData _getStatusIcon(String status) {
     switch (status) {
       case 'Hadir':
+      case 'Masuk':
         return Icons.check_circle_rounded;
       case 'Sakit':
         return Icons.local_hospital_rounded;
@@ -174,9 +220,8 @@ class _RiwayatAbsensiOrtuScreenState extends State<RiwayatAbsensiOrtuScreen>
               _buildProfileBar(),
               const SizedBox(height: 12),
               Expanded(
-                child: RefreshIndicator(
+                child: AppRefreshIndicator(
                   onRefresh: _loadAbsensi,
-                  color: const Color(0xFF138F81),
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(
                       parent: BouncingScrollPhysics(),
@@ -186,6 +231,8 @@ class _RiwayatAbsensiOrtuScreenState extends State<RiwayatAbsensiOrtuScreen>
                       children: [
                         if (_anakList.length > 1) _buildAnakSelector(),
                         if (_anakList.length > 1) const SizedBox(height: 10),
+                        _buildJenisSelector(),
+                        const SizedBox(height: 10),
                         _buildMonthSelector(),
                         const SizedBox(height: 10),
                         _buildStatsCard(),
@@ -247,6 +294,26 @@ class _RiwayatAbsensiOrtuScreenState extends State<RiwayatAbsensiOrtuScreen>
                         : 'Memuat...',
                     style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                   ),
+                  if (_isOfflineMode)
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE65100).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'Offline - menampilkan cache final terakhir',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFE65100),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -300,6 +367,52 @@ class _RiwayatAbsensiOrtuScreenState extends State<RiwayatAbsensiOrtuScreen>
               _loadAbsensi();
             }
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildJenisSelector() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE1EFF7),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          _buildJenisButton('madin', 'Absensi Madin'),
+          _buildJenisButton('sholat', 'Jamaah Sholat'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJenisButton(String value, String label) {
+    final selected = _jenisAbsensi == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          if (_jenisAbsensi == value) return;
+          setState(() => _jenisAbsensi = value);
+          _loadAbsensi();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF138F81) : Colors.transparent,
+            borderRadius: BorderRadius.circular(13),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: selected ? Colors.white : const Color(0xFF636E72),
+            ),
+          ),
         ),
       ),
     );
@@ -380,7 +493,7 @@ class _RiwayatAbsensiOrtuScreenState extends State<RiwayatAbsensiOrtuScreen>
   }
 
   Widget _buildStatsCard() {
-    final hadir = _stats['hadir'] ?? 0;
+    final hadir = _jenisAbsensi == 'sholat' ? (_stats['masuk'] ?? 0) : (_stats['hadir'] ?? 0);
     final sakit = _stats['sakit'] ?? 0;
     final izin = _stats['izin'] ?? 0;
     final alfa = _stats['alfa'] ?? 0;
@@ -434,7 +547,7 @@ class _RiwayatAbsensiOrtuScreenState extends State<RiwayatAbsensiOrtuScreen>
           const SizedBox(height: 12),
           Row(
             children: [
-              _buildStatItem('Hadir', hadir, const Color(0xFF138F81)),
+              _buildStatItem(_jenisAbsensi == 'sholat' ? 'Masuk' : 'Hadir', hadir, const Color(0xFF138F81)),
               const SizedBox(width: 8),
               _buildStatItem('Sakit', sakit, const Color(0xFF2E86DE)),
               const SizedBox(width: 8),

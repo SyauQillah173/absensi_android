@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../services/cache_service.dart';
 import '../../services/excel_import_service.dart';
+import '../../widgets/adaptive_bottom_sheet.dart';
 import 'edit_user_screen.dart';
 
 class DataGuruScreen extends StatefulWidget {
@@ -151,24 +152,20 @@ class _DataGuruScreenState extends State<DataGuruScreen>
               : Icons.school_rounded,
           accentColor: const Color(0xFF138F81),
         ),
-        transitionsBuilder: (
-          context,
-          animation,
-          secondaryAnimation,
-          child,
-        ) {
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
             opacity: animation,
             child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.05),
-                end: Offset.zero,
-              ).animate(
-                CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeOutCubic,
-                ),
-              ),
+              position:
+                  Tween<Offset>(
+                    begin: const Offset(0, 0.05),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  ),
               child: child,
             ),
           );
@@ -230,17 +227,21 @@ class _DataGuruScreenState extends State<DataGuruScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Kolom wajib template:'),
+            Text('Kolom wajib:'),
             SizedBox(height: 8),
-            Text(
-              'unit_sekolah, name, kode_guru, phone, email, jenis_kelamin, alamat, status, status_sebagai, password',
-            ),
+            Text('name, kode_guru, phone, email, status, password'),
+            SizedBox(height: 12),
+            Text('Kolom opsional:'),
+            SizedBox(height: 8),
+            Text('unit_sekolah, jenis_kelamin, alamat, status_sebagai'),
             SizedBox(height: 12),
             Text('Catatan penting:'),
             SizedBox(height: 6),
             Text('- unit_sekolah bisa lebih dari satu, pisahkan dengan |'),
             Text('- status_sebagai bisa lebih dari satu, pisahkan dengan |'),
             Text('- kode_guru dan email harus unik'),
+            Text('- jenis_kelamin isi L atau P jika diisi'),
+            Text('- status isi Aktif atau Nonaktif'),
             Text('- password minimal 6 karakter'),
           ],
         ),
@@ -428,10 +429,7 @@ class _DataGuruScreenState extends State<DataGuruScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFE65100),
             ),
-            child: const Text(
-              'Hapus',
-              style: TextStyle(color: Colors.white),
-            ),
+            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -452,13 +450,10 @@ class _DataGuruScreenState extends State<DataGuruScreen>
   void _showQuickActions() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-        decoration: const BoxDecoration(
-          color: Color(0xFFE1EFF7),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-        ),
+      builder: (ctx) => AdaptiveBottomSheet(
+        maxHeightFactor: 0.84,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -580,10 +575,7 @@ class _DataGuruScreenState extends State<DataGuruScreen>
                 ],
               ),
             ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: Color(0xFF636E72),
-            ),
+            const Icon(Icons.chevron_right_rounded, color: Color(0xFF636E72)),
           ],
         ),
       ),
@@ -639,7 +631,10 @@ class _DataGuruScreenState extends State<DataGuruScreen>
                 const Expanded(child: _GuruLoadingState())
               else if (_errorMessage != null)
                 Expanded(
-                  child: _GuruErrorState(message: _errorMessage!, onRetry: _loadGuru),
+                  child: _GuruErrorState(
+                    message: _errorMessage!,
+                    onRetry: _loadGuru,
+                  ),
                 )
               else ...[
                 Padding(
@@ -661,7 +656,9 @@ class _DataGuruScreenState extends State<DataGuruScreen>
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF138F81).withValues(alpha: 0.12),
+                          color: const Color(
+                            0xFF138F81,
+                          ).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
@@ -819,10 +816,7 @@ class _DataGuruScreenState extends State<DataGuruScreen>
                 decoration: const InputDecoration(
                   hintText: 'Cari nama / email / kode guru...',
                   border: InputBorder.none,
-                  hintStyle: TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF636E72),
-                  ),
+                  hintStyle: TextStyle(fontSize: 13, color: Color(0xFF636E72)),
                 ),
                 style: const TextStyle(fontSize: 13),
               ),
@@ -875,10 +869,7 @@ class _DataGuruScreenState extends State<DataGuruScreen>
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [
-                            Color(0xFF138F81),
-                            Color(0xFF3CB8A9),
-                          ],
+                          colors: [Color(0xFF138F81), Color(0xFF3CB8A9)],
                         ),
                         borderRadius: BorderRadius.circular(15),
                       ),
@@ -951,7 +942,9 @@ class _DataGuruScreenState extends State<DataGuruScreen>
                         Container(
                           margin: const EdgeInsets.symmetric(horizontal: 14),
                           height: 1,
-                          color: const Color(0xFF000000).withValues(alpha: 0.06),
+                          color: const Color(
+                            0xFF000000,
+                          ).withValues(alpha: 0.06),
                         ),
                         Padding(
                           padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
@@ -960,7 +953,10 @@ class _DataGuruScreenState extends State<DataGuruScreen>
                               _buildDetailRow('Nama Lengkap', name),
                               _buildDetailRow('Email', _val(guru, 'email')),
                               _buildDetailRow('No. HP', _val(guru, 'no_hp')),
-                              _buildDetailRow('Kode Guru', _val(guru, 'kode_guru')),
+                              _buildDetailRow(
+                                'Kode Guru',
+                                _val(guru, 'kode_guru'),
+                              ),
                               _buildDetailRow(
                                 'Jenis Kelamin',
                                 _genderLabel(_val(guru, 'jenis_kelamin')),

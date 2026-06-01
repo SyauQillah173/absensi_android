@@ -1,18 +1,24 @@
+import 'dart:typed_data';
+
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+
+import 'api_service.dart';
 
 class CetakSiswaPdf {
   static const double _contentWidth = 455;
 
   static Future<void> cetakAtauDownload(Map<String, String> siswa) async {
     final pdf = pw.Document();
+    final logo = await _loadDocumentLogo();
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.symmetric(horizontal: 30, vertical: 32),
-        header: (context) => _buildHeader(),
+        header: (context) => _buildHeader(logo),
         footer: (context) => _buildFooter(context),
         build: (context) => [
           _sectionTitle('I. DATA SANTRI'),
@@ -65,13 +71,8 @@ class CetakSiswaPdf {
           _dataRow('No. WhatsApp', siswa['noWhatsappIbu'] ?? '-'),
           _spacer(8),
           _subSectionTitle('Data Wali'),
-          _dataRow(
-            'Wali Sama Dengan',
-            siswa['waliSamaDengan']?.isNotEmpty == true
-                ? (siswa['waliSamaDengan'] == 'ayah' ? 'Ayah' : 'Ibu')
-                : 'Lainnya',
-          ),
-          if (siswa['waliSamaDengan']?.isEmpty ?? true) ...[
+          _dataRow('Wali Sama Dengan', _waliLabel(siswa['waliSamaDengan'])),
+          if (_isManualWali(siswa['waliSamaDengan'])) ...[
             _dataRow('Nama Wali', siswa['namaWali'] ?? '-'),
             _dataRow('Pekerjaan Wali', siswa['pekerjaanWali'] ?? '-'),
             _dataRow('Alamat Wali', siswa['alamatWali'] ?? '-'),
@@ -96,7 +97,43 @@ class CetakSiswaPdf {
     );
   }
 
-  static pw.Widget _buildHeader() {
+  static String _waliLabel(String? value) {
+    final clean = value?.trim().toLowerCase() ?? '';
+    if (clean == 'ayah') return 'Ayah';
+    if (clean == 'ibu') return 'Ibu';
+    if (clean == 'wali' || clean == 'lainnya' || clean == 'lain') {
+      return 'Wali';
+    }
+    return 'Lainnya';
+  }
+
+  static bool _isManualWali(String? value) {
+    final clean = value?.trim().toLowerCase() ?? '';
+    return clean.isEmpty ||
+        clean == 'wali' ||
+        clean == 'lainnya' ||
+        clean == 'lain';
+  }
+
+  static Future<pw.ImageProvider?> _loadDocumentLogo() async {
+    try {
+      final result = await ApiService.getDocumentSettings();
+      final data = Map<String, dynamic>.from(result['data'] ?? const {});
+      final logoUrl = data['document_logo_url']?.toString();
+      if (logoUrl != null && logoUrl.isNotEmpty) {
+        return await networkImage(logoUrl);
+      }
+    } catch (_) {}
+
+    try {
+      final data = await rootBundle.load('assets/images/Logo_Qomaruddin.png');
+      return pw.MemoryImage(Uint8List.fromList(data.buffer.asUint8List()));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static pw.Widget _buildHeader(pw.ImageProvider? logo) {
     return pw.Align(
       alignment: pw.Alignment.center,
       child: pw.Container(
@@ -107,39 +144,54 @@ class CetakSiswaPdf {
             bottom: pw.BorderSide(width: 1.6, color: PdfColors.teal),
           ),
         ),
-        child: pw.Column(
+        child: pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
-            pw.Text(
-              'PONDOK PESANTREN QOMARUDDIN',
-              textAlign: pw.TextAlign.center,
-              style: pw.TextStyle(
-                fontSize: 17,
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.teal900,
+            if (logo != null)
+              pw.Container(
+                width: 54,
+                height: 54,
+                margin: const pw.EdgeInsets.only(right: 14),
+                child: pw.Image(logo, fit: pw.BoxFit.contain),
+              ),
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                children: [
+                  pw.Text(
+                    'PONDOK PESANTREN QOMARUDDIN',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(
+                      fontSize: 17,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.teal900,
+                    ),
+                  ),
+                  pw.SizedBox(height: 3),
+                  pw.Text(
+                    'MADRASAH DINIAH',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(
+                      fontSize: 13,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.teal700,
+                    ),
+                  ),
+                  pw.SizedBox(height: 5),
+                  pw.Text(
+                    'DATA SANTRI / BUKU INDUK',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(
+                      fontSize: 11,
+                      fontWeight: pw.FontWeight.bold,
+                      letterSpacing: 1.2,
+                      color: PdfColors.grey800,
+                    ),
+                  ),
+                ],
               ),
             ),
-            pw.SizedBox(height: 3),
-            pw.Text(
-              'MADRASAH DINIAH',
-              textAlign: pw.TextAlign.center,
-              style: pw.TextStyle(
-                fontSize: 13,
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.teal700,
-              ),
-            ),
-            pw.SizedBox(height: 5),
-            pw.Text(
-              'DATA SANTRI / BUKU INDUK',
-              textAlign: pw.TextAlign.center,
-              style: pw.TextStyle(
-                fontSize: 11,
-                fontWeight: pw.FontWeight.bold,
-                letterSpacing: 1.2,
-                color: PdfColors.grey800,
-              ),
-            ),
+            pw.SizedBox(width: logo == null ? 0 : 68),
           ],
         ),
       ),
