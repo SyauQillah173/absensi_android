@@ -33,6 +33,11 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Personal project notes / private local guides
+/PANDUAN_*.txt
+/PROMPT_*.txt
+/PROPMT_*.txt
+
 # Symbolication related
 app.*.symbols
 
