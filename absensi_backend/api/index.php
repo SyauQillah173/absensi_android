@@ -102,7 +102,7 @@ if (in_array($path, ['/', '/api/health', '/health', '/up'], true)) {
     echo json_encode([
         'success' => true,
         'message' => $path === '/' ? 'Absensi backend aktif' : 'API aktif',
-        'version' => 'vercel-json-api-20260603-1',
+        'version' => 'vercel-path-fatal-20260603-2',
         'timestamp' => date(DATE_ATOM),
     ]);
     exit;
