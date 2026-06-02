@@ -8,10 +8,7 @@ set_exception_handler(function (Throwable $e): void {
     header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
-        'message' => $e->getMessage(),
-        'exception' => get_class($e),
-        'file' => basename($e->getFile()),
-        'line' => $e->getLine(),
+        'message' => 'Terjadi kesalahan server',
     ]);
 });
 
@@ -28,10 +25,7 @@ register_shutdown_function(function (): void {
 
     echo json_encode([
         'success' => false,
-        'message' => $error['message'],
-        'exception' => 'FatalError',
-        'file' => basename($error['file']),
-        'line' => $error['line'],
+        'message' => 'Terjadi kesalahan server',
     ]);
 });
 
@@ -65,54 +59,6 @@ $_SERVER['SCRIPT_FILENAME'] = __DIR__ . '/../public/index.php';
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 if (str_starts_with($path, '/api/')) {
     $_SERVER['HTTP_ACCEPT'] = 'application/json';
-}
-
-if ($path === '/api/_diag/db') {
-    header('Content-Type: application/json');
-
-    $dbHost = getenv('DB_HOST') ?: '';
-    $dbPort = getenv('DB_PORT') ?: '5432';
-    $dbName = getenv('DB_DATABASE') ?: '';
-    $dbUser = getenv('DB_USERNAME') ?: '';
-    $dbPassword = getenv('DB_PASSWORD') ?: '';
-
-    $diagnostic = [
-        'success' => true,
-        'php_version' => PHP_VERSION,
-        'extensions' => [
-            'pdo' => extension_loaded('pdo'),
-            'pdo_pgsql' => extension_loaded('pdo_pgsql'),
-            'pgsql' => extension_loaded('pgsql'),
-        ],
-        'pdo_drivers' => class_exists(PDO::class) ? PDO::getAvailableDrivers() : [],
-        'env' => [
-            'db_connection' => getenv('DB_CONNECTION') ?: null,
-            'db_host_present' => $dbHost !== '',
-            'db_database_present' => $dbName !== '',
-            'db_username_present' => $dbUser !== '',
-            'db_password_present' => $dbPassword !== '',
-            'db_sslmode' => getenv('DB_SSLMODE') ?: null,
-        ],
-        'db' => [
-            'connected' => false,
-        ],
-    ];
-
-    if ($dbHost !== '' && $dbName !== '' && $dbUser !== '' && $dbPassword !== '') {
-        try {
-            $dsn = "pgsql:host={$dbHost};port={$dbPort};dbname={$dbName};sslmode=require";
-            $pdo = new PDO($dsn, $dbUser, $dbPassword, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_TIMEOUT => 10,
-            ]);
-            $diagnostic['db']['connected'] = (bool) $pdo->query('select 1')->fetchColumn();
-        } catch (Throwable $e) {
-            $diagnostic['db']['error'] = $e->getMessage();
-        }
-    }
-
-    echo json_encode($diagnostic);
-    exit;
 }
 
 if (in_array($path, ['/', '/api/health', '/health', '/up'], true)) {

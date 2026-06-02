@@ -19,8 +19,7 @@ class ApiService {
   // Untuk cari IP laptop: buka CMD → ketik `ipconfig` → lihat IPv4 Address
   // static String baseUrl = 'http://192.168.0.101:8000/api';
   // static String baseUrl = 'http://10.180.254.198:8000/api';
-  static String baseUrl =
-      'https://angels-watts-pat-portrait.trycloudflare.com/api';
+  static String baseUrl = 'https://absensi-android.vercel.app/api';
   // ==================================
 
   static const _authTokenKey = 'auth_token';
