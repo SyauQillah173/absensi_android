@@ -36,18 +36,16 @@ return Application::configure(basePath: dirname(__DIR__))
                 'success' => false,
                 'message' => $e instanceof ValidationException
                     ? 'Validasi gagal'
-                    : ($statusCode >= 500 && !config('app.debug') ? 'Terjadi kesalahan server' : $e->getMessage()),
+                    : $e->getMessage(),
             ];
 
             if ($e instanceof ValidationException) {
                 $payload['errors'] = $e->errors();
             }
 
-            if (config('app.debug')) {
-                $payload['exception'] = get_class($e);
-                $payload['file'] = basename($e->getFile());
-                $payload['line'] = $e->getLine();
-            }
+            $payload['exception'] = get_class($e);
+            $payload['file'] = basename($e->getFile());
+            $payload['line'] = $e->getLine();
 
             return new JsonResponse($payload, $statusCode);
         });
