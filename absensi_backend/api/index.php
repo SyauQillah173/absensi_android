@@ -13,11 +13,16 @@ $_SERVER['SCRIPT_NAME'] = '/api/index.php';
 $_SERVER['SCRIPT_FILENAME'] = __DIR__ . '/../public/index.php';
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+if (str_starts_with($path, '/api/')) {
+    $_SERVER['HTTP_ACCEPT'] = 'application/json';
+}
+
 if (in_array($path, ['/', '/api/health', '/health', '/up'], true)) {
     header('Content-Type: application/json');
     echo json_encode([
         'success' => true,
         'message' => $path === '/' ? 'Absensi backend aktif' : 'API aktif',
+        'version' => 'vercel-json-api-20260603-1',
         'timestamp' => date(DATE_ATOM),
     ]);
     exit;
