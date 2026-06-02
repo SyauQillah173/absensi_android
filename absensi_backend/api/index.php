@@ -3,6 +3,38 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 
+set_exception_handler(function (Throwable $e): void {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage(),
+        'exception' => get_class($e),
+        'file' => basename($e->getFile()),
+        'line' => $e->getLine(),
+    ]);
+});
+
+register_shutdown_function(function (): void {
+    $error = error_get_last();
+    if (!$error || !in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        return;
+    }
+
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: application/json');
+    }
+
+    echo json_encode([
+        'success' => false,
+        'message' => $error['message'],
+        'exception' => 'FatalError',
+        'file' => basename($error['file']),
+        'line' => $error['line'],
+    ]);
+});
+
 putenv('LOG_CHANNEL=stderr');
 putenv('CACHE_STORE=array');
 putenv('SESSION_DRIVER=array');
