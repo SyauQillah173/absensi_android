@@ -12,6 +12,17 @@ putenv('VIEW_COMPILED_PATH=/tmp/storage/framework/views');
 $_SERVER['SCRIPT_NAME'] = '/api/index.php';
 $_SERVER['SCRIPT_FILENAME'] = __DIR__ . '/../public/index.php';
 
+$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+if (in_array($path, ['/api/health', '/health', '/up'], true)) {
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => true,
+        'message' => 'API aktif',
+        'timestamp' => date(DATE_ATOM),
+    ]);
+    exit;
+}
+
 foreach ([
     '/tmp/storage/framework/cache/data',
     '/tmp/storage/framework/sessions',
