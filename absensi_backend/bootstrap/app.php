@@ -4,7 +4,9 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\ViewServiceProvider;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withProviders([
@@ -25,4 +27,31 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn (Request $request, Throwable $e) => true);
+        $exceptions->render(function (Throwable $e, Request $request) {
+            $statusCode = 500;
+            if ($e instanceof ValidationException) {
+                $statusCode = 422;
+            } elseif ($e instanceof HttpExceptionInterface) {
+                $statusCode = $e->getStatusCode();
+            }
+
+            $payload = [
+                'success' => false,
+                'message' => $e instanceof ValidationException
+                    ? 'Validasi gagal'
+                    : ($statusCode >= 500 && !config('app.debug') ? 'Terjadi kesalahan server' : $e->getMessage()),
+            ];
+
+            if ($e instanceof ValidationException) {
+                $payload['errors'] = $e->errors();
+            }
+
+            if (config('app.debug')) {
+                $payload['exception'] = get_class($e);
+                $payload['file'] = basename($e->getFile());
+                $payload['line'] = $e->getLine();
+            }
+
+            return response()->json($payload, $statusCode);
+        });
     })->create();
