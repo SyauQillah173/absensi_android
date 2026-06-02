@@ -38,8 +38,11 @@ register_shutdown_function(function (): void {
 putenv('LOG_CHANNEL=stderr');
 putenv('CACHE_STORE=array');
 putenv('SESSION_DRIVER=array');
+putenv('APP_DEBUG=false');
 putenv('APP_STORAGE_PATH=/tmp/storage');
 putenv('VIEW_COMPILED_PATH=/tmp/storage/framework/views');
+$_ENV['APP_DEBUG'] = 'false';
+$_SERVER['APP_DEBUG'] = 'false';
 
 $_SERVER['SCRIPT_NAME'] = '/index.php';
 $_SERVER['SCRIPT_FILENAME'] = __DIR__ . '/../public/index.php';
