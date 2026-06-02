@@ -41,8 +41,23 @@ putenv('SESSION_DRIVER=array');
 putenv('APP_DEBUG=false');
 putenv('APP_STORAGE_PATH=/tmp/storage');
 putenv('VIEW_COMPILED_PATH=/tmp/storage/framework/views');
+putenv('APP_SERVICES_CACHE=/tmp/storage/bootstrap/cache/services.php');
+putenv('APP_PACKAGES_CACHE=/tmp/storage/bootstrap/cache/packages.php');
+putenv('APP_CONFIG_CACHE=/tmp/storage/bootstrap/cache/config.php');
+putenv('APP_ROUTES_CACHE=/tmp/storage/bootstrap/cache/routes.php');
+putenv('APP_EVENTS_CACHE=/tmp/storage/bootstrap/cache/events.php');
 $_ENV['APP_DEBUG'] = 'false';
 $_SERVER['APP_DEBUG'] = 'false';
+foreach ([
+    'APP_SERVICES_CACHE' => '/tmp/storage/bootstrap/cache/services.php',
+    'APP_PACKAGES_CACHE' => '/tmp/storage/bootstrap/cache/packages.php',
+    'APP_CONFIG_CACHE' => '/tmp/storage/bootstrap/cache/config.php',
+    'APP_ROUTES_CACHE' => '/tmp/storage/bootstrap/cache/routes.php',
+    'APP_EVENTS_CACHE' => '/tmp/storage/bootstrap/cache/events.php',
+] as $envName => $envValue) {
+    $_ENV[$envName] = $envValue;
+    $_SERVER[$envName] = $envValue;
+}
 
 $_SERVER['SCRIPT_NAME'] = '/index.php';
 $_SERVER['SCRIPT_FILENAME'] = __DIR__ . '/../public/index.php';
@@ -112,6 +127,7 @@ if (in_array($path, ['/', '/api/health', '/health', '/up'], true)) {
 }
 
 foreach ([
+    '/tmp/storage/bootstrap/cache',
     '/tmp/storage/framework/cache/data',
     '/tmp/storage/framework/sessions',
     '/tmp/storage/framework/testing',
