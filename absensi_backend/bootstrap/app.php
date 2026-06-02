@@ -3,15 +3,12 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\ViewServiceProvider;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
-    ->withProviders([
-        ViewServiceProvider::class,
-    ])
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
@@ -52,6 +49,6 @@ return Application::configure(basePath: dirname(__DIR__))
                 $payload['line'] = $e->getLine();
             }
 
-            return response()->json($payload, $statusCode);
+            return new JsonResponse($payload, $statusCode);
         });
     })->create();
