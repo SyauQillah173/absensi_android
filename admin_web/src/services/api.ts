@@ -91,8 +91,18 @@ export interface ImportResult {
 const storageKey = 'qomaruddin_admin_session';
 const importBatchSize = 100;
 
+function normalizeApiBaseUrl(rawValue?: string): string {
+  const cleaned = (rawValue || DEFAULT_API_BASE)
+    .trim()
+    .replace(/^['"]|['"]$/g, '')
+    .replace(/\/+$/g, '');
+
+  if (!cleaned) return DEFAULT_API_BASE;
+  return cleaned.endsWith('/api') ? cleaned : `${cleaned}/api`;
+}
+
 export function apiBaseUrl(): string {
-  return import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE;
+  return normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
 }
 
 export function readSession(): UserSession | null {
@@ -140,13 +150,21 @@ async function request<T>(
   options: RequestInit = {},
   params?: Record<string, string | number | boolean | undefined | null>
 ): Promise<ApiResponse<T>> {
-  const response = await fetch(`${apiBaseUrl()}${path}${toQuery(params)}`, {
-    ...options,
-    headers: {
-      ...authHeaders(),
-      ...(options.headers ?? {})
-    }
-  });
+  const url = `${apiBaseUrl()}${path}${toQuery(params)}`;
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers: {
+        ...authHeaders(),
+        ...(options.headers ?? {})
+      }
+    });
+  } catch (error) {
+    throw new Error(
+      `Gagal terhubung ke backend. Cek VITE_API_BASE_URL di Vercel: ${apiBaseUrl()}`
+    );
+  }
   const payload = (await response.json().catch(() => ({}))) as ApiResponse<T>;
   if (!response.ok || payload.success === false) {
     throw new Error(payload.message || `Request gagal (${response.status})`);
