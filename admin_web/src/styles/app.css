@@ -18,6 +18,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 button,
@@ -313,4 +314,104 @@ button:disabled {
 
 .q-scrollbar::-webkit-scrollbar-track {
   background: transparent;
+}
+
+.q-app-shell {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.q-login-card {
+  max-width: min(64rem, 100%);
+}
+
+@media (max-width: 1023px) {
+  .q-app-shell {
+    padding: 1rem;
+  }
+
+  .q-app-shell main {
+    width: 100%;
+  }
+
+  .q-topbar {
+    position: sticky;
+    top: 0.75rem;
+    z-index: 20;
+  }
+
+  .q-mobile-drawer aside {
+    max-width: min(19rem, calc(100vw - 2rem));
+  }
+}
+
+@media (max-width: 640px) {
+  .q-login-shell {
+    align-items: start;
+    padding: 1rem;
+  }
+
+  .q-login-card {
+    width: 100%;
+    max-width: 25rem;
+    border-radius: 26px;
+  }
+
+  .q-login-form-panel {
+    padding: 1.25rem;
+  }
+
+  .q-login-form-panel .max-w-sm {
+    max-width: 100%;
+  }
+
+  .q-login-form-panel h2 {
+    font-size: 1.35rem;
+  }
+
+  .q-input {
+    min-height: 44px;
+    border-radius: 14px;
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
+  }
+
+  .q-input-icon-left {
+    padding-left: 3rem;
+  }
+
+  .q-input-icon-both {
+    padding-left: 3rem;
+    padding-right: 3rem;
+  }
+
+  .q-card,
+  .q-panel {
+    border-radius: 20px;
+  }
+
+  .q-dropdown {
+    max-width: calc(100vw - 1.5rem);
+  }
+}
+
+@media (max-width: 420px) {
+  .q-login-shell {
+    place-items: start center;
+    padding: 0.75rem;
+  }
+
+  .q-login-card {
+    max-width: 100%;
+    border-radius: 24px;
+  }
+
+  .q-login-form-panel {
+    padding: 1rem;
+  }
+
+  .q-brand-logo {
+    max-width: 72px;
+    max-height: 72px;
+  }
 }

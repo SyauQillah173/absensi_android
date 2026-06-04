@@ -24,8 +24,8 @@ export function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[#FFDC80] px-5 py-8">
-      <section className="grid w-full max-w-5xl overflow-hidden rounded-[32px] bg-[#FFFDF7] shadow-2xl shadow-black/10 lg:grid-cols-[1.08fr_0.92fr]">
+    <main className="q-login-shell grid min-h-screen place-items-center bg-[#FFDC80] px-4 py-6">
+      <section className="q-login-card grid w-full max-w-5xl overflow-hidden rounded-[32px] bg-[#FFFDF7] shadow-2xl shadow-black/10 lg:grid-cols-[1.08fr_0.92fr]">
         <div className="hidden bg-[#E1EFF7] p-10 lg:block">
           <div className="flex h-full flex-col justify-center">
             <img className="q-brand-logo h-24 w-24" src="/logo-qomaruddin.png" alt="Logo Qomaruddin" />
@@ -47,7 +47,7 @@ export function LoginPage() {
             <p className="mt-10 text-xs font-bold uppercase tracking-[0.18em] text-[#138F81]">Yayasan Pondok Pesantren Qomaruddin</p>
           </div>
         </div>
-        <div className="flex items-center p-6 sm:p-10">
+        <div className="q-login-form-panel flex items-center p-6 sm:p-10">
           <div className="mx-auto w-full max-w-sm">
           <div className="mb-8 text-center">
             <img className="q-brand-logo mx-auto h-20 w-20" src="/logo-qomaruddin.png" alt="Logo Qomaruddin" />

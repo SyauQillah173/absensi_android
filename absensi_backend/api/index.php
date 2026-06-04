@@ -3,11 +3,33 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '*';
-header('Access-Control-Allow-Origin: ' . $origin);
-header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept');
-header('Access-Control-Max-Age: 86400');
+function sendCorsHeaders(): void
+{
+    if (headers_sent()) {
+        return;
+    }
+
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $allowedOrigin = $origin !== '' ? $origin : '*';
+
+    header_remove('Access-Control-Allow-Origin');
+    header_remove('Access-Control-Allow-Methods');
+    header_remove('Access-Control-Allow-Headers');
+    header_remove('Access-Control-Max-Age');
+    header_remove('Vary');
+
+    header('Access-Control-Allow-Origin: ' . $allowedOrigin, true);
+    header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS', true);
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept', true);
+    header('Access-Control-Max-Age: 86400', true);
+    header('Vary: Origin', true);
+}
+
+sendCorsHeaders();
+
+register_shutdown_function(static function (): void {
+    sendCorsHeaders();
+});
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
     http_response_code(204);
