@@ -58,8 +58,8 @@ export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+      <section className="q-page-heading flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
           <p className="text-sm font-bold text-[#636E72]">Yayasan Pondok Qomaruddin</p>
           <h1 className="text-3xl font-extrabold text-[#2D3436]">Dashboard Overview</h1>
         </div>
@@ -77,14 +77,14 @@ export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
 
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="q-stat-grid grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard title="Total Santri" value={getNumber(statistik, 'total_siswa')} subtitle={`${getNumber(statistik, 'siswa_aktif')} siswa aktif`} icon={UsersRound} tone="teal" />
         <StatCard title="Absensi Kelas Hari Ini" value={getNumber(absensi, 'total')} subtitle="Data Madin/Diniyah" icon={BookOpenCheck} tone="blue" />
         <StatCard title="Keuangan Hari Ini" value={formatMoney(getNumber(pembayaran, 'total_masuk'))} subtitle={`${getNumber(pembayaran, 'jumlah_transaksi')} transaksi`} icon={WalletCards} tone="orange" />
         <StatCard title="Absensi Sholat" value={getNumber(sholat, 'total')} subtitle={`${getNumber(sholat, 'kamar_sudah_diabsen')} kamar diabsen`} icon={CalendarCheck} tone="purple" />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-2">
+      <div className="q-dashboard-summary-grid grid gap-5 xl:grid-cols-2">
         <AbsensiSummaryCard
           icon={<BookOpenCheck className="text-[#2E86DE]" size={20} />}
           title="Absensi Madin/Diniyah"
@@ -109,7 +109,7 @@ export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
         />
       </div>
 
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="q-dashboard-bottom-grid grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section className="q-card p-5">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
@@ -184,7 +184,7 @@ function AbsensiSummaryCard({
           <p className="text-xs font-semibold text-[#636E72]">{subtitle}</p>
         </div>
       </div>
-      <div className="grid grid-cols-4 gap-3">
+      <div className="q-summary-grid grid grid-cols-2 gap-3 sm:grid-cols-4">
         {items.map(([label, value, tone]) => (
           <div key={label} className="dashboard-mini-tile">
             <p className="text-2xl font-extrabold text-[#2D3436]">{value}</p>

@@ -89,6 +89,13 @@ export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNav
 
   useEffect(() => {
     localStorage.setItem('qomaruddin_admin_theme', darkMode ? 'dark' : 'light');
+    document.documentElement.classList.toggle('q-dark-root', darkMode);
+    document.body.classList.toggle('q-dark-body', darkMode);
+
+    return () => {
+      document.documentElement.classList.remove('q-dark-root');
+      document.body.classList.remove('q-dark-body');
+    };
   }, [darkMode]);
 
   useEffect(() => {
@@ -206,10 +213,10 @@ export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNav
       <div className="mx-auto flex max-w-[1440px] gap-6">
         <div className="hidden shrink-0 lg:block">{nav}</div>
         {mobileOpen ? (
-          <div className="fixed inset-0 z-40 bg-black/30 p-4 lg:hidden" onClick={() => setMobileOpen(false)}>
+          <div className="q-mobile-overlay fixed inset-0 z-40 bg-black/30 p-4 lg:hidden" onClick={() => setMobileOpen(false)}>
             <div className="q-mobile-drawer relative h-full w-fit max-w-full" onClick={(event) => event.stopPropagation()}>
               <button
-                className="q-drawer-close absolute -right-3 top-3 z-10 grid h-10 w-10 place-items-center rounded-2xl bg-[#2D3436] text-white shadow-xl shadow-black/20"
+                className="q-drawer-close absolute right-3 top-3 z-10 grid h-10 w-10 place-items-center rounded-2xl bg-[#2D3436] text-white shadow-xl shadow-black/20"
                 onClick={() => setMobileOpen(false)}
                 type="button"
                 aria-label="Tutup menu"
