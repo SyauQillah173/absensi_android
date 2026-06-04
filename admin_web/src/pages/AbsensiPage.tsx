@@ -11,6 +11,7 @@ import {
   Power,
   RefreshCw,
   Save,
+  Trash2,
   X
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -687,7 +688,7 @@ function PrayerTypeCms() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState<ApiRecord | null>(null);
-  const [confirmId, setConfirmId] = useState<number | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ id: number; kind: 'toggle' | 'delete'; nextActive?: boolean } | null>(null);
   const [backendReady, setBackendReady] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -702,7 +703,7 @@ function PrayerTypeCms() {
     } catch (err) {
       setBackendReady(false);
       setItems(legacyPrayerTypes);
-      setNotice("CMS waktu jama'ah menunggu backend terbaru. Setelah backend dideploy dan migration jalan, tambah/edit waktu jama'ah akan langsung tersimpan ke database pusat.");
+      setNotice("Pengaturan waktu jama'ah menunggu backend terbaru. Setelah backend dideploy dan migration jalan, tambah/edit waktu jama'ah akan langsung tersimpan ke database pusat.");
     } finally {
       setIsLoading(false);
     }
@@ -740,17 +741,22 @@ function PrayerTypeCms() {
     }
   }
 
-  async function deactivate() {
-    if (!confirmId) return;
+  async function runConfirmAction() {
+    if (!confirmAction) return;
     setIsSaving(true);
     setError('');
     try {
-      await api.deletePrayerAttendanceType(confirmId);
-      setConfirmId(null);
-      setNotice("Waktu jama'ah dinonaktifkan.");
+      if (confirmAction.kind === 'toggle') {
+        await api.updatePrayerAttendanceType(confirmAction.id, { is_active: confirmAction.nextActive === true });
+        setNotice(confirmAction.nextActive ? "Waktu jama'ah berhasil diaktifkan." : "Waktu jama'ah berhasil dinonaktifkan.");
+      } else {
+        await api.deletePrayerAttendanceType(confirmAction.id);
+        setNotice("Waktu jama'ah berhasil dihapus aman/dinonaktifkan.");
+      }
+      setConfirmAction(null);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Waktu jama'ah gagal dinonaktifkan");
+      setError(err instanceof Error ? err.message : "Aksi waktu jama'ah gagal diproses");
     } finally {
       setIsSaving(false);
     }
@@ -760,20 +766,40 @@ function PrayerTypeCms() {
     { key: 'name', header: "Waktu Jama'ah", render: (row) => <span className="font-extrabold">{text(row.name)}</span> },
     { key: 'code', header: 'Kode', render: (row) => text(row.code) },
     { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.is_active === false ? 'Nonaktif' : 'Aktif'} tone={row.is_active === false ? 'neutral' : 'success'} /> },
-    { key: 'order', header: 'Urutan', render: (row) => num(row.sort_order) },
+    { key: 'order', header: 'Urutan Tampil', render: (row) => num(row.sort_order) },
     {
       key: 'actions',
       header: 'Aksi',
-      render: (row) => (
-        <div className="flex gap-2">
-          <button className="q-soft-action grid h-9 w-9 place-items-center rounded-xl bg-[#EAF1FF] text-[#2E86DE] disabled:opacity-50" onClick={() => setForm(row)} type="button" aria-label="Edit" disabled={!backendReady}>
-            <Edit3 size={16} />
-          </button>
-          <button className="q-soft-action grid h-9 w-9 place-items-center rounded-xl bg-[#FDECEC] text-[#D63031] disabled:opacity-50" onClick={() => setConfirmId(num(row.id))} type="button" aria-label="Nonaktifkan" disabled={!backendReady || num(row.id) <= 0}>
-            <Power size={16} />
-          </button>
-        </div>
-      )
+      render: (row) => {
+        const nextActive = row.is_active === false;
+        return (
+          <div className="flex gap-2">
+            <button className="q-soft-action grid h-9 w-9 place-items-center rounded-xl bg-[#EAF1FF] text-[#2E86DE] disabled:opacity-50" onClick={() => setForm(row)} type="button" aria-label="Edit" disabled={!backendReady}>
+              <Edit3 size={16} />
+            </button>
+            <button
+              className="q-soft-action grid h-9 w-9 place-items-center rounded-xl bg-[#FFF3E0] text-[#E8590C] disabled:opacity-50"
+              onClick={() => setConfirmAction({ id: num(row.id), kind: 'toggle', nextActive })}
+              type="button"
+              aria-label={nextActive ? 'Aktifkan' : 'Nonaktifkan'}
+              disabled={!backendReady || num(row.id) <= 0}
+              title={nextActive ? 'Aktifkan kembali' : 'Nonaktifkan sementara'}
+            >
+              <Power size={16} />
+            </button>
+            <button
+              className="q-soft-action grid h-9 w-9 place-items-center rounded-xl bg-[#FDECEC] text-[#D63031] disabled:opacity-50"
+              onClick={() => setConfirmAction({ id: num(row.id), kind: 'delete' })}
+              type="button"
+              aria-label="Hapus"
+              disabled={!backendReady || num(row.id) <= 0}
+              title="Hapus aman"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        );
+      }
     }
   ];
 
@@ -782,8 +808,9 @@ function PrayerTypeCms() {
       <Message error={error} notice={notice} />
       <section className="q-panel flex flex-wrap items-center justify-between gap-3 p-4 sm:p-6">
         <div>
-          <h2 className="text-xl font-extrabold text-[#2D3436]">CMS Waktu Jama'ah Sholat</h2>
+          <h2 className="text-xl font-extrabold text-[#2D3436]">Pengaturan Waktu Jama'ah Sholat</h2>
           <p className="text-sm font-semibold text-[#636E72]">Subuh, Maghrib, Isya, atau tambahan lain tetap memakai ID master database.</p>
+          <p className="mt-1 text-xs font-bold text-[#138F81]">Urutan tampil: angka kecil muncul lebih dulu di pilihan absensi.</p>
         </div>
         <button
           className="flex min-h-12 items-center gap-2 rounded-2xl bg-[#138F81] px-5 text-sm font-extrabold text-white disabled:opacity-60"
@@ -812,7 +839,11 @@ function PrayerTypeCms() {
             <input className="q-input" value={text(form.name, '')} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Nama, contoh: Subuh" />
             <input className="q-input" value={text(form.code, '')} onChange={(event) => setForm({ ...form, code: event.target.value })} placeholder="Kode, contoh: subuh" />
             <textarea className="q-input min-h-24 py-3" value={text(form.description, '')} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Keterangan opsional" />
-            <input className="q-input" inputMode="numeric" value={num(form.sort_order)} onChange={(event) => setForm({ ...form, sort_order: Number(event.target.value) })} placeholder="Urutan tampil" />
+            <label className="grid gap-2">
+              <span className="text-xs font-extrabold text-[#636E72]">Urutan tampil</span>
+              <input className="q-input" inputMode="numeric" value={num(form.sort_order)} onChange={(event) => setForm({ ...form, sort_order: Number(event.target.value) })} placeholder="Contoh: 10, 20, 30" />
+              <span className="text-xs font-bold text-[#87939A]">Angka kecil tampil lebih dulu pada pilihan waktu jama'ah.</span>
+            </label>
             <label className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 text-sm font-extrabold text-[#2D3436]">
               Aktif
               <input type="checkbox" checked={form.is_active !== false} onChange={(event) => setForm({ ...form, is_active: event.target.checked })} />
@@ -820,14 +851,21 @@ function PrayerTypeCms() {
           </div>
         </ModalForm>
       ) : null}
-      {confirmId ? (
+      {confirmAction ? (
         <ConfirmDialog
-          title="Nonaktifkan Waktu Jama'ah"
-          message="Waktu jama'ah tidak akan muncul pada input baru, tetapi riwayat lama tetap aman."
+          title={confirmAction.kind === 'delete' ? "Hapus Waktu Jama'ah" : confirmAction.nextActive ? "Aktifkan Waktu Jama'ah" : "Nonaktifkan Waktu Jama'ah"}
+          message={
+            confirmAction.kind === 'delete'
+              ? "Data akan dihapus aman/dinonaktifkan dari pilihan baru. Riwayat absensi lama tetap dijaga."
+              : confirmAction.nextActive
+                ? "Waktu jama'ah akan muncul kembali pada input absensi."
+                : "Waktu jama'ah tidak akan muncul pada input baru, tetapi riwayat lama tetap aman."
+          }
           tone="danger"
           isBusy={isSaving}
-          onCancel={() => setConfirmId(null)}
-          onConfirm={() => void deactivate()}
+          confirmLabel={confirmAction.kind === 'delete' ? 'Hapus' : confirmAction.nextActive ? 'Aktifkan' : 'Nonaktifkan'}
+          onCancel={() => setConfirmAction(null)}
+          onConfirm={() => void runConfirmAction()}
         />
       ) : null}
     </div>

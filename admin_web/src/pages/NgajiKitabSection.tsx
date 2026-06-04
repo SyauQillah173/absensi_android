@@ -493,8 +493,14 @@ function MasterForm({ data, setData, type }: { data: ApiRecord; setData: (data: 
       {type === 'book' ? <input className="q-input" value={text(data.method, '')} onChange={(event) => setData({ ...data, method: event.target.value })} placeholder="Metode, contoh: Maknani" /> : null}
       {type === 'session' ? (
         <div className="grid gap-4 sm:grid-cols-2">
-          <input className="q-input" type="time" value={text(data.start_time, '')} onChange={(event) => setData({ ...data, start_time: event.target.value })} />
-          <input className="q-input" type="time" value={text(data.end_time, '')} onChange={(event) => setData({ ...data, end_time: event.target.value })} />
+          <label className="grid gap-2">
+            <span className="text-xs font-extrabold text-[#636E72]">Jam mulai sesi</span>
+            <input className="q-input" type="time" value={text(data.start_time, '')} onChange={(event) => setData({ ...data, start_time: event.target.value })} aria-label="Jam mulai sesi" />
+          </label>
+          <label className="grid gap-2">
+            <span className="text-xs font-extrabold text-[#636E72]">Jam selesai sesi</span>
+            <input className="q-input" type="time" value={text(data.end_time, '')} onChange={(event) => setData({ ...data, end_time: event.target.value })} aria-label="Jam selesai sesi" />
+          </label>
         </div>
       ) : null}
       <textarea className="q-input min-h-24 resize-none" value={text(data.description, '')} onChange={(event) => setData({ ...data, description: event.target.value })} placeholder="Keterangan opsional" />
@@ -541,8 +547,14 @@ function ScheduleForm({ data, setData, sessions, books, teachers, complexes, cla
         </select>
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
-        <input className="q-input" type="time" value={text(data.start_time, '')} onChange={(event) => setData({ ...data, start_time: event.target.value })} />
-        <input className="q-input" type="time" value={text(data.end_time, '')} onChange={(event) => setData({ ...data, end_time: event.target.value })} />
+        <label className="grid gap-2">
+          <span className="text-xs font-extrabold text-[#636E72]">Jam mulai</span>
+          <input className="q-input" type="time" value={text(data.start_time, '')} onChange={(event) => setData({ ...data, start_time: event.target.value })} aria-label="Jam mulai jadwal ngaji" />
+        </label>
+        <label className="grid gap-2">
+          <span className="text-xs font-extrabold text-[#636E72]">Jam selesai</span>
+          <input className="q-input" type="time" value={text(data.end_time, '')} onChange={(event) => setData({ ...data, end_time: event.target.value })} aria-label="Jam selesai jadwal ngaji" />
+        </label>
         <select className="q-input" value={text(data.status, 'Aktif')} onChange={(event) => setData({ ...data, status: event.target.value })}>
           <option value="Aktif">Aktif</option>
           <option value="Nonaktif">Nonaktif</option>

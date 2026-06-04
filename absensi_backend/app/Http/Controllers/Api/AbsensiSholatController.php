@@ -63,7 +63,7 @@ class AbsensiSholatController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Jenis absensi sholat berhasil ditambahkan',
+            'message' => "Waktu jama'ah sholat berhasil ditambahkan",
             'data' => $type,
         ], 201);
     }
@@ -85,7 +85,7 @@ class AbsensiSholatController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Jenis absensi sholat berhasil diperbarui',
+            'message' => "Waktu jama'ah sholat berhasil diperbarui",
             'data' => $type->fresh(),
         ]);
     }
@@ -99,7 +99,7 @@ class AbsensiSholatController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Jenis absensi sholat dinonaktifkan',
+            'message' => "Waktu jama'ah sholat dinonaktifkan",
         ]);
     }
 
@@ -587,7 +587,7 @@ class AbsensiSholatController extends Controller
 
         if ($mustBeActive && !$type->is_active) {
             throw ValidationException::withMessages([
-                'prayer_attendance_type_id' => ['Jenis absensi sholat sedang nonaktif. Aktifkan dari CMS absensi.'],
+                'prayer_attendance_type_id' => ["Waktu jama'ah sholat sedang nonaktif. Aktifkan dari pengaturan absensi."],
             ]);
         }
 

@@ -684,7 +684,7 @@ class PembayaranController extends Controller
 
         if (!$active) {
             throw ValidationException::withMessages([
-                'via' => ['Metode pembayaran sedang nonaktif atau tidak tersedia. Aktifkan dari CMS Metode Pembayaran.'],
+                'via' => ['Metode pembayaran sedang nonaktif atau tidak tersedia. Aktifkan dari Pengaturan Metode Pembayaran.'],
             ]);
         }
     }

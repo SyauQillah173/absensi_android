@@ -142,7 +142,7 @@ export function FinancePage() {
       <section className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-bold text-[#636E72]">Keuangan & Pembayaran</p>
-          <h1 className="text-3xl font-extrabold text-[#2D3436]">CMS Keuangan</h1>
+          <h1 className="text-3xl font-extrabold text-[#2D3436]">Keuangan</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -487,7 +487,7 @@ function CrudPanel({
         columns={[
           { key: 'nama', header: 'Nama', render: (row) => <span className="font-extrabold">{str(row.name)}</span> },
           { key: 'kode', header: 'Kode', render: (row) => str(row.code) },
-          { key: 'urutan', header: 'Urutan', render: (row) => str(row.sort_order) },
+          { key: 'urutan', header: 'Urutan Tampil', render: (row) => str(row.sort_order) },
           { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.is_active === false ? 'Nonaktif' : 'Aktif'} tone={row.is_active === false ? 'danger' : 'success'} /> },
           {
             key: 'aksi',
