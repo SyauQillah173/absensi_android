@@ -110,13 +110,13 @@ export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
       </div>
 
       <div className="q-dashboard-bottom-grid grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="q-card p-5">
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <div>
+        <section className="q-card q-transactions-card p-5">
+          <div className="q-card-heading mb-4 flex items-center justify-between gap-4">
+            <div className="min-w-0">
               <h2 className="text-lg font-extrabold text-[#2D3436]">Transaksi Terbaru</h2>
               <p className="text-xs font-semibold text-[#636E72]">Data dari menu Keuangan hari ini</p>
             </div>
-            <button className="q-soft-action rounded-full bg-[#E8F7F3] px-4 py-2 text-xs font-bold text-[#138F81]" onClick={onOpenFinance} type="button">
+            <button className="q-soft-action q-view-all-button rounded-full bg-[#E8F7F3] px-4 py-2 text-xs font-bold text-[#138F81]" onClick={onOpenFinance} type="button">
               Lihat Semua
             </button>
           </div>
@@ -132,13 +132,13 @@ export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
               ]}
               rows={payments.slice(0, 6)}
               emptyText="Belum ada transaksi hari ini."
-              minWidth="420px"
+              minWidth="360px"
             />
           )}
         </section>
 
-        <section className="q-card p-5">
-          <div className="mb-3 flex items-center gap-2">
+        <section className="q-card q-activity-card p-5">
+          <div className="q-card-heading mb-3 flex items-center gap-2">
             <Landmark className="text-[#138F81]" size={20} />
             <h2 className="text-lg font-extrabold text-[#2D3436]">Aktivitas Absensi</h2>
           </div>
