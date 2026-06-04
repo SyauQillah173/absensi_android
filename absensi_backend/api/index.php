@@ -25,19 +25,15 @@ function sendCorsHeaders(): void
     header('Vary: Origin', true);
 }
 
-sendCorsHeaders();
-
-register_shutdown_function(static function (): void {
-    sendCorsHeaders();
-});
-
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
+    sendCorsHeaders();
     http_response_code(204);
     exit;
 }
 
 set_exception_handler(function (Throwable $e): void {
     http_response_code(500);
+    sendCorsHeaders();
     header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
@@ -53,6 +49,7 @@ register_shutdown_function(function (): void {
 
     if (!headers_sent()) {
         http_response_code(500);
+        sendCorsHeaders();
         header('Content-Type: application/json');
     }
 
@@ -95,6 +92,7 @@ if (str_starts_with($path, '/api/')) {
 }
 
 if (in_array($path, ['/', '/api/health', '/health', '/up'], true)) {
+    sendCorsHeaders();
     header('Content-Type: application/json');
     echo json_encode([
         'success' => true,
