@@ -209,43 +209,11 @@ button:disabled {
 }
 
 .theme-dark {
-  position: relative;
-  isolation: isolate;
   color: #f5fbf8;
   background:
     radial-gradient(circle at top left, rgba(19, 143, 129, 0.22), transparent 30%),
     radial-gradient(circle at top right, rgba(255, 220, 128, 0.14), transparent 28%),
     linear-gradient(135deg, #132c2d 0%, #17393a 48%, #20332c 100%);
-}
-
-.theme-dark::before,
-.theme-dark::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(135deg, transparent 0 46%, rgba(117, 158, 255, 0.75) 48%, rgba(245, 251, 255, 0.9) 50%, transparent 53%),
-    linear-gradient(135deg, transparent 0 47%, rgba(117, 158, 255, 0.65) 49%, rgba(245, 251, 255, 0.75) 50%, transparent 53%);
-  background-size: 320px 190px, 460px 260px;
-  background-position: 20px -220px, 180px -340px;
-  opacity: 0.32;
-  animation: qFallingStars 18s linear infinite;
-}
-
-.theme-dark::after {
-  filter: blur(0.3px);
-  opacity: 0.2;
-  background-size: 520px 320px, 700px 420px;
-  background-position: 260px -360px, 40px -520px;
-  animation-duration: 28s;
-  animation-delay: -9s;
-}
-
-.theme-dark > .mx-auto {
-  position: relative;
-  z-index: 1;
 }
 
 .theme-dark header,
@@ -363,22 +331,6 @@ button:disabled {
 @keyframes qSpin {
   to {
     transform: rotate(360deg);
-  }
-}
-
-@keyframes qFallingStars {
-  from {
-    background-position: 20px -220px, 180px -340px;
-  }
-  to {
-    background-position: -340px 520px, -220px 640px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .theme-dark::before,
-  .theme-dark::after {
-    animation: none;
   }
 }
 
