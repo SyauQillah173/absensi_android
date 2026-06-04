@@ -581,7 +581,7 @@ function PrayerRekap() {
   return (
     <div className="space-y-5">
       <Message error={error} />
-      <section className="q-panel grid gap-3 p-4 sm:p-6 xl:grid-cols-[1fr_1fr_1fr_1fr_1fr_1.4fr_auto_auto]">
+      <section className="q-panel q-rekap-action-panel grid gap-3 p-4 sm:p-6 xl:grid-cols-[1fr_1fr_1fr_1fr_1fr_1.4fr_auto_auto]">
         <input className="q-input" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
         <input className="q-input" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
         <select className="q-input" value={typeId} onChange={(event) => setTypeId(Number(event.target.value))}>
@@ -597,10 +597,10 @@ function PrayerRekap() {
           {roomOptions.map((room) => <option key={num(room.id)} value={num(room.id)}>{text(room.name)}</option>)}
         </select>
         <SearchInput value={search} onChange={setSearch} placeholder="Cari santri / kelas / petugas" />
-        <button className="rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white" onClick={() => void loadRekap()} type="button">
+        <button className="q-rekap-button rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white" onClick={() => void loadRekap()} type="button">
           Tampilkan
         </button>
-        <button className="flex items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-extrabold text-[#138F81]" onClick={() => exportPrayerRekapExcel(filtered, summary)} type="button" disabled={filtered.length === 0}>
+        <button className="q-rekap-button flex items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-extrabold text-[#138F81]" onClick={() => exportPrayerRekapExcel(filtered, summary)} type="button" disabled={filtered.length === 0}>
           <Download size={17} /> Excel
         </button>
       </section>
@@ -664,14 +664,14 @@ function MadinRekap() {
   return (
     <div className="space-y-5">
       <Message error={error} />
-      <section className="q-panel grid gap-3 p-4 sm:p-6 md:grid-cols-[1fr_1fr_2fr_auto_auto]">
+      <section className="q-panel q-rekap-action-panel grid gap-3 p-4 sm:p-6 md:grid-cols-[1fr_1fr_2fr_auto_auto]">
         <input className="q-input" inputMode="numeric" value={month} onChange={(event) => setMonth(Number(event.target.value))} />
         <input className="q-input" inputMode="numeric" value={year} onChange={(event) => setYear(Number(event.target.value))} />
         <SearchInput value={search} onChange={setSearch} placeholder="Cari siswa / kelas / mapel" />
-        <button className="rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white" onClick={() => void load()} type="button">
+        <button className="q-rekap-button rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white" onClick={() => void load()} type="button">
           Tampilkan
         </button>
-        <button className="flex items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-extrabold text-[#138F81]" onClick={() => exportMadinRekapExcel(filtered, month, year)} type="button" disabled={filtered.length === 0}>
+        <button className="q-rekap-button flex items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-extrabold text-[#138F81]" onClick={() => exportMadinRekapExcel(filtered, month, year)} type="button" disabled={filtered.length === 0}>
           <Download size={17} /> Excel
         </button>
       </section>
@@ -921,16 +921,16 @@ function SaveBar({
   onSave: () => void;
 }) {
   return (
-    <div className="q-panel flex flex-wrap items-center justify-end gap-3 p-4">
-      <button className="q-soft-action min-h-12 rounded-2xl bg-white px-5 text-sm font-extrabold text-[#636E72]" onClick={onReset} type="button" disabled={isSaving}>
+    <div className="q-panel q-save-bar flex flex-wrap items-center justify-end gap-3 p-4">
+      <button className="q-soft-action q-save-secondary min-h-12 rounded-2xl bg-white px-5 text-sm font-extrabold text-[#636E72]" onClick={onReset} type="button" disabled={isSaving}>
         Reset Pilihan
       </button>
       {onCancel ? (
-        <button className="q-soft-action min-h-12 rounded-2xl bg-[#FDECEC] px-5 text-sm font-extrabold text-[#D63031]" onClick={onCancel} type="button" disabled={isSaving}>
+        <button className="q-soft-action q-save-secondary min-h-12 rounded-2xl bg-[#FDECEC] px-5 text-sm font-extrabold text-[#D63031]" onClick={onCancel} type="button" disabled={isSaving}>
           Batalkan
         </button>
       ) : null}
-      <button className="q-soft-action flex min-h-12 items-center gap-2 rounded-2xl bg-[#138F81] px-6 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/25 disabled:opacity-60" onClick={onSave} type="button" disabled={isSaving || disabled}>
+      <button className="q-soft-action q-save-primary flex min-h-12 items-center gap-2 rounded-2xl bg-[#138F81] px-6 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/25 disabled:opacity-60" onClick={onSave} type="button" disabled={isSaving || disabled}>
         <Save size={18} />
         {isSaving ? 'Menyimpan...' : primaryLabel}
       </button>

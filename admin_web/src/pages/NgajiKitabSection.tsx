@@ -200,11 +200,11 @@ function NgajiInput() {
         <StatCard title="Belum" value={num(summary.kosong)} subtitle="Belum dipilih" icon={CalendarDays} tone="blue" />
       </div>
       <AttendanceRows rows={studentRows} isLoading={isLoading} statuses={statuses} onChange={(id, status) => setStatuses((current) => ({ ...current, [id]: status }))} />
-      <div className="q-panel flex flex-wrap items-center justify-end gap-3 p-4">
-        <button className="q-soft-action min-h-12 rounded-2xl bg-white px-5 text-sm font-extrabold text-[#636E72]" type="button" onClick={() => setStatuses({})} disabled={isSaving}>
+      <div className="q-panel q-save-bar flex flex-wrap items-center justify-end gap-3 p-4">
+        <button className="q-soft-action q-save-secondary min-h-12 rounded-2xl bg-white px-5 text-sm font-extrabold text-[#636E72]" type="button" onClick={() => setStatuses({})} disabled={isSaving}>
           Reset Pilihan
         </button>
-        <button className="q-soft-action flex min-h-12 items-center gap-2 rounded-2xl bg-[#138F81] px-6 text-sm font-extrabold text-white disabled:opacity-60" type="button" onClick={() => void save()} disabled={isSaving || studentRows.length === 0}>
+        <button className="q-soft-action q-save-primary flex min-h-12 items-center gap-2 rounded-2xl bg-[#138F81] px-6 text-sm font-extrabold text-white disabled:opacity-60" type="button" onClick={() => void save()} disabled={isSaving || studentRows.length === 0}>
           <Save size={18} /> {isSaving ? 'Menyimpan...' : 'Simpan Absensi Ngaji'}
         </button>
       </div>
@@ -271,11 +271,11 @@ function NgajiRekap() {
         <StatCard title="Alfa" value={num(summary.A)} icon={CalendarDays} tone="purple" />
         <StatCard title="Kosong" value={num(summary.Kosong)} icon={CalendarDays} tone="blue" />
       </div>
-      <section className="q-panel grid gap-3 p-4 md:grid-cols-[140px_140px_minmax(0,1fr)_130px_130px]">
+      <section className="q-panel q-rekap-action-panel grid gap-3 p-4 md:grid-cols-[140px_140px_minmax(0,1fr)_130px_130px]">
         <input className="q-input" value={month} onChange={(event) => setMonth(event.target.value)} placeholder="Bulan" />
         <input className="q-input" value={year} onChange={(event) => setYear(event.target.value)} placeholder="Tahun" />
         <SearchInput value={search} onChange={setSearch} placeholder="Cari siswa / kelas / kitab" />
-        <button className="q-soft-action inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-extrabold text-[#138F81]" type="button" onClick={() => exportRowsExcel(records, 'rekap_ngaji_qomaruddin.xlsx', 'REKAP ABSENSI NGAJI')}>
+        <button className="q-soft-action q-rekap-button inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-extrabold text-[#138F81]" type="button" onClick={() => exportRowsExcel(records, 'rekap_ngaji_qomaruddin.xlsx', 'REKAP ABSENSI NGAJI')}>
           <Download size={17} /> Excel
         </button>
         <RefreshButton isLoading={isLoading} onClick={() => void load()} />

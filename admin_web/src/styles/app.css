@@ -704,6 +704,78 @@ button:disabled {
   .q-dropdown {
     max-width: calc(100vw - 1.5rem);
   }
+
+  .q-modal-backdrop {
+    align-items: flex-start !important;
+    padding: 0.75rem !important;
+    padding-top: max(0.75rem, env(safe-area-inset-top)) !important;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom)) !important;
+  }
+
+  .q-modal-panel {
+    width: 100%;
+    max-height: calc(100dvh - 1.5rem) !important;
+    border-radius: 22px !important;
+  }
+
+  .q-modal-header {
+    padding: 1rem !important;
+  }
+
+  .q-modal-header h2 {
+    font-size: 1.15rem !important;
+    line-height: 1.18;
+  }
+
+  .q-modal-header button {
+    width: 2.6rem;
+    height: 2.6rem;
+    flex-shrink: 0;
+  }
+
+  .q-modal-content {
+    padding: 1rem !important;
+  }
+
+  .q-modal-footer {
+    padding: 0.85rem 1rem !important;
+  }
+
+  .q-modal-content .q-input {
+    min-height: 46px;
+    font-size: 0.86rem;
+  }
+
+  .q-save-bar {
+    align-items: stretch !important;
+    justify-content: stretch !important;
+  }
+
+  .q-save-primary {
+    order: 1;
+    width: 100%;
+    justify-content: center;
+    min-height: 50px;
+  }
+
+  .q-save-secondary {
+    order: 2;
+    flex: 1 1 0;
+    justify-content: center;
+    text-align: center;
+    min-height: 46px;
+  }
+
+  .q-rekap-action-panel {
+    grid-template-columns: 1fr !important;
+  }
+
+  .q-rekap-button {
+    min-height: 50px;
+    width: 100%;
+    justify-content: center;
+    font-size: 0.9rem !important;
+  }
 }
 
 @media (max-width: 420px) {
@@ -791,6 +863,18 @@ button:disabled {
 
   .q-master-card span span:last-child {
     font-size: 0.72rem !important;
+  }
+
+  .q-modal-backdrop {
+    padding-inline: 0.55rem !important;
+  }
+
+  .q-modal-header h2 {
+    font-size: 1.05rem !important;
+  }
+
+  .q-save-secondary {
+    flex-basis: 100%;
   }
 
   .q-refresh-button {
