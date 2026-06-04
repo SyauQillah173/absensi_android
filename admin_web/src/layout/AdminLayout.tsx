@@ -11,6 +11,7 @@ import {
   Moon,
   ShieldCheck,
   Sun,
+  X,
   UserCog,
   UserRound,
   WalletCards
@@ -90,6 +91,28 @@ export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNav
     localStorage.setItem('qomaruddin_admin_theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
+  useEffect(() => {
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setMobileOpen(false);
+        setProfileOpen(false);
+        setNotificationOpen(false);
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, []);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [mobileOpen]);
+
   const menu = useMemo(() => {
     if (isTreasurer) {
       return allMenu.filter((item) => treasurerMenuKeys.has(item.key));
@@ -114,7 +137,7 @@ export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNav
         ) : null}
       </div>
 
-      <nav className="space-y-2" aria-label="Menu Admin">
+      <nav className="q-sidebar-nav q-scrollbar space-y-2" aria-label="Menu Admin">
         {menu.map((item) => {
           const selected = item.key === activePage;
           const hasChildren = Boolean(item.children?.length);
@@ -184,17 +207,25 @@ export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNav
         <div className="hidden shrink-0 lg:block">{nav}</div>
         {mobileOpen ? (
           <div className="fixed inset-0 z-40 bg-black/30 p-4 lg:hidden" onClick={() => setMobileOpen(false)}>
-            <div className="q-mobile-drawer h-full" onClick={(event) => event.stopPropagation()}>
+            <div className="q-mobile-drawer relative h-full w-fit max-w-full" onClick={(event) => event.stopPropagation()}>
+              <button
+                className="q-drawer-close absolute -right-3 top-3 z-10 grid h-10 w-10 place-items-center rounded-2xl bg-[#2D3436] text-white shadow-xl shadow-black/20"
+                onClick={() => setMobileOpen(false)}
+                type="button"
+                aria-label="Tutup menu"
+              >
+                <X size={19} />
+              </button>
               {nav}
             </div>
           </div>
         ) : null}
 
         <main className="min-w-0 flex-1">
-          <header className="q-topbar mb-6 flex min-h-16 items-center justify-between gap-4 rounded-[26px] bg-[#FFFDF7] px-4 shadow-xl shadow-black/5 sm:px-6">
-            <div className="flex items-center gap-3">
+          <header className="q-topbar mb-6 flex min-h-16 items-center justify-between gap-3 rounded-[26px] bg-[#FFFDF7] px-4 shadow-xl shadow-black/5 sm:px-6">
+            <div className="min-w-0 flex flex-1 items-center gap-3">
               <button
-                className="q-icon-button grid h-10 w-10 place-items-center rounded-2xl bg-[#E1EFF7] text-[#138F81]"
+                className="q-icon-button grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#E1EFF7] text-[#138F81]"
                 onClick={() => {
                   if (window.innerWidth >= 1024) {
                     setSidebarCollapsed((value) => !value);
@@ -207,12 +238,12 @@ export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNav
               >
                 <Menu size={20} />
               </button>
-              <div>
-                <p className="text-sm font-extrabold text-[#138F81]">Pondok Qomaruddin</p>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-extrabold text-[#138F81]">Pondok Qomaruddin</p>
                 <p className="hidden text-xs font-semibold text-[#636E72] sm:block">Satu data admin, bendahara, dan aplikasi Android</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="q-topbar-actions flex shrink-0 items-center gap-2">
               <div className="relative">
                 <button
                   className="q-icon-button relative grid h-10 w-10 place-items-center rounded-2xl bg-[#E8F7F3] text-[#138F81]"
