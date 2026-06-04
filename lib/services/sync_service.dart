@@ -212,7 +212,8 @@ class SyncService {
 
       final grouped = <String, List<Map<String, dynamic>>>{};
       for (final item in pendingList) {
-        final key = '${item['tanggal']}_${item['boarding_room_id']}';
+        final key =
+            '${item['tanggal']}_${item['boarding_room_id']}_${item['prayer_attendance_type_id'] ?? 0}';
         grouped.putIfAbsent(key, () => []).add(item);
       }
 
@@ -229,6 +230,9 @@ class SyncService {
                   items.first['boarding_room_id']?.toString() ?? '',
                 ) ??
                 0,
+            prayerAttendanceTypeId: int.tryParse(
+              items.first['prayer_attendance_type_id']?.toString() ?? '',
+            ),
             items: items
                 .map(
                   (item) => {
@@ -388,6 +392,7 @@ class SyncService {
   static Future<AbsensiResult> inputAbsensiSholat({
     required int siswaId,
     required int boardingRoomId,
+    int? prayerAttendanceTypeId,
     required String tanggal,
     required String statusCode,
     String? keterangan,
@@ -399,6 +404,7 @@ class SyncService {
     final data = {
       'siswa_id': siswaId,
       'boarding_room_id': boardingRoomId,
+      'prayer_attendance_type_id': prayerAttendanceTypeId,
       'tanggal': tanggal,
       'status_code': normalizedCode,
       'status_label': _prayerStatusLabel(normalizedCode),
@@ -416,6 +422,7 @@ class SyncService {
           final response = await ApiService.createAbsensiSholatBulk(
             tanggal: tanggal,
             boardingRoomId: boardingRoomId,
+            prayerAttendanceTypeId: prayerAttendanceTypeId,
             items: [
               {
                 'siswa_id': siswaId,
@@ -466,6 +473,7 @@ class SyncService {
 
   static Future<AbsensiResult> inputAbsensiSholatBulk({
     required int boardingRoomId,
+    int? prayerAttendanceTypeId,
     required String tanggal,
     required List<Map<String, dynamic>> items,
     required String diinputOleh,
@@ -498,6 +506,7 @@ class SyncService {
           final response = await ApiService.createAbsensiSholatBulk(
             tanggal: tanggal,
             boardingRoomId: boardingRoomId,
+            prayerAttendanceTypeId: prayerAttendanceTypeId,
             items: normalizedItems,
             diinputOleh: diinputOleh,
             actorUserId: actorUserId,
@@ -559,6 +568,7 @@ class SyncService {
       final data = {
         'siswa_id': item['siswa_id'],
         'boarding_room_id': boardingRoomId,
+        'prayer_attendance_type_id': prayerAttendanceTypeId,
         'tanggal': tanggal,
         'status_code': normalizedCode,
         'status_label': _prayerStatusLabel(normalizedCode),

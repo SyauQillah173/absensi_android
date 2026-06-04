@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../services/api_service.dart';
+import '../../services/absensi_sholat_export_service.dart';
 import '../../services/local_db_service.dart';
 import '../../services/session_service.dart';
 import '../../services/sync_service.dart';
@@ -32,6 +33,8 @@ class _AbsensiSholatScreenState extends State<AbsensiSholatScreen> {
 
   List<Map<String, dynamic>> _complexes = [];
   List<Map<String, dynamic>> _rooms = [];
+  List<Map<String, dynamic>> _prayerTypes = [];
+  Map<String, dynamic>? _selectedPrayerType;
   Map<String, dynamic>? _selectedComplex;
   Map<String, dynamic>? _selectedRoom;
   List<Map<String, dynamic>> _rows = [];
@@ -95,7 +98,13 @@ class _AbsensiSholatScreenState extends State<AbsensiSholatScreen> {
 
     try {
       final result = await ApiService.getBoardingComplexes();
+      final typeResult = await ApiService.getPrayerAttendanceTypes(
+        activeOnly: true,
+      );
       final data = List<Map<String, dynamic>>.from(result['data'] ?? []);
+      final types = List<Map<String, dynamic>>.from(typeResult['data'] ?? []);
+      _prayerTypes = types;
+      _selectedPrayerType ??= types.isNotEmpty ? types.first : null;
       _complexes = data;
       _selectedComplex ??= data.isNotEmpty ? data.first : null;
       _rooms = List<Map<String, dynamic>>.from(
@@ -137,6 +146,7 @@ class _AbsensiSholatScreenState extends State<AbsensiSholatScreen> {
       final result = await ApiService.getAbsensiSholatContext(
         tanggal: _dateText,
         boardingRoomId: roomId,
+        prayerAttendanceTypeId: _asInt(_selectedPrayerType?['id']),
       );
       final data = Map<String, dynamic>.from(result['data'] ?? {});
       final rows = List<Map<String, dynamic>>.from(data['rows'] ?? []);
@@ -159,6 +169,7 @@ class _AbsensiSholatScreenState extends State<AbsensiSholatScreen> {
       final pending = await LocalDbService.getPendingSholatByScope(
         tanggal: _dateText,
         boardingRoomId: roomId,
+        prayerAttendanceTypeId: _asInt(_selectedPrayerType?['id']),
       );
       var hasPending = false;
       for (final item in pending) {
@@ -242,6 +253,7 @@ class _AbsensiSholatScreenState extends State<AbsensiSholatScreen> {
 
       final result = await SyncService.inputAbsensiSholatBulk(
         boardingRoomId: roomId,
+        prayerAttendanceTypeId: _asInt(_selectedPrayerType?['id']),
         tanggal: _dateText,
         items: items,
         diinputOleh: _userName,
@@ -316,6 +328,7 @@ class _AbsensiSholatScreenState extends State<AbsensiSholatScreen> {
       final result = await ApiService.cancelAbsensiSholat(
         tanggal: _dateText,
         boardingRoomId: _asInt(_selectedRoom!['id']),
+        prayerAttendanceTypeId: _asInt(_selectedPrayerType?['id']),
         reason: 'Dibatalkan dari aplikasi',
       );
       if (!mounted) return;
@@ -356,6 +369,11 @@ class _AbsensiSholatScreenState extends State<AbsensiSholatScreen> {
 
   void _selectRoom(Map<String, dynamic> room) {
     setState(() => _selectedRoom = room);
+    _loadContext();
+  }
+
+  void _selectPrayerType(Map<String, dynamic> type) {
+    setState(() => _selectedPrayerType = type);
     _loadContext();
   }
 
@@ -477,6 +495,16 @@ class _AbsensiSholatScreenState extends State<AbsensiSholatScreen> {
                 onTap: () => _loadMaster(),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          _DropdownBox(
+            label: 'Waktu Jama\'ah Sholat',
+            value: _selectedPrayerType,
+            items: _prayerTypes,
+            itemLabel: (item) => item['name']?.toString() ?? '-',
+            onChanged: (item) {
+              if (item != null) _selectPrayerType(item);
+            },
           ),
           const SizedBox(height: 8),
           Row(
@@ -747,6 +775,7 @@ class _AbsensiSholatScreenState extends State<AbsensiSholatScreen> {
               tahun: year,
               boardingComplexId: _asInt(_selectedComplex?['id']),
               boardingRoomId: _asInt(_selectedRoom?['id']),
+              prayerAttendanceTypeId: _asInt(_selectedPrayerType?['id']),
             ),
             builder: (context, snapshot) {
               if (snapshot.connectionState != ConnectionState.done) {
@@ -784,6 +813,29 @@ class _AbsensiSholatScreenState extends State<AbsensiSholatScreen> {
                           ),
                         ),
                       ),
+                      if (records.isNotEmpty)
+                        IconButton(
+                          tooltip: 'Download Excel',
+                          onPressed: () async {
+                            try {
+                              await AbsensiSholatExportService.exportRekapExcel(
+                                records: records,
+                                summary: summary,
+                                title:
+                                    'Rekap Absensi ${_selectedPrayerType?['name'] ?? 'Jamaah Sholat'}',
+                                period:
+                                    '${_selectedDate.month}/${_selectedDate.year}',
+                              );
+                              _showSnack('Rekap sholat Excel berhasil dibuat.');
+                            } catch (e) {
+                              _showSnack('Gagal membuat Excel: $e');
+                            }
+                          },
+                          icon: const Icon(
+                            Icons.file_download_rounded,
+                            color: _teal,
+                          ),
+                        ),
                       IconButton(
                         onPressed: () => Navigator.pop(sheetContext),
                         icon: const Icon(Icons.close_rounded),

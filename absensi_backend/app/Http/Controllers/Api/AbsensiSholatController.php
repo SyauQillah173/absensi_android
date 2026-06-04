@@ -8,6 +8,7 @@ use App\Models\AbsensiSholat;
 use App\Models\BoardingComplex;
 use App\Models\BoardingRoom;
 use App\Models\GuruAbsensiSholatAccess;
+use App\Models\PrayerAttendanceType;
 use App\Models\SantriPondok;
 use App\Models\Siswa;
 use App\Models\User;
@@ -20,13 +21,97 @@ use Illuminate\Validation\ValidationException;
 
 class AbsensiSholatController extends Controller
 {
+    public function types(Request $request)
+    {
+        $query = PrayerAttendanceType::query()->orderBy('sort_order')->orderBy('name');
+        if ($request->boolean('active_only')) {
+            $query->where('is_active', true);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $query->get(),
+        ]);
+    }
+
+    public function storeType(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:120',
+            'code' => 'nullable|string|max:80|unique:prayer_attendance_types,code',
+            'description' => 'nullable|string|max:500',
+            'is_active' => 'nullable|boolean',
+            'sort_order' => 'nullable|integer|min:0|max:100000',
+        ]);
+
+        $code = $validated['code'] ?? str($validated['name'])->lower()->ascii()->slug('_')->toString();
+        if (!isset($validated['code']) && PrayerAttendanceType::query()->where('code', $code)->exists()) {
+            throw ValidationException::withMessages([
+                'name' => ['Nama ini menghasilkan kode yang sudah dipakai. Gunakan nama lain atau isi kode khusus.'],
+            ]);
+        }
+
+        $type = PrayerAttendanceType::query()->create([
+            'name' => $validated['name'],
+            'code' => $code,
+            'description' => $validated['description'] ?? null,
+            'is_active' => $validated['is_active'] ?? true,
+            'sort_order' => $validated['sort_order'] ?? 0,
+        ]);
+
+        app(AuditLogService::class)->record($request, 'absensi_sholat_type', 'create', $type);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Jenis absensi sholat berhasil ditambahkan',
+            'data' => $type,
+        ], 201);
+    }
+
+    public function updateType(Request $request, PrayerAttendanceType $type)
+    {
+        $validated = $request->validate([
+            'name' => 'nullable|string|max:120',
+            'code' => 'nullable|string|max:80|unique:prayer_attendance_types,code,' . $type->id,
+            'description' => 'nullable|string|max:500',
+            'is_active' => 'nullable|boolean',
+            'sort_order' => 'nullable|integer|min:0|max:100000',
+        ]);
+
+        $before = $type->toArray();
+        $type->update($validated);
+
+        app(AuditLogService::class)->record($request, 'absensi_sholat_type', 'update', $type, $before, $type->fresh()->toArray());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Jenis absensi sholat berhasil diperbarui',
+            'data' => $type->fresh(),
+        ]);
+    }
+
+    public function destroyType(Request $request, PrayerAttendanceType $type)
+    {
+        $before = $type->toArray();
+        $type->update(['is_active' => false]);
+
+        app(AuditLogService::class)->record($request, 'absensi_sholat_type', 'deactivate', $type, $before, $type->fresh()->toArray());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Jenis absensi sholat dinonaktifkan',
+        ]);
+    }
+
     public function context(Request $request)
     {
         $actor = $request->user();
         $validated = $request->validate([
             'tanggal' => 'required|date',
             'boarding_room_id' => 'nullable|integer|exists:boarding_rooms,id',
+            'prayer_attendance_type_id' => 'nullable|integer|exists:prayer_attendance_types,id',
         ]);
+        $prayerType = $this->resolvePrayerType($validated['prayer_attendance_type_id'] ?? null, true);
 
         $students = collect();
         $attendances = collect();
@@ -56,6 +141,7 @@ class AbsensiSholatController extends Controller
                 ->with(['actor:id,name,role'])
                 ->whereDate('tanggal', $validated['tanggal'])
                 ->whereIn('siswa_id', $students->pluck('id'))
+                ->where('prayer_attendance_type_id', $prayerType?->id)
                 ->where('is_cancelled', false)
                 ->get()
                 ->keyBy('siswa_id');
@@ -81,6 +167,8 @@ class AbsensiSholatController extends Controller
             'success' => true,
             'data' => [
                 'tanggal' => $validated['tanggal'],
+                'prayer_type' => $prayerType,
+                'prayer_types' => $this->activePrayerTypes(),
                 'room' => $room,
                 'rows' => $rows,
                 'summary' => $summary,
@@ -92,7 +180,7 @@ class AbsensiSholatController extends Controller
     public function index(Request $request)
     {
         $query = AbsensiSholat::query()
-            ->with(['siswa.kelasRef:id,name', 'boardingRoom.complex', 'actor:id,name,role'])
+            ->with(['siswa.kelasRef:id,name', 'boardingRoom.complex', 'actor:id,name,role', 'prayerType'])
             ->where('is_cancelled', false);
 
         $this->applyAttendanceScope($query, $request->user(), 'view');
@@ -102,6 +190,9 @@ class AbsensiSholatController extends Controller
         }
         if ($request->filled('boarding_room_id')) {
             $query->where('boarding_room_id', $request->integer('boarding_room_id'));
+        }
+        if ($request->filled('prayer_attendance_type_id')) {
+            $query->where('prayer_attendance_type_id', $request->integer('prayer_attendance_type_id'));
         }
         if ($request->filled('siswa_id')) {
             $query->where('siswa_id', $request->integer('siswa_id'));
@@ -120,6 +211,7 @@ class AbsensiSholatController extends Controller
         $validated = $request->validate([
             'tanggal' => 'required|date',
             'boarding_room_id' => 'required|integer|exists:boarding_rooms,id',
+            'prayer_attendance_type_id' => 'nullable|integer|exists:prayer_attendance_types,id',
             'diinput_oleh' => 'nullable|string|max:255',
             'actor_user_id' => 'nullable|integer|exists:users,id',
             'diinput_via' => 'nullable|in:online,offline_sync',
@@ -146,6 +238,7 @@ class AbsensiSholatController extends Controller
         }
 
         $room = BoardingRoom::with('complex')->findOrFail($validated['boarding_room_id']);
+        $prayerType = $this->resolvePrayerType($validated['prayer_attendance_type_id'] ?? null, true);
         if (!$this->canAccessRoom($actor, $room, 'input')) {
             return response()->json([
                 'success' => false,
@@ -174,18 +267,20 @@ class AbsensiSholatController extends Controller
         $updated = [];
         $failed = [];
 
-        DB::transaction(function () use ($validated, $actor, $request, $assignments, &$created, &$updated, &$failed) {
+        DB::transaction(function () use ($validated, $actor, $request, $assignments, $prayerType, &$created, &$updated, &$failed) {
             foreach ($validated['items'] as $index => $item) {
                 $key = AbsensiSholat::buildAttendanceKey(
                     $validated['tanggal'],
                     $item['siswa_id'],
                     $validated['boarding_room_id'],
+                    $prayerType?->id,
                 );
 
                 $payload = [
                     'siswa_id' => $item['siswa_id'],
                     'santri_pondok_id' => $assignments->get($item['siswa_id'])?->id,
                     'boarding_room_id' => $validated['boarding_room_id'],
+                    'prayer_attendance_type_id' => $prayerType?->id,
                     'tanggal' => $validated['tanggal'],
                     'status_code' => $item['status_code'],
                     'status_label' => AbsensiSholat::STATUS_LABELS[$item['status_code']],
@@ -215,11 +310,11 @@ class AbsensiSholatController extends Controller
                 if ($existing) {
                     $before = $existing->toArray();
                     $existing->update($payload);
-                    $updated[] = $this->attendancePayload($existing->fresh(['siswa', 'boardingRoom.complex']));
+                    $updated[] = $this->attendancePayload($existing->fresh(['siswa', 'boardingRoom.complex', 'prayerType']));
                     app(AuditLogService::class)->record($request, 'absensi_sholat', 'update', $existing, $before, $existing->fresh()->toArray());
                 } else {
                     $row = AbsensiSholat::create($payload);
-                    $created[] = $this->attendancePayload($row->fresh(['siswa', 'boardingRoom.complex']));
+                    $created[] = $this->attendancePayload($row->fresh(['siswa', 'boardingRoom.complex', 'prayerType']));
                 }
             }
         });
@@ -227,6 +322,7 @@ class AbsensiSholatController extends Controller
         app(AuditLogService::class)->record($request, 'absensi_sholat', 'bulk_upsert', 'bulk_absensi_sholat', null, null, [
             'tanggal' => $validated['tanggal'],
             'boarding_room_id' => $validated['boarding_room_id'],
+            'prayer_attendance_type_id' => $prayerType?->id,
             'created' => count($created),
             'updated' => count($updated),
             'failed' => count($failed),
@@ -251,6 +347,7 @@ class AbsensiSholatController extends Controller
         $validated = $request->validate([
             'tanggal' => 'required|date',
             'boarding_room_id' => 'required|integer|exists:boarding_rooms,id',
+            'prayer_attendance_type_id' => 'nullable|integer|exists:prayer_attendance_types,id',
             'reason' => 'nullable|string|max:500',
         ]);
 
@@ -263,6 +360,7 @@ class AbsensiSholatController extends Controller
         }
 
         $room = BoardingRoom::with('complex')->findOrFail($validated['boarding_room_id']);
+        $prayerType = $this->resolvePrayerType($validated['prayer_attendance_type_id'] ?? null, true);
         if (!$this->canAccessRoom($actor, $room, 'edit')) {
             return response()->json([
                 'success' => false,
@@ -273,6 +371,7 @@ class AbsensiSholatController extends Controller
         $rows = AbsensiSholat::query()
             ->whereDate('tanggal', $validated['tanggal'])
             ->where('boarding_room_id', $room->id)
+            ->where('prayer_attendance_type_id', $prayerType?->id)
             ->where('is_cancelled', false)
             ->get();
 
@@ -312,6 +411,7 @@ class AbsensiSholatController extends Controller
             'tanggal_akhir' => 'nullable|date|after_or_equal:tanggal_mulai',
             'boarding_room_id' => 'nullable|integer|exists:boarding_rooms,id',
             'boarding_complex_id' => 'nullable|integer|exists:boarding_complexes,id',
+            'prayer_attendance_type_id' => 'nullable|integer|exists:prayer_attendance_types,id',
             'siswa_id' => 'nullable|integer|exists:siswa,id',
             'actor_user_id' => 'nullable|integer|exists:users,id',
             'include_cancelled' => 'nullable|boolean',
@@ -332,6 +432,14 @@ class AbsensiSholatController extends Controller
             $end = $start->copy()->addDays(62);
         }
 
+        $selectedTypeId = $validated['prayer_attendance_type_id'] ?? null;
+        $prayerTypes = $selectedTypeId
+            ? PrayerAttendanceType::query()->where('id', $selectedTypeId)->get()
+            : $this->activePrayerTypes();
+        if ($prayerTypes->isEmpty()) {
+            $prayerTypes = collect([$this->resolvePrayerType(null, false)])->filter();
+        }
+
         $assignmentsQuery = SantriPondok::query()
             ->with(['siswa.kelasRef:id,name', 'room.complex', 'complex'])
             ->where('status', 'Aktif')
@@ -347,9 +455,10 @@ class AbsensiSholatController extends Controller
 
         $assignments = $assignmentsQuery->get();
         $attendanceQuery = AbsensiSholat::query()
-            ->with(['siswa.kelasRef:id,name', 'boardingRoom.complex', 'actor:id,name,role', 'santriPondok'])
+            ->with(['siswa.kelasRef:id,name', 'boardingRoom.complex', 'actor:id,name,role', 'santriPondok', 'prayerType'])
             ->whereBetween('tanggal', [$start->toDateString(), $end->toDateString()])
-            ->whereIn('siswa_id', $assignments->pluck('siswa_id')->all());
+            ->whereIn('siswa_id', $assignments->pluck('siswa_id')->all())
+            ->whereIn('prayer_attendance_type_id', $prayerTypes->pluck('id')->all());
         if (($validated['status'] ?? null) === 'Dibatalkan') {
             $attendanceQuery->where('is_cancelled', true);
         } elseif (!($validated['include_cancelled'] ?? false)) {
@@ -362,46 +471,53 @@ class AbsensiSholatController extends Controller
             $attendanceQuery->where('actor_user_id', $validated['actor_user_id']);
         }
         $this->applyAttendanceScope($attendanceQuery, $actor, 'view');
-        $attendances = $attendanceQuery->get()->keyBy(fn (AbsensiSholat $row) => $row->tanggal->format('Y-m-d') . '|' . $row->siswa_id . '|' . $row->boarding_room_id);
+        $attendances = $attendanceQuery->get()->keyBy(fn (AbsensiSholat $row) => $row->tanggal->format('Y-m-d') . '|' . $row->siswa_id . '|' . $row->boarding_room_id . '|' . $row->prayer_attendance_type_id);
 
         $records = collect();
         foreach (CarbonPeriod::create($start, $end) as $date) {
             $dateKey = $date->format('Y-m-d');
-            foreach ($assignments as $assignment) {
-                $key = $dateKey . '|' . $assignment->siswa_id . '|' . $assignment->boarding_room_id;
-                $attendance = $attendances->get($key);
-                $status = $attendance?->is_cancelled ? 'Dibatalkan' : ($attendance?->status_code ?? 'Kosong');
-                if (!empty($validated['status']) && $validated['status'] !== $status) {
-                    continue;
+            foreach ($prayerTypes as $type) {
+                foreach ($assignments as $assignment) {
+                    $key = $dateKey . '|' . $assignment->siswa_id . '|' . $assignment->boarding_room_id . '|' . $type->id;
+                    $attendance = $attendances->get($key);
+                    $status = $attendance?->is_cancelled ? 'Dibatalkan' : ($attendance?->status_code ?? 'Kosong');
+                    if (!empty($validated['status']) && $validated['status'] !== $status) {
+                        continue;
+                    }
+                    $records->push([
+                        'tanggal' => $dateKey,
+                        'prayer_attendance_type_id' => $type->id,
+                        'jenis_sholat' => $type->name,
+                        'siswa_id' => $assignment->siswa_id,
+                        'santri_pondok_id' => $assignment->id,
+                        'nis' => $assignment->siswa?->nis,
+                        'nisn' => $assignment->siswa?->nisn,
+                        'nama' => $assignment->siswa?->nama,
+                        'kelas' => $assignment->siswa?->kelasRef?->name ?? $assignment->siswa?->kelas,
+                        'boarding_complex_id' => $assignment->boarding_complex_id,
+                        'boarding_room_id' => $assignment->boarding_room_id,
+                        'komplek' => $assignment->complex?->name ?? $assignment->room?->complex?->name,
+                        'kamar' => $assignment->room?->name,
+                        'status' => $status,
+                        'status_label' => $attendance?->is_cancelled ? 'Dibatalkan' : ($attendance?->status_label ?? 'Kosong'),
+                        'diinput_oleh' => $attendance?->diinput_oleh,
+                        'actor_user_id' => $attendance?->actor_user_id,
+                        'petugas' => $attendance?->actor?->name ?? $attendance?->diinput_oleh,
+                        'waktu_input' => $attendance?->created_at?->toIso8601String(),
+                        'is_cancelled' => (bool) ($attendance?->is_cancelled ?? false),
+                    ]);
                 }
-                $records->push([
-                    'tanggal' => $dateKey,
-                    'siswa_id' => $assignment->siswa_id,
-                    'santri_pondok_id' => $assignment->id,
-                    'nis' => $assignment->siswa?->nis,
-                    'nama' => $assignment->siswa?->nama,
-                    'kelas' => $assignment->siswa?->kelasRef?->name ?? $assignment->siswa?->kelas,
-                    'boarding_complex_id' => $assignment->boarding_complex_id,
-                    'boarding_room_id' => $assignment->boarding_room_id,
-                    'komplek' => $assignment->complex?->name ?? $assignment->room?->complex?->name,
-                    'kamar' => $assignment->room?->name,
-                    'status' => $status,
-                    'status_label' => $attendance?->is_cancelled ? 'Dibatalkan' : ($attendance?->status_label ?? 'Kosong'),
-                    'diinput_oleh' => $attendance?->diinput_oleh,
-                    'actor_user_id' => $attendance?->actor_user_id,
-                    'petugas' => $attendance?->actor?->name ?? $attendance?->diinput_oleh,
-                    'waktu_input' => $attendance?->created_at?->toIso8601String(),
-                    'is_cancelled' => (bool) ($attendance?->is_cancelled ?? false),
-                ]);
             }
         }
 
         $rows = $records
-            ->groupBy('siswa_id')
+            ->groupBy(fn ($item) => $item['siswa_id'] . '|' . $item['prayer_attendance_type_id'])
             ->map(function ($items) {
                 $first = $items->first();
                 return [
                     'siswa_id' => $first['siswa_id'],
+                    'prayer_attendance_type_id' => $first['prayer_attendance_type_id'],
+                    'jenis_sholat' => $first['jenis_sholat'],
                     'nama' => $first['nama'],
                     'kelas' => $first['kelas'],
                     'komplek' => $first['komplek'],
@@ -432,11 +548,50 @@ class AbsensiSholatController extends Controller
                     : 0,
             ],
             'records' => $records->sortBy([['tanggal', 'desc'], ['nama', 'asc']])->values(),
+            'prayer_types' => $prayerTypes->values(),
             'periode' => [
                 'tanggal_mulai' => $start->toDateString(),
                 'tanggal_akhir' => $end->toDateString(),
             ],
         ]);
+    }
+
+    private function activePrayerTypes()
+    {
+        return PrayerAttendanceType::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function resolvePrayerType(mixed $id = null, bool $mustBeActive = true): ?PrayerAttendanceType
+    {
+        $query = PrayerAttendanceType::query();
+        if ($id) {
+            $query->whereKey($id);
+        } else {
+            $query->where('is_active', true)->orderBy('sort_order')->orderBy('name');
+        }
+
+        $type = $query->first();
+        if (!$type && !$id) {
+            $type = PrayerAttendanceType::query()->orderBy('sort_order')->orderBy('name')->first();
+        }
+
+        if (!$type) {
+            throw ValidationException::withMessages([
+                'prayer_attendance_type_id' => ['Master jenis absensi sholat belum tersedia.'],
+            ]);
+        }
+
+        if ($mustBeActive && !$type->is_active) {
+            throw ValidationException::withMessages([
+                'prayer_attendance_type_id' => ['Jenis absensi sholat sedang nonaktif. Aktifkan dari CMS absensi.'],
+            ]);
+        }
+
+        return $type;
     }
 
     private function canModify(AbsensiSholat $attendance, User $actor): bool
@@ -566,19 +721,23 @@ class AbsensiSholatController extends Controller
             ])->filter()->unique();
 
             foreach ($userIds as $userId) {
+                $jenisSholat = $attendance['jenis_sholat'] ?? 'Jamaah Sholat';
                 AppNotification::query()->create([
                     'user_id' => $userId,
-                    'title' => 'Absensi Jamaah Sholat',
+                    'title' => 'Absensi ' . $jenisSholat,
                     'message' => sprintf(
-                        '%s tercatat %s pada Absensi Jamaah Sholat tanggal %s.',
+                        '%s tercatat %s pada Absensi %s tanggal %s.',
                         $student?->nama ?? 'Santri',
                         $attendance['status_label'] ?? $attendance['status_code'] ?? '-',
+                        $jenisSholat,
                         $attendance['tanggal'] ?? '-'
                     ),
                     'type' => 'absensi_sholat',
                     'data' => [
                         'siswa_id' => $attendance['siswa_id'] ?? null,
                         'absensi_sholat_id' => $attendance['id'] ?? null,
+                        'prayer_attendance_type_id' => $attendance['prayer_attendance_type_id'] ?? null,
+                        'jenis_sholat' => $attendance['jenis_sholat'] ?? null,
                         'tanggal' => $attendance['tanggal'] ?? null,
                         'status' => $attendance['status_code'] ?? null,
                     ],
@@ -610,6 +769,8 @@ class AbsensiSholatController extends Controller
             'siswa_id' => $attendance->siswa_id,
             'santri_pondok_id' => $attendance->santri_pondok_id,
             'boarding_room_id' => $attendance->boarding_room_id,
+            'prayer_attendance_type_id' => $attendance->prayer_attendance_type_id,
+            'jenis_sholat' => $attendance->prayerType?->name,
             'tanggal' => $attendance->tanggal?->format('Y-m-d'),
             'status_code' => $attendance->status_code,
             'status_label' => $attendance->status_label,

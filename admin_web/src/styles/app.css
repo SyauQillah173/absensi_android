@@ -1,0 +1,316 @@
+@import "tailwindcss";
+
+:root {
+  color: #2d3436;
+  background: #ffdc80;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+.q-card {
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 18px 45px rgba(45, 52, 54, 0.08);
+  transform: translateZ(0);
+  transition: transform 210ms ease, box-shadow 210ms ease, background-color 210ms ease, border-color 210ms ease;
+}
+
+.q-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 24px 56px rgba(45, 52, 54, 0.12);
+}
+
+.q-panel {
+  border-radius: 24px;
+  background: #e1eff7;
+}
+
+.q-input {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 0 16px;
+  color: #2d3436;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.q-input:focus {
+  border-color: #138f81;
+  box-shadow: 0 0 0 4px rgba(19, 143, 129, 0.12);
+}
+
+.q-input-icon-left {
+  padding-left: 3.25rem;
+}
+
+.q-input-icon-both {
+  padding-left: 3.25rem;
+  padding-right: 3.25rem;
+}
+
+.q-brand-logo {
+  object-fit: contain;
+  filter: drop-shadow(0 12px 18px rgba(19, 143, 129, 0.16));
+}
+
+.dashboard-mini-tile {
+  display: grid;
+  min-height: 86px;
+  place-items: center;
+  border-radius: 18px;
+  background: #e1eff7;
+  padding: 0.85rem;
+  text-align: center;
+  transition: transform 200ms ease, box-shadow 200ms ease, background-color 200ms ease;
+}
+
+.dashboard-mini-tile:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 14px 28px rgba(45, 52, 54, 0.08);
+}
+
+.q-modal-backdrop {
+  background: rgba(45, 52, 54, 0.28);
+  backdrop-filter: blur(10px);
+}
+
+.q-modal-panel {
+  animation: qModalIn 190ms ease both;
+  box-shadow: 0 26px 70px rgba(45, 52, 54, 0.2);
+}
+
+.q-sidebar {
+  transition: width 220ms ease, transform 220ms ease, box-shadow 220ms ease;
+}
+
+.q-topbar {
+  transition: background-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
+}
+
+.q-menu-item {
+  transition: background-color 180ms ease, color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.q-menu-item:hover {
+  transform: translateX(2px);
+}
+
+.q-icon-button,
+.q-profile-button,
+.q-refresh-button,
+.q-soft-action {
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, opacity 180ms ease;
+}
+
+.q-icon-button:hover,
+.q-profile-button:hover,
+.q-refresh-button:hover,
+.q-soft-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(45, 52, 54, 0.12);
+}
+
+.q-refresh-button:disabled {
+  opacity: 0.72;
+}
+
+.q-refresh-button.is-loading .q-refresh-icon {
+  animation: qSpin 850ms linear infinite;
+}
+
+.q-stat-icon {
+  transition: transform 220ms ease;
+}
+
+.q-stat-card:hover .q-stat-icon {
+  transform: rotate(-5deg) scale(1.08);
+}
+
+.q-dropdown {
+  animation: qDropdownIn 180ms ease both;
+  transform-origin: top right;
+}
+
+.q-page-enter {
+  animation: qPageIn 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.q-mobile-drawer {
+  animation: qMobileDrawerIn 210ms ease both;
+}
+
+.theme-dark {
+  color: #f5fbf8;
+  background:
+    radial-gradient(circle at top left, rgba(19, 143, 129, 0.22), transparent 30%),
+    radial-gradient(circle at top right, rgba(255, 220, 128, 0.14), transparent 28%),
+    linear-gradient(135deg, #132c2d 0%, #17393a 48%, #20332c 100%);
+}
+
+.theme-dark header,
+.theme-dark aside,
+.theme-dark .q-card,
+.theme-dark .q-dropdown,
+.theme-dark .q-modal-panel {
+  border: 1px solid rgba(224, 246, 238, 0.08);
+  background: rgba(31, 58, 58, 0.92) !important;
+  color: #f7fbfc;
+  box-shadow: 0 22px 54px rgba(5, 19, 20, 0.28);
+}
+
+.theme-dark .q-panel,
+.theme-dark .dashboard-mini-tile {
+  background: rgba(61, 91, 91, 0.78);
+}
+
+.theme-dark .q-input {
+  background: rgba(19, 44, 45, 0.72);
+  color: #f7fbfc;
+  border-color: rgba(225, 239, 247, 0.12);
+}
+
+.theme-dark .q-input::placeholder {
+  color: #a9bec4;
+}
+
+.theme-dark h1,
+.theme-dark h2,
+.theme-dark p,
+.theme-dark td,
+.theme-dark th,
+.theme-dark span {
+  border-color: rgba(225, 239, 247, 0.14);
+}
+
+.theme-dark .text-\[\#2D3436\] {
+  color: #f7fbfc !important;
+}
+
+.theme-dark .text-\[\#636E72\] {
+  color: #b8cbd0 !important;
+}
+
+.theme-dark .bg-white {
+  background: rgba(61, 91, 91, 0.9) !important;
+}
+
+.theme-dark .bg-\[\#FFFDF7\] {
+  background: rgba(31, 58, 58, 0.92) !important;
+}
+
+.theme-dark .bg-\[\#E1EFF7\] {
+  background: rgba(61, 91, 91, 0.85) !important;
+}
+
+.theme-dark .q-menu-item:hover {
+  background: rgba(109, 197, 184, 0.18) !important;
+}
+
+.theme-dark .q-refresh-button,
+.theme-dark .q-soft-action {
+  color: #8de2d6 !important;
+}
+
+.theme-dark .q-card:hover {
+  box-shadow: 0 28px 66px rgba(5, 19, 20, 0.38);
+}
+
+@keyframes qDropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes qModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes qPageIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes qMobileDrawerIn {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes qSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.q-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(19, 143, 129, 0.35) transparent;
+}
+
+.q-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.q-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(19, 143, 129, 0.35);
+}
+
+.q-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}

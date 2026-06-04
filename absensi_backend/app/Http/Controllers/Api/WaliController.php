@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Siswa;
 use App\Models\Absensi;
 use App\Models\AbsensiSholat;
+use App\Models\AbsensiNgaji;
 use App\Models\Pembayaran;
 use App\Models\Nilai;
 use App\Models\Hafalan;
@@ -136,7 +137,7 @@ class WaliController extends Controller
         $bulan = $request->bulan ?? now()->month;
         $tahun = $request->tahun ?? now()->year;
         $data = AbsensiSholat::query()
-            ->with(['siswa:id,kelas,class_id', 'boardingRoom.complex', 'actor:id,name,role'])
+            ->with(['siswa:id,kelas,class_id', 'boardingRoom.complex', 'actor:id,name,role', 'prayerType:id,name'])
             ->where('siswa_id', $siswa->id)
             ->whereMonth('tanggal', $bulan)
             ->whereYear('tanggal', $tahun)
@@ -160,13 +161,102 @@ class WaliController extends Controller
                     'records' => $items->map(function (AbsensiSholat $row) {
                         return [
                             'id' => $row->id,
+                            'prayer_attendance_type_id' => $row->prayer_attendance_type_id,
+                            'jenis_sholat' => $row->prayerType?->name,
                             'status' => $row->status_label,
                             'status_code' => $row->status_code,
                             'keterangan' => $row->keterangan,
                             'kelas' => $row->siswa?->kelas,
                             'komplek' => $row->boardingRoom?->complex?->name,
                             'kamar' => $row->boardingRoom?->name,
-                            'mapel' => 'Jamaah Sholat',
+                            'mapel' => $row->prayerType?->name
+                                ? 'Jamaah Sholat - ' . $row->prayerType->name
+                                : 'Jamaah Sholat',
+                            'diinput_oleh' => $row->actor?->name ?? $row->diinput_oleh,
+                            'waktu' => $row->created_at?->format('H:i'),
+                        ];
+                    })->values(),
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'siswa' => $siswa,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'stats' => $stats,
+            'data' => $grouped,
+        ]);
+    }
+
+    public function absensiNgaji(Request $request)
+    {
+        $request->validate([
+            'siswa_id' => 'required|integer|exists:siswa,id',
+            'bulan' => 'nullable|integer|between:1,12',
+            'tahun' => 'nullable|integer',
+            'ngaji_session_id' => 'nullable|integer|exists:ngaji_sessions,id',
+            'ngaji_book_id' => 'nullable|integer|exists:ngaji_books,id',
+        ]);
+
+        $siswa = $this->resolveOwnedChild($request, (int) $request->siswa_id);
+        if (!$siswa) {
+            return $this->forbiddenChildResponse();
+        }
+
+        $bulan = $request->bulan ?? now()->month;
+        $tahun = $request->tahun ?? now()->year;
+        $data = AbsensiNgaji::query()
+            ->with([
+                'session:id,name,code',
+                'book:id,name,code,method',
+                'schedule:id,ngaji_session_id,ngaji_book_id,teacher_id,boarding_complex_id,boarding_room_id,class_id',
+                'boardingComplex:id,name',
+                'boardingRoom:id,name,boarding_complex_id',
+                'schoolClass:id,name',
+                'actor:id,name,role',
+            ])
+            ->where('siswa_id', $siswa->id)
+            ->where('is_cancelled', false)
+            ->whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)
+            ->when($request->filled('ngaji_session_id'), fn ($query) => $query->where('ngaji_session_id', $request->integer('ngaji_session_id')))
+            ->when($request->filled('ngaji_book_id'), fn ($query) => $query->where('ngaji_book_id', $request->integer('ngaji_book_id')))
+            ->orderByDesc('tanggal')
+            ->orderByDesc('created_at')
+            ->get();
+
+        $stats = [
+            'total' => $data->count(),
+            'hadir' => $data->where('status_code', 'H')->count(),
+            'izin' => $data->where('status_code', 'I')->count(),
+            'sakit' => $data->where('status_code', 'S')->count(),
+            'alfa' => $data->where('status_code', 'A')->count(),
+            'kosong' => 0,
+        ];
+
+        $grouped = $data->groupBy(fn ($item) => $item->tanggal->format('Y-m-d'))
+            ->map(function ($items, $tanggal) {
+                return [
+                    'tanggal' => $tanggal,
+                    'hari' => \Carbon\Carbon::parse($tanggal)->locale('id')->isoFormat('dddd'),
+                    'records' => $items->map(function (AbsensiNgaji $row) {
+                        return [
+                            'id' => $row->id,
+                            'ngaji_session_id' => $row->ngaji_session_id,
+                            'ngaji_book_id' => $row->ngaji_book_id,
+                            'ngaji_schedule_id' => $row->ngaji_schedule_id,
+                            'sesi' => $row->session?->name,
+                            'kitab' => $row->book?->name,
+                            'metode' => $row->book?->method,
+                            'status' => $row->status_label,
+                            'status_code' => $row->status_code,
+                            'keterangan' => $row->keterangan,
+                            'kelas' => $row->schoolClass?->name,
+                            'komplek' => $row->boardingComplex?->name,
+                            'kamar' => $row->boardingRoom?->name,
+                            'mapel' => trim(($row->session?->name ?? 'Ngaji') . ' - ' . ($row->book?->name ?? 'Kitab')),
                             'diinput_oleh' => $row->actor?->name ?? $row->diinput_oleh,
                             'waktu' => $row->created_at?->format('H:i'),
                         ];

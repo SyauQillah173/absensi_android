@@ -6,6 +6,7 @@ import '../../services/cache_service.dart';
 import '../../services/session_service.dart';
 import '../../services/sync_service.dart';
 import 'absensi_mapel_screen.dart';
+import 'absensi_ngaji_screen.dart';
 import 'absensi_sholat_screen.dart';
 import 'rekap_absensi_screen.dart';
 
@@ -325,6 +326,19 @@ class _AbsensiSifirScreenState extends State<AbsensiSifirScreen>
                         context,
                         MaterialPageRoute(
                           builder: (_) => const AbsensiSholatScreen(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildShortcutCard(
+                      title: 'Absensi Ngaji Kitab',
+                      subtitle: 'Input H/I/S/A pagi, sore, dan kitab',
+                      icon: Icons.menu_book_rounded,
+                      colors: const [Color(0xFF138F81), Color(0xFF1ABC9C)],
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AbsensiNgajiScreen(),
                         ),
                       ),
                     ),

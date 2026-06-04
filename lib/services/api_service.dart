@@ -888,10 +888,14 @@ class ApiService {
   static Future<Map<String, dynamic>> getAbsensiSholatContext({
     required String tanggal,
     int? boardingRoomId,
+    int? prayerAttendanceTypeId,
   }) async {
     final params = <String, String>{'tanggal': tanggal};
     if (boardingRoomId != null && boardingRoomId > 0) {
       params['boarding_room_id'] = boardingRoomId.toString();
+    }
+    if (prayerAttendanceTypeId != null && prayerAttendanceTypeId > 0) {
+      params['prayer_attendance_type_id'] = prayerAttendanceTypeId.toString();
     }
 
     final uri = Uri.parse(
@@ -906,6 +910,7 @@ class ApiService {
   static Future<Map<String, dynamic>> createAbsensiSholatBulk({
     required String tanggal,
     required int boardingRoomId,
+    int? prayerAttendanceTypeId,
     required List<Map<String, dynamic>> items,
     String? diinputOleh,
     int? actorUserId,
@@ -917,6 +922,9 @@ class ApiService {
       'boarding_room_id': boardingRoomId,
       'items': items,
     };
+    if (prayerAttendanceTypeId != null && prayerAttendanceTypeId > 0) {
+      body['prayer_attendance_type_id'] = prayerAttendanceTypeId;
+    }
     if (diinputOleh != null) body['diinput_oleh'] = diinputOleh;
     if (actorUserId != null && actorUserId > 0) {
       body['actor_user_id'] = actorUserId;
@@ -937,12 +945,16 @@ class ApiService {
   static Future<Map<String, dynamic>> cancelAbsensiSholat({
     required String tanggal,
     required int boardingRoomId,
+    int? prayerAttendanceTypeId,
     String? reason,
   }) async {
     final body = <String, dynamic>{
       'tanggal': tanggal,
       'boarding_room_id': boardingRoomId,
     };
+    if (prayerAttendanceTypeId != null && prayerAttendanceTypeId > 0) {
+      body['prayer_attendance_type_id'] = prayerAttendanceTypeId;
+    }
     if (reason != null && reason.trim().isNotEmpty) {
       body['reason'] = reason.trim();
     }
@@ -964,6 +976,7 @@ class ApiService {
     String? tanggalAkhir,
     int? boardingComplexId,
     int? boardingRoomId,
+    int? prayerAttendanceTypeId,
     int? siswaId,
     String? status,
   }) async {
@@ -982,6 +995,9 @@ class ApiService {
     if (boardingRoomId != null && boardingRoomId > 0) {
       params['boarding_room_id'] = boardingRoomId.toString();
     }
+    if (prayerAttendanceTypeId != null && prayerAttendanceTypeId > 0) {
+      params['prayer_attendance_type_id'] = prayerAttendanceTypeId.toString();
+    }
     if (siswaId != null && siswaId > 0) params['siswa_id'] = siswaId.toString();
     if (status != null && status.trim().isNotEmpty) {
       params['status'] = status.trim();
@@ -989,6 +1005,185 @@ class ApiService {
 
     final uri = Uri.parse(
       '$baseUrl/absensi-sholat/rekap',
+    ).replace(queryParameters: params);
+    final response = await http
+        .get(uri, headers: await _headers())
+        .timeout(_standardRequestTimeout);
+    return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> getPrayerAttendanceTypes({
+    bool activeOnly = false,
+  }) async {
+    final params = <String, String>{};
+    if (activeOnly) params['active_only'] = '1';
+    final uri = Uri.parse(
+      '$baseUrl/absensi-sholat/types',
+    ).replace(queryParameters: params.isEmpty ? null : params);
+    final response = await http
+        .get(uri, headers: await _headers())
+        .timeout(_standardRequestTimeout);
+    return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> getNgajiSessions({
+    bool activeOnly = false,
+  }) async {
+    final params = <String, String>{};
+    if (activeOnly) params['active_only'] = '1';
+    final uri = Uri.parse(
+      '$baseUrl/absensi-ngaji/sessions',
+    ).replace(queryParameters: params.isEmpty ? null : params);
+    final response = await http
+        .get(uri, headers: await _headers())
+        .timeout(_standardRequestTimeout);
+    return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> getNgajiBooks({
+    bool activeOnly = false,
+  }) async {
+    final params = <String, String>{};
+    if (activeOnly) params['active_only'] = '1';
+    final uri = Uri.parse(
+      '$baseUrl/absensi-ngaji/books',
+    ).replace(queryParameters: params.isEmpty ? null : params);
+    final response = await http
+        .get(uri, headers: await _headers())
+        .timeout(_standardRequestTimeout);
+    return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> getNgajiSchedules({
+    bool activeOnly = false,
+    int? ngajiSessionId,
+    int? ngajiBookId,
+    int? boardingRoomId,
+  }) async {
+    final params = <String, String>{};
+    if (activeOnly) params['active_only'] = '1';
+    if (ngajiSessionId != null && ngajiSessionId > 0) {
+      params['ngaji_session_id'] = ngajiSessionId.toString();
+    }
+    if (ngajiBookId != null && ngajiBookId > 0) {
+      params['ngaji_book_id'] = ngajiBookId.toString();
+    }
+    if (boardingRoomId != null && boardingRoomId > 0) {
+      params['boarding_room_id'] = boardingRoomId.toString();
+    }
+    final uri = Uri.parse(
+      '$baseUrl/absensi-ngaji/schedules',
+    ).replace(queryParameters: params.isEmpty ? null : params);
+    final response = await http
+        .get(uri, headers: await _headers())
+        .timeout(_standardRequestTimeout);
+    return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> getAbsensiNgajiContext({
+    required String tanggal,
+    required int ngajiScheduleId,
+  }) async {
+    final uri = Uri.parse('$baseUrl/absensi-ngaji/context').replace(
+      queryParameters: {
+        'tanggal': tanggal,
+        'ngaji_schedule_id': ngajiScheduleId.toString(),
+      },
+    );
+    final response = await http
+        .get(uri, headers: await _headers())
+        .timeout(_standardRequestTimeout);
+    return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> createAbsensiNgajiBulk({
+    required String tanggal,
+    required int ngajiScheduleId,
+    required List<Map<String, dynamic>> items,
+    String? diinputOleh,
+    int? actorUserId,
+    String? diinputVia,
+    String? deviceId,
+  }) async {
+    final body = <String, dynamic>{
+      'tanggal': tanggal,
+      'ngaji_schedule_id': ngajiScheduleId,
+      'items': items,
+    };
+    if (diinputOleh != null) body['diinput_oleh'] = diinputOleh;
+    if (actorUserId != null && actorUserId > 0) {
+      body['actor_user_id'] = actorUserId;
+    }
+    if (diinputVia != null) body['diinput_via'] = diinputVia;
+    if (deviceId != null) body['device_id'] = deviceId;
+
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/absensi-ngaji/bulk'),
+          headers: await _headers(),
+          body: jsonEncode(body),
+        )
+        .timeout(_standardRequestTimeout);
+    return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> cancelAbsensiNgaji({
+    required String tanggal,
+    required int ngajiScheduleId,
+    String? reason,
+  }) async {
+    final body = <String, dynamic>{
+      'tanggal': tanggal,
+      'ngaji_schedule_id': ngajiScheduleId,
+    };
+    if (reason != null && reason.trim().isNotEmpty) {
+      body['reason'] = reason.trim();
+    }
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/absensi-ngaji/cancel'),
+          headers: await _headers(),
+          body: jsonEncode(body),
+        )
+        .timeout(_standardRequestTimeout);
+    return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> getRekapAbsensiNgaji({
+    int? bulan,
+    int? tahun,
+    String? tanggalMulai,
+    String? tanggalAkhir,
+    int? ngajiScheduleId,
+    int? ngajiSessionId,
+    int? ngajiBookId,
+    int? siswaId,
+    String? status,
+  }) async {
+    final params = <String, String>{};
+    if (bulan != null) params['bulan'] = bulan.toString();
+    if (tahun != null) params['tahun'] = tahun.toString();
+    if (tanggalMulai != null && tanggalMulai.trim().isNotEmpty) {
+      params['tanggal_mulai'] = tanggalMulai.trim();
+    }
+    if (tanggalAkhir != null && tanggalAkhir.trim().isNotEmpty) {
+      params['tanggal_akhir'] = tanggalAkhir.trim();
+    }
+    if (ngajiScheduleId != null && ngajiScheduleId > 0) {
+      params['ngaji_schedule_id'] = ngajiScheduleId.toString();
+    }
+    if (ngajiSessionId != null && ngajiSessionId > 0) {
+      params['ngaji_session_id'] = ngajiSessionId.toString();
+    }
+    if (ngajiBookId != null && ngajiBookId > 0) {
+      params['ngaji_book_id'] = ngajiBookId.toString();
+    }
+    if (siswaId != null && siswaId > 0) params['siswa_id'] = siswaId.toString();
+    if (status != null && status.trim().isNotEmpty) {
+      params['status'] = status.trim();
+    }
+    final uri = Uri.parse(
+      '$baseUrl/absensi-ngaji/rekap',
     ).replace(queryParameters: params);
     final response = await http
         .get(uri, headers: await _headers())
@@ -1315,6 +1510,32 @@ class ApiService {
 
     final uri = Uri.parse(
       '$baseUrl/wali/absensi-sholat',
+    ).replace(queryParameters: params);
+    final response = await http
+        .get(uri, headers: await _headers())
+        .timeout(const Duration(seconds: 10));
+    return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> getAbsensiNgajiAnak(
+    int siswaId, {
+    int? bulan,
+    int? tahun,
+    int? ngajiSessionId,
+    int? ngajiBookId,
+  }) async {
+    final params = <String, String>{'siswa_id': siswaId.toString()};
+    if (bulan != null) params['bulan'] = bulan.toString();
+    if (tahun != null) params['tahun'] = tahun.toString();
+    if (ngajiSessionId != null) {
+      params['ngaji_session_id'] = ngajiSessionId.toString();
+    }
+    if (ngajiBookId != null) {
+      params['ngaji_book_id'] = ngajiBookId.toString();
+    }
+
+    final uri = Uri.parse(
+      '$baseUrl/wali/absensi-ngaji',
     ).replace(queryParameters: params);
     final response = await http
         .get(uri, headers: await _headers())

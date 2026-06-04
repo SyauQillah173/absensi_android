@@ -25,7 +25,7 @@ class LocalDbService {
     String path = join(await getDatabasesPath(), 'absensi_offline.db');
     return await openDatabase(
       path,
-      version: 7, // v7: queue offline absensi sholat
+      version: 8, // v8: jenis absensi sholat pada queue offline
       onCreate: (db, version) async {
         // Tabel absensi offline — queue yang belum di-sync
         await db.execute('''
@@ -170,6 +170,13 @@ class LocalDbService {
         if (oldVersion < 7) {
           await _createAbsensiSholatPending(db);
         }
+        if (oldVersion < 8) {
+          await _addColumnIfMissingForTable(
+            db,
+            'absensi_sholat_pending',
+            'prayer_attendance_type_id INTEGER',
+          );
+        }
       },
     );
   }
@@ -180,6 +187,7 @@ class LocalDbService {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         siswa_id INTEGER NOT NULL,
         boarding_room_id INTEGER NOT NULL,
+        prayer_attendance_type_id INTEGER,
         tanggal TEXT NOT NULL,
         status_code TEXT NOT NULL,
         status_label TEXT NOT NULL,
@@ -202,11 +210,19 @@ class LocalDbService {
     Database db,
     String definition,
   ) async {
+    await _addColumnIfMissingForTable(db, 'absensi_pending', definition);
+  }
+
+  static Future<void> _addColumnIfMissingForTable(
+    Database db,
+    String table,
+    String definition,
+  ) async {
     final columnName = definition.split(' ').first;
-    final columns = await db.rawQuery('PRAGMA table_info(absensi_pending)');
+    final columns = await db.rawQuery('PRAGMA table_info($table)');
     final exists = columns.any((column) => column['name'] == columnName);
     if (!exists) {
-      await db.execute('ALTER TABLE absensi_pending ADD COLUMN $definition');
+      await db.execute('ALTER TABLE $table ADD COLUMN $definition');
     }
   }
 
@@ -295,17 +311,20 @@ class LocalDbService {
   static Future<List<Map<String, dynamic>>> getPendingSholatByScope({
     required String tanggal,
     required int boardingRoomId,
+    int? prayerAttendanceTypeId,
     int? actorUserId,
   }) async {
     final db = await database;
     final where = <String>[
       'tanggal = ?',
       'boarding_room_id = ?',
+      'COALESCE(prayer_attendance_type_id, 0) = ?',
       'sync_status IN (?, ?, ?)',
     ];
     final args = <Object?>[
       tanggal,
       boardingRoomId,
+      prayerAttendanceTypeId ?? 0,
       'pending',
       'failed',
       'syncing',
@@ -607,6 +626,7 @@ class LocalDbService {
     final tanggal = (data['tanggal']?.toString() ?? '').split('T').first;
     final siswaId = data['siswa_id'];
     final roomId = data['boarding_room_id'];
+    final prayerTypeId = data['prayer_attendance_type_id'] ?? 0;
 
     if (tanggal.isEmpty || siswaId == null || roomId == null) {
       throw ArgumentError(
@@ -614,7 +634,7 @@ class LocalDbService {
       );
     }
 
-    return '${tanggal}_${siswaId}_$roomId';
+    return '${tanggal}_${siswaId}_${roomId}_$prayerTypeId';
   }
 
   // ===== CLEAR ALL SYNCED =====

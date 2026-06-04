@@ -107,6 +107,11 @@ class Siswa extends Model
         return $this->hasMany(AbsensiSholat::class);
     }
 
+    public function absensiNgaji()
+    {
+        return $this->hasMany(AbsensiNgaji::class);
+    }
+
     public function pembayaran()
     {
         return $this->hasMany(Pembayaran::class);

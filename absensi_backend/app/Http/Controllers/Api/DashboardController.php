@@ -11,6 +11,7 @@ use App\Models\GuruAbsensiSholatAccess;
 use App\Models\Jadwal;
 use App\Models\MataPelajaran;
 use App\Models\Pembayaran;
+use App\Models\PrayerAttendanceType;
 use App\Models\SantriPondok;
 use App\Models\Siswa;
 use App\Models\User;
@@ -353,8 +354,9 @@ class DashboardController extends Controller
 
     private function buildAdminPrayerSummary(string $today): array
     {
+        $typeCount = $this->activePrayerTypeCount();
         $rows = AbsensiSholat::query()
-            ->with(['boardingRoom.complex', 'siswa:id,nama'])
+            ->with(['boardingRoom.complex', 'siswa:id,nama', 'prayerType:id,name'])
             ->whereDate('tanggal', $today)
             ->where('is_cancelled', false)
             ->get();
@@ -364,16 +366,17 @@ class DashboardController extends Controller
 
         return $this->formatPrayerSummary(
             $rows,
-            (clone $expected)->whereNotNull('boarding_room_id')->distinct()->count('boarding_room_id'),
-            $expected->count(),
+            (clone $expected)->whereNotNull('boarding_room_id')->distinct()->count('boarding_room_id') * $typeCount,
+            $expected->count() * $typeCount,
         );
     }
 
     private function buildGuruPrayerSummary(User $guru, string $today): array
     {
+        $typeCount = $this->activePrayerTypeCount();
         $allowedRoomIds = $this->guruPrayerRoomIds($guru);
         $rows = AbsensiSholat::query()
-            ->with(['boardingRoom.complex', 'siswa:id,nama'])
+            ->with(['boardingRoom.complex', 'siswa:id,nama', 'prayerType:id,name'])
             ->whereDate('tanggal', $today)
             ->whereIn('boarding_room_id', $allowedRoomIds)
             ->where('is_cancelled', false)
@@ -385,15 +388,16 @@ class DashboardController extends Controller
 
         return $this->formatPrayerSummary(
             $rows,
-            (clone $expected)->whereNotNull('boarding_room_id')->distinct()->count('boarding_room_id'),
-            $expected->count(),
+            (clone $expected)->whereNotNull('boarding_room_id')->distinct()->count('boarding_room_id') * $typeCount,
+            $expected->count() * $typeCount,
         );
     }
 
     private function buildWaliPrayerSummary($anakIds, string $today): array
     {
+        $typeCount = $this->activePrayerTypeCount();
         $rows = AbsensiSholat::query()
-            ->with(['boardingRoom.complex', 'siswa:id,nama'])
+            ->with(['boardingRoom.complex', 'siswa:id,nama', 'prayerType:id,name'])
             ->whereDate('tanggal', $today)
             ->when(
                 $anakIds->isNotEmpty(),
@@ -412,12 +416,16 @@ class DashboardController extends Controller
                 fn ($query) => $query->whereRaw('1 = 0'),
             );
 
-        return $this->formatPrayerSummary($rows, 0, $expected->count());
+        return $this->formatPrayerSummary($rows, 0, $expected->count() * $typeCount);
     }
 
     private function formatPrayerSummary($rows, int $expectedRooms, int $expectedTotal = 0): array
     {
-        $roomsDone = $rows->pluck('boarding_room_id')->filter()->unique()->count();
+        $roomsDone = $rows
+            ->filter(fn (AbsensiSholat $row) => !empty($row->boarding_room_id))
+            ->map(fn (AbsensiSholat $row) => $row->boarding_room_id . '|' . ($row->prayer_attendance_type_id ?: 0))
+            ->unique()
+            ->count();
         $attended = $rows->count();
         $present = $rows->where('status_code', 'M')->count();
         $effectiveTotal = max($expectedTotal, $attended);
@@ -435,6 +443,8 @@ class DashboardController extends Controller
             'terbaru' => $rows->sortByDesc('created_at')->take(5)->map(fn (AbsensiSholat $row) => [
                 'siswa_id' => $row->siswa_id,
                 'siswa_nama' => $row->siswa?->nama,
+                'prayer_attendance_type_id' => $row->prayer_attendance_type_id,
+                'jenis_sholat' => $row->prayerType?->name,
                 'status' => $row->status_label,
                 'status_code' => $row->status_code,
                 'komplek' => $row->boardingRoom?->complex?->name,
@@ -442,6 +452,11 @@ class DashboardController extends Controller
                 'waktu' => $row->created_at?->format('H:i'),
             ])->values(),
         ];
+    }
+
+    private function activePrayerTypeCount(): int
+    {
+        return max(1, PrayerAttendanceType::query()->where('is_active', true)->count());
     }
 
     private function guruPrayerRoomIds(User $guru): array
