@@ -159,7 +159,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-wrap items-end justify-between gap-4">
+      <section className="q-page-heading flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-bold text-[#636E72]">Master Data</p>
           <h1 className="text-3xl font-extrabold text-[#2D3436]">{current.title}</h1>
@@ -180,7 +180,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
       {notice ? <div className="rounded-2xl bg-[#E8F7F3] px-4 py-3 text-sm font-bold text-[#138F81]">{notice}</div> : null}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="q-stat-grid grid gap-4 md:grid-cols-3">
         <StatCard title="Total Data" value={rows.length} subtitle={`${filtered.length} data tampil`} icon={Icon} tone="teal" />
         <StatCard title="Aktif" value={countStatus(rows, 'Aktif')} subtitle="Data status aktif" icon={Search} tone="blue" />
         <StatCard title="Nonaktif" value={countStatus(rows, 'Nonaktif')} subtitle="Data status nonaktif" icon={UsersRound} tone="orange" />

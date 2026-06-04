@@ -21,14 +21,14 @@ export function StatCard({ title, value, subtitle, icon: Icon, tone = 'teal' }: 
     <section className="q-card q-stat-card min-h-[120px] p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold text-[#636E72]">{title}</p>
-          <p className="mt-2 text-3xl font-extrabold tracking-normal text-[#2D3436]">{value}</p>
+          <p className="q-stat-title text-xs font-semibold text-[#636E72]">{title}</p>
+          <p className="q-stat-value mt-2 text-3xl font-extrabold tracking-normal text-[#2D3436]">{value}</p>
         </div>
         <div className={`q-stat-icon grid h-11 w-11 place-items-center rounded-2xl ${toneMap[tone]}`}>
           <Icon size={21} />
         </div>
       </div>
-      {subtitle ? <p className="mt-4 text-xs font-semibold text-[#138F81]">{subtitle}</p> : null}
+      {subtitle ? <p className="q-stat-subtitle mt-4 text-xs font-semibold text-[#138F81]">{subtitle}</p> : null}
     </section>
   );
 }

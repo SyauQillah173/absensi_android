@@ -132,7 +132,7 @@ export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
               ]}
               rows={payments.slice(0, 6)}
               emptyText="Belum ada transaksi hari ini."
-              minWidth="520px"
+              minWidth="420px"
             />
           )}
         </section>

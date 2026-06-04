@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 
 export interface DataColumn<T> {
   key: string;
@@ -17,8 +17,8 @@ interface DataTableProps<T> {
 
 export function DataTable<T extends { id?: string | number }>({ columns, rows, emptyText = 'Belum ada data.', minWidth = '720px', maxHeight = '520px' }: DataTableProps<T>) {
   return (
-    <div className="overflow-auto q-scrollbar" style={{ maxHeight }}>
-      <table className="w-full border-separate border-spacing-y-2" style={{ minWidth }}>
+    <div className="q-data-table overflow-auto q-scrollbar" style={{ maxHeight, '--table-min-width': minWidth } as CSSProperties}>
+      <table className="q-data-table-inner w-full border-separate border-spacing-y-2">
         <thead>
           <tr>
             {columns.map((column) => (

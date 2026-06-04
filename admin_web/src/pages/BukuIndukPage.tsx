@@ -143,7 +143,7 @@ export function BukuIndukPage({ initialSection = 'ringkas', onSectionChange }: B
 
   return (
     <div className="space-y-6">
-      <section>
+      <section className="q-page-heading">
         <p className="text-sm font-bold text-[#636E72]">Buku Induk</p>
         <h1 className="text-3xl font-extrabold text-[#2D3436]">Master Data Qomaruddin</h1>
         <p className="text-sm font-semibold text-[#636E72]">Dibuat seperti grup Android: satu menu besar, isi datanya dipisah rapi di dalamnya.</p>
@@ -152,20 +152,20 @@ export function BukuIndukPage({ initialSection = 'ringkas', onSectionChange }: B
       <SegmentedTabs tabs={sections} active={section === 'ringkas' ? '' : section} onChange={(id) => selectSection(id as BukuIndukSection)} />
 
       {section === 'ringkas' ? (
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <section className="q-master-card-grid grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {menuCards.map((item) => {
             const Icon = item.icon;
             return (
               <button
                 key={item.id}
-                className="q-card flex min-h-36 items-center gap-5 p-5 text-left transition hover:-translate-y-1 hover:shadow-2xl"
+                className="q-card q-master-card flex min-h-36 items-center gap-5 p-5 text-left transition hover:-translate-y-1 hover:shadow-2xl"
                 onClick={() => selectSection(item.id as BukuIndukSection)}
                 type="button"
               >
                 <span className={`grid h-16 w-16 shrink-0 place-items-center rounded-3xl ${item.tone}`}>
                   <Icon size={28} />
                 </span>
-                <span>
+                <span className="min-w-0">
                   <span className="block text-xl font-extrabold text-[#2D3436]">{item.title}</span>
                   <span className="mt-1 block text-sm font-semibold leading-relaxed text-[#636E72]">{item.subtitle}</span>
                 </span>
@@ -174,20 +174,20 @@ export function BukuIndukPage({ initialSection = 'ringkas', onSectionChange }: B
           })}
         </section>
       ) : section === 'users' ? (
-        <section className="grid gap-4 md:grid-cols-3">
+        <section className="q-master-card-grid grid gap-4 md:grid-cols-3">
           {userLoginCards.map((item) => {
             const Icon = item.icon;
             return (
               <button
                 key={item.id}
-                className="q-card flex min-h-36 items-center gap-5 p-5 text-left transition hover:-translate-y-1 hover:shadow-2xl"
+                className="q-card q-master-card flex min-h-36 items-center gap-5 p-5 text-left transition hover:-translate-y-1 hover:shadow-2xl"
                 onClick={() => selectSection(item.id as BukuIndukSection)}
                 type="button"
               >
                 <span className={`grid h-16 w-16 shrink-0 place-items-center rounded-3xl ${item.tone}`}>
                   <Icon size={28} />
                 </span>
-                <span>
+                <span className="min-w-0">
                   <span className="block text-xl font-extrabold text-[#2D3436]">{item.title}</span>
                   <span className="mt-1 block text-sm font-semibold leading-relaxed text-[#636E72]">{item.subtitle}</span>
                 </span>

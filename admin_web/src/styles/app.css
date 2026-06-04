@@ -172,6 +172,20 @@ button:disabled {
   transform: rotate(-5deg) scale(1.08);
 }
 
+.q-data-table-inner {
+  min-width: var(--table-min-width, 720px);
+}
+
+.q-segmented-scroll {
+  display: grid;
+  grid-template-columns: repeat(var(--tab-count), minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.q-segmented-scroll button {
+  white-space: nowrap;
+}
+
 .q-dropdown {
   animation: qDropdownIn 180ms ease both;
   transform-origin: top right;
@@ -455,13 +469,14 @@ button:disabled {
   }
 
   .q-page-heading h1 {
-    font-size: 1.85rem !important;
-    line-height: 1.08;
+    font-size: clamp(1.35rem, 6vw, 1.6rem) !important;
+    line-height: 1.12;
     max-width: 100%;
   }
 
   .q-page-heading p {
-    font-size: 0.78rem;
+    font-size: 0.78rem !important;
+    line-height: 1.45;
   }
 
   .q-stat-grid {
@@ -469,19 +484,78 @@ button:disabled {
   }
 
   .q-stat-card {
-    min-height: 105px !important;
-    padding: 1rem !important;
+    min-height: 96px !important;
+    padding: 0.9rem !important;
   }
 
-  .q-stat-card p:nth-child(2) {
-    font-size: 1.85rem !important;
-    line-height: 1.08;
+  .q-stat-title {
+    font-size: 0.72rem !important;
+    line-height: 1.25;
+  }
+
+  .q-stat-value {
+    font-size: 1.55rem !important;
+    line-height: 1.05;
+  }
+
+  .q-stat-subtitle {
+    margin-top: 0.65rem !important;
+    font-size: 0.72rem !important;
+    line-height: 1.3;
   }
 
   .q-stat-icon {
-    width: 2.65rem;
-    height: 2.65rem;
+    width: 2.45rem;
+    height: 2.45rem;
     border-radius: 1rem;
+  }
+
+  .q-segmented-tabs {
+    padding: 0.45rem !important;
+    overflow: hidden;
+  }
+
+  .q-segmented-scroll {
+    display: flex;
+    gap: 0.45rem;
+    overflow-x: auto;
+    padding-bottom: 0.1rem;
+    scroll-snap-type: x proximity;
+  }
+
+  .q-segmented-scroll button {
+    flex: 0 0 auto;
+    min-height: 40px;
+    min-width: 8.2rem;
+    border-radius: 15px;
+    padding-inline: 0.85rem;
+    font-size: 0.82rem;
+    scroll-snap-align: start;
+  }
+
+  .q-master-card-grid {
+    gap: 0.75rem;
+  }
+
+  .q-master-card {
+    min-height: 104px !important;
+    gap: 0.9rem !important;
+  }
+
+  .q-master-card > span:first-child {
+    width: 3.25rem !important;
+    height: 3.25rem !important;
+    border-radius: 1.15rem !important;
+  }
+
+  .q-master-card span span:first-child {
+    font-size: 1rem !important;
+    line-height: 1.2;
+  }
+
+  .q-master-card span span:last-child {
+    font-size: 0.76rem !important;
+    line-height: 1.45;
   }
 
   .dashboard-mini-tile {
@@ -557,6 +631,30 @@ button:disabled {
     border-radius: 20px;
   }
 
+  .q-data-table {
+    max-width: 100%;
+    margin-inline: -0.15rem;
+  }
+
+  .q-data-table-inner {
+    min-width: min(var(--table-min-width, 720px), 430px) !important;
+  }
+
+  .q-data-table th {
+    padding: 0.5rem 0.65rem !important;
+    font-size: 0.67rem !important;
+  }
+
+  .q-data-table td {
+    padding: 0.6rem 0.65rem !important;
+    font-size: 0.72rem !important;
+    line-height: 1.35;
+  }
+
+  .q-data-table td[colspan] {
+    padding-block: 1.5rem !important;
+  }
+
   .q-dropdown {
     max-width: calc(100vw - 1.5rem);
   }
@@ -596,7 +694,42 @@ button:disabled {
   }
 
   .q-page-heading h1 {
-    font-size: 1.6rem !important;
+    font-size: 1.32rem !important;
+  }
+
+  .q-stat-card {
+    min-height: 90px !important;
+  }
+
+  .q-stat-value {
+    font-size: 1.42rem !important;
+  }
+
+  .q-stat-subtitle {
+    font-size: 0.68rem !important;
+  }
+
+  .q-segmented-scroll button {
+    min-width: 7.5rem;
+    font-size: 0.78rem;
+  }
+
+  .q-master-card {
+    min-height: 96px !important;
+    padding: 0.85rem !important;
+  }
+
+  .q-master-card > span:first-child {
+    width: 2.8rem !important;
+    height: 2.8rem !important;
+  }
+
+  .q-master-card span span:first-child {
+    font-size: 0.95rem !important;
+  }
+
+  .q-master-card span span:last-child {
+    font-size: 0.72rem !important;
   }
 
   .q-refresh-button {
