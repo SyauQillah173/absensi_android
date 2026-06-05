@@ -54,7 +54,7 @@ export function exportPrayerRekapExcel(rows: ApiRecord[], summary: ApiRecord, fi
 }
 
 export function exportMadinRekapExcel(rows: ApiRecord[], month: number, year: number, fileName = 'rekap_absensi_madin.xlsx') {
-  const headers = ['No', 'Nama Siswa', 'NIS', 'Kelas', 'Mapel', 'Hadir', 'Izin', 'Sakit', 'Alfa', 'Total', 'Kehadiran %', 'Petugas'];
+  const headers = ['No', 'Nama Siswa/Santri', 'NIS', 'Kelas', 'Mapel', 'Hadir', 'Izin', 'Sakit', 'Alfa', 'Total', 'Kehadiran %', 'Petugas'];
   const dataRows = rows.map((row, index) => {
     const siswa = (row.siswa && typeof row.siswa === 'object' ? row.siswa : {}) as ApiRecord;
     const hadir = asNumber(row.total_hadir ?? row.hadir);

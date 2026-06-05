@@ -80,7 +80,7 @@ class PembayaranExportService {
       ..cellStyle = infoStyle;
 
     final headers = [
-      'Nama Siswa',
+      'Nama Siswa/Santri',
       'NIS',
       'Kelas',
       'Nama Wali',
@@ -167,7 +167,7 @@ class PembayaranExportService {
 
       final summaryHeaderRow = sectionTitleRow + 1;
       final summaryHeaders = [
-        'Nama Siswa',
+        'Nama Siswa/Santri',
         'NIS',
         'Kelas',
         'Jumlah Transaksi',
@@ -428,7 +428,7 @@ class PembayaranExportService {
         ),
         child: pw.Column(
           children: [
-            _identityRow('Nama Siswa', siswa['nama']?.toString() ?? '-'),
+            _identityRow('Nama Siswa/Santri', siswa['nama']?.toString() ?? '-'),
             _identityRow('NIS', siswa['nis']?.toString() ?? '-'),
             _identityRow('Kelas', siswa['kelas']?.toString() ?? '-'),
             _identityRow('Nama Wali', siswa['wali_nama']?.toString() ?? '-'),

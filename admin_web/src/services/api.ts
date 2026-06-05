@@ -350,11 +350,35 @@ export const api = {
   siswa(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>('/siswa', {}, params);
   },
+  createSiswa(data: ApiRecord) {
+    return request<ApiRecord>('/siswa', { method: 'POST', body: JSON.stringify(data) });
+  },
+  updateSiswa(id: number, data: ApiRecord) {
+    return request<ApiRecord>(`/siswa/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+  deleteSiswa(id: number) {
+    return request(`/siswa/${id}`, { method: 'DELETE' });
+  },
+  bulkUpdateSiswaStatus(ids: number[], status: 'Aktif' | 'Nonaktif' | 'Lulus', extra: ApiRecord = {}) {
+    return request<ApiRecord>('/siswa/bulk-status', { method: 'POST', body: JSON.stringify({ ids, status, ...extra }) });
+  },
   importSiswa(rows: ApiRecord[]) {
     return importRowsInBatches('/siswa/import', rows);
   },
   users(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>('/users', {}, params);
+  },
+  createUser(data: ApiRecord) {
+    return request<ApiRecord>('/users', { method: 'POST', body: JSON.stringify(data) });
+  },
+  updateUser(id: number, data: ApiRecord) {
+    return request<ApiRecord>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+  deleteUser(id: number) {
+    return request(`/users/${id}`, { method: 'DELETE' });
+  },
+  resetUserPassword(id: number) {
+    return request<ApiRecord>(`/users/${id}/reset-password`, { method: 'POST' });
   },
   importUsers(rows: ApiRecord[]) {
     return importRowsInBatches('/users/import', rows);
@@ -379,6 +403,18 @@ export const api = {
   },
   jadwal(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>('/jadwal', {}, params);
+  },
+  createJadwal(data: ApiRecord) {
+    return request<ApiRecord>('/jadwal', { method: 'POST', body: JSON.stringify(data) });
+  },
+  updateJadwal(id: number, data: ApiRecord) {
+    return request<ApiRecord>(`/jadwal/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+  deleteJadwal(id: number) {
+    return request(`/jadwal/${id}`, { method: 'DELETE' });
+  },
+  syncJadwalGroup(data: ApiRecord) {
+    return request<ApiRecord>('/jadwal/sync-group', { method: 'POST', body: JSON.stringify(data) });
   },
   kelompokBelajar(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>('/kelompok-belajar', {}, params);

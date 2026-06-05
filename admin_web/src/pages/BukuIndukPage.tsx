@@ -9,7 +9,7 @@ import { KelompokBelajarPage } from './KelompokBelajarPage';
 export type BukuIndukSection = 'ringkas' | 'siswa' | 'guru' | 'users' | 'login-admin' | 'login-guru' | 'login-wali' | 'akademik' | 'kelompok' | 'pondok';
 
 const sections = [
-  { id: 'siswa', label: 'Data Siswa' },
+  { id: 'siswa', label: 'Data Siswa/Santri' },
   { id: 'guru', label: 'Data Guru' },
   { id: 'users', label: 'User Login' },
   { id: 'akademik', label: 'Akademik' },
@@ -20,7 +20,7 @@ const sections = [
 const menuCards = [
   {
     id: 'siswa',
-    title: 'Data Siswa',
+    title: 'Data Siswa/Santri',
     subtitle: 'NIS, NISN, wali, status, kelas, dan data utama santri.',
     icon: UsersRound,
     tone: 'text-[#2E86DE] bg-[#E8F3FF]'

@@ -34,6 +34,7 @@ export function MataPelajaranPage() {
   const [rows, setRows] = useState<ApiRecord[]>([]);
   const [teachers, setTeachers] = useState<ApiRecord[]>([]);
   const [search, setSearch] = useState('');
+  const [teacherSearch, setTeacherSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('Semua');
   const [form, setForm] = useState<MapelFormState | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ApiRecord | null>(null);
@@ -75,6 +76,11 @@ export function MataPelajaranPage() {
 
   const activeCount = rows.filter((row) => text(row.status) === 'Aktif').length;
   const teacherConnected = rows.reduce((sum, row) => sum + list(row.guru).length, 0);
+  const filteredTeachers = useMemo(() => {
+    const keyword = teacherSearch.toLowerCase();
+    if (!keyword) return teachers;
+    return teachers.filter((teacher) => `${teacher.name ?? ''} ${teacher.email ?? ''} ${teacher.kode_guru ?? ''}`.toLowerCase().includes(keyword));
+  }, [teachers, teacherSearch]);
 
   const columns = useMemo<DataColumn<ApiRecord>[]>(
     () => [
@@ -113,6 +119,7 @@ export function MataPelajaranPage() {
   );
 
   function openForm(row?: ApiRecord) {
+    setTeacherSearch('');
     setForm({
       id: row?.id ? num(row.id) : undefined,
       nama: text(row?.nama, ''),
@@ -209,7 +216,35 @@ export function MataPelajaranPage() {
             <option value="Nonaktif">Nonaktif</option>
           </select>
         </div>
-        <DataTable rows={filtered} columns={columns} emptyText={isLoading ? 'Memuat mata pelajaran...' : 'Belum ada mata pelajaran.'} minWidth="900px" />
+        <DataTable
+          rows={filtered}
+          columns={columns}
+          emptyText={isLoading ? 'Memuat mata pelajaran...' : 'Belum ada mata pelajaran.'}
+          minWidth="900px"
+          mobileRender={(row) => (
+            <article className="rounded-3xl bg-white p-4 shadow-sm shadow-black/5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="break-words text-base font-extrabold text-[#2D3436]">{text(row.nama)}</h3>
+                  <p className="mt-1 text-xs font-semibold text-[#636E72]">Kode: {text(row.kode)}</p>
+                </div>
+                <StatusBadge label={text(row.status, 'Aktif')} tone={text(row.status) === 'Aktif' ? 'success' : 'danger'} />
+              </div>
+              <p className="mt-3 text-xs font-semibold leading-5 text-[#636E72]">
+                Guru: {list(row.guru).length ? list(row.guru).map((guru) => text(guru.name)).join(', ') : 'Belum terhubung'}
+              </p>
+              <p className="text-xs font-semibold text-[#636E72]">Jadwal aktif: {list(row.jadwal).length}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button className="rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-bold text-[#2E86DE]" onClick={() => openForm(row)} type="button">
+                  <Pencil size={14} className="inline" /> Edit
+                </button>
+                <button className="rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-bold text-[#D63031]" onClick={() => setDeleteTarget(row)} type="button">
+                  <Trash2 size={14} className="inline" /> Hapus
+                </button>
+              </div>
+            </article>
+          )}
+        />
       </section>
 
       {form ? (
@@ -240,11 +275,14 @@ export function MataPelajaranPage() {
             </div>
             <div className="rounded-3xl bg-white p-4">
               <p className="mb-3 text-sm font-extrabold text-[#2D3436]">Guru Pengajar</p>
+              <div className="mb-3">
+                <SearchInput value={teacherSearch} onChange={setTeacherSearch} placeholder="Cari guru pengajar / kode / email" />
+              </div>
               <div className="grid max-h-64 gap-2 overflow-y-auto q-scrollbar">
-                {teachers.length === 0 ? (
+                {filteredTeachers.length === 0 ? (
                   <p className="rounded-2xl bg-[#E1EFF7] px-4 py-3 text-sm font-bold text-[#636E72]">Belum ada guru aktif.</p>
                 ) : (
-                  teachers.map((teacher) => {
+                  filteredTeachers.map((teacher) => {
                     const id = num(teacher.id);
                     const selected = form.guruIds.has(id);
                     return (

@@ -1022,7 +1022,7 @@ class _DataSiswaScreenState extends State<DataSiswaScreen>
             ),
             const SizedBox(height: 16),
             const Text(
-              'Kelola Data Siswa',
+              'Kelola Data Siswa/Santri',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -1204,7 +1204,7 @@ class _DataSiswaScreenState extends State<DataSiswaScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Data Siswa',
+                    'Data Siswa/Santri',
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
@@ -1212,7 +1212,7 @@ class _DataSiswaScreenState extends State<DataSiswaScreen>
                     ),
                   ),
                   Text(
-                    'Buku Induk → Data Siswa',
+                    'Buku Induk → Data Siswa/Santri',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,

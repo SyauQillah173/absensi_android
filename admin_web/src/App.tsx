@@ -8,6 +8,7 @@ import { DataPondokPage } from './pages/DataPondokPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { FinancePage } from './pages/FinancePage';
 import { HakAksesPage } from './pages/HakAksesPage';
+import { JadwalPelajaranPage } from './pages/JadwalPelajaranPage';
 import { LoginPage } from './pages/LoginPage';
 import { MataPelajaranPage } from './pages/MataPelajaranPage';
 import { MasterDataPage } from './pages/MasterDataPage';
@@ -30,6 +31,7 @@ function AdminShell() {
     users: 'buku_induk',
     pondok: 'buku_induk',
     mapel: 'mata_pelajaran',
+    jadwal: 'mata_pelajaran',
     keuangan: 'keuangan',
     nilai: 'nilai',
     'hak-akses': 'hak_akses'
@@ -53,6 +55,7 @@ function AdminShell() {
       {safePage === 'pondok' ? <DataPondokPage /> : null}
       {safePage === 'absensi' ? <AbsensiPage /> : null}
       {safePage === 'mapel' ? <MataPelajaranPage /> : null}
+      {safePage === 'jadwal' ? <JadwalPelajaranPage /> : null}
       {safePage === 'nilai' ? <NilaiHafalanPage /> : null}
       {safePage === 'hak-akses' ? <HakAksesPage /> : null}
       {safePage === 'account' ? <AccountPage /> : null}

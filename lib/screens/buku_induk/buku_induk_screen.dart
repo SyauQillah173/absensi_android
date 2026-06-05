@@ -286,7 +286,7 @@ class _BukuIndukScreenState extends State<BukuIndukScreen>
                           _buildCategoryCard(
                             index: 1,
                             icon: Icons.people_rounded,
-                            title: 'Data Siswa',
+                            title: 'Data Siswa/Santri',
                             subtitle: _isLoadingCounts
                                 ? 'Memuat...'
                                 : '$_siswaCount Data Tersimpan',

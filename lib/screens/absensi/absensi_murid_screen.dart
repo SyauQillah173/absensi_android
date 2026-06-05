@@ -1486,7 +1486,7 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
                           onChanged: (val) =>
                               setState(() => _searchQuery = val),
                           decoration: const InputDecoration(
-                            hintText: 'Cari Nama Siswa...',
+                            hintText: 'Cari Nama Siswa/Santri...',
                             border: InputBorder.none,
                             hintStyle: TextStyle(
                               fontSize: 13,
@@ -1534,7 +1534,7 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
                       SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          'Nama Siswa',
+                          'Nama Siswa/Santri',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,

@@ -47,7 +47,7 @@ class NilaiExportService {
     );
 
     final headers = [
-      'Nama Siswa',
+      'Nama Siswa/Santri',
       'NIS',
       'Kelas',
       'Nilai Pelajaran',
@@ -303,7 +303,7 @@ class NilaiExportService {
         ),
         child: pw.Column(
           children: [
-            _identityRow('Nama Siswa', siswa['nama']?.toString() ?? '-'),
+            _identityRow('Nama Siswa/Santri', siswa['nama']?.toString() ?? '-'),
             _identityRow('NIS', siswa['nis']?.toString() ?? '-'),
             _identityRow('Kelas', siswa['kelas']?.toString() ?? '-'),
             _identityRow('Semester / Periode', semester ?? 'Semua data aktif'),

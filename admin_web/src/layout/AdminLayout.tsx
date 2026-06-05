@@ -2,6 +2,7 @@ import {
   Bell,
   BookOpen,
   CalendarCheck,
+  Clock3,
   ChevronDown,
   Home,
   LibraryBig,
@@ -16,7 +17,7 @@ import {
   UserRound,
   WalletCards
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { type ComponentType, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import type { BukuIndukSection } from '../pages/BukuIndukPage';
 
@@ -28,6 +29,7 @@ export type PageKey =
   | 'users'
   | 'pondok'
   | 'mapel'
+  | 'jadwal'
   | 'keuangan'
   | 'nilai'
   | 'hak-akses'
@@ -36,7 +38,7 @@ export type PageKey =
 export interface MenuItem {
   key: PageKey;
   label: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: ComponentType<{ size?: number; className?: string }>;
   children?: Array<{
     label: string;
     page: PageKey;
@@ -48,7 +50,7 @@ interface AdminLayoutProps {
   activePage: PageKey;
   activeMasterSection?: BukuIndukSection;
   onNavigate: (page: PageKey, options?: { masterSection?: BukuIndukSection }) => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 const allMenu: MenuItem[] = [
@@ -60,7 +62,7 @@ const allMenu: MenuItem[] = [
     icon: LibraryBig,
     children: [
       { label: 'Buku Induk', page: 'master', masterSection: 'ringkas' },
-      { label: 'Data Siswa', page: 'master', masterSection: 'siswa' },
+      { label: 'Data Siswa/Santri', page: 'master', masterSection: 'siswa' },
       { label: 'Data Guru', page: 'master', masterSection: 'guru' },
       { label: 'User Login', page: 'master', masterSection: 'users' },
       { label: 'Login Admin', page: 'master', masterSection: 'login-admin' },
@@ -72,6 +74,7 @@ const allMenu: MenuItem[] = [
     ]
   },
   { key: 'mapel', label: 'Mata Pelajaran', icon: BookOpen },
+  { key: 'jadwal', label: 'Jadwal Pelajaran', icon: Clock3 },
   { key: 'keuangan', label: 'Keuangan', icon: WalletCards },
   { key: 'nilai', label: 'Nilai Ujian/Hafalan', icon: ListChecks },
   { key: 'hak-akses', label: 'Hak Akses', icon: ShieldCheck }
@@ -85,6 +88,7 @@ const menuPermissionKeys: Partial<Record<PageKey, string>> = {
   users: 'buku_induk',
   pondok: 'buku_induk',
   mapel: 'mata_pelajaran',
+  jadwal: 'mata_pelajaran',
   keuangan: 'keuangan',
   nilai: 'nilai',
   'hak-akses': 'hak_akses'

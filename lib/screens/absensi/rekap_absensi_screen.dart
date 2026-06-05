@@ -169,7 +169,7 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen>
       rows.add([
         'No',
         'NIS',
-        'Nama Siswa',
+        'Nama Siswa/Santri',
         'Kelas',
         'Mapel',
         'Hadir',

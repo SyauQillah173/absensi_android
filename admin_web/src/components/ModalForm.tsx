@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 
 interface ModalFormProps {
   title: string;
@@ -9,9 +9,24 @@ interface ModalFormProps {
 }
 
 export function ModalForm({ title, children, onClose, footer }: ModalFormProps) {
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
   return (
-    <div className="q-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6" role="dialog" aria-modal="true">
-      <div className="q-modal-panel q-panel flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-[24px]">
+    <div
+      className="q-modal-backdrop fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="q-modal-panel q-panel flex max-h-[calc(94dvh-env(safe-area-inset-bottom))] w-full max-w-2xl flex-col overflow-hidden rounded-t-[28px] sm:max-h-[calc(100dvh-2rem)] sm:rounded-[24px]">
         <div className="q-modal-header flex shrink-0 items-center justify-between gap-4 border-b border-white/60 px-6 py-5">
           <h2 className="text-xl font-extrabold text-[#2D3436]">{title}</h2>
           <button className="grid h-10 w-10 place-items-center rounded-full bg-white text-[#2D3436]" onClick={onClose} type="button" aria-label="Tutup">
