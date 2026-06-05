@@ -947,3 +947,63 @@ button:disabled {
     max-height: 72px;
   }
 }
+
+/* Final modal guard: all large forms are attached to body via portal and
+   sized against the viewport, so they never sink under scrolled content. */
+.q-modal-backdrop {
+  background: rgba(45, 52, 54, 0.28);
+  backdrop-filter: blur(10px);
+  overscroll-behavior: contain;
+  padding: 0 !important;
+}
+
+.q-modal-frame {
+  height: 100dvh;
+  padding: 1.25rem;
+  overscroll-behavior: contain;
+}
+
+.q-modal-panel {
+  max-height: min(92dvh, calc(100dvh - 2.5rem)) !important;
+  max-width: min(48rem, calc(100vw - 2rem));
+  margin: auto 0;
+  animation: qModalIn 190ms ease both;
+  box-shadow: 0 26px 70px rgba(45, 52, 54, 0.2);
+}
+
+.q-modal-content {
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+
+.q-modal-footer {
+  background: inherit;
+}
+
+@media (max-width: 639px) {
+  .q-modal-frame {
+    align-items: flex-end !important;
+    min-height: 100dvh;
+    padding: max(0.65rem, env(safe-area-inset-top)) 0.55rem 0 !important;
+  }
+
+  .q-modal-panel {
+    width: 100%;
+    max-height: calc(92dvh - env(safe-area-inset-bottom)) !important;
+    max-width: 100%;
+    margin: 0;
+    border-radius: 24px 24px 0 0 !important;
+  }
+
+  .q-modal-header {
+    padding: 1rem !important;
+  }
+
+  .q-modal-content {
+    padding: 1rem !important;
+  }
+
+  .q-modal-footer {
+    padding: 0.85rem 1rem calc(0.85rem + env(safe-area-inset-bottom)) !important;
+  }
+}

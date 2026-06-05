@@ -1,4 +1,6 @@
 import { AlertTriangle, X } from 'lucide-react';
+import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ConfirmDialogProps {
   title: string;
@@ -21,9 +23,35 @@ export function ConfirmDialog({
   onCancel,
   onConfirm
 }: ConfirmDialogProps) {
+  useEffect(() => {
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !isBusy) onCancel();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, [isBusy, onCancel]);
+
   const danger = tone === 'danger';
-  return (
-    <div className="q-modal-backdrop fixed inset-0 z-[60] grid place-items-center p-4" role="alertdialog" aria-modal="true">
+  const dialog = (
+    <div
+      className="q-modal-backdrop fixed inset-0 z-[60] grid place-items-center overflow-hidden p-4"
+      role="alertdialog"
+      aria-modal="true"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !isBusy) onCancel();
+      }}
+    >
       <section className="q-modal-panel w-full max-w-md rounded-[28px] bg-[#FFFDF7] p-5 shadow-2xl shadow-black/20">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -55,4 +83,6 @@ export function ConfirmDialog({
       </section>
     </div>
   );
+
+  return createPortal(dialog, document.body);
 }
