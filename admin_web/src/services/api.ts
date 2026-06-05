@@ -13,9 +13,14 @@ export interface UserSession {
   id: number;
   name: string;
   email?: string;
+  no_hp?: string;
+  nis?: string;
+  nisn?: string;
+  foto_url?: string | null;
   role: string;
   admin_type?: string | null;
   status?: string;
+  permissions?: ApiRecord;
   token: string;
 }
 
@@ -133,6 +138,31 @@ function authHeaders(): HeadersInit {
   };
 }
 
+function authUploadHeaders(): HeadersInit {
+  const session = readSession();
+  return {
+    Accept: 'application/json',
+    ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {})
+  };
+}
+
+function sessionFromData(data: ApiRecord, token: string): UserSession {
+  return {
+    id: Number(data.id ?? 0),
+    name: String(data.name ?? 'Admin'),
+    email: data.email ? String(data.email) : undefined,
+    no_hp: data.no_hp ? String(data.no_hp) : undefined,
+    nis: data.nis ? String(data.nis) : undefined,
+    nisn: data.nisn ? String(data.nisn) : undefined,
+    foto_url: data.foto_url ? String(data.foto_url) : null,
+    role: String(data.role ?? ''),
+    admin_type: data.admin_type ? String(data.admin_type) : null,
+    status: data.status ? String(data.status) : undefined,
+    permissions: data.permissions && typeof data.permissions === 'object' ? (data.permissions as ApiRecord) : undefined,
+    token
+  };
+}
+
 function toQuery(params?: Record<string, string | number | boolean | undefined | null>): string {
   if (!params) return '';
   const search = new URLSearchParams();
@@ -231,29 +261,70 @@ export const api = {
     });
     const data = payload.data as ApiRecord;
     const token = String(payload.token ?? '');
-    const session: UserSession = {
-      id: Number(data.id ?? 0),
-      name: String(data.name ?? 'Admin'),
-      email: data.email ? String(data.email) : undefined,
-      role: String(data.role ?? ''),
-      admin_type: data.admin_type ? String(data.admin_type) : null,
-      status: data.status ? String(data.status) : undefined,
-      token
-    };
+    const session = sessionFromData(data, token);
     if (session.role !== 'admin') {
       throw new Error('Web admin hanya untuk Admin Utama dan Bendahara.');
     }
     writeSession(session);
-    return session;
+    try {
+      const profile = await this.profile();
+      const profileData = (profile.data && typeof profile.data === 'object' ? profile.data : {}) as ApiRecord;
+      const enriched = { ...sessionFromData(profileData, token), admin_type: session.admin_type ?? null };
+      writeSession(enriched);
+      return enriched;
+    } catch {
+      return session;
+    }
   },
   logout() {
     return request('/logout', { method: 'POST' }).finally(clearSession);
+  },
+  profile() {
+    return request<ApiRecord>('/profile');
+  },
+  async refreshProfile(): Promise<UserSession> {
+    const current = readSession();
+    if (!current?.token) {
+      throw new Error('Sesi tidak ditemukan.');
+    }
+    const response = await request<ApiRecord>('/profile');
+    const data = (response.data && typeof response.data === 'object' ? response.data : {}) as ApiRecord;
+    const next = { ...sessionFromData(data, current.token), admin_type: current.admin_type ?? (data.admin_type ? String(data.admin_type) : null) };
+    writeSession(next);
+    return next;
+  },
+  updateProfile(data: ApiRecord) {
+    return request<ApiRecord>('/profile', { method: 'PUT', body: JSON.stringify(data) });
+  },
+  async uploadProfilePhoto(file: File) {
+    const url = `${apiBaseUrl()}/profile/foto`;
+    const form = new FormData();
+    form.set('foto', file);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: authUploadHeaders(),
+      body: form
+    });
+    const payload = (await response.json().catch(() => ({}))) as ApiResponse<ApiRecord>;
+    if (!response.ok || payload.success === false) {
+      throw new Error(payload.message || `Upload foto gagal (${response.status})`);
+    }
+    return payload;
+  },
+  deleteProfilePhoto() {
+    return request<ApiRecord>('/profile/foto', { method: 'DELETE' });
+  },
+  changePassword(data: { identifier: string; current_password: string; new_password: string; new_password_confirmation: string }) {
+    return request<ApiRecord>('/change-password', { method: 'POST', body: JSON.stringify(data) });
   },
   dashboard(userId?: number) {
     return request<ApiRecord>('/dashboard', {}, userId ? { user_id: userId } : undefined);
   },
   notifications() {
     return request<ApiRecord[]>('/notifications');
+  },
+  markNotificationRead(id: number) {
+    return request<ApiRecord>(`/notifications/${id}/read`, { method: 'PATCH' });
   },
   activeAcademicPeriod() {
     return request<ApiRecord>('/academic-periods/active');

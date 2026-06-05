@@ -125,8 +125,10 @@ button:disabled {
 
 .q-sidebar-nav {
   min-height: 0;
+  flex: 1 1 auto;
   overflow-y: auto;
   padding-right: 0.2rem;
+  padding-bottom: calc(0.8rem + env(safe-area-inset-bottom));
 }
 
 .q-topbar {
@@ -189,6 +191,17 @@ button:disabled {
 .q-dropdown {
   animation: qDropdownIn 180ms ease both;
   transform-origin: top right;
+  max-height: calc(100dvh - 5.5rem);
+  overflow-y: auto;
+}
+
+.q-permission-mobile {
+  display: none;
+}
+
+.q-permission-save-bar {
+  bottom: max(0.75rem, env(safe-area-inset-bottom));
+  z-index: 12;
 }
 
 .q-page-enter {
@@ -384,12 +397,13 @@ button:disabled {
   .q-mobile-drawer aside {
     width: min(18rem, 80vw) !important;
     max-width: calc(100vw - 2rem);
-    height: calc(100vh - 2rem);
+    height: calc(100dvh - 2rem);
+    display: flex;
     overflow: hidden;
   }
 
   .q-mobile-drawer .q-sidebar-nav {
-    max-height: calc(100vh - 13.5rem);
+    max-height: none;
   }
 }
 
@@ -433,6 +447,8 @@ button:disabled {
     top: 4.75rem !important;
     width: auto !important;
     max-width: none !important;
+    max-height: calc(100dvh - 5.5rem);
+    overflow-y: auto;
     border-radius: 22px;
   }
 
@@ -453,7 +469,7 @@ button:disabled {
   }
 
   .q-mobile-drawer .q-sidebar-nav {
-    max-height: calc(100vh - 12.5rem);
+    max-height: none;
   }
 
   .q-drawer-close {
@@ -706,16 +722,15 @@ button:disabled {
   }
 
   .q-modal-backdrop {
-    align-items: flex-start !important;
-    padding: 0.75rem !important;
+    align-items: flex-end !important;
+    padding: 0 !important;
     padding-top: max(0.75rem, env(safe-area-inset-top)) !important;
-    padding-bottom: max(0.75rem, env(safe-area-inset-bottom)) !important;
   }
 
   .q-modal-panel {
     width: 100%;
-    max-height: calc(100dvh - 1.5rem) !important;
-    border-radius: 22px !important;
+    max-height: calc(92dvh - env(safe-area-inset-bottom)) !important;
+    border-radius: 24px 24px 0 0 !important;
   }
 
   .q-modal-header {
@@ -776,6 +791,23 @@ button:disabled {
     justify-content: center;
     font-size: 0.9rem !important;
   }
+
+  .q-permission-desktop {
+    display: none;
+  }
+
+  .q-permission-mobile {
+    display: block;
+  }
+
+  .q-permission-save-bar {
+    position: sticky;
+    margin-inline: -0.15rem;
+  }
+
+  .q-permission-save-bar button {
+    width: 100%;
+  }
 }
 
 @media (max-width: 420px) {
@@ -805,6 +837,7 @@ button:disabled {
 
   .q-mobile-drawer aside {
     width: min(15.75rem, 74vw) !important;
+    height: calc(100dvh - 1.4rem);
   }
 
   .q-mobile-overlay {

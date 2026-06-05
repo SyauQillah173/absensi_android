@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Absensi;
+use App\Models\AbsensiNgaji;
 use App\Models\AbsensiSholat;
 use App\Models\AppNotification;
 use App\Models\BoardingRoom;
 use App\Models\GuruAbsensiSholatAccess;
 use App\Models\Jadwal;
 use App\Models\MataPelajaran;
+use App\Models\NgajiSchedule;
 use App\Models\Pembayaran;
 use App\Models\PrayerAttendanceType;
 use App\Models\SantriPondok;
@@ -103,6 +105,7 @@ class DashboardController extends Controller
                 'per_kelas' => $absensiPerKelas,
             ],
             'absensi_sholat' => $this->buildAdminPrayerSummary($today),
+            'absensi_ngaji' => $this->buildAdminNgajiSummary($today),
             'pembayaran' => [
                 'total_masuk' => $pembayaranHariIni->sum('jumlah'),
                 'jumlah_transaksi' => $pembayaranHariIni->count(),
@@ -187,6 +190,7 @@ class DashboardController extends Controller
                 'per_kelas' => $cards,
             ],
             'absensi_sholat' => $this->buildGuruPrayerSummary($guru, $today),
+            'absensi_ngaji' => $this->buildGuruNgajiSummary($guru, $today),
             'pembayaran' => [
                 'total_masuk' => $pembayaranHariIni->sum('jumlah'),
                 'jumlah_transaksi' => $pembayaranHariIni->count(),
@@ -323,6 +327,7 @@ class DashboardController extends Controller
                 'per_kelas' => $cards,
             ],
             'absensi_sholat' => $this->buildWaliPrayerSummary($anakIds, $today),
+            'absensi_ngaji' => $this->buildWaliNgajiSummary($anakIds, $today),
             'pembayaran' => [
                 'total_masuk' => 0,
                 'jumlah_transaksi' => 0,
@@ -350,6 +355,159 @@ class DashboardController extends Controller
             }
             $query->orWhere('status', 'Aktif');
         });
+    }
+
+    private function buildAdminNgajiSummary(string $today): array
+    {
+        $schedules = NgajiSchedule::query()
+            ->where('status', 'Aktif')
+            ->get();
+
+        $rows = AbsensiNgaji::query()
+            ->with(['siswa:id,nama,nis,kelas', 'session:id,name', 'book:id,name', 'schedule.teacher:id,name'])
+            ->whereDate('tanggal', $today)
+            ->where('is_cancelled', false)
+            ->get();
+
+        return $this->formatNgajiSummary(
+            $rows,
+            $schedules->count(),
+            $this->expectedNgajiStudentCount($schedules),
+        );
+    }
+
+    private function buildGuruNgajiSummary(User $guru, string $today): array
+    {
+        $schedules = NgajiSchedule::query()
+            ->where('status', 'Aktif')
+            ->where('teacher_id', $guru->id)
+            ->get();
+
+        $scheduleIds = $schedules->pluck('id')->all();
+        $rows = AbsensiNgaji::query()
+            ->with(['siswa:id,nama,nis,kelas', 'session:id,name', 'book:id,name', 'schedule.teacher:id,name'])
+            ->whereDate('tanggal', $today)
+            ->when(
+                !empty($scheduleIds),
+                fn ($query) => $query->whereIn('ngaji_schedule_id', $scheduleIds),
+                fn ($query) => $query->whereRaw('1 = 0'),
+            )
+            ->where('is_cancelled', false)
+            ->get();
+
+        return $this->formatNgajiSummary(
+            $rows,
+            $schedules->count(),
+            $this->expectedNgajiStudentCount($schedules),
+        );
+    }
+
+    private function buildWaliNgajiSummary($anakIds, string $today): array
+    {
+        $childIds = collect($anakIds)->map(fn ($id) => (int) $id)->filter()->values()->all();
+        $schedules = NgajiSchedule::query()
+            ->where('status', 'Aktif')
+            ->get()
+            ->filter(fn (NgajiSchedule $schedule) => $this->ngajiStudentCountForSchedule($schedule, $childIds) > 0)
+            ->values();
+
+        $rows = AbsensiNgaji::query()
+            ->with(['siswa:id,nama,nis,kelas', 'session:id,name', 'book:id,name', 'schedule.teacher:id,name'])
+            ->whereDate('tanggal', $today)
+            ->when(
+                !empty($childIds),
+                fn ($query) => $query->whereIn('siswa_id', $childIds),
+                fn ($query) => $query->whereRaw('1 = 0'),
+            )
+            ->where('is_cancelled', false)
+            ->orderByDesc('created_at')
+            ->get();
+
+        return $this->formatNgajiSummary(
+            $rows,
+            $schedules->count(),
+            $this->expectedNgajiStudentCount($schedules, $childIds),
+        );
+    }
+
+    private function expectedNgajiStudentCount($schedules, ?array $onlyStudentIds = null): int
+    {
+        return collect($schedules)->sum(fn (NgajiSchedule $schedule) => $this->ngajiStudentCountForSchedule($schedule, $onlyStudentIds));
+    }
+
+    private function ngajiStudentCountForSchedule(NgajiSchedule $schedule, ?array $onlyStudentIds = null): int
+    {
+        $filterStudents = function ($query) use ($onlyStudentIds) {
+            if (!empty($onlyStudentIds)) {
+                $query->whereIn('siswa_id', $onlyStudentIds);
+            }
+        };
+
+        if ($schedule->boarding_room_id) {
+            return SantriPondok::query()
+                ->where('status', 'Aktif')
+                ->where('boarding_room_id', $schedule->boarding_room_id)
+                ->when(!empty($onlyStudentIds), $filterStudents)
+                ->count();
+        }
+
+        if ($schedule->boarding_complex_id) {
+            return SantriPondok::query()
+                ->where('status', 'Aktif')
+                ->where('boarding_complex_id', $schedule->boarding_complex_id)
+                ->when(!empty($onlyStudentIds), $filterStudents)
+                ->count();
+        }
+
+        if ($schedule->class_id) {
+            return $this->activeStudentsQuery()
+                ->where('class_id', $schedule->class_id)
+                ->when(!empty($onlyStudentIds), fn ($query) => $query->whereIn('id', $onlyStudentIds))
+                ->count();
+        }
+
+        return SantriPondok::query()
+            ->where('status', 'Aktif')
+            ->when(!empty($onlyStudentIds), $filterStudents)
+            ->count();
+    }
+
+    private function formatNgajiSummary($rows, int $expectedSchedules, int $expectedTotal = 0): array
+    {
+        $scheduleDone = $rows
+            ->pluck('ngaji_schedule_id')
+            ->filter()
+            ->unique()
+            ->count();
+        $attended = $rows->count();
+        $present = $rows->where('status_code', 'H')->count();
+        $effectiveTotal = max($expectedTotal, $attended);
+
+        return [
+            'total' => $attended,
+            'expected_total' => $expectedTotal,
+            'H' => $present,
+            'I' => $rows->where('status_code', 'I')->count(),
+            'S' => $rows->where('status_code', 'S')->count(),
+            'A' => $rows->where('status_code', 'A')->count(),
+            'kosong' => max(0, $expectedTotal - $attended),
+            'jadwal_sudah_diabsen' => $scheduleDone,
+            'jadwal_belum_diabsen' => max(0, $expectedSchedules - $scheduleDone),
+            'persentase_hadir' => $effectiveTotal > 0 ? round(($present / $effectiveTotal) * 100, 2) : 0,
+            'terbaru' => $rows->sortByDesc('created_at')->take(5)->map(fn (AbsensiNgaji $row) => [
+                'siswa_id' => $row->siswa_id,
+                'siswa_nama' => $row->siswa?->nama,
+                'nis' => $row->siswa?->nis,
+                'kelas' => $row->siswa?->kelas,
+                'ngaji_schedule_id' => $row->ngaji_schedule_id,
+                'sesi' => $row->session?->name,
+                'kitab' => $row->book?->name,
+                'status' => $row->status_label,
+                'status_code' => $row->status_code,
+                'pengajar' => $row->schedule?->teacher?->name,
+                'waktu' => $row->created_at?->format('H:i'),
+            ])->values(),
+        ];
     }
 
     private function buildAdminPrayerSummary(string $today): array

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/api_service.dart';
 import '../../services/session_service.dart';
+import '../../services/sync_service.dart';
 
 class AbsensiNgajiScreen extends StatefulWidget {
   const AbsensiNgajiScreen({super.key});
@@ -168,6 +169,10 @@ class _AbsensiNgajiScreenState extends State<AbsensiNgajiScreen> {
 
       if (!mounted) return;
       _showSnack(result['message']?.toString() ?? 'Absensi ngaji tersimpan.');
+      await SyncService.notifyDataChanged(
+        SyncTopics.absensiNgaji,
+        message: 'Absensi ngaji berhasil diperbarui',
+      );
       await _loadContext();
     } catch (e) {
       if (!mounted) return;

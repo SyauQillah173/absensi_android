@@ -51,6 +51,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // Dashboard data: merged API (completed) + local pending
   List<Map<String, dynamic>> _absensiCards = [];
   Map<String, dynamic> _absensiSholatSummary = {};
+  Map<String, dynamic> _absensiNgajiSummary = {};
   bool _isDashboardLoading = false;
   bool _isDashboardRequestInFlight = false;
   String _dashboardFingerprint = '';
@@ -329,6 +330,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     const refreshTopics = {
       SyncTopics.absensi,
       SyncTopics.absensiSholat,
+      SyncTopics.absensiNgaji,
       SyncTopics.connectivity,
       SyncTopics.mapel,
       SyncTopics.kelas,
@@ -426,7 +428,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'persentase_hadir': _absensiSholatSummary['persentase_hadir'] ?? 0,
     };
 
-    return jsonEncode({'cards': normalized, 'absensi_sholat': prayer});
+    final ngaji = {
+      'total': _absensiNgajiSummary['total'] ?? 0,
+      'expected_total': _absensiNgajiSummary['expected_total'] ?? 0,
+      'H': _absensiNgajiSummary['H'] ?? 0,
+      'I': _absensiNgajiSummary['I'] ?? 0,
+      'S': _absensiNgajiSummary['S'] ?? 0,
+      'A': _absensiNgajiSummary['A'] ?? 0,
+      'kosong': _absensiNgajiSummary['kosong'] ?? 0,
+      'jadwal_sudah_diabsen': _absensiNgajiSummary['jadwal_sudah_diabsen'] ?? 0,
+      'jadwal_belum_diabsen': _absensiNgajiSummary['jadwal_belum_diabsen'] ?? 0,
+      'persentase_hadir': _absensiNgajiSummary['persentase_hadir'] ?? 0,
+    };
+
+    return jsonEncode({
+      'cards': normalized,
+      'absensi_sholat': prayer,
+      'absensi_ngaji': ngaji,
+    });
   }
 
   DateTime? _parseScheduleTime(dynamic rawTime) {
@@ -496,6 +515,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         apiPerKelas = result['absensi']?['per_kelas'] ?? [];
         _absensiSholatSummary = Map<String, dynamic>.from(
           result['absensi_sholat'] ?? {},
+        );
+        _absensiNgajiSummary = Map<String, dynamic>.from(
+          result['absensi_ngaji'] ?? {},
         );
         await CacheService.save(_completedAbsensiCacheKey(), {
           'tanggal': DateTime.now().toIso8601String().split('T')[0],
@@ -660,6 +682,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _absensiCards = cards;
             _absensiSholatSummary = Map<String, dynamic>.from(
               _absensiSholatSummary,
+            );
+            _absensiNgajiSummary = Map<String, dynamic>.from(
+              _absensiNgajiSummary,
             );
             _isDashboardLoading = false;
           });
@@ -866,6 +891,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 14),
               _buildAbsensiStatusSection(),
               const SizedBox(height: 14),
+              _buildAbsensiNgajiSummarySection(),
+              if (_absensiNgajiSummary.isNotEmpty) const SizedBox(height: 14),
               _buildAbsensiSholatSummarySection(),
               const SizedBox(height: 20),
               _buildMenuSection(),
@@ -1329,6 +1356,77 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _userRole == 'wali'
                 ? 'Status anak hari ini - hadir ${percent.toStringAsFixed(0)}%'
                 : '$kamarDone kamar sudah diabsen, $kamarPending belum, $kosong kosong dari $expectedTotal santri',
+            style: const TextStyle(
+              fontSize: 11,
+              color: Color(0xFF636E72),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAbsensiNgajiSummarySection() {
+    if (_absensiNgajiSummary.isEmpty) return const SizedBox.shrink();
+    final total = (_absensiNgajiSummary['total'] as num?)?.toInt() ?? 0;
+    final hadir = (_absensiNgajiSummary['H'] as num?)?.toInt() ?? 0;
+    final izin = (_absensiNgajiSummary['I'] as num?)?.toInt() ?? 0;
+    final sakit = (_absensiNgajiSummary['S'] as num?)?.toInt() ?? 0;
+    final alfa =
+        ((_absensiNgajiSummary['A'] ?? _absensiNgajiSummary['kosong']) as num?)
+            ?.toInt() ??
+        0;
+    final expectedTotal =
+        (_absensiNgajiSummary['expected_total'] as num?)?.toInt() ?? total;
+    final percent =
+        (_absensiNgajiSummary['persentase_hadir'] as num?)?.toDouble() ?? 0;
+    final jadwalDone =
+        (_absensiNgajiSummary['jadwal_sudah_diabsen'] as num?)?.toInt() ?? 0;
+    final jadwalPending =
+        (_absensiNgajiSummary['jadwal_belum_diabsen'] as num?)?.toInt() ?? 0;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE1EFF7),
+        borderRadius: BorderRadius.circular(25),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.menu_book_rounded, size: 18, color: Color(0xFF138F81)),
+              SizedBox(width: 8),
+              Text(
+                'Absensi Ngaji Kitab',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF2D3436),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildMiniSummary('Total', total, const Color(0xFF2E86DE)),
+              const SizedBox(width: 8),
+              _buildMiniSummary('H', hadir, const Color(0xFF138F81)),
+              const SizedBox(width: 8),
+              _buildMiniSummary('I', izin, const Color(0xFFE65100)),
+              const SizedBox(width: 8),
+              _buildMiniSummary('S', sakit, const Color(0xFFD63031)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _userRole == 'wali'
+                ? 'Status ngaji anak hari ini - hadir ${percent.toStringAsFixed(0)}%'
+                : '$jadwalDone jadwal sudah diabsen, $jadwalPending belum, $alfa alfa/kosong dari $expectedTotal santri',
             style: const TextStyle(
               fontSize: 11,
               color: Color(0xFF636E72),

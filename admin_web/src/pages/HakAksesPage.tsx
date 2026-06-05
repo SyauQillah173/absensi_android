@@ -1,4 +1,4 @@
-import { RefreshCw, Save, ShieldCheck, ToggleLeft, UserCog, UsersRound } from 'lucide-react';
+import { RefreshCw, Save, ShieldCheck, UserCog, UsersRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { DataTable, type DataColumn } from '../components/DataTable';
 import { SegmentedTabs } from '../components/SegmentedTabs';
@@ -99,6 +99,10 @@ function permissionPayload(rows: PermissionRow[]): ApiRecord[] {
     }));
 }
 
+function payloadSignature(rows: PermissionRow[]): string {
+  return JSON.stringify(permissionPayload(rows).sort((a, b) => String(a.role).localeCompare(String(b.role)) || String(a.menu_key).localeCompare(String(b.menu_key))));
+}
+
 function ToggleCell({ checked, disabled, onChange }: { checked: boolean; disabled?: boolean; onChange: () => void }) {
   return (
     <button
@@ -118,6 +122,7 @@ function ToggleCell({ checked, disabled, onChange }: { checked: boolean; disable
 export function HakAksesPage() {
   const [roles, setRoles] = useState<string[]>([]);
   const [rows, setRows] = useState<PermissionRow[]>([]);
+  const [savedRows, setSavedRows] = useState<PermissionRow[]>([]);
   const [activeRole, setActiveRole] = useState('admin_bendahara');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -135,6 +140,7 @@ export function HakAksesPage() {
       const nextRows = flattenSettings(settings);
       setRoles(nextRoles);
       setRows(nextRows);
+      setSavedRows(nextRows);
       const preferredRole = nextRoles.includes(activeRole) ? activeRole : nextRoles.find((role) => role !== 'admin_utama') ?? nextRoles[0] ?? 'admin_bendahara';
       setActiveRole(preferredRole);
     } catch (err) {
@@ -150,6 +156,11 @@ export function HakAksesPage() {
 
   const visibleRows = useMemo(() => rows.filter((row) => row.role === activeRole), [activeRole, rows]);
   const activeRows = useMemo(() => rows.filter((row) => row.is_enabled && row.role !== 'admin_utama'), [rows]);
+  const hasChanges = useMemo(() => payloadSignature(rows) !== payloadSignature(savedRows), [rows, savedRows]);
+  const changedCount = useMemo(() => {
+    const savedMap = new Map(savedRows.map((row) => [row.id, payloadSignature([row])]));
+    return rows.filter((row) => row.role !== 'admin_utama' && savedMap.get(row.id) !== payloadSignature([row])).length;
+  }, [rows, savedRows]);
 
   function updateRow(rowId: string, key: keyof PermissionRow, value: boolean) {
     setRows((current) => current.map((row) => (row.id === rowId ? { ...row, [key]: value } : row)));
@@ -218,14 +229,6 @@ export function HakAksesPage() {
             <RefreshCw className="q-refresh-icon" size={17} />
             {isLoading ? 'Menyegarkan...' : 'Refresh'}
           </button>
-          <button
-            className="q-soft-action inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white disabled:opacity-60"
-            onClick={() => void save()}
-            type="button"
-            disabled={isSaving || isLoading || activeRole === 'admin_utama'}
-          >
-            <Save size={17} /> {isSaving ? 'Menyimpan...' : 'Simpan'}
-          </button>
         </div>
       </section>
 
@@ -256,18 +259,73 @@ export function HakAksesPage() {
         {isLoading ? (
           <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-bold text-[#636E72]">Memuat hak akses...</div>
         ) : (
-          <DataTable rows={visibleRows} columns={columns} emptyText="Hak akses role ini belum tersedia." minWidth="980px" />
+          <>
+            <div className="q-permission-desktop">
+              <DataTable rows={visibleRows} columns={columns} emptyText="Hak akses role ini belum tersedia." minWidth="980px" />
+            </div>
+            <div className="q-permission-mobile space-y-3">
+              {visibleRows.length === 0 ? (
+                <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-bold text-[#636E72]">Hak akses role ini belum tersedia.</div>
+              ) : (
+                visibleRows.map((row) => (
+                  <PermissionCard key={row.id} row={row} updateRow={updateRow} />
+                ))
+              )}
+            </div>
+          </>
         )}
       </section>
 
-      <section className="q-card flex items-center gap-3 p-4">
-        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#EAF4FF] text-[#2E86DE]">
-          <ToggleLeft size={24} />
-        </span>
-        <p className="text-sm font-semibold leading-6 text-[#636E72]">
-          Perubahan di halaman ini langsung tersimpan ke backend pusat. Android dan web akan membaca permission yang sama setelah refresh/login ulang.
-        </p>
+      <section className="q-permission-save-bar q-card flex flex-wrap items-center justify-between gap-3 p-4">
+        <div>
+          <p className="text-sm font-extrabold text-[#2D3436]">{hasChanges ? `${changedCount} perubahan belum disimpan` : 'Tidak ada perubahan'}</p>
+          <p className="text-xs font-semibold text-[#636E72]">Simpan sekali setelah semua permission selesai diatur.</p>
+        </div>
+        <button
+          className="q-soft-action inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[#138F81] px-5 text-sm font-extrabold text-white disabled:opacity-60"
+          onClick={() => void save()}
+          type="button"
+          disabled={isSaving || isLoading || activeRole === 'admin_utama' || !hasChanges}
+        >
+          <Save size={17} /> {isSaving ? 'Menyimpan...' : 'Simpan Hak Akses'}
+        </button>
       </section>
     </div>
+  );
+}
+
+function PermissionCard({
+  row,
+  updateRow
+}: {
+  row: PermissionRow;
+  updateRow: (rowId: string, key: keyof PermissionRow, value: boolean) => void;
+}) {
+  return (
+    <article className="rounded-3xl bg-white p-4 shadow-sm shadow-black/5">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-extrabold text-[#2D3436]">{row.label}</p>
+          <p className="break-all text-xs font-semibold text-[#636E72]">{row.menu_key}</p>
+        </div>
+        <StatusBadge label={row.group} tone="info" />
+      </div>
+      <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl bg-[#F6FAFC] p-3">
+        <span className="text-xs font-extrabold text-[#636E72]">Menu aktif</span>
+        <ToggleCell checked={row.is_enabled} disabled={row.locked} onChange={() => updateRow(row.id, 'is_enabled', !row.is_enabled)} />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {actionLabels.map((action) => (
+          <div key={String(action.key)} className="flex items-center justify-between gap-2 rounded-2xl bg-[#F6FAFC] p-3">
+            <span className="text-xs font-extrabold text-[#636E72]">{action.label}</span>
+            <ToggleCell
+              checked={Boolean(row[action.key])}
+              disabled={row.locked || !row.is_enabled}
+              onChange={() => updateRow(row.id, action.key, !Boolean(row[action.key]))}
+            />
+          </div>
+        ))}
+      </div>
+    </article>
   );
 }

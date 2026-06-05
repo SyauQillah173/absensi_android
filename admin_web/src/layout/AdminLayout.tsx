@@ -30,7 +30,8 @@ export type PageKey =
   | 'mapel'
   | 'keuangan'
   | 'nilai'
-  | 'hak-akses';
+  | 'hak-akses'
+  | 'account';
 
 export interface MenuItem {
   key: PageKey;
@@ -76,10 +77,21 @@ const allMenu: MenuItem[] = [
   { key: 'hak-akses', label: 'Hak Akses', icon: ShieldCheck }
 ];
 
-const treasurerMenuKeys = new Set<PageKey>(['dashboard', 'keuangan']);
+const menuPermissionKeys: Partial<Record<PageKey, string>> = {
+  dashboard: 'dashboard',
+  absensi: 'absensi',
+  master: 'buku_induk',
+  guru: 'buku_induk',
+  users: 'buku_induk',
+  pondok: 'buku_induk',
+  mapel: 'mata_pelajaran',
+  keuangan: 'keuangan',
+  nilai: 'nilai',
+  'hak-akses': 'hak_akses'
+};
 
 export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNavigate, children }: AdminLayoutProps) {
-  const { session, logout, isTreasurer } = useAuth();
+  const { session, logout, canView } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -120,12 +132,14 @@ export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNav
     };
   }, [mobileOpen]);
 
+  useEffect(() => {
+    setProfileOpen(false);
+    setNotificationOpen(false);
+  }, [activePage]);
+
   const menu = useMemo(() => {
-    if (isTreasurer) {
-      return allMenu.filter((item) => treasurerMenuKeys.has(item.key));
-    }
-    return allMenu;
-  }, [isTreasurer]);
+    return allMenu.filter((item) => canView(menuPermissionKeys[item.key] ?? item.key));
+  }, [canView]);
 
   const collapsed = mobileOpen ? false : sidebarCollapsed;
   const nav = (
@@ -319,7 +333,11 @@ export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNav
                     </div>
                     <button
                       className="mt-3 flex min-h-11 w-full items-center gap-3 rounded-2xl px-4 text-sm font-bold text-[#2D3436] hover:bg-[#E1EFF7]"
-                      onClick={() => setProfileOpen(false)}
+                      onClick={() => {
+                        onNavigate('account');
+                        setProfileOpen(false);
+                        setMobileOpen(false);
+                      }}
                       type="button"
                       role="menuitem"
                     >

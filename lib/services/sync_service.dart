@@ -774,6 +774,7 @@ class SyncTopics {
   static const String connectivity = 'connectivity';
   static const String absensi = 'absensi';
   static const String absensiSholat = 'absensi_sholat';
+  static const String absensiNgaji = 'absensi_ngaji';
   static const String siswa = 'siswa';
   static const String mapel = 'mapel';
   static const String kelas = 'kelas';

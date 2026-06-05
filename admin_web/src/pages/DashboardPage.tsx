@@ -1,4 +1,4 @@
-import { BookOpenCheck, CalendarCheck, Landmark, RefreshCw, UsersRound, WalletCards } from 'lucide-react';
+import { BookMarked, BookOpenCheck, CalendarCheck, Landmark, RefreshCw, UsersRound, WalletCards } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { DataTable } from '../components/DataTable';
@@ -23,7 +23,7 @@ function statusTone(tone: string): 'success' | 'warning' | 'danger' | 'neutral' 
 }
 
 export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
-  const { session, isTreasurer } = useAuth();
+  const { session, canView } = useAuth();
   const [dashboard, setDashboard] = useState<ApiRecord | null>(null);
   const [payments, setPayments] = useState<ApiRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,8 +53,13 @@ export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
   const statistik = dashboard?.statistik as ApiRecord | undefined;
   const pembayaran = dashboard?.pembayaran as ApiRecord | undefined;
   const sholat = dashboard?.absensi_sholat as ApiRecord | undefined;
+  const ngaji = dashboard?.absensi_ngaji as ApiRecord | undefined;
   const absensi = dashboard?.absensi as ApiRecord | undefined;
   const latestPrayer = Array.isArray(sholat?.terbaru) ? (sholat?.terbaru as ApiRecord[]) : [];
+  const latestNgaji = Array.isArray(ngaji?.terbaru) ? (ngaji?.terbaru as ApiRecord[]) : [];
+  const latestAttendance = latestPrayer.length > 0 ? latestPrayer : latestNgaji;
+  const showAbsensi = canView('absensi');
+  const showFinance = canView('keuangan');
 
   return (
     <div className="space-y-6">
@@ -77,39 +82,54 @@ export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
 
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
 
-      <div className="q-stat-grid grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="q-stat-grid grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <StatCard title="Total Santri" value={getNumber(statistik, 'total_siswa')} subtitle={`${getNumber(statistik, 'siswa_aktif')} siswa aktif`} icon={UsersRound} tone="teal" />
-        <StatCard title="Absensi Kelas Hari Ini" value={getNumber(absensi, 'total')} subtitle="Data Madin/Diniyah" icon={BookOpenCheck} tone="blue" />
-        <StatCard title="Keuangan Hari Ini" value={formatMoney(getNumber(pembayaran, 'total_masuk'))} subtitle={`${getNumber(pembayaran, 'jumlah_transaksi')} transaksi`} icon={WalletCards} tone="orange" />
-        <StatCard title="Absensi Sholat" value={getNumber(sholat, 'total')} subtitle={`${getNumber(sholat, 'kamar_sudah_diabsen')} kamar diabsen`} icon={CalendarCheck} tone="purple" />
+        {showAbsensi ? <StatCard title="Absensi Kelas Hari Ini" value={getNumber(absensi, 'total')} subtitle="Data Madin/Diniyah" icon={BookOpenCheck} tone="blue" /> : null}
+        {showAbsensi ? <StatCard title="Absensi Ngaji" value={getNumber(ngaji, 'total')} subtitle={`${getNumber(ngaji, 'jadwal_sudah_diabsen')} jadwal diabsen`} icon={BookMarked} tone="teal" /> : null}
+        {showFinance ? <StatCard title="Keuangan Hari Ini" value={formatMoney(getNumber(pembayaran, 'total_masuk'))} subtitle={`${getNumber(pembayaran, 'jumlah_transaksi')} transaksi`} icon={WalletCards} tone="orange" /> : null}
+        {showAbsensi ? <StatCard title="Absensi Sholat" value={getNumber(sholat, 'total')} subtitle={`${getNumber(sholat, 'kamar_sudah_diabsen')} kamar diabsen`} icon={CalendarCheck} tone="purple" /> : null}
       </div>
 
-      <div className="q-dashboard-summary-grid grid gap-5 xl:grid-cols-2">
-        <AbsensiSummaryCard
-          icon={<BookOpenCheck className="text-[#2E86DE]" size={20} />}
-          title="Absensi Madin/Diniyah"
-          subtitle="Ringkasan kelas hari ini"
-          items={[
-            ['H', getNumber(absensi, 'hadir'), 'success'],
-            ['I', getNumber(absensi, 'izin'), 'warning'],
-            ['S', getNumber(absensi, 'sakit'), 'danger'],
-            ['A', getNumber(absensi, 'alfa'), 'neutral']
-          ]}
-        />
-        <AbsensiSummaryCard
-          icon={<CalendarCheck className="text-[#138F81]" size={20} />}
-          title="Absensi Jama'ah Sholat"
-          subtitle={`${getNumber(sholat, 'kamar_sudah_diabsen')} kamar sudah diabsen`}
-          items={[
-            ['M', getNumber(sholat, 'M'), 'success'],
-            ['I', getNumber(sholat, 'I'), 'warning'],
-            ['S', getNumber(sholat, 'S'), 'danger'],
-            ['Kosong', getNumber(sholat, 'kosong'), 'neutral']
-          ]}
-        />
-      </div>
+      {showAbsensi ? (
+        <div className="q-dashboard-summary-grid grid gap-5 xl:grid-cols-3">
+          <AbsensiSummaryCard
+            icon={<BookOpenCheck className="text-[#2E86DE]" size={20} />}
+            title="Absensi Madin/Diniyah"
+            subtitle="Ringkasan kelas hari ini"
+            items={[
+              ['H', getNumber(absensi, 'hadir'), 'success'],
+              ['I', getNumber(absensi, 'izin'), 'warning'],
+              ['S', getNumber(absensi, 'sakit'), 'danger'],
+              ['A', getNumber(absensi, 'alfa'), 'neutral']
+            ]}
+          />
+          <AbsensiSummaryCard
+            icon={<BookMarked className="text-[#138F81]" size={20} />}
+            title="Absensi Ngaji Kitab"
+            subtitle={`${getNumber(ngaji, 'jadwal_sudah_diabsen')} jadwal sudah diabsen`}
+            items={[
+              ['H', getNumber(ngaji, 'H'), 'success'],
+              ['I', getNumber(ngaji, 'I'), 'warning'],
+              ['S', getNumber(ngaji, 'S'), 'danger'],
+              ['A', getNumber(ngaji, 'A') || getNumber(ngaji, 'kosong'), 'neutral']
+            ]}
+          />
+          <AbsensiSummaryCard
+            icon={<CalendarCheck className="text-[#138F81]" size={20} />}
+            title="Absensi Jama'ah Sholat"
+            subtitle={`${getNumber(sholat, 'kamar_sudah_diabsen')} kamar sudah diabsen`}
+            items={[
+              ['M', getNumber(sholat, 'M'), 'success'],
+              ['I', getNumber(sholat, 'I'), 'warning'],
+              ['S', getNumber(sholat, 'S'), 'danger'],
+              ['Kosong', getNumber(sholat, 'kosong'), 'neutral']
+            ]}
+          />
+        </div>
+      ) : null}
 
-      <div className="q-dashboard-bottom-grid grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className={`q-dashboard-bottom-grid grid items-start gap-5 ${showFinance ? 'xl:grid-cols-[minmax(0,1fr)_360px]' : ''}`}>
+        {showFinance ? (
         <section className="q-card q-transactions-card p-5">
           <div className="q-card-heading mb-4 flex items-center justify-between gap-4">
             <div className="min-w-0">
@@ -136,6 +156,7 @@ export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
             />
           )}
         </section>
+        ) : null}
 
         <section className="q-card q-activity-card p-5">
           <div className="q-card-heading mb-3 flex items-center gap-2">
@@ -143,16 +164,16 @@ export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
             <h2 className="text-lg font-extrabold text-[#2D3436]">Aktivitas Absensi</h2>
           </div>
           <div className="space-y-3">
-            {latestPrayer.length === 0 ? (
+            {latestAttendance.length === 0 ? (
               <p className="rounded-2xl bg-[#E1EFF7] px-4 py-4 text-sm font-semibold leading-6 text-[#636E72]">
-                {isTreasurer ? 'Bendahara hanya melihat ringkasan yang diizinkan.' : 'Belum ada aktivitas absensi terbaru.'}
+                Belum ada aktivitas absensi terbaru.
               </p>
             ) : (
-              latestPrayer.slice(0, 4).map((item, index) => (
+              latestAttendance.slice(0, 4).map((item, index) => (
                 <div key={String(item.id ?? index)} className="rounded-2xl bg-[#E1EFF7] p-4">
                   <p className="text-sm font-extrabold text-[#2D3436]">{String(item.nama ?? item.siswa_nama ?? 'Santri')}</p>
                   <p className="text-xs font-semibold text-[#636E72]">
-                    {String(item.kamar ?? item.room_name ?? '-')} - {String(item.status ?? '-')}
+                    {String(item.kamar ?? item.room_name ?? item.jadwal ?? item.schedule_name ?? '-')} - {String(item.status ?? item.status_label ?? '-')}
                   </p>
                 </div>
               ))
