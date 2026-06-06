@@ -31,7 +31,7 @@ export function LoginPage() {
             <img className="q-brand-logo h-24 w-24" src="/logo-qomaruddin.png" alt="Logo Qomaruddin" />
             <h1 className="mt-8 max-w-md text-4xl font-extrabold leading-tight text-[#2D3436]">Admin Web Qomaruddin</h1>
             <p className="mt-4 max-w-md text-sm font-semibold leading-7 text-[#636E72]">
-              Panel kerja Admin Utama dan Bendahara untuk mengelola data madrasah, pondok, absensi, dan keuangan dengan tampilan web yang rapi.
+              Panel kerja Admin Utama dan Bendahara untuk mengelola data madrasah, pondok, absensi, dan keuangan.
             </p>
             <div className="mt-8 grid max-w-md gap-3">
               <div className="flex items-center gap-3 rounded-3xl bg-white/80 px-4 py-3">
