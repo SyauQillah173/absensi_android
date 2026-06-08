@@ -9,6 +9,7 @@ import {
   ListChecks,
   LogOut,
   Menu,
+  MessageCircle,
   Moon,
   ShieldCheck,
   Sun,
@@ -31,6 +32,7 @@ export type PageKey =
   | 'mapel'
   | 'jadwal'
   | 'keuangan'
+  | 'whatsapp'
   | 'nilai'
   | 'hak-akses'
   | 'account';
@@ -76,6 +78,7 @@ const allMenu: MenuItem[] = [
   { key: 'mapel', label: 'Mata Pelajaran', icon: BookOpen },
   { key: 'jadwal', label: 'Jadwal Pelajaran', icon: Clock3 },
   { key: 'keuangan', label: 'Keuangan', icon: WalletCards },
+  { key: 'whatsapp', label: 'WhatsApp Bot', icon: MessageCircle },
   { key: 'nilai', label: 'Nilai Ujian/Hafalan', icon: ListChecks },
   { key: 'hak-akses', label: 'Hak Akses', icon: ShieldCheck }
 ];
@@ -90,6 +93,7 @@ const menuPermissionKeys: Partial<Record<PageKey, string>> = {
   mapel: 'mata_pelajaran',
   jadwal: 'mata_pelajaran',
   keuangan: 'keuangan',
+  whatsapp: 'whatsapp_bot',
   nilai: 'nilai',
   'hak-akses': 'hak_akses'
 };

@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'whatsapp_bot' => [
+        'base_url' => env('WHATSAPP_BOT_URL', 'http://127.0.0.1:3001'),
+        'secret' => env('WHATSAPP_BOT_SECRET'),
+        'timeout' => (int) env('WHATSAPP_BOT_TIMEOUT', 12),
+        'dispatch_when_sync_queue' => filter_var(env('WHATSAPP_DISPATCH_WHEN_SYNC_QUEUE', false), FILTER_VALIDATE_BOOLEAN),
+    ],
+
 ];

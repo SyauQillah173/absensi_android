@@ -13,6 +13,7 @@ use App\Models\SantriPondok;
 use App\Models\Siswa;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Services\WhatsAppNotificationService;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
@@ -742,6 +743,10 @@ class AbsensiSholatController extends Controller
                         'status' => $attendance['status_code'] ?? null,
                     ],
                 ]);
+            }
+
+            if ($student) {
+                app(WhatsAppNotificationService::class)->queueAbsensiSholat($attendance, $student);
             }
         }
     }

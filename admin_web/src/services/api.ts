@@ -638,10 +638,55 @@ export const api = {
   studentBillingSummary(params: Record<string, string | number | boolean>) {
     return request<ApiRecord>('/payment-bills/student-summary', {}, params);
   },
+  notifyPaymentBill(id: number, data: { message?: string; channel?: 'in_app' | 'whatsapp' | 'both' }) {
+    return request<ApiRecord>(`/payment-bills/${id}/notify`, { method: 'POST', body: JSON.stringify(data) });
+  },
   createPayment(data: PaymentFormPayload) {
     return request<ApiRecord>('/pembayaran', { method: 'POST', body: JSON.stringify(data) });
   },
   rekapAbsensiSholat(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord>('/absensi-sholat/rekap', {}, params);
+  },
+  whatsappStatus() {
+    return request<ApiRecord>('/whatsapp/status');
+  },
+  whatsappConnect(data: { client_id?: string; client_name?: string }) {
+    return request<ApiRecord>('/whatsapp/connect', { method: 'POST', body: JSON.stringify(data) });
+  },
+  whatsappQr(params?: Record<string, string | number | boolean>) {
+    return request<ApiRecord>('/whatsapp/qr', {}, params);
+  },
+  whatsappReconnect(clientId: string) {
+    return request<ApiRecord>('/whatsapp/reconnect', { method: 'POST', body: JSON.stringify({ client_id: clientId }) });
+  },
+  whatsappLogout(clientId: string) {
+    return request<ApiRecord>('/whatsapp/logout', { method: 'POST', body: JSON.stringify({ client_id: clientId }) });
+  },
+  whatsappSend(data: { phone_number: string; message: string }) {
+    return request<ApiRecord>('/whatsapp/send', { method: 'POST', body: JSON.stringify(data) });
+  },
+  whatsappMessages(params?: Record<string, string | number | boolean>) {
+    return request<ApiRecord>('/whatsapp/messages', {}, params);
+  },
+  whatsappRetry(messageId: number) {
+    return request<ApiRecord>(`/whatsapp/messages/${messageId}/retry`, { method: 'POST' });
+  },
+  whatsappTemplates() {
+    return request<ApiRecord[]>('/whatsapp/templates');
+  },
+  createWhatsappTemplate(data: ApiRecord) {
+    return request<ApiRecord>('/whatsapp/templates', { method: 'POST', body: JSON.stringify(data) });
+  },
+  updateWhatsappTemplate(id: number, data: ApiRecord) {
+    return request<ApiRecord>(`/whatsapp/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+  deleteWhatsappTemplate(id: number) {
+    return request<ApiRecord>(`/whatsapp/templates/${id}`, { method: 'DELETE' });
+  },
+  notificationSettings() {
+    return request<ApiRecord[]>('/notification-settings');
+  },
+  updateNotificationSettings(settings: ApiRecord[]) {
+    return request<ApiRecord[]>('/notification-settings', { method: 'PUT', body: JSON.stringify({ settings }) });
   }
 };

@@ -13,6 +13,7 @@ import { LoginPage } from './pages/LoginPage';
 import { MataPelajaranPage } from './pages/MataPelajaranPage';
 import { MasterDataPage } from './pages/MasterDataPage';
 import { NilaiHafalanPage } from './pages/NilaiHafalanPage';
+import { WhatsAppBotPage } from './pages/WhatsAppBotPage';
 
 function AdminShell() {
   const { isAuthenticated, canView } = useAuth();
@@ -33,6 +34,7 @@ function AdminShell() {
     mapel: 'mata_pelajaran',
     jadwal: 'mata_pelajaran',
     keuangan: 'keuangan',
+    whatsapp: 'whatsapp_bot',
     nilai: 'nilai',
     'hak-akses': 'hak_akses'
   };
@@ -49,6 +51,7 @@ function AdminShell() {
     <AdminLayout activePage={safePage} activeMasterSection={masterSection} onNavigate={navigate}>
       {safePage === 'dashboard' ? <DashboardPage onOpenFinance={() => navigate('keuangan')} /> : null}
       {safePage === 'keuangan' ? <FinancePage /> : null}
+      {safePage === 'whatsapp' ? <WhatsAppBotPage /> : null}
       {safePage === 'master' ? <BukuIndukPage initialSection={masterSection} onSectionChange={setMasterSection} /> : null}
       {safePage === 'guru' ? <MasterDataPage variant="guru" /> : null}
       {safePage === 'users' ? <MasterDataPage variant="users" /> : null}

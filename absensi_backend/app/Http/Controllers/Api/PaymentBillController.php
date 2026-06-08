@@ -9,6 +9,7 @@ use App\Models\PaymentBillRule;
 use App\Services\ActorResolver;
 use App\Services\PaymentBillService;
 use App\Services\StudentBillingSummaryService;
+use App\Services\WhatsAppNotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -172,26 +173,46 @@ class PaymentBillController extends Controller
 
     public function notify(Request $request, PaymentBill $paymentBill)
     {
-        $actor = app(ActorResolver::class)->active($request);
-        $notification = PaymentBillNotification::query()->create([
-            'payment_bill_id' => $paymentBill->id,
-            'recipient_user_id' => $paymentBill->wali_id,
-            'channel' => 'in_app',
-            'schedule_type' => 'manual',
-            'scheduled_for' => now()->toDateString(),
-            'sent_at' => now(),
-            'status' => 'sent',
-            'message' => $request->input('message') ?: "Tagihan {$paymentBill->title} menunggu pembayaran.",
-            'metadata' => [
-                'sent_by_user_id' => $actor?->id,
-                'future_channels' => ['whatsapp', 'email'],
-            ],
+        $validated = $request->validate([
+            'message' => 'nullable|string|max:4000',
+            'channel' => 'nullable|in:in_app,whatsapp,both',
         ]);
+
+        $actor = app(ActorResolver::class)->active($request);
+        $channel = $validated['channel'] ?? 'in_app';
+        $message = $validated['message'] ?? "Tagihan {$paymentBill->title} menunggu pembayaran.";
+        $notification = null;
+        $whatsappLog = null;
+
+        if (in_array($channel, ['in_app', 'both'], true)) {
+            $notification = PaymentBillNotification::query()->create([
+                'payment_bill_id' => $paymentBill->id,
+                'recipient_user_id' => $paymentBill->wali_id,
+                'channel' => 'in_app',
+                'schedule_type' => 'manual',
+                'scheduled_for' => now()->toDateString(),
+                'sent_at' => now(),
+                'status' => 'sent',
+                'message' => $message,
+                'metadata' => [
+                    'sent_by_user_id' => $actor?->id,
+                    'channels' => $channel,
+                ],
+            ]);
+        }
+
+        if (in_array($channel, ['whatsapp', 'both'], true)) {
+            $whatsappLog = app(WhatsAppNotificationService::class)
+                ->queuePaymentBill($paymentBill, $actor?->id, $message);
+        }
 
         return response()->json([
             'success' => true,
             'message' => 'Notifikasi tagihan dicatat',
-            'data' => $notification,
+            'data' => [
+                'notification' => $notification,
+                'whatsapp_log' => $whatsappLog,
+            ],
         ]);
     }
 

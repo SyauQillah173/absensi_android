@@ -17,6 +17,7 @@ use App\Services\AuditLogService;
 use App\Services\PaymentBillService;
 use App\Services\PaymentHistoryService;
 use App\Services\ReferenceResolver;
+use App\Services\WhatsAppNotificationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -234,6 +235,10 @@ class PembayaranController extends Controller
             'jumlah_total' => $transaction->jumlah_total,
             'total_item' => $transaction->total_item,
         ]);
+
+        if ($transaction->status === 'Lunas') {
+            app(WhatsAppNotificationService::class)->queuePaymentTransaction($transaction, $actor->id);
+        }
 
         return response()->json([
             'success' => true,

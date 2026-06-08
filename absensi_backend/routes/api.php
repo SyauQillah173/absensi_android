@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\SiswaController;
 use App\Http\Controllers\Api\UserManagementController;
 use App\Http\Controllers\Api\UserProfileController;
 use App\Http\Controllers\Api\WaliController;
+use App\Http\Controllers\Api\WhatsAppController;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
@@ -161,6 +162,21 @@ Route::middleware('api.auth')->group(function () {
         Route::get('settings/menus', [PermissionController::class, 'menus'])->middleware('permission:hak_akses,view');
         Route::get('settings/permissions', [PermissionController::class, 'index'])->middleware('permission:hak_akses,view');
         Route::put('settings/permissions', [PermissionController::class, 'update'])->middleware('permission:hak_akses,update');
+
+        Route::get('whatsapp/status', [WhatsAppController::class, 'status'])->middleware('permission:whatsapp_bot,view');
+        Route::post('whatsapp/connect', [WhatsAppController::class, 'connect'])->middleware('permission:whatsapp_bot,create');
+        Route::get('whatsapp/qr', [WhatsAppController::class, 'qr'])->middleware('permission:whatsapp_bot,view');
+        Route::post('whatsapp/reconnect', [WhatsAppController::class, 'reconnect'])->middleware('permission:whatsapp_bot,update');
+        Route::post('whatsapp/logout', [WhatsAppController::class, 'logout'])->middleware('permission:whatsapp_bot,delete');
+        Route::post('whatsapp/send', [WhatsAppController::class, 'send'])->middleware('permission:whatsapp_bot,create');
+        Route::get('whatsapp/messages', [WhatsAppController::class, 'messages'])->middleware('permission:whatsapp_bot,view');
+        Route::post('whatsapp/messages/{message}/retry', [WhatsAppController::class, 'retry'])->middleware('permission:whatsapp_bot,approve');
+        Route::get('whatsapp/templates', [WhatsAppController::class, 'templates'])->middleware('permission:whatsapp_bot,view');
+        Route::post('whatsapp/templates', [WhatsAppController::class, 'storeTemplate'])->middleware('permission:whatsapp_bot,create');
+        Route::put('whatsapp/templates/{template}', [WhatsAppController::class, 'updateTemplate'])->middleware('permission:whatsapp_bot,update');
+        Route::delete('whatsapp/templates/{template}', [WhatsAppController::class, 'deleteTemplate'])->middleware('permission:whatsapp_bot,delete');
+        Route::get('notification-settings', [WhatsAppController::class, 'settings'])->middleware('permission:whatsapp_bot,view');
+        Route::put('notification-settings', [WhatsAppController::class, 'updateSettings'])->middleware('permission:whatsapp_bot,update');
 
         Route::get('academic-periods', [AcademicPeriodController::class, 'index'])->middleware('permission:buku_induk,view');
         Route::post('academic-periods', [AcademicPeriodController::class, 'store'])->middleware('permission:buku_induk,create');

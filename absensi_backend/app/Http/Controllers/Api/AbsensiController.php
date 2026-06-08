@@ -11,6 +11,7 @@ use App\Services\ActorResolver;
 use App\Services\AuditLogService;
 use App\Services\GuruAttendanceStatusService;
 use App\Services\ReferenceResolver;
+use App\Services\WhatsAppNotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -749,6 +750,8 @@ class AbsensiController extends Controller
                     ],
                 ]);
             }
+
+            app(WhatsAppNotificationService::class)->queueAbsensiMadin($row);
         }
     }
 }
