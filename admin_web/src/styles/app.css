@@ -376,6 +376,15 @@ button:disabled {
   max-width: min(64rem, 100%);
 }
 
+.q-whatsapp-page,
+.q-whatsapp-page * {
+  max-width: 100%;
+}
+
+.q-whatsapp-page canvas {
+  height: auto !important;
+}
+
 @media (max-width: 1023px) {
   .q-app-shell {
     padding: 0.9rem;
