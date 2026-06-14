@@ -179,7 +179,7 @@ return new class extends Migration
                             'can_approve' => $values[4],
                             'can_cancel' => $values[5],
                             'is_enabled' => $values[6],
-                            'is_locked' => $role === 'admin_utama',
+                            'locked' => $role === 'admin_utama',
                             'updated_at' => now(),
                             'created_at' => now(),
                         ]

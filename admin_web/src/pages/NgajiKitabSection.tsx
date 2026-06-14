@@ -9,7 +9,7 @@ import { SegmentedTabs } from '../components/SegmentedTabs';
 import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { api, type ApiRecord } from '../services/api';
-import { exportRowsExcel } from '../utils/importTemplates';
+import { exportNgajiRekapExcel } from '../utils/excel';
 
 type NgajiTab = 'input' | 'rekap' | 'master';
 type NgajiStatus = '' | 'H' | 'I' | 'S' | 'A';
@@ -275,7 +275,7 @@ function NgajiRekap() {
         <input className="q-input" value={month} onChange={(event) => setMonth(event.target.value)} placeholder="Bulan" />
         <input className="q-input" value={year} onChange={(event) => setYear(event.target.value)} placeholder="Tahun" />
         <SearchInput value={search} onChange={setSearch} placeholder="Cari siswa / kelas / kitab" />
-        <button className="q-soft-action q-rekap-button inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-extrabold text-[#138F81]" type="button" onClick={() => exportRowsExcel(records, 'rekap_ngaji_qomaruddin.xlsx', 'REKAP ABSENSI NGAJI')}>
+        <button className="q-soft-action q-rekap-button inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-extrabold text-[#138F81]" type="button" onClick={() => exportNgajiRekapExcel(records, summary, 'rekap_ngaji_qomaruddin.xlsx')} disabled={records.length === 0}>
           <Download size={17} /> Excel
         </button>
         <RefreshButton isLoading={isLoading} onClick={() => void load()} />

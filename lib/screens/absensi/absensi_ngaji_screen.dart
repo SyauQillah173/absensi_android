@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../services/absensi_ngaji_export_service.dart';
 import '../../services/api_service.dart';
 import '../../services/session_service.dart';
 import '../../services/sync_service.dart';
@@ -22,6 +23,7 @@ class _AbsensiNgajiScreenState extends State<AbsensiNgajiScreen> {
   bool _loading = true;
   bool _saving = false;
   bool _rekapLoading = false;
+  bool _isExporting = false;
   String _tab = 'input';
   String? _error;
 
@@ -211,6 +213,44 @@ class _AbsensiNgajiScreenState extends State<AbsensiNgajiScreen> {
     }
   }
 
+  Future<void> _exportRekapExcel() async {
+    final records = (_rekap?['records'] as List? ?? const [])
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+    if (records.isEmpty) {
+      _showSnack('Belum ada data detail rekap ngaji untuk diunduh.');
+      return;
+    }
+
+    final summary = Map<String, dynamic>.from(_rekap?['summary'] as Map? ?? {});
+    final periode = Map<String, dynamic>.from(_rekap?['periode'] as Map? ?? {});
+    final period =
+        '${periode['tanggal_mulai'] ?? '-'} s/d ${periode['tanggal_akhir'] ?? '-'}';
+    final title = _selectedSchedule == null
+        ? 'Rekap Absensi Ngaji'
+        : 'Rekap Absensi Ngaji ${_scheduleLabel(_selectedSchedule!)}';
+
+    setState(() => _isExporting = true);
+    try {
+      await AbsensiNgajiExportService.exportRekapExcel(
+        records: records,
+        summary: summary,
+        title: title,
+        period: period,
+      );
+      if (!mounted) return;
+      _showSnack('Rekap ngaji Excel berhasil dibuat.');
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Gagal membuat Excel: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isExporting = false);
+      }
+    }
+  }
+
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -307,7 +347,11 @@ class _AbsensiNgajiScreenState extends State<AbsensiNgajiScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: _tab == 'input' ? _buildBottomAction() : null,
+      bottomNavigationBar: _tab == 'input'
+          ? _buildBottomAction()
+          : _tab == 'rekap'
+          ? _buildRekapBottomAction()
+          : null,
     );
   }
 
@@ -453,14 +497,7 @@ class _AbsensiNgajiScreenState extends State<AbsensiNgajiScreen> {
                 value: _selectedSchedule,
                 hint: const Text('Pilih jadwal ngaji'),
                 items: _schedules.map((schedule) {
-                  final session = Map<String, dynamic>.from(
-                    schedule['session'] as Map? ?? {},
-                  );
-                  final book = Map<String, dynamic>.from(
-                    schedule['book'] as Map? ?? {},
-                  );
-                  final label =
-                      '${session['name'] ?? 'Ngaji'} - ${book['name'] ?? 'Kitab'}';
+                  final label = _scheduleLabel(schedule);
                   return DropdownMenuItem(
                     value: schedule,
                     child: Text(label, overflow: TextOverflow.ellipsis),
@@ -761,7 +798,7 @@ class _AbsensiNgajiScreenState extends State<AbsensiNgajiScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  row['siswa']?.toString() ?? '-',
+                  row['nama']?.toString() ?? row['siswa']?.toString() ?? '-',
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 3),
@@ -842,6 +879,41 @@ class _AbsensiNgajiScreenState extends State<AbsensiNgajiScreen> {
     );
   }
 
+  Widget _buildRekapBottomAction() {
+    final records = (_rekap?['records'] as List? ?? const []);
+    if (records.isEmpty) return const SizedBox.shrink();
+
+    return SafeArea(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+        color: _yellow,
+        child: ElevatedButton.icon(
+          onPressed: _isExporting ? null : _exportRekapExcel,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _teal,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: _teal.withValues(alpha: 0.45),
+            padding: const EdgeInsets.symmetric(vertical: 15),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          icon: _isExporting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.download_rounded),
+          label: Text(_isExporting ? 'Membuat Excel...' : 'Download Excel'),
+        ),
+      ),
+    );
+  }
+
   Widget _buildError() {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -874,5 +946,13 @@ class _AbsensiNgajiScreenState extends State<AbsensiNgajiScreen> {
         style: const TextStyle(color: _muted, fontWeight: FontWeight.w700),
       ),
     );
+  }
+
+  String _scheduleLabel(Map<String, dynamic> schedule) {
+    final session = Map<String, dynamic>.from(
+      schedule['session'] as Map? ?? {},
+    );
+    final book = Map<String, dynamic>.from(schedule['book'] as Map? ?? {});
+    return '${session['name'] ?? schedule['sesi'] ?? 'Ngaji'} - ${book['name'] ?? schedule['kitab'] ?? 'Kitab'}';
   }
 }

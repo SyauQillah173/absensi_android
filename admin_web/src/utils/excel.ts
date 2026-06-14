@@ -90,6 +90,45 @@ export function exportMadinRekapExcel(rows: ApiRecord[], month: number, year: nu
   writeWorkbook(aoa, fileName, 'Rekap Madin');
 }
 
+export function exportNgajiRekapExcel(rows: ApiRecord[], summary: ApiRecord, fileName = 'rekap_absensi_ngaji.xlsx') {
+  const headers = ['No', 'Tanggal', 'Sesi', 'Kitab', 'Nama Santri', 'NIS', 'Kelas', 'Komplek', 'Kamar', 'Status', 'Petugas', 'Waktu Input'];
+  const dataRows = rows.map((row, index) => [
+    index + 1,
+    asText(row.tanggal),
+    asText(row.sesi),
+    asText(row.kitab),
+    asText(row.nama),
+    asText(row.nis),
+    asText(row.kelas),
+    asText(row.komplek),
+    asText(row.kamar),
+    asText(row.status_label ?? row.status),
+    asText(row.petugas ?? row.diinput_oleh),
+    asText(row.waktu_input)
+  ]);
+  const statusRangeEnd = Math.max(5, dataRows.length + 4);
+  const aoa = [
+    ['REKAP ABSENSI NGAJI KITAB'],
+    [`Dicetak: ${new Date().toLocaleString('id-ID')}`],
+    [],
+    headers,
+    ...dataRows,
+    [],
+    ['Ringkasan', 'Hadir', 'Izin', 'Sakit', 'Alfa', 'Kosong', 'Dibatalkan', 'Persentase Hadir'],
+    [
+      'Total',
+      { f: `COUNTIF(J5:J${statusRangeEnd},"Hadir")+COUNTIF(J5:J${statusRangeEnd},"H")`, v: asNumber(summary.H) },
+      { f: `COUNTIF(J5:J${statusRangeEnd},"Izin")+COUNTIF(J5:J${statusRangeEnd},"I")`, v: asNumber(summary.I) },
+      { f: `COUNTIF(J5:J${statusRangeEnd},"Sakit")+COUNTIF(J5:J${statusRangeEnd},"S")`, v: asNumber(summary.S) },
+      { f: `COUNTIF(J5:J${statusRangeEnd},"Alfa")+COUNTIF(J5:J${statusRangeEnd},"A")`, v: asNumber(summary.A) },
+      { f: `COUNTIF(J5:J${statusRangeEnd},"Kosong")`, v: asNumber(summary.Kosong) },
+      { f: `COUNTIF(J5:J${statusRangeEnd},"Dibatalkan")`, v: asNumber(summary.Dibatalkan) },
+      `${asNumber(summary.persentase_hadir)}%`
+    ]
+  ];
+  writeWorkbook(aoa, fileName, 'Rekap Ngaji');
+}
+
 function writeWorkbook(aoa: unknown[][], fileName: string, sheetName: string) {
   const workbook = XLSX.utils.book_new();
   const worksheet = XLSX.utils.aoa_to_sheet(aoa);
