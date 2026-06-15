@@ -93,12 +93,10 @@ class _AbsensiMapelScreenState extends State<AbsensiMapelScreen> {
     final userId = await SessionService.getUserId();
     final userRole = await SessionService.getUserRole();
     _userRole = userRole;
-    final scopedUserId = userRole == 'guru' ? userId : null;
+    final scopedUserId = null; // Versi skripsi: Guru melihat semua mapel
     final kelasFilter = widget.namaKelas;
     final classIdFilter = widget.classId;
-    final cacheKey = userRole == 'guru'
-        ? '${_cacheKeyVersion}_guru_${widget.namaKelas}_$scopedUserId'
-        : '${_cacheKeyVersion}_admin_${widget.namaKelas}_${classIdFilter ?? 0}';
+    final cacheKey = '${_cacheKeyVersion}_admin_${widget.namaKelas}_${classIdFilter ?? 0}';
 
     final result = await CacheService.fetchWithCache(
       cacheKey: cacheKey,
@@ -107,7 +105,7 @@ class _AbsensiMapelScreenState extends State<AbsensiMapelScreen> {
         userId: scopedUserId,
         kelas: kelasFilter,
         classId: classIdFilter,
-        requireJadwal: userRole == 'guru',
+        requireJadwal: false, // Versi skripsi: Tidak butuh jadwal
       ),
     );
 
@@ -200,29 +198,7 @@ class _AbsensiMapelScreenState extends State<AbsensiMapelScreen> {
   }
 
   String? _guruLockReason(Map<String, dynamic>? jadwal) {
-    if (_userRole != 'guru' || jadwal == null) return null;
-
-    final hari = jadwal['hari']?.toString().trim() ?? '';
-    final jamMulai = jadwal['jam_mulai']?.toString().trim() ?? '';
-    final label = [
-      if (hari.isNotEmpty) hari,
-      if (jamMulai.isNotEmpty) jamMulai,
-    ].join(' ');
-
-    if (hari.isNotEmpty && hari != _todayName()) {
-      return 'Absensi belum dibuka. Jadwal: $label';
-    }
-
-    final startMinutes = _timeToMinutes(jamMulai);
-    if (startMinutes != null) {
-      final now = DateTime.now();
-      final nowMinutes = (now.hour * 60) + now.minute;
-      if (nowMinutes < startMinutes) {
-        return 'Absensi belum dibuka. Absensi dapat dilakukan mulai pukul $jamMulai.';
-      }
-    }
-
-    return null;
+    return null; // Versi skripsi: Guru tidak dibatasi jadwal
   }
 
   String _scheduleInfoText(Map<String, dynamic>? jadwal) {
@@ -783,28 +759,10 @@ class _AbsensiMapelScreenState extends State<AbsensiMapelScreen> {
       },
       child: GestureDetector(
         onTap: () {
-          if (!hasValidSchedule) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  _userRole == 'admin'
-                      ? 'Mapel aktif ini sudah muncul untuk admin. Atur jadwal kelas terlebih dahulu agar absensi punya jadwal valid.'
-                      : 'Jadwal mapel ini belum tersedia untuk kelas ini.',
-                ),
-                backgroundColor: const Color(0xFFE65100),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            );
-            return;
-          }
-
           if (isScheduleLocked) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(lockReason),
+                content: Text(lockReason!),
                 backgroundColor: const Color(0xFF546E7A),
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(
@@ -821,9 +779,9 @@ class _AbsensiMapelScreenState extends State<AbsensiMapelScreen> {
               pageBuilder: (context, animation, _) => AbsensiMuridScreen(
                 namaKelas: widget.namaKelas,
                 namaMapel: nama,
-                classId: _asInt(jadwal['class_id']) ?? widget.classId,
+                classId: _asInt(jadwal?['class_id']) ?? widget.classId,
                 mapelId: (mapel['id'] as num?)?.toInt(),
-                jadwalId: _asInt(jadwal['id']),
+                jadwalId: _asInt(jadwal?['id']),
               ),
               transitionsBuilder: (context, animation, _, child) {
                 return FadeTransition(

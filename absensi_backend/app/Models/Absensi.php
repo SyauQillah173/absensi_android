@@ -84,7 +84,7 @@ class Absensi extends Model
         mixed $siswaId
     ): ?string {
         $date = trim((string) $tanggal);
-        if ($date === '' || !$classId || !$mapelId || !$jadwalId || !$siswaId) {
+        if ($date === '' || !$classId || !$mapelId || !$siswaId) {
             return null;
         }
 
@@ -92,7 +92,7 @@ class Absensi extends Model
             $date,
             (int) $classId,
             (int) $mapelId,
-            (int) $jadwalId,
+            (int) $jadwalId, // Bisa 0 atau null untuk versi skripsi
             (int) $siswaId,
         ]);
     }

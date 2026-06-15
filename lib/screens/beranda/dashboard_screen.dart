@@ -105,12 +105,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // All menu items — filtered by role
   static const List<String> _allMenuTitles = [
+    'Buku Induk',
     'Absensi',
     'Mata Pelajaran',
-    'Nilai Ujian/Hafalan',
-    'Keuangan',
-    'Buku Induk',
-    'Materi & Kegiatan',
   ];
 
   // Menu khusus orang tua
@@ -124,9 +121,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   static const List<String> _guruMenuTitles = [
     'Absensi',
-    'Nilai Ujian/Hafalan',
-    'Data Diri Guru',
-    'Materi & Kegiatan',
   ];
 
   List<String> get _menuTitles {
@@ -150,11 +144,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           'color': const Color(0xFF138F81),
         },
         {
-          'title': 'Jelajah',
-          'icon': Icons.explore_rounded,
-          'color': const Color(0xFFD63031),
-        },
-        {
           'title': 'Akun',
           'icon': Icons.person_rounded,
           'color': const Color(0xFFF39C12),
@@ -168,24 +157,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         'color': const Color(0xFF138F81),
       },
       {
-        'title': 'Jelajah',
-        'icon': Icons.explore_rounded,
-        'color': const Color(0xFFD63031),
-      },
-      {
-        'title': 'Ruang Sifir',
-        'icon': Icons.class_rounded,
-        'color': const Color(0xFFE65100),
-      },
-      {
         'title': 'Akun',
         'icon': Icons.person_rounded,
         'color': const Color(0xFFF39C12),
       },
     ];
-    if (!_canViewKey('ruang_sifir')) {
-      items.removeWhere((item) => item['title'] == 'Ruang Sifir');
-    }
     return items;
   }
 
@@ -219,11 +195,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   List<Widget> get _bottomPages {
-    final pages = <Widget>[_buildBerandaContent(), const JelajahScreen()];
-    if (_userRole != 'wali' && _canViewKey('ruang_sifir')) {
-      pages.add(const RuangSifirScreen());
-    }
-    pages.add(const AkunScreen());
+    final pages = <Widget>[_buildBerandaContent(), const AkunScreen()];
     return pages;
   }
 

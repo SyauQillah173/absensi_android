@@ -895,35 +895,7 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
                 ),
               ],
             ),
-            if (jadwalGroups.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: jadwalGroups.take(3).map((jadwal) {
-                  final kelasCount =
-                      (jadwal['kelas_count'] as num?)?.toInt() ?? 0;
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFDC80).withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '${jadwal['hari']} ${jadwal['jam_mulai']}-${jadwal['jam_selesai']}${kelasCount > 1 ? ' • $kelasCount kelas' : ''}',
-                      style: const TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF2D3436),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
+
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,

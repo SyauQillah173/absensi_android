@@ -98,8 +98,7 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
   String _errorMessage = '';
   bool get _hasCompleteScheduleScope =>
       (widget.classId ?? 0) > 0 &&
-      (widget.mapelId ?? 0) > 0 &&
-      (widget.jadwalId ?? 0) > 0;
+      (widget.mapelId ?? 0) > 0; // Versi skripsi: jadwalId tidak wajib
 
   Future<void> _initAsync() async {
     await _loadUserName();

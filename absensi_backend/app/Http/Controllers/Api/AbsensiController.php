@@ -82,7 +82,7 @@ class AbsensiController extends Controller
             'class_id' => 'required|integer|exists:classes,id',
             'mapel' => 'nullable|string',
             'mapel_id' => 'required|integer|exists:mata_pelajaran,id',
-            'jadwal_id' => 'required|integer|exists:jadwal,id',
+            'jadwal_id' => 'nullable|integer|exists:jadwal,id',
             'diinput_oleh' => 'nullable|string',
             'diinput_via' => 'nullable|in:online,offline_sync',
             'device_id' => 'nullable|string',
@@ -143,7 +143,7 @@ class AbsensiController extends Controller
             'absensi.*.class_id' => 'required|integer|exists:classes,id',
             'absensi.*.mapel' => 'nullable|string',
             'absensi.*.mapel_id' => 'required|integer|exists:mata_pelajaran,id',
-            'absensi.*.jadwal_id' => 'required|integer|exists:jadwal,id',
+            'absensi.*.jadwal_id' => 'nullable|integer|exists:jadwal,id',
             'absensi.*.diinput_oleh' => 'nullable|string',
             'absensi.*.diinput_via' => 'nullable|in:online,offline_sync',
             'absensi.*.device_id' => 'nullable|string',
@@ -473,7 +473,7 @@ class AbsensiController extends Controller
     private function assertCompleteAttendanceScope(array $payload): void
     {
         $missing = [];
-        foreach (['siswa_id', 'tanggal', 'class_id', 'mapel_id', 'jadwal_id'] as $field) {
+        foreach (['siswa_id', 'tanggal', 'class_id', 'mapel_id'] as $field) {
             if (empty($payload[$field])) {
                 $missing[$field] = ["Data $field wajib dipilih dari master data sebelum menyimpan absensi."];
             }
@@ -593,6 +593,9 @@ class AbsensiController extends Controller
                 'actor_user_id' => ['Hanya admin atau guru yang boleh menginput absensi.'],
             ]);
         }
+
+        // Versi skripsi: Guru tidak wajib memiliki jadwal untuk absensi.
+        return;
 
         $jadwal = Jadwal::query()
             ->with('mataPelajaran.guru')

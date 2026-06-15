@@ -108,12 +108,10 @@ class _AbsensiSifirScreenState extends State<AbsensiSifirScreen>
     final userRole = await SessionService.getUserRole();
     final userId = await SessionService.getUserId();
     _userRole = userRole;
-    final scopedUserId = userRole == 'guru' ? userId : null;
+    final scopedUserId = null; // Versi skripsi: Guru melihat semua kelas
 
     final result = await CacheService.fetchWithCache(
-      cacheKey: scopedUserId != null
-          ? 'absensi_sifir_guru_$scopedUserId'
-          : 'absensi_sifir_all',
+      cacheKey: 'absensi_sifir_all',
       apiFetch: () => ApiService.getKelompokBelajar(userId: scopedUserId),
     );
 
@@ -140,17 +138,7 @@ class _AbsensiSifirScreenState extends State<AbsensiSifirScreen>
     List<Map<String, dynamic>> groups,
     String userRole,
   ) {
-    if (userRole != 'guru') return groups;
-
-    return groups
-        .map((group) {
-          final kelas = List<Map<String, dynamic>>.from(
-            group['kelas'] ?? [],
-          ).where((item) => _asInt(item['jumlah_mapel_aktif']) > 0).toList();
-          return {...group, 'kelas': kelas};
-        })
-        .where((group) => List.from(group['kelas'] ?? []).isNotEmpty)
-        .toList();
+    return groups; // Versi skripsi: Tidak ada filter kelas berdasarkan role
   }
 
   List<Map<String, dynamic>> get _filteredData {

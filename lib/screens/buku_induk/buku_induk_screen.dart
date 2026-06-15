@@ -269,22 +269,9 @@ class _BukuIndukScreenState extends State<BukuIndukScreen>
                         parent: BouncingScrollPhysics(),
                       ),
                       children: [
-                        // Admin-only cards
                         if (widget.userRole == 'admin') ...[
                           _buildCategoryCard(
                             index: 0,
-                            icon: Icons.school_rounded,
-                            title: 'Data Guru',
-                            subtitle: _isLoadingCounts
-                                ? 'Memuat...'
-                                : '$_guruCount Data Tersimpan',
-                            description: 'NIP, Nama, Kode Guru, Status, dll.',
-                            color: const Color(0xFF138F81),
-                            onTap: () => _navigateTo(const DataGuruScreen()),
-                          ),
-                          const SizedBox(height: 16),
-                          _buildCategoryCard(
-                            index: 1,
                             icon: Icons.people_rounded,
                             title: 'Data Siswa/Santri',
                             subtitle: _isLoadingCounts
@@ -296,57 +283,7 @@ class _BukuIndukScreenState extends State<BukuIndukScreen>
                             onTap: () => _navigateTo(const DataSiswaScreen()),
                           ),
                           const SizedBox(height: 16),
-                          _buildCategoryCard(
-                            index: 2,
-                            icon: Icons.admin_panel_settings_rounded,
-                            title: 'Data Admin / User',
-                            subtitle: _isLoadingCounts
-                                ? 'Memuat...'
-                                : '$_userCount User Terdaftar',
-                            description: 'Username, Tipe, Hak Akses, Status.',
-                            color: const Color(0xFFE65100),
-                            onTap: () => _navigateTo(const DataAdminScreen()),
-                          ),
-                          const SizedBox(height: 16),
-                          _buildCategoryCard(
-                            index: 3,
-                            icon: Icons.calendar_month_rounded,
-                            title: 'Setting Akademik',
-                            subtitle: 'Tahun ajaran & semester aktif',
-                            description:
-                                'Atur periode aktif tanpa menghapus riwayat.',
-                            color: const Color(0xFF138F81),
-                            onTap: () =>
-                                _navigateTo(const SettingAkademikScreen()),
-                          ),
-                          const SizedBox(height: 16),
-                          _buildCategoryCard(
-                            index: 4,
-                            icon: Icons.apartment_rounded,
-                            title: 'Data Pondok',
-                            subtitle: 'Setting Pondok',
-                            description:
-                                'Kelola komplek, kamar, dan santri pondok.',
-                            color: const Color(0xFF138F81),
-                            onTap: () =>
-                                _navigateTo(const DataPondokScreen()),
-                          ),
-                          const SizedBox(height: 16),
                         ],
-                        // Both admin and guru
-                        _buildCategoryCard(
-                          index: widget.userRole == 'guru' ? 0 : 5,
-                          icon: Icons.groups_rounded,
-                          title: 'Kelompok Belajar',
-                          subtitle: _isLoadingCounts
-                              ? 'Memuat...'
-                              : '$_kelompokCount Kelompok Sifir',
-                          description:
-                              'Kelola anggota sifir, tambah/hapus siswa.',
-                          color: const Color(0xFF6C5CE7),
-                          onTap: () =>
-                              _navigateTo(const KelompokBelajarScreen()),
-                        ),
                         const SizedBox(height: 24),
                       ],
                     ),

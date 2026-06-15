@@ -25,15 +25,13 @@ class MapelAccessService
         $dayId = !empty($filters['day_id'])
             ? (int) $filters['day_id']
             : $resolver->dayId($hari);
-        $requireJadwal = (bool) ($filters['require_jadwal'] ?? false)
-            || ($actor && $actor->role === 'guru');
+        $requireJadwal = (bool) ($filters['require_jadwal'] ?? false);
 
         $scopeOperationalJadwal = $status === 'Aktif'
             || $kelas !== ''
             || $classId
             || $hari !== ''
-            || $dayId
-            || ($actor && $actor->role === 'guru');
+            || $dayId;
 
         $query = MataPelajaran::query()->with([
             'guru' => function ($builder) {
@@ -66,10 +64,6 @@ class MapelAccessService
                     });
                 }
 
-                if ($actor && $actor->role === 'guru') {
-                    $this->applyGuruScheduleScope($builder, $actor);
-                }
-
                 $builder
                     ->orderByRaw("CASE hari
                         WHEN 'Ahad' THEN 1
@@ -100,13 +94,10 @@ class MapelAccessService
             });
         }
 
-        if ($actor && $actor->role === 'guru') {
-            $query->whereHas('guru', function (Builder $builder) use ($actor) {
-                $builder->where('users.id', $actor->id);
-            });
-        }
+        // Versi skripsi: Guru tidak dibatasi hanya melihat mapel miliknya.
+        // Guru dapat melihat semua mapel yang aktif.
 
-        if ($requireJadwal && ($classId || $kelas !== '' || $dayId || $hari !== '' || ($actor && $actor->role === 'guru'))) {
+        if ($requireJadwal && ($classId || $kelas !== '' || $dayId || $hari !== '')) {
             $query->whereHas('jadwal', function (Builder $builder) use ($actor, $kelas, $hari, $classId, $dayId) {
                 $builder->where('status', 'Aktif');
 
@@ -130,10 +121,6 @@ class MapelAccessService
                             $nested->orWhere('hari', $hari);
                         }
                     });
-                }
-
-                if ($actor && $actor->role === 'guru') {
-                    $this->applyGuruScheduleScope($builder, $actor);
                 }
             });
         }

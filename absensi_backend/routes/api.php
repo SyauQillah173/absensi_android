@@ -87,18 +87,18 @@ Route::middleware('api.auth')->group(function () {
         Route::get('school-origins', [ReferenceController::class, 'schoolOrigins']);
         Route::get('references/{table}', [ReferenceController::class, 'master']);
 
-        Route::get('mata-pelajaran', [MataPelajaranController::class, 'index'])->middleware('permission:mata_pelajaran,view');
-        Route::get('mata-pelajaran/{mataPelajaran}', [MataPelajaranController::class, 'show'])->middleware('permission:mata_pelajaran,view');
+        Route::get('mata-pelajaran', [MataPelajaranController::class, 'index']);
+        Route::get('mata-pelajaran/{mataPelajaran}', [MataPelajaranController::class, 'show']);
 
         Route::get('jadwal', [JadwalController::class, 'index']);
         Route::get('jadwal/{jadwal}', [JadwalController::class, 'show']);
 
-        Route::get('absensi', [AbsensiController::class, 'index'])->middleware('permission:absensi,view');
-        Route::post('absensi', [AbsensiController::class, 'store'])->middleware('permission:absensi,create');
-        Route::post('absensi/bulk', [AbsensiController::class, 'storeBulk'])->middleware('permission:absensi,create');
-        Route::get('absensi/rekap', [AbsensiController::class, 'rekap'])->middleware('permission:absensi,view');
-        Route::put('absensi/{absensi}', [AbsensiController::class, 'update'])->middleware('permission:absensi,update');
-        Route::delete('absensi/{absensi}', [AbsensiController::class, 'destroy'])->middleware('permission:absensi,cancel');
+        Route::get('absensi', [AbsensiController::class, 'index']);
+        Route::post('absensi', [AbsensiController::class, 'store']);
+        Route::post('absensi/bulk', [AbsensiController::class, 'storeBulk']);
+        Route::get('absensi/rekap', [AbsensiController::class, 'rekap']);
+        Route::put('absensi/{absensi}', [AbsensiController::class, 'update']);
+        Route::delete('absensi/{absensi}', [AbsensiController::class, 'destroy']);
 
         Route::get('boarding/complexes', [BoardingController::class, 'complexes'])->middleware('permission:absensi,view');
         Route::get('boarding/students', [BoardingController::class, 'students'])->middleware('permission:absensi,view');
@@ -117,9 +117,9 @@ Route::middleware('api.auth')->group(function () {
         Route::post('absensi-ngaji/bulk', [AbsensiNgajiController::class, 'storeBulk'])->middleware('permission:absensi,create');
         Route::post('absensi-ngaji/cancel', [AbsensiNgajiController::class, 'cancel'])->middleware('permission:absensi,cancel');
 
-        Route::get('kelompok-belajar', [KelompokBelajarController::class, 'index'])->middleware('permission:ruang_sifir,view');
-        Route::get('kelompok-belajar/by-kelas/{nama}', [KelompokBelajarController::class, 'byKelas'])->middleware('permission:ruang_sifir,view');
-        Route::get('kelompok-belajar/{kelompokBelajar}', [KelompokBelajarController::class, 'show'])->middleware('permission:ruang_sifir,view');
+        Route::get('kelompok-belajar', [KelompokBelajarController::class, 'index']);
+        Route::get('kelompok-belajar/by-kelas/{nama}', [KelompokBelajarController::class, 'byKelas']);
+        Route::get('kelompok-belajar/{kelompokBelajar}', [KelompokBelajarController::class, 'show']);
 
         Route::get('nilai', [NilaiController::class, 'index'])->middleware('permission:nilai,view');
         Route::post('nilai', [NilaiController::class, 'store'])->middleware('permission:nilai,create');
