@@ -50,3 +50,5 @@ app.*.map.json
 /android/app/release
 
 /absensi_skripsi/
+
+PANDUAN_DEPLOY_SKRIPSI.md
