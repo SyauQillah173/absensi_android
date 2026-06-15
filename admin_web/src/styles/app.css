@@ -94,14 +94,28 @@ button:disabled {
 }
 
 .dashboard-mini-tile {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
   min-height: 86px;
-  place-items: center;
   border-radius: 18px;
   background: #e1eff7;
-  padding: 0.85rem;
+  padding: 0.5rem;
   text-align: center;
   transition: transform 200ms ease, box-shadow 200ms ease, background-color 200ms ease;
+  min-width: 0;
+}
+
+.dashboard-mini-tile > span {
+  max-width: 100%;
+  padding-left: 0.5rem !important;
+  padding-right: 0.5rem !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  justify-content: center;
 }
 
 .dashboard-mini-tile:hover {
@@ -586,7 +600,7 @@ button:disabled {
   .dashboard-mini-tile {
     min-height: 72px;
     border-radius: 16px;
-    padding: 0.7rem;
+    padding: 0.4rem;
   }
 
   .dashboard-mini-tile p {

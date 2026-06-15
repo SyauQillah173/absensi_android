@@ -127,6 +127,10 @@ function startApi(sessionManager) {
     }
 
     // Endpoints
+    app.get('/', (req, res) => {
+        res.redirect('/dashboard');
+    });
+
     app.get('/health', (req, res) => {
         const actives = getActiveClients().length;
         res.json({
@@ -314,7 +318,7 @@ function startApi(sessionManager) {
     });
 
     // Retry Processor
-    setInterval(async () => {
+    const retryInterval = setInterval(async () => {
         if (retryQueue.length === 0) return;
         const bot = getNextActiveClient();
         if (!bot) return;
@@ -331,13 +335,16 @@ function startApi(sessionManager) {
             if (item.attempts >= MAX_RETRY) retryQueue.shift();
         }
     }, RETRY_DELAY_MS);
+    retryInterval.unref?.();
 
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
         console.log(`🌐 API server aktif di http://localhost:${PORT}`);
+        console.log(`📊 Dashboard aktif di http://localhost:${PORT}/dashboard`);
         console.log(`🛡️ Fitur Multi-Session Round-Robin Aktif`);
     });
+    server.on('close', () => clearInterval(retryInterval));
 
-    return app;
+    return server;
 }
 
 module.exports = { startApi };

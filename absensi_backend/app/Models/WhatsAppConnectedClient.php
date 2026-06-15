@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class WhatsAppConnectedClient extends Model
 {
+    protected $table = 'whatsapp_connected_clients';
+
     protected $fillable = [
         'client_id',
         'name',

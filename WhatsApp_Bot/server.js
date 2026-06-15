@@ -22,8 +22,9 @@ class SessionManager {
         this.sessions = new Map(); // clientId -> state
     }
 
-    async createSession(clientId) {
+    async createSession(clientId, options = {}) {
         if (this.sessions.has(clientId)) return;
+        const legacyAuth = options.legacyAuth === true;
 
         const state = {
             client: null,
@@ -32,12 +33,18 @@ class SessionManager {
             info: null,
             startTime: Date.now(),
             reconnectAttempt: 0,
-            reconnectTimer: null
+            reconnectTimer: null,
+            authDirName: legacyAuth ? 'session' : `session-${clientId}`,
+            legacyAuth,
+            deleted: false,
+            resetting: false
         };
         this.sessions.set(clientId, state);
 
         const client = new Client({
-            authStrategy: new LocalAuth({ clientId: clientId, dataPath: './sessions' }),
+            authStrategy: legacyAuth
+                ? new LocalAuth({ dataPath: './sessions' })
+                : new LocalAuth({ clientId: clientId, dataPath: './sessions' }),
             puppeteer: {
                 headless: true,
                 args: [
@@ -66,7 +73,10 @@ class SessionManager {
         });
 
         client.on('loading_screen', (percent, message) => {
-            state.status = 'loading';
+            // WhatsApp Web can emit late loading events after ready; keep active sessions visible.
+            if (state.status !== 'aktif') {
+                state.status = 'loading';
+            }
             console.log(`⏳ [${clientId}] Loading: ${percent}% — ${message}`);
         });
 
@@ -91,8 +101,13 @@ class SessionManager {
         });
 
         client.on('disconnected', async (reason) => {
+            if (state.deleted || state.resetting) return;
             state.status = 'disconnected';
             console.warn(`⚠️ [${clientId}] Terputus:`, reason);
+            if (this.isLogoutReason(reason)) {
+                await this.resetSessionForRescan(clientId, reason);
+                return;
+            }
             this.attemptReconnect(clientId);
         });
 
@@ -111,18 +126,61 @@ class SessionManager {
     async deleteSession(clientId) {
         const state = this.sessions.get(clientId);
         if (state) {
+            state.deleted = true;
+            state.status = 'logout';
+            state.qr = null;
+            state.info = null;
             if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
+            try {
+                await state.client.logout();
+            } catch (e) {}
             try {
                 await state.client.destroy();
             } catch (e) {}
             this.sessions.delete(clientId);
-            
-            // Hapus folder sesi LocalAuth
-            const sessionPath = path.join(sessionsDir, `session-${clientId}`);
-            if (fs.existsSync(sessionPath)) {
-                fs.rmSync(sessionPath, { recursive: true, force: true });
+            this.cleanupSessionFiles(state);
+        }
+    }
+
+    async resetSessionForRescan(clientId, reason) {
+        const state = this.sessions.get(clientId);
+        if (!state || state.resetting || state.deleted) return;
+
+        state.resetting = true;
+        state.status = 'logout';
+        state.qr = null;
+        state.info = null;
+        if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
+
+        console.warn(`🚪 [${clientId}] Logout terdeteksi (${reason}). Membersihkan sesi untuk scan ulang...`);
+        try {
+            await state.client.destroy();
+        } catch (e) {}
+        this.cleanupSessionFiles(state);
+        this.sessions.delete(clientId);
+
+        setTimeout(() => {
+            this.createSession(clientId, { legacyAuth: state.legacyAuth }).catch((err) => {
+                console.error(`❌ [${clientId}] Gagal membuat sesi scan ulang:`, err.message);
+            });
+        }, 1000);
+    }
+
+    cleanupSessionFiles(state) {
+        const targets = [
+            path.join(sessionsDir, state.authDirName),
+            path.join(__dirname, '.wwebjs_auth', state.authDirName),
+        ];
+        for (const target of targets) {
+            if (fs.existsSync(target)) {
+                fs.rmSync(target, { recursive: true, force: true });
             }
         }
+    }
+
+    isLogoutReason(reason) {
+        const text = String(reason || '').toUpperCase();
+        return text.includes('LOGOUT') || text.includes('UNPAIRED') || text.includes('UNPAIRED_IDLE');
     }
 
     attemptReconnect(clientId) {
@@ -153,12 +211,18 @@ class SessionManager {
     async loadExistingSessions() {
         if (!fs.existsSync(sessionsDir)) return;
         const files = fs.readdirSync(sessionsDir);
+        let hasMultiSession = false;
         for (const file of files) {
             if (file.startsWith('session-')) {
+                hasMultiSession = true;
                 const clientId = file.replace('session-', '');
                 console.log(`🔄 Memuat sesi lama: ${clientId}`);
                 await this.createSession(clientId);
             }
+        }
+        if (files.includes('session') && !hasMultiSession) {
+            console.log('🔄 Memuat sesi lama: bot1');
+            await this.createSession('bot1', { legacyAuth: true });
         }
     }
 }

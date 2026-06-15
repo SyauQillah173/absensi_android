@@ -321,7 +321,7 @@
                         <span>Terkirim: <strong>${sess.statistik.berhasil}</strong></span>
                         <span>Sisa Kuota: <strong>${sess.kuota_sisa}</strong></span>
                     </div>
-                    <button class="btn btn-danger" style="margin-top: 12px; padding: 6px; font-size:12px;" onclick="hapusBot('${sess.id}')">Hapus Sesi</button>
+                    <button class="btn btn-danger" style="margin-top: 12px; padding: 6px; font-size:12px;" onclick="hapusBot('${sess.id}')">Logout & Hapus</button>
                 </div>
                 `;
             });
@@ -376,14 +376,14 @@
         }
 
         function hapusBot(id) {
-            if(!confirm(`Hapus sesi bot ${id} secara permanen?`)) return;
+            if(!confirm(`Logout dan hapus sesi bot ${id}? Bot ini perlu scan ulang jika ditambahkan lagi.`)) return;
             fetch('/sessions/delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-bot-secret': secret },
                 body: JSON.stringify({ id })
             }).then(r=>r.json()).then(res => {
                 if(res.sukses) {
-                    showToast('Sesi dihapus');
+                    showToast('Bot logout dan sesi dihapus');
                     refreshAll();
                 } else showToast(res.pesan, true);
             });
