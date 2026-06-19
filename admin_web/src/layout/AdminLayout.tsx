@@ -369,6 +369,9 @@ export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNav
           <section key={activePage} className="q-page-enter">
             {children}
           </section>
+          <footer className="mt-8 text-center text-sm font-semibold text-[#636E72] pb-4">
+            By : ITQOm
+          </footer>
         </main>
       </div>
     </div>
