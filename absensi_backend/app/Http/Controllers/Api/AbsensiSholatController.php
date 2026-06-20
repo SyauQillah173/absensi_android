@@ -12,6 +12,7 @@ use App\Models\PrayerAttendanceType;
 use App\Models\SantriPondok;
 use App\Models\Siswa;
 use App\Models\User;
+use App\Services\AdminActivityNotificationService;
 use App\Services\AuditLogService;
 use App\Services\WhatsAppNotificationService;
 use Carbon\Carbon;
@@ -330,6 +331,28 @@ class AbsensiSholatController extends Controller
         ]);
 
         $this->notifyGuardiansForPrayerAttendance(collect($created)->merge($updated)->all());
+        $processedCount = count($created) + count($updated);
+        if ($processedCount > 0) {
+            app(AdminActivityNotificationService::class)->notifyAdmins(
+                "Absensi Jama'ah Sholat Diperbarui",
+                sprintf(
+                    '%d data absensi %s di %s - %s berhasil disimpan oleh %s.',
+                    $processedCount,
+                    $prayerType?->name ?? "Jama'ah Sholat",
+                    $room->complex?->name ?? 'Komplek',
+                    $room->name,
+                    $actor->name
+                ),
+                'absensi_sholat',
+                [
+                    'boarding_room_id' => $room->id,
+                    'prayer_attendance_type_id' => $prayerType?->id,
+                    'created_count' => count($created),
+                    'updated_count' => count($updated),
+                    'tanggal' => $validated['tanggal'],
+                ],
+            );
+        }
 
         $status = count($failed) > 0 && count($created) + count($updated) === 0 ? 409 : 200;
 

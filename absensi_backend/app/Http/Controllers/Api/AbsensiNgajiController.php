@@ -11,6 +11,7 @@ use App\Models\NgajiSession;
 use App\Models\SantriPondok;
 use App\Models\Siswa;
 use App\Models\User;
+use App\Services\AdminActivityNotificationService;
 use App\Services\AuditLogService;
 use App\Services\WhatsAppNotificationService;
 use Carbon\Carbon;
@@ -322,6 +323,26 @@ class AbsensiNgajiController extends Controller
             'updated' => count($updated),
         ]);
         $this->notifyGuardians(collect($created)->merge($updated)->all());
+        $processedCount = count($created) + count($updated);
+        if ($processedCount > 0) {
+            app(AdminActivityNotificationService::class)->notifyAdmins(
+                'Absensi Ngaji Diperbarui',
+                sprintf(
+                    '%d data absensi %s - %s berhasil disimpan oleh %s.',
+                    $processedCount,
+                    $schedule->session?->name ?? 'Ngaji',
+                    $schedule->book?->name ?? 'Kitab',
+                    $actor->name
+                ),
+                'absensi_ngaji',
+                [
+                    'ngaji_schedule_id' => $schedule->id,
+                    'created_count' => count($created),
+                    'updated_count' => count($updated),
+                    'tanggal' => $validated['tanggal'],
+                ],
+            );
+        }
 
         return response()->json([
             'success' => true,

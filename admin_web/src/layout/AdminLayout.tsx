@@ -2,6 +2,7 @@ import {
   Bell,
   BookOpen,
   CalendarCheck,
+  Check,
   Clock3,
   ChevronDown,
   Home,
@@ -21,12 +22,14 @@ import {
 import {
   type ComponentType,
   type ReactNode,
+  useCallback,
   useEffect,
   useMemo,
   useState,
 } from "react";
 import { useAuth } from "../auth/AuthContext";
 import type { BukuIndukSection } from "../pages/BukuIndukPage";
+import { api, type ApiRecord } from "../services/api";
 
 export type PageKey =
   | "dashboard"
@@ -107,6 +110,18 @@ const menuPermissionKeys: Partial<Record<PageKey, string>> = {
   "hak-akses": "hak_akses",
 };
 
+function notificationDate(value: unknown): string {
+  if (!value) return "";
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 export function AdminLayout({
   activePage,
   activeMasterSection = "ringkas",
@@ -118,12 +133,67 @@ export function AdminLayout({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [notifications, setNotifications] = useState<ApiRecord[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [openGroups, setOpenGroups] = useState<
     Partial<Record<PageKey, boolean>>
   >({ master: true });
   const [darkMode, setDarkMode] = useState(
     () => localStorage.getItem("qomaruddin_admin_theme") === "dark",
   );
+
+  const loadNotifications = useCallback(async (showLoading = false) => {
+    if (showLoading) setNotificationsLoading(true);
+    try {
+      const response = await api.notifications();
+      setNotifications(Array.isArray(response.data) ? response.data : []);
+      setUnreadNotifications(Number(response.unread_count ?? 0));
+    } catch {
+      // Notifikasi tidak boleh mengganggu penggunaan dashboard utama.
+    } finally {
+      if (showLoading) setNotificationsLoading(false);
+    }
+  }, []);
+
+  const markNotificationRead = useCallback(async (notification: ApiRecord) => {
+    const id = Number(notification.id ?? 0);
+    if (!id || Boolean(notification.is_read)) return;
+
+    try {
+      await api.markNotificationRead(id);
+      setNotifications((current) =>
+        current.map((item) =>
+          Number(item.id ?? 0) === id ? { ...item, is_read: true } : item,
+        ),
+      );
+      setUnreadNotifications((current) => Math.max(0, current - 1));
+    } catch {
+      // Status tetap dapat disinkronkan pada polling berikutnya.
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadNotifications();
+
+    const refreshVisibleNotifications = () => {
+      if (document.visibilityState === "visible") {
+        void loadNotifications();
+      }
+    };
+    const intervalId = window.setInterval(refreshVisibleNotifications, 20_000);
+    document.addEventListener("visibilitychange", refreshVisibleNotifications);
+    window.addEventListener("focus", refreshVisibleNotifications);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener(
+        "visibilitychange",
+        refreshVisibleNotifications,
+      );
+      window.removeEventListener("focus", refreshVisibleNotifications);
+    };
+  }, [loadNotifications]);
 
   useEffect(() => {
     localStorage.setItem("qomaruddin_admin_theme", darkMode ? "dark" : "light");
@@ -339,7 +409,11 @@ export function AdminLayout({
                 <button
                   className="q-icon-button relative grid h-10 w-10 place-items-center rounded-2xl bg-[#E8F7F3] text-[#138F81]"
                   onClick={() => {
-                    setNotificationOpen((value) => !value);
+                    setNotificationOpen((value) => {
+                      const next = !value;
+                      if (next) void loadNotifications(true);
+                      return next;
+                    });
                     setProfileOpen(false);
                   }}
                   type="button"
@@ -348,30 +422,81 @@ export function AdminLayout({
                   aria-haspopup="menu"
                 >
                   <Bell size={18} />
-                  <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#E8590C]" />
+                  {unreadNotifications > 0 ? (
+                    <span className="absolute -right-1 -top-1 grid min-h-5 min-w-5 place-items-center rounded-full bg-[#E8590C] px-1 text-[10px] font-extrabold leading-none text-white">
+                      {unreadNotifications > 99 ? "99+" : unreadNotifications}
+                    </span>
+                  ) : null}
                 </button>
                 {notificationOpen ? (
                   <div
-                    className="q-dropdown absolute right-0 top-12 z-30 w-80 rounded-3xl bg-[#FFFDF7] p-3 shadow-2xl shadow-black/15"
+                    className="q-dropdown absolute right-0 top-12 z-30 w-[min(22rem,calc(100vw-2rem))] rounded-3xl bg-[#FFFDF7] p-3 shadow-2xl shadow-black/15"
                     role="menu"
                   >
-                    <div className="rounded-2xl bg-[#E1EFF7] p-4">
-                      <p className="text-sm font-extrabold text-[#2D3436]">
-                        Notifikasi
-                      </p>
-                      <p className="mt-1 text-xs font-semibold leading-5 text-[#636E72]">
-                        Ringkasan absensi, pembayaran, dan aktivitas wali akan
-                        muncul di sini.
-                      </p>
+                    <div className="flex items-center justify-between gap-3 rounded-2xl bg-[#E1EFF7] p-4">
+                      <div>
+                        <p className="text-sm font-extrabold text-[#2D3436]">
+                          Notifikasi
+                        </p>
+                        <p className="mt-1 text-xs font-semibold text-[#636E72]">
+                          {unreadNotifications} belum dibaca
+                        </p>
+                      </div>
+                      <Bell className="text-[#138F81]" size={20} />
                     </div>
-                    <button
-                      className="mt-3 flex min-h-11 w-full items-center justify-center rounded-2xl bg-[#138F81] px-4 text-sm font-bold text-white"
-                      onClick={() => setNotificationOpen(false)}
-                      type="button"
-                      role="menuitem"
-                    >
-                      Mengerti
-                    </button>
+                    <div className="q-scrollbar mt-3 max-h-[22rem] space-y-2 overflow-y-auto">
+                      {notificationsLoading && notifications.length === 0 ? (
+                        <p className="rounded-2xl bg-[#E8F7F3] px-4 py-5 text-center text-xs font-bold text-[#138F81]">
+                          Memuat notifikasi...
+                        </p>
+                      ) : notifications.length === 0 ? (
+                        <p className="rounded-2xl bg-[#E8F7F3] px-4 py-5 text-center text-xs font-semibold leading-5 text-[#636E72]">
+                          Belum ada aktivitas pembayaran atau absensi terbaru.
+                        </p>
+                      ) : (
+                        notifications.slice(0, 12).map((notification) => {
+                          const isRead = Boolean(notification.is_read);
+                          return (
+                            <button
+                              key={String(notification.id)}
+                              className={`w-full rounded-2xl p-3 text-left transition ${
+                                isRead
+                                  ? "bg-white hover:bg-[#E1EFF7]"
+                                  : "bg-[#E8F7F3] hover:bg-[#DDF2ED]"
+                              }`}
+                              onClick={() =>
+                                void markNotificationRead(notification)
+                              }
+                              type="button"
+                              role="menuitem"
+                            >
+                              <div className="flex items-start gap-3">
+                                <span
+                                  className={`mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-full ${
+                                    isRead
+                                      ? "bg-[#E1EFF7] text-[#636E72]"
+                                      : "bg-[#138F81] text-white"
+                                  }`}
+                                >
+                                  {isRead ? <Check size={14} /> : <Bell size={13} />}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block text-xs font-extrabold text-[#2D3436]">
+                                    {String(notification.title ?? "Aktivitas baru")}
+                                  </span>
+                                  <span className="mt-1 block text-[11px] font-semibold leading-5 text-[#636E72]">
+                                    {String(notification.message ?? "")}
+                                  </span>
+                                  <time className="mt-1 block text-[10px] font-bold text-[#138F81]">
+                                    {notificationDate(notification.created_at)}
+                                  </time>
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
                 ) : null}
               </div>

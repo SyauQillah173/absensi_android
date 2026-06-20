@@ -8,6 +8,7 @@ use App\Models\AppNotification;
 use App\Models\Jadwal;
 use App\Models\User;
 use App\Services\ActorResolver;
+use App\Services\AdminActivityNotificationService;
 use App\Services\AuditLogService;
 use App\Services\GuruAttendanceStatusService;
 use App\Services\ReferenceResolver;
@@ -120,6 +121,23 @@ class AbsensiController extends Controller
 
         app(AuditLogService::class)->record($request, 'absensi', 'create', $result['absensi'], null, $result['absensi']->toArray());
         $this->notifyGuardiansForAbsensi(collect([$result['absensi']]));
+        $notificationRow = $result['absensi']->loadMissing('siswa');
+        app(AdminActivityNotificationService::class)->notifyAdmins(
+            'Absensi Madin Diperbarui',
+            sprintf(
+                '%s tercatat %s pada %s - %s.',
+                $notificationRow->siswa?->nama ?? 'Santri',
+                $notificationRow->status,
+                $notificationRow->kelas ?: 'Kelas',
+                $notificationRow->mapel ?: 'Mata Pelajaran'
+            ),
+            'absensi_madin',
+            [
+                'absensi_id' => $notificationRow->id,
+                'siswa_id' => $notificationRow->siswa_id,
+                'status' => $notificationRow->status,
+            ],
+        );
 
         return response()->json([
             'success' => true,
@@ -207,6 +225,26 @@ class AbsensiController extends Controller
             'failed_count' => count($failed),
         ]);
         $this->notifyGuardiansForAbsensi(collect($created)->merge($updated));
+        $processedCount = count($created) + count($updated);
+        if ($processedCount > 0) {
+            $sample = collect($created)->merge($updated)->first();
+            app(AdminActivityNotificationService::class)->notifyAdmins(
+                'Absensi Madin Diperbarui',
+                sprintf(
+                    '%d data absensi %s - %s berhasil disimpan oleh %s.',
+                    $processedCount,
+                    $sample?->kelas ?: 'kelas',
+                    $sample?->mapel ?: 'mata pelajaran',
+                    $actor->name
+                ),
+                'absensi_madin',
+                [
+                    'created_count' => count($created),
+                    'updated_count' => count($updated),
+                    'tanggal' => $sample?->tanggal?->format('Y-m-d'),
+                ],
+            );
+        }
 
         return response()->json([
             'success' => true,

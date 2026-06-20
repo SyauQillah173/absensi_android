@@ -192,6 +192,12 @@ button:disabled {
   min-width: var(--table-min-width, 720px);
 }
 
+.q-stat-value--compact {
+  font-size: clamp(1.25rem, 2.1vw, 1.875rem) !important;
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
 .q-segmented-scroll {
   display: grid;
   grid-template-columns: repeat(var(--tab-count), minmax(0, 1fr));

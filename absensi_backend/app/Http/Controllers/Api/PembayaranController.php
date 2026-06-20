@@ -12,6 +12,7 @@ use App\Models\PaymentType;
 use App\Models\Siswa;
 use App\Models\User;
 use App\Services\ActorResolver;
+use App\Services\AdminActivityNotificationService;
 use App\Services\AcademicPeriodService;
 use App\Services\AuditLogService;
 use App\Services\PaymentBillService;
@@ -235,6 +236,23 @@ class PembayaranController extends Controller
             'jumlah_total' => $transaction->jumlah_total,
             'total_item' => $transaction->total_item,
         ]);
+
+        app(AdminActivityNotificationService::class)->notifyAdmins(
+            'Pembayaran Baru',
+            sprintf(
+                'Pembayaran %s sebesar Rp %s berhasil dicatat untuk %s.',
+                $transaction->items->pluck('paymentType.nama')->filter()->unique()->join(', ') ?: 'santri',
+                number_format((float) $transaction->jumlah_total, 0, ',', '.'),
+                $transaction->siswa?->nama ?? 'Santri'
+            ),
+            'pembayaran',
+            [
+                'payment_transaction_id' => $transaction->id,
+                'siswa_id' => $transaction->siswa_id,
+                'jumlah' => (int) $transaction->jumlah_total,
+                'status' => $transaction->status,
+            ],
+        );
 
         if ($transaction->status === 'Lunas') {
             app(WhatsAppNotificationService::class)->queuePaymentTransaction($transaction, $actor->id);

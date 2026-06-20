@@ -103,6 +103,21 @@ class DashboardController extends Controller
                 'sakit' => $absensiHariIni->where('status', 'Sakit')->count(),
                 'alfa' => $absensiHariIni->where('status', 'Alfa')->count(),
                 'per_kelas' => $absensiPerKelas,
+                'terbaru' => $absensiHariIni
+                    ->sortByDesc('created_at')
+                    ->take(8)
+                    ->map(fn (Absensi $row) => [
+                        'id' => $row->id,
+                        'siswa_id' => $row->siswa_id,
+                        'siswa_nama' => $row->siswa?->nama,
+                        'kelas' => $row->kelas,
+                        'mapel' => $row->mapel,
+                        'status' => $row->status,
+                        'petugas' => $row->diinput_oleh,
+                        'waktu' => $row->created_at?->format('H:i'),
+                        'created_at' => $row->created_at?->toIso8601String(),
+                    ])
+                    ->values(),
             ],
             'absensi_sholat' => $this->buildAdminPrayerSummary($today),
             'absensi_ngaji' => $this->buildAdminNgajiSummary($today),
@@ -495,6 +510,7 @@ class DashboardController extends Controller
             'jadwal_belum_diabsen' => max(0, $expectedSchedules - $scheduleDone),
             'persentase_hadir' => $effectiveTotal > 0 ? round(($present / $effectiveTotal) * 100, 2) : 0,
             'terbaru' => $rows->sortByDesc('created_at')->take(5)->map(fn (AbsensiNgaji $row) => [
+                'id' => $row->id,
                 'siswa_id' => $row->siswa_id,
                 'siswa_nama' => $row->siswa?->nama,
                 'nis' => $row->siswa?->nis,
@@ -506,6 +522,7 @@ class DashboardController extends Controller
                 'status_code' => $row->status_code,
                 'pengajar' => $row->schedule?->teacher?->name,
                 'waktu' => $row->created_at?->format('H:i'),
+                'created_at' => $row->created_at?->toIso8601String(),
             ])->values(),
         ];
     }
@@ -599,6 +616,7 @@ class DashboardController extends Controller
             'kamar_belum_diabsen' => max(0, $expectedRooms - $roomsDone),
             'persentase_hadir' => $effectiveTotal > 0 ? round(($present / $effectiveTotal) * 100, 2) : 0,
             'terbaru' => $rows->sortByDesc('created_at')->take(5)->map(fn (AbsensiSholat $row) => [
+                'id' => $row->id,
                 'siswa_id' => $row->siswa_id,
                 'siswa_nama' => $row->siswa?->nama,
                 'prayer_attendance_type_id' => $row->prayer_attendance_type_id,
@@ -608,6 +626,7 @@ class DashboardController extends Controller
                 'komplek' => $row->boardingRoom?->complex?->name,
                 'kamar' => $row->boardingRoom?->name,
                 'waktu' => $row->created_at?->format('H:i'),
+                'created_at' => $row->created_at?->toIso8601String(),
             ])->values(),
         ];
     }

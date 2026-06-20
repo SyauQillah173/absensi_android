@@ -1,5 +1,5 @@
 import { BookMarked, BookOpenCheck, CalendarCheck, Landmark, RefreshCw, UsersRound, WalletCards } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { DataTable } from '../components/DataTable';
 import { MoneyText, formatMoney } from '../components/MoneyText';
@@ -22,6 +22,22 @@ function statusTone(tone: string): 'success' | 'warning' | 'danger' | 'neutral' 
   return 'neutral';
 }
 
+function asRecord(value: unknown): ApiRecord | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as ApiRecord) : undefined;
+}
+
+function studentName(row: ApiRecord): string {
+  const student = asRecord(row.siswa);
+  return String(row.siswa_nama ?? row.nama_siswa ?? student?.nama ?? row.nama ?? 'Santri');
+}
+
+function activityTimestamp(row: ApiRecord): number {
+  const value = row.created_at;
+  if (!value) return 0;
+  const timestamp = new Date(String(value)).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
 export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
   const { session, canView } = useAuth();
   const [dashboard, setDashboard] = useState<ApiRecord | null>(null);
@@ -29,9 +45,11 @@ export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  async function load() {
-    setError('');
-    setIsLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) {
+      setError('');
+      setIsLoading(true);
+    }
     try {
       const [dashboardResult, paymentResult] = await Promise.all([
         api.dashboard(session?.id),
@@ -40,24 +58,60 @@ export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
       setDashboard(dashboardResult);
       setPayments(Array.isArray(paymentResult.data) ? paymentResult.data : []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Dashboard gagal dimuat');
+      if (!silent) {
+        setError(err instanceof Error ? err.message : 'Dashboard gagal dimuat');
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
-  }
+  }, [session?.id]);
 
   useEffect(() => {
     void load();
-  }, []);
+
+    const refreshVisibleDashboard = () => {
+      if (document.visibilityState === 'visible') {
+        void load(true);
+      }
+    };
+    const intervalId = window.setInterval(refreshVisibleDashboard, 20_000);
+    document.addEventListener('visibilitychange', refreshVisibleDashboard);
+    window.addEventListener('focus', refreshVisibleDashboard);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', refreshVisibleDashboard);
+      window.removeEventListener('focus', refreshVisibleDashboard);
+    };
+  }, [load]);
 
   const statistik = dashboard?.statistik as ApiRecord | undefined;
   const pembayaran = dashboard?.pembayaran as ApiRecord | undefined;
   const sholat = dashboard?.absensi_sholat as ApiRecord | undefined;
   const ngaji = dashboard?.absensi_ngaji as ApiRecord | undefined;
   const absensi = dashboard?.absensi as ApiRecord | undefined;
+  const latestMadin = Array.isArray(absensi?.terbaru) ? (absensi.terbaru as ApiRecord[]) : [];
   const latestPrayer = Array.isArray(sholat?.terbaru) ? (sholat?.terbaru as ApiRecord[]) : [];
   const latestNgaji = Array.isArray(ngaji?.terbaru) ? (ngaji?.terbaru as ApiRecord[]) : [];
-  const latestAttendance = latestPrayer.length > 0 ? latestPrayer : latestNgaji;
+  const latestAttendance: ApiRecord[] = [
+    ...latestMadin.map((item) => ({
+      ...item,
+      activity_type: 'Madin/Diniyah',
+      activity_detail: [item.kelas, item.mapel].filter(Boolean).join(' • ')
+    })),
+    ...latestNgaji.map((item) => ({
+      ...item,
+      activity_type: 'Ngaji Kitab',
+      activity_detail: [item.sesi, item.kitab, item.pengajar].filter(Boolean).join(' • ')
+    })),
+    ...latestPrayer.map((item) => ({
+      ...item,
+      activity_type: "Jama'ah Sholat",
+      activity_detail: [item.jenis_sholat, item.komplek, item.kamar].filter(Boolean).join(' • ')
+    }))
+  ].sort((left, right) => activityTimestamp(right) - activityTimestamp(left));
   const showAbsensi = canView('absensi');
   const showFinance = canView('keuangan');
 
@@ -86,7 +140,7 @@ export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
         <StatCard title="Total Santri" value={getNumber(statistik, 'total_siswa')} subtitle={`${getNumber(statistik, 'siswa_aktif')} siswa aktif`} icon={UsersRound} tone="teal" />
         {showAbsensi ? <StatCard title="Absensi Kelas Hari Ini" value={getNumber(absensi, 'total')} subtitle="Data Madin/Diniyah" icon={BookOpenCheck} tone="blue" /> : null}
         {showAbsensi ? <StatCard title="Absensi Ngaji" value={getNumber(ngaji, 'total')} subtitle={`${getNumber(ngaji, 'jadwal_sudah_diabsen')} jadwal diabsen`} icon={BookMarked} tone="teal" /> : null}
-        {showFinance ? <StatCard title="Keuangan Hari Ini" value={formatMoney(getNumber(pembayaran, 'total_masuk'))} subtitle={`${getNumber(pembayaran, 'jumlah_transaksi')} transaksi`} icon={WalletCards} tone="orange" /> : null}
+        {showFinance ? <StatCard title="Keuangan Hari Ini" value={formatMoney(getNumber(pembayaran, 'total_masuk'))} subtitle={`${getNumber(pembayaran, 'jumlah_transaksi')} transaksi`} icon={WalletCards} tone="orange" compactValue /> : null}
         {showAbsensi ? <StatCard title="Absensi Sholat" value={getNumber(sholat, 'total')} subtitle={`${getNumber(sholat, 'kamar_sudah_diabsen')} kamar diabsen`} icon={CalendarCheck} tone="purple" /> : null}
       </div>
 
@@ -145,14 +199,26 @@ export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
           ) : (
             <DataTable
               columns={[
-                { key: 'siswa', header: 'Santri', render: (row) => String(row.siswa_nama ?? row.nama_siswa ?? row.nama ?? '-') },
+                { key: 'siswa', header: 'Santri', render: (row) => studentName(row) },
                 { key: 'jenis', header: 'Tipe', render: (row) => String(row.jenis ?? row.payment_type_name ?? '-') },
-                { key: 'jumlah', header: 'Nominal', render: (row) => <MoneyText value={row.jumlah} className="font-extrabold text-[#138F81]" /> },
+                { key: 'jumlah', header: 'Nominal', render: (row) => <MoneyText value={row.jumlah} className="break-words font-extrabold text-[#138F81] [overflow-wrap:anywhere]" /> },
                 { key: 'status', header: 'Status', render: (row) => <StatusBadge label={String(row.status ?? 'Tercatat')} tone={String(row.status ?? '').toLowerCase().includes('lunas') ? 'success' : 'warning'} /> }
               ]}
               rows={payments.slice(0, 6)}
               emptyText="Belum ada transaksi hari ini."
               minWidth="360px"
+              mobileRender={(row) => (
+                <article className="rounded-2xl bg-white p-4 shadow-sm shadow-black/5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-extrabold text-[#2D3436]">{studentName(row)}</p>
+                      <p className="mt-1 text-xs font-semibold text-[#636E72]">{String(row.jenis ?? row.payment_type_name ?? 'Pembayaran')}</p>
+                    </div>
+                    <StatusBadge label={String(row.status ?? 'Tercatat')} tone={String(row.status ?? '').toLowerCase().includes('lunas') ? 'success' : 'warning'} />
+                  </div>
+                  <MoneyText value={row.jumlah} className="mt-3 block break-words text-base font-extrabold text-[#138F81] [overflow-wrap:anywhere]" />
+                </article>
+              )}
             />
           )}
         </section>
@@ -169,13 +235,22 @@ export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
                 Belum ada aktivitas absensi terbaru.
               </p>
             ) : (
-              latestAttendance.slice(0, 4).map((item, index) => (
-                <div key={String(item.id ?? index)} className="rounded-2xl bg-[#E1EFF7] p-4">
-                  <p className="text-sm font-extrabold text-[#2D3436]">{String(item.nama ?? item.siswa_nama ?? 'Santri')}</p>
-                  <p className="text-xs font-semibold text-[#636E72]">
-                    {String(item.kamar ?? item.room_name ?? item.jadwal ?? item.schedule_name ?? '-')} - {String(item.status ?? item.status_label ?? '-')}
-                  </p>
-                </div>
+              latestAttendance.slice(0, 6).map((item, index) => (
+                <article key={`${String(item.activity_type)}-${String(item.id ?? item.siswa_id ?? index)}`} className="rounded-2xl bg-[#E1EFF7] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-extrabold text-[#2D3436]">{studentName(item)}</p>
+                      <p className="mt-1 text-xs font-semibold leading-5 text-[#636E72]">
+                        {String(item.activity_detail || 'Detail absensi')}
+                      </p>
+                    </div>
+                    <StatusBadge label={String(item.status_label ?? item.status ?? '-')} tone="neutral" />
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-3 text-[11px] font-bold text-[#138F81]">
+                    <span>{String(item.activity_type)}</span>
+                    <time>{String(item.waktu ?? '')}</time>
+                  </div>
+                </article>
               ))
             )}
           </div>
