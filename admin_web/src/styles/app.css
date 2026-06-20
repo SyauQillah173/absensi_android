@@ -193,9 +193,10 @@ button:disabled {
 }
 
 .q-stat-value--compact {
-  font-size: clamp(1.25rem, 2.1vw, 1.875rem) !important;
+  font-size: clamp(1.2rem, 1.8vw, 1.65rem) !important;
   line-height: 1.08;
-  overflow-wrap: anywhere;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
 }
 
 .q-segmented-scroll {

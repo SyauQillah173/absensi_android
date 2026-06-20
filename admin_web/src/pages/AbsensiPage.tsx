@@ -27,7 +27,13 @@ import { api, type ApiRecord } from '../services/api';
 import { exportMadinRekapExcel, exportPrayerRekapExcel } from '../utils/excel';
 import { NgajiKitabSection } from './NgajiKitabSection';
 
-type AbsensiTab = 'madin-input' | 'sholat' | 'ngaji' | 'rekap-sholat' | 'madin' | 'jenis-sholat';
+export type AbsensiTab = 'madin-input' | 'sholat' | 'ngaji' | 'rekap-sholat' | 'madin' | 'jenis-sholat';
+export interface AbsensiNavigationTarget {
+  tab: AbsensiTab;
+  classId?: number;
+  mapelId?: number;
+  jadwalId?: number;
+}
 type PrayerStatus = '' | 'M' | 'I' | 'S';
 type MadinStatus = '' | 'Hadir' | 'Izin' | 'Sakit' | 'Alfa';
 
@@ -102,8 +108,8 @@ function statusTone(status: PrayerStatus | MadinStatus | string): 'success' | 'w
   return 'neutral';
 }
 
-export function AbsensiPage() {
-  const [activeTab, setActiveTab] = useState<AbsensiTab>('madin-input');
+export function AbsensiPage({ initialTarget }: { initialTarget?: AbsensiNavigationTarget }) {
+  const [activeTab, setActiveTab] = useState<AbsensiTab>(initialTarget?.tab ?? 'madin-input');
 
   return (
     <div className="q-page-enter space-y-6">
@@ -115,7 +121,7 @@ export function AbsensiPage() {
 
       <SegmentedTabs tabs={tabs} active={activeTab} onChange={(id) => setActiveTab(id as AbsensiTab)} />
 
-      {activeTab === 'madin-input' ? <MadinInput /> : null}
+      {activeTab === 'madin-input' ? <MadinInput initialTarget={initialTarget} /> : null}
       {activeTab === 'sholat' ? <PrayerInput /> : null}
       {activeTab === 'ngaji' ? <NgajiKitabSection /> : null}
       {activeTab === 'rekap-sholat' ? <PrayerRekap /> : null}
@@ -125,16 +131,16 @@ export function AbsensiPage() {
   );
 }
 
-function MadinInput() {
+function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget }) {
   const { session } = useAuth();
   const [date, setDate] = useState(today());
   const [classes, setClasses] = useState<ApiRecord[]>([]);
   const [mapel, setMapel] = useState<ApiRecord[]>([]);
   const [jadwal, setJadwal] = useState<ApiRecord[]>([]);
   const [students, setStudents] = useState<ApiRecord[]>([]);
-  const [classId, setClassId] = useState(0);
-  const [mapelId, setMapelId] = useState(0);
-  const [jadwalId, setJadwalId] = useState(0);
+  const [classId, setClassId] = useState(initialTarget?.classId ?? 0);
+  const [mapelId, setMapelId] = useState(initialTarget?.mapelId ?? 0);
+  const [jadwalId, setJadwalId] = useState(initialTarget?.jadwalId ?? 0);
   const [statuses, setStatuses] = useState<Record<number, MadinStatus>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);

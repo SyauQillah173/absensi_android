@@ -88,9 +88,10 @@ class DashboardController extends Controller
                 'diinput_oleh' => $first->diinput_oleh ?? 'Admin',
                 'diinput_via' => $first->diinput_via ?? 'online',
                 'waktu' => optional($first->created_at)->format('H:i:s') ?? '-',
+                'created_at' => $items->max('created_at')?->toIso8601String(),
                 'status' => $this->resolveAbsensiStatus($first->diinput_via),
             ];
-        })->values();
+        })->sortByDesc('created_at')->values();
 
         return [
             'success' => true,
@@ -497,6 +498,27 @@ class DashboardController extends Controller
         $attended = $rows->count();
         $present = $rows->where('status_code', 'H')->count();
         $effectiveTotal = max($expectedTotal, $attended);
+        $activities = $rows
+            ->groupBy('ngaji_schedule_id')
+            ->map(function ($items) {
+                $first = $items->sortByDesc('created_at')->first();
+
+                return [
+                    'ngaji_schedule_id' => $first?->ngaji_schedule_id,
+                    'sesi' => $first?->session?->name,
+                    'kitab' => $first?->book?->name,
+                    'pengajar' => $first?->schedule?->teacher?->name,
+                    'total' => $items->count(),
+                    'hadir' => $items->where('status_code', 'H')->count(),
+                    'izin' => $items->where('status_code', 'I')->count(),
+                    'sakit' => $items->where('status_code', 'S')->count(),
+                    'alfa' => $items->where('status_code', 'A')->count(),
+                    'waktu' => $first?->created_at?->format('H:i'),
+                    'created_at' => $first?->created_at?->toIso8601String(),
+                ];
+            })
+            ->sortByDesc('created_at')
+            ->values();
 
         return [
             'total' => $attended,
@@ -509,6 +531,7 @@ class DashboardController extends Controller
             'jadwal_sudah_diabsen' => $scheduleDone,
             'jadwal_belum_diabsen' => max(0, $expectedSchedules - $scheduleDone),
             'persentase_hadir' => $effectiveTotal > 0 ? round(($present / $effectiveTotal) * 100, 2) : 0,
+            'aktivitas' => $activities,
             'terbaru' => $rows->sortByDesc('created_at')->take(5)->map(fn (AbsensiNgaji $row) => [
                 'id' => $row->id,
                 'siswa_id' => $row->siswa_id,
@@ -604,6 +627,27 @@ class DashboardController extends Controller
         $attended = $rows->count();
         $present = $rows->where('status_code', 'M')->count();
         $effectiveTotal = max($expectedTotal, $attended);
+        $activities = $rows
+            ->groupBy(fn (AbsensiSholat $row) => ($row->boarding_room_id ?: 0) . '|' . ($row->prayer_attendance_type_id ?: 0))
+            ->map(function ($items) {
+                $first = $items->sortByDesc('created_at')->first();
+
+                return [
+                    'boarding_room_id' => $first?->boarding_room_id,
+                    'prayer_attendance_type_id' => $first?->prayer_attendance_type_id,
+                    'jenis_sholat' => $first?->prayerType?->name,
+                    'komplek' => $first?->boardingRoom?->complex?->name,
+                    'kamar' => $first?->boardingRoom?->name,
+                    'total' => $items->count(),
+                    'masuk' => $items->where('status_code', 'M')->count(),
+                    'izin' => $items->where('status_code', 'I')->count(),
+                    'sakit' => $items->where('status_code', 'S')->count(),
+                    'waktu' => $first?->created_at?->format('H:i'),
+                    'created_at' => $first?->created_at?->toIso8601String(),
+                ];
+            })
+            ->sortByDesc('created_at')
+            ->values();
 
         return [
             'total' => $attended,
@@ -615,6 +659,7 @@ class DashboardController extends Controller
             'kamar_sudah_diabsen' => $roomsDone,
             'kamar_belum_diabsen' => max(0, $expectedRooms - $roomsDone),
             'persentase_hadir' => $effectiveTotal > 0 ? round(($present / $effectiveTotal) * 100, 2) : 0,
+            'aktivitas' => $activities,
             'terbaru' => $rows->sortByDesc('created_at')->take(5)->map(fn (AbsensiSholat $row) => [
                 'id' => $row->id,
                 'siswa_id' => $row->siswa_id,

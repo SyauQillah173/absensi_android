@@ -1,15 +1,23 @@
-import { BookMarked, BookOpenCheck, CalendarCheck, Landmark, RefreshCw, UsersRound, WalletCards } from 'lucide-react';
+import { BookMarked, BookOpenCheck, CalendarCheck, ChevronRight, Landmark, RefreshCw, UsersRound, WalletCards } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { DataTable } from '../components/DataTable';
-import { MoneyText, formatMoney } from '../components/MoneyText';
+import { MoneyText, formatCompactMoney, formatMoney } from '../components/MoneyText';
 import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { api, type ApiRecord } from '../services/api';
+import type { AbsensiNavigationTarget } from './AbsensiPage';
 
 interface DashboardPageProps {
   onOpenFinance: () => void;
+  onOpenAttendance: (target: AbsensiNavigationTarget) => void;
 }
+
+type DashboardActivity = ApiRecord & {
+  activity_title: string;
+  activity_detail: string;
+  activity_target: AbsensiNavigationTarget;
+};
 
 function getNumber(source: ApiRecord | undefined, key: string): number {
   return Number(source?.[key] ?? 0);
@@ -38,7 +46,7 @@ function activityTimestamp(row: ApiRecord): number {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
-export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
+export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPageProps) {
   const { session, canView } = useAuth();
   const [dashboard, setDashboard] = useState<ApiRecord | null>(null);
   const [payments, setPayments] = useState<ApiRecord[]>([]);
@@ -92,24 +100,32 @@ export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
   const sholat = dashboard?.absensi_sholat as ApiRecord | undefined;
   const ngaji = dashboard?.absensi_ngaji as ApiRecord | undefined;
   const absensi = dashboard?.absensi as ApiRecord | undefined;
-  const latestMadin = Array.isArray(absensi?.terbaru) ? (absensi.terbaru as ApiRecord[]) : [];
-  const latestPrayer = Array.isArray(sholat?.terbaru) ? (sholat?.terbaru as ApiRecord[]) : [];
-  const latestNgaji = Array.isArray(ngaji?.terbaru) ? (ngaji?.terbaru as ApiRecord[]) : [];
-  const latestAttendance: ApiRecord[] = [
+  const latestMadin = Array.isArray(absensi?.per_kelas) ? (absensi.per_kelas as ApiRecord[]) : [];
+  const latestPrayer = Array.isArray(sholat?.aktivitas) ? (sholat.aktivitas as ApiRecord[]) : [];
+  const latestNgaji = Array.isArray(ngaji?.aktivitas) ? (ngaji.aktivitas as ApiRecord[]) : [];
+  const latestAttendance: DashboardActivity[] = [
     ...latestMadin.map((item) => ({
       ...item,
-      activity_type: 'Madin/Diniyah',
-      activity_detail: [item.kelas, item.mapel].filter(Boolean).join(' • ')
+      activity_title: 'Absensi Madin/Diniyah',
+      activity_detail: [item.kelas, item.mapel].filter(Boolean).join(' • '),
+      activity_target: {
+        tab: 'madin-input',
+        classId: Number(item.class_id ?? 0),
+        mapelId: Number(item.mapel_id ?? 0),
+        jadwalId: Number(item.jadwal_id ?? 0)
+      } satisfies AbsensiNavigationTarget
     })),
     ...latestNgaji.map((item) => ({
       ...item,
-      activity_type: 'Ngaji Kitab',
-      activity_detail: [item.sesi, item.kitab, item.pengajar].filter(Boolean).join(' • ')
+      activity_title: 'Absensi Ngaji Kitab',
+      activity_detail: [item.sesi, item.kitab, item.pengajar].filter(Boolean).join(' • '),
+      activity_target: { tab: 'ngaji' } satisfies AbsensiNavigationTarget
     })),
     ...latestPrayer.map((item) => ({
       ...item,
-      activity_type: "Jama'ah Sholat",
-      activity_detail: [item.jenis_sholat, item.komplek, item.kamar].filter(Boolean).join(' • ')
+      activity_title: "Absensi Jama'ah Sholat",
+      activity_detail: [item.jenis_sholat, item.komplek, item.kamar].filter(Boolean).join(' • '),
+      activity_target: { tab: 'sholat' } satisfies AbsensiNavigationTarget
     }))
   ].sort((left, right) => activityTimestamp(right) - activityTimestamp(left));
   const showAbsensi = canView('absensi');
@@ -140,7 +156,17 @@ export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
         <StatCard title="Total Santri" value={getNumber(statistik, 'total_siswa')} subtitle={`${getNumber(statistik, 'siswa_aktif')} siswa aktif`} icon={UsersRound} tone="teal" />
         {showAbsensi ? <StatCard title="Absensi Kelas Hari Ini" value={getNumber(absensi, 'total')} subtitle="Data Madin/Diniyah" icon={BookOpenCheck} tone="blue" /> : null}
         {showAbsensi ? <StatCard title="Absensi Ngaji" value={getNumber(ngaji, 'total')} subtitle={`${getNumber(ngaji, 'jadwal_sudah_diabsen')} jadwal diabsen`} icon={BookMarked} tone="teal" /> : null}
-        {showFinance ? <StatCard title="Keuangan Hari Ini" value={formatMoney(getNumber(pembayaran, 'total_masuk'))} subtitle={`${getNumber(pembayaran, 'jumlah_transaksi')} transaksi`} icon={WalletCards} tone="orange" compactValue /> : null}
+        {showFinance ? (
+          <StatCard
+            title="Keuangan Hari Ini"
+            value={formatCompactMoney(getNumber(pembayaran, 'total_masuk'))}
+            valueTitle={formatMoney(getNumber(pembayaran, 'total_masuk'))}
+            subtitle={`${getNumber(pembayaran, 'jumlah_transaksi')} transaksi`}
+            icon={WalletCards}
+            tone="orange"
+            compactValue
+          />
+        ) : null}
         {showAbsensi ? <StatCard title="Absensi Sholat" value={getNumber(sholat, 'total')} subtitle={`${getNumber(sholat, 'kamar_sudah_diabsen')} kamar diabsen`} icon={CalendarCheck} tone="purple" /> : null}
       </div>
 
@@ -235,22 +261,29 @@ export function DashboardPage({ onOpenFinance }: DashboardPageProps) {
                 Belum ada aktivitas absensi terbaru.
               </p>
             ) : (
-              latestAttendance.slice(0, 6).map((item, index) => (
-                <article key={`${String(item.activity_type)}-${String(item.id ?? item.siswa_id ?? index)}`} className="rounded-2xl bg-[#E1EFF7] p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-extrabold text-[#2D3436]">{studentName(item)}</p>
-                      <p className="mt-1 text-xs font-semibold leading-5 text-[#636E72]">
-                        {String(item.activity_detail || 'Detail absensi')}
-                      </p>
-                    </div>
-                    <StatusBadge label={String(item.status_label ?? item.status ?? '-')} tone="neutral" />
-                  </div>
-                  <div className="mt-2 flex items-center justify-between gap-3 text-[11px] font-bold text-[#138F81]">
-                    <span>{String(item.activity_type)}</span>
-                    <time>{String(item.waktu ?? '')}</time>
-                  </div>
-                </article>
+              latestAttendance.slice(0, 4).map((item) => (
+                <button
+                  key={`${item.activity_title}-${item.activity_detail}`}
+                  className="group flex w-full items-center gap-3 rounded-2xl bg-[#E1EFF7] p-3 text-left transition hover:-translate-y-0.5 hover:bg-[#D8ECF5] hover:shadow-md"
+                  onClick={() => onOpenAttendance(item.activity_target)}
+                  type="button"
+                >
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white text-[#138F81] shadow-sm">
+                    <CalendarCheck size={18} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-extrabold text-[#2D3436]">
+                      {item.activity_title}
+                    </span>
+                    <span className="mt-0.5 block truncate text-[11px] font-semibold text-[#636E72]">
+                      {item.activity_detail || 'Detail absensi'}
+                    </span>
+                    <span className="mt-1 block text-[11px] font-bold text-[#138F81]">
+                      {getNumber(item, 'total')} santri • {String(item.waktu ?? '')}
+                    </span>
+                  </span>
+                  <ChevronRight className="shrink-0 text-[#138F81] transition-transform group-hover:translate-x-0.5" size={17} />
+                </button>
               ))
             )}
           </div>

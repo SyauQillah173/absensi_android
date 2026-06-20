@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react';
 interface StatCardProps {
   title: string;
   value: string | number;
+  valueTitle?: string;
   subtitle?: string;
   icon: LucideIcon;
   tone?: 'teal' | 'blue' | 'orange' | 'purple' | 'red';
@@ -17,13 +18,16 @@ const toneMap = {
   red: 'bg-[#FDECEC] text-[#D63031]'
 };
 
-export function StatCard({ title, value, subtitle, icon: Icon, tone = 'teal', compactValue = false }: StatCardProps) {
+export function StatCard({ title, value, valueTitle, subtitle, icon: Icon, tone = 'teal', compactValue = false }: StatCardProps) {
   return (
     <section className="q-card q-stat-card min-h-[120px] p-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <p className="q-stat-title text-xs font-semibold text-[#636E72]">{title}</p>
-          <p className={`q-stat-value mt-2 break-words text-3xl font-extrabold tracking-normal text-[#2D3436] ${compactValue ? 'q-stat-value--compact' : ''}`}>
+          <p
+            className={`q-stat-value mt-2 text-3xl font-extrabold tracking-normal text-[#2D3436] ${compactValue ? 'q-stat-value--compact' : ''}`}
+            title={valueTitle}
+          >
             {value}
           </p>
         </div>

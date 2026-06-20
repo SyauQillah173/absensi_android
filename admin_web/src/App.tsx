@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { AdminLayout, type PageKey } from './layout/AdminLayout';
-import { AbsensiPage } from './pages/AbsensiPage';
+import { AbsensiPage, type AbsensiNavigationTarget } from './pages/AbsensiPage';
 import { AccountPage } from './pages/AccountPage';
 import { BukuIndukPage, type BukuIndukSection } from './pages/BukuIndukPage';
 import { DataPondokPage } from './pages/DataPondokPage';
@@ -19,6 +19,7 @@ function AdminShell() {
   const { isAuthenticated, canView } = useAuth();
   const [activePage, setActivePage] = useState<PageKey>('dashboard');
   const [masterSection, setMasterSection] = useState<BukuIndukSection>('ringkas');
+  const [absensiTarget, setAbsensiTarget] = useState<(AbsensiNavigationTarget & { key: number }) | undefined>();
 
   if (!isAuthenticated) {
     return <LoginPage />;
@@ -42,6 +43,9 @@ function AdminShell() {
 
   function navigate(page: PageKey, options?: { masterSection?: BukuIndukSection }) {
     setActivePage(page);
+    if (page === 'absensi') {
+      setAbsensiTarget(undefined);
+    }
     if (page === 'master') {
       setMasterSection(options?.masterSection ?? 'ringkas');
     }
@@ -49,14 +53,22 @@ function AdminShell() {
 
   return (
     <AdminLayout activePage={safePage} activeMasterSection={masterSection} onNavigate={navigate}>
-      {safePage === 'dashboard' ? <DashboardPage onOpenFinance={() => navigate('keuangan')} /> : null}
+      {safePage === 'dashboard' ? (
+        <DashboardPage
+          onOpenFinance={() => navigate('keuangan')}
+          onOpenAttendance={(target) => {
+            setAbsensiTarget({ ...target, key: Date.now() });
+            setActivePage('absensi');
+          }}
+        />
+      ) : null}
       {safePage === 'keuangan' ? <FinancePage /> : null}
       {safePage === 'whatsapp' ? <WhatsAppBotPage /> : null}
       {safePage === 'master' ? <BukuIndukPage initialSection={masterSection} onSectionChange={setMasterSection} /> : null}
       {safePage === 'guru' ? <MasterDataPage variant="guru" /> : null}
       {safePage === 'users' ? <MasterDataPage variant="users" /> : null}
       {safePage === 'pondok' ? <DataPondokPage /> : null}
-      {safePage === 'absensi' ? <AbsensiPage /> : null}
+      {safePage === 'absensi' ? <AbsensiPage key={absensiTarget?.key} initialTarget={absensiTarget} /> : null}
       {safePage === 'mapel' ? <MataPelajaranPage /> : null}
       {safePage === 'jadwal' ? <JadwalPelajaranPage /> : null}
       {safePage === 'nilai' ? <NilaiHafalanPage /> : null}
