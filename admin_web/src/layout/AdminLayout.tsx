@@ -453,10 +453,16 @@ export function AdminLayout({
           <section key={activePage} className="q-page-enter">
             {children}
           </section>
-          <footer className="pb-4 pt-8 text-center">
-            <p className="text-sm font-semibold text-[#636E72]">
-              By : ITQOm
-            </p>
+          <footer className="pb-5 pt-8" aria-label="Informasi pengembang">
+            <div className="flex items-center gap-3 sm:gap-5">
+              <span className="h-px flex-1 bg-gradient-to-r from-transparent to-[#138F81]/35" />
+              <div className="rounded-full border border-[#138F81]/15 bg-[#FFFDF7]/80 px-5 py-2 shadow-sm shadow-[#138F81]/10 backdrop-blur-sm">
+                <p className="text-xs font-bold tracking-wide text-[#138F81] sm:text-sm">
+                  By : ITQOm
+                </p>
+              </div>
+              <span className="h-px flex-1 bg-gradient-to-l from-transparent to-[#138F81]/35" />
+            </div>
           </footer>
         </main>
       </div>
