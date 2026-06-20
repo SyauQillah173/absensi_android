@@ -16,26 +16,32 @@ import {
   X,
   UserCog,
   UserRound,
-  WalletCards
-} from 'lucide-react';
-import { type ComponentType, type ReactNode, useEffect, useMemo, useState } from 'react';
-import { useAuth } from '../auth/AuthContext';
-import type { BukuIndukSection } from '../pages/BukuIndukPage';
+  WalletCards,
+} from "lucide-react";
+import {
+  type ComponentType,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { useAuth } from "../auth/AuthContext";
+import type { BukuIndukSection } from "../pages/BukuIndukPage";
 
 export type PageKey =
-  | 'dashboard'
-  | 'absensi'
-  | 'master'
-  | 'guru'
-  | 'users'
-  | 'pondok'
-  | 'mapel'
-  | 'jadwal'
-  | 'keuangan'
-  | 'whatsapp'
-  | 'nilai'
-  | 'hak-akses'
-  | 'account';
+  | "dashboard"
+  | "absensi"
+  | "master"
+  | "guru"
+  | "users"
+  | "pondok"
+  | "mapel"
+  | "jadwal"
+  | "keuangan"
+  | "whatsapp"
+  | "nilai"
+  | "hak-akses"
+  | "account";
 
 export interface MenuItem {
   key: PageKey;
@@ -51,90 +57,102 @@ export interface MenuItem {
 interface AdminLayoutProps {
   activePage: PageKey;
   activeMasterSection?: BukuIndukSection;
-  onNavigate: (page: PageKey, options?: { masterSection?: BukuIndukSection }) => void;
+  onNavigate: (
+    page: PageKey,
+    options?: { masterSection?: BukuIndukSection },
+  ) => void;
   children: ReactNode;
 }
 
 const allMenu: MenuItem[] = [
-  { key: 'dashboard', label: 'Dashboard', icon: Home },
-  { key: 'absensi', label: 'Absensi', icon: CalendarCheck },
+  { key: "dashboard", label: "Dashboard", icon: Home },
+  { key: "absensi", label: "Absensi", icon: CalendarCheck },
   {
-    key: 'master',
-    label: 'Master Data',
+    key: "master",
+    label: "Master Data",
     icon: LibraryBig,
     children: [
-      { label: 'Buku Induk', page: 'master', masterSection: 'ringkas' },
-      { label: 'Data Siswa/Santri', page: 'master', masterSection: 'siswa' },
-      { label: 'Data Guru', page: 'master', masterSection: 'guru' },
-      { label: 'User Login', page: 'master', masterSection: 'users' },
-      { label: 'Login Admin', page: 'master', masterSection: 'login-admin' },
-      { label: 'Login Guru', page: 'master', masterSection: 'login-guru' },
-      { label: 'Login Wali', page: 'master', masterSection: 'login-wali' },
-      { label: 'Setting Akademik', page: 'master', masterSection: 'akademik' },
-      { label: 'Kelompok Belajar', page: 'master', masterSection: 'kelompok' },
-      { label: 'Data Pondok', page: 'master', masterSection: 'pondok' }
-    ]
+      { label: "Buku Induk", page: "master", masterSection: "ringkas" },
+      { label: "Data Siswa/Santri", page: "master", masterSection: "siswa" },
+      { label: "Data Guru", page: "master", masterSection: "guru" },
+      { label: "User Login", page: "master", masterSection: "users" },
+      { label: "Login Admin", page: "master", masterSection: "login-admin" },
+      { label: "Login Guru", page: "master", masterSection: "login-guru" },
+      { label: "Login Wali", page: "master", masterSection: "login-wali" },
+      { label: "Setting Akademik", page: "master", masterSection: "akademik" },
+      { label: "Kelompok Belajar", page: "master", masterSection: "kelompok" },
+      { label: "Data Pondok", page: "master", masterSection: "pondok" },
+    ],
   },
-  { key: 'mapel', label: 'Mata Pelajaran', icon: BookOpen },
-  { key: 'jadwal', label: 'Jadwal Pelajaran', icon: Clock3 },
-  { key: 'keuangan', label: 'Keuangan', icon: WalletCards },
-  { key: 'whatsapp', label: 'WhatsApp Bot', icon: MessageCircle },
-  { key: 'nilai', label: 'Nilai Ujian/Hafalan', icon: ListChecks },
-  { key: 'hak-akses', label: 'Hak Akses', icon: ShieldCheck }
+  { key: "mapel", label: "Mata Pelajaran", icon: BookOpen },
+  { key: "jadwal", label: "Jadwal Pelajaran", icon: Clock3 },
+  { key: "keuangan", label: "Keuangan", icon: WalletCards },
+  { key: "whatsapp", label: "WhatsApp Bot", icon: MessageCircle },
+  { key: "nilai", label: "Nilai Ujian/Hafalan", icon: ListChecks },
+  { key: "hak-akses", label: "Hak Akses", icon: ShieldCheck },
 ];
 
 const menuPermissionKeys: Partial<Record<PageKey, string>> = {
-  dashboard: 'dashboard',
-  absensi: 'absensi',
-  master: 'buku_induk',
-  guru: 'buku_induk',
-  users: 'buku_induk',
-  pondok: 'buku_induk',
-  mapel: 'mata_pelajaran',
-  jadwal: 'mata_pelajaran',
-  keuangan: 'keuangan',
-  whatsapp: 'whatsapp_bot',
-  nilai: 'nilai',
-  'hak-akses': 'hak_akses'
+  dashboard: "dashboard",
+  absensi: "absensi",
+  master: "buku_induk",
+  guru: "buku_induk",
+  users: "buku_induk",
+  pondok: "buku_induk",
+  mapel: "mata_pelajaran",
+  jadwal: "mata_pelajaran",
+  keuangan: "keuangan",
+  whatsapp: "whatsapp_bot",
+  nilai: "nilai",
+  "hak-akses": "hak_akses",
 };
 
-export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNavigate, children }: AdminLayoutProps) {
+export function AdminLayout({
+  activePage,
+  activeMasterSection = "ringkas",
+  onNavigate,
+  children,
+}: AdminLayoutProps) {
   const { session, logout, canView } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
-  const [openGroups, setOpenGroups] = useState<Partial<Record<PageKey, boolean>>>({ master: true });
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('qomaruddin_admin_theme') === 'dark');
+  const [openGroups, setOpenGroups] = useState<
+    Partial<Record<PageKey, boolean>>
+  >({ master: true });
+  const [darkMode, setDarkMode] = useState(
+    () => localStorage.getItem("qomaruddin_admin_theme") === "dark",
+  );
 
   useEffect(() => {
-    localStorage.setItem('qomaruddin_admin_theme', darkMode ? 'dark' : 'light');
-    document.documentElement.classList.toggle('q-dark-root', darkMode);
-    document.body.classList.toggle('q-dark-body', darkMode);
+    localStorage.setItem("qomaruddin_admin_theme", darkMode ? "dark" : "light");
+    document.documentElement.classList.toggle("q-dark-root", darkMode);
+    document.body.classList.toggle("q-dark-body", darkMode);
 
     return () => {
-      document.documentElement.classList.remove('q-dark-root');
-      document.body.classList.remove('q-dark-body');
+      document.documentElement.classList.remove("q-dark-root");
+      document.body.classList.remove("q-dark-body");
     };
   }, [darkMode]);
 
   useEffect(() => {
     function handleEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         setMobileOpen(false);
         setProfileOpen(false);
         setNotificationOpen(false);
       }
     }
 
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
   }, []);
 
   useEffect(() => {
     if (!mobileOpen) return;
     const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = previousOverflow;
     };
@@ -146,27 +164,40 @@ export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNav
   }, [activePage]);
 
   const menu = useMemo(() => {
-    return allMenu.filter((item) => canView(menuPermissionKeys[item.key] ?? item.key));
+    return allMenu.filter((item) =>
+      canView(menuPermissionKeys[item.key] ?? item.key),
+    );
   }, [canView]);
 
   const collapsed = mobileOpen ? false : sidebarCollapsed;
   const nav = (
     <aside
       className={`q-sidebar flex h-full flex-col rounded-[26px] bg-[#FFFDF7] p-5 shadow-xl shadow-black/5 ${
-        collapsed ? 'w-[92px]' : 'w-[240px]'
+        collapsed ? "w-[92px]" : "w-[240px]"
       }`}
     >
-      <div className={`mb-8 pt-2 text-center ${collapsed ? 'px-0' : ''}`}>
-        <img className={`q-brand-logo mx-auto ${collapsed ? 'h-11 w-11' : 'h-14 w-14'}`} src="/logo-qomaruddin.png" alt="Logo Qomaruddin" />
+      <div className={`mb-8 pt-2 text-center ${collapsed ? "px-0" : ""}`}>
+        <img
+          className={`q-brand-logo mx-auto ${collapsed ? "h-11 w-11" : "h-14 w-14"}`}
+          src="/logo-qomaruddin.png"
+          alt="Logo Qomaruddin"
+        />
         {!collapsed ? (
           <>
-            <h1 className="mt-4 text-sm font-extrabold leading-5 text-[#138F81]">Pondok Pesantren Qomaruddin</h1>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#636E72]">Admin Dashboard</p>
+            <h1 className="mt-4 text-sm font-extrabold leading-5 text-[#138F81]">
+              Pondok Pesantren Qomaruddin
+            </h1>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#636E72]">
+              Admin Dashboard
+            </p>
           </>
         ) : null}
       </div>
 
-      <nav className="q-sidebar-nav q-scrollbar space-y-2" aria-label="Menu Admin">
+      <nav
+        className="q-sidebar-nav q-scrollbar space-y-2"
+        aria-label="Menu Admin"
+      >
         {menu.map((item) => {
           const selected = item.key === activePage;
           const hasChildren = Boolean(item.children?.length);
@@ -176,11 +207,16 @@ export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNav
             <div key={item.key}>
               <button
                 className={`q-menu-item flex min-h-12 w-full items-center gap-3 rounded-2xl text-left text-sm font-bold transition ${
-                  selected ? 'bg-[#138F81] text-white shadow-lg shadow-[#138F81]/25' : 'text-[#636E72] hover:bg-[#E1EFF7]'
-                } ${collapsed ? 'justify-center px-0' : 'px-4'}`}
+                  selected
+                    ? "bg-[#138F81] text-white shadow-lg shadow-[#138F81]/25"
+                    : "text-[#636E72] hover:bg-[#E1EFF7]"
+                } ${collapsed ? "justify-center px-0" : "px-4"}`}
                 onClick={() => {
                   if (hasChildren && !collapsed) {
-                    setOpenGroups((value) => ({ ...value, [item.key]: !value[item.key] }));
+                    setOpenGroups((value) => ({
+                      ...value,
+                      [item.key]: !value[item.key],
+                    }));
                     if (item.key !== activePage) {
                       onNavigate(item.key);
                     }
@@ -196,21 +232,35 @@ export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNav
                 aria-expanded={hasChildren ? isOpen : undefined}
               >
                 <Icon size={18} />
-                {!collapsed ? <span className="min-w-0 flex-1">{item.label}</span> : null}
-                {!collapsed && hasChildren ? <ChevronDown className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} size={15} /> : null}
+                {!collapsed ? (
+                  <span className="min-w-0 flex-1">{item.label}</span>
+                ) : null}
+                {!collapsed && hasChildren ? (
+                  <ChevronDown
+                    className={`transition-transform ${isOpen ? "rotate-180" : ""}`}
+                    size={15}
+                  />
+                ) : null}
               </button>
               {!collapsed && hasChildren && isOpen ? (
                 <div className="q-submenu mt-2 space-y-1 pl-5">
                   {item.children?.map((child) => {
-                    const childActive = child.page === activePage && (!child.masterSection || child.masterSection === activeMasterSection);
+                    const childActive =
+                      child.page === activePage &&
+                      (!child.masterSection ||
+                        child.masterSection === activeMasterSection);
                     return (
                       <button
                         key={`${child.page}-${child.masterSection ?? child.label}`}
                         className={`flex min-h-9 w-full items-center rounded-xl px-4 text-left text-xs font-extrabold transition ${
-                          childActive ? 'bg-[#E8F7F3] text-[#138F81]' : 'text-[#636E72] hover:bg-[#E1EFF7]'
+                          childActive
+                            ? "bg-[#E8F7F3] text-[#138F81]"
+                            : "text-[#636E72] hover:bg-[#E1EFF7]"
                         }`}
                         onClick={() => {
-                          onNavigate(child.page, { masterSection: child.masterSection });
+                          onNavigate(child.page, {
+                            masterSection: child.masterSection,
+                          });
                           setMobileOpen(false);
                           setProfileOpen(false);
                           setNotificationOpen(false);
@@ -231,12 +281,20 @@ export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNav
   );
 
   return (
-    <div className={`q-app-shell min-h-screen bg-[#FFDC80] p-4 lg:p-6 ${darkMode ? 'theme-dark' : 'theme-light'}`}>
+    <div
+      className={`q-app-shell min-h-screen bg-[#FFDC80] p-4 lg:p-6 ${darkMode ? "theme-dark" : "theme-light"}`}
+    >
       <div className="mx-auto flex max-w-[1440px] gap-6">
         <div className="hidden shrink-0 lg:block">{nav}</div>
         {mobileOpen ? (
-          <div className="q-mobile-overlay fixed inset-0 z-40 bg-black/30 p-4 lg:hidden" onClick={() => setMobileOpen(false)}>
-            <div className="q-mobile-drawer relative h-full w-fit max-w-full" onClick={(event) => event.stopPropagation()}>
+          <div
+            className="q-mobile-overlay fixed inset-0 z-40 bg-black/30 p-4 lg:hidden"
+            onClick={() => setMobileOpen(false)}
+          >
+            <div
+              className="q-mobile-drawer relative h-full w-fit max-w-full"
+              onClick={(event) => event.stopPropagation()}
+            >
               <button
                 className="q-drawer-close absolute right-3 top-3 z-10 grid h-10 w-10 place-items-center rounded-2xl bg-[#2D3436] text-white shadow-xl shadow-black/20"
                 onClick={() => setMobileOpen(false)}
@@ -268,8 +326,12 @@ export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNav
                 <Menu size={20} />
               </button>
               <div className="min-w-0">
-                <p className="truncate text-sm font-extrabold text-[#138F81]">Pondok Qomaruddin</p>
-                <p className="hidden text-xs font-semibold text-[#636E72] sm:block">Satu data admin, bendahara, dan aplikasi Android</p>
+                <p className="truncate text-sm font-extrabold text-[#138F81]">
+                  Pondok Qomaruddin
+                </p>
+                <p className="hidden text-xs font-semibold text-[#636E72] sm:block">
+                  Satu data admin, bendahara, dan aplikasi Android
+                </p>
               </div>
             </div>
             <div className="q-topbar-actions flex shrink-0 items-center gap-2">
@@ -289,11 +351,17 @@ export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNav
                   <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#E8590C]" />
                 </button>
                 {notificationOpen ? (
-                  <div className="q-dropdown absolute right-0 top-12 z-30 w-80 rounded-3xl bg-[#FFFDF7] p-3 shadow-2xl shadow-black/15" role="menu">
+                  <div
+                    className="q-dropdown absolute right-0 top-12 z-30 w-80 rounded-3xl bg-[#FFFDF7] p-3 shadow-2xl shadow-black/15"
+                    role="menu"
+                  >
                     <div className="rounded-2xl bg-[#E1EFF7] p-4">
-                      <p className="text-sm font-extrabold text-[#2D3436]">Notifikasi</p>
+                      <p className="text-sm font-extrabold text-[#2D3436]">
+                        Notifikasi
+                      </p>
                       <p className="mt-1 text-xs font-semibold leading-5 text-[#636E72]">
-                        Ringkasan absensi, pembayaran, dan aktivitas wali akan muncul di sini.
+                        Ringkasan absensi, pembayaran, dan aktivitas wali akan
+                        muncul di sini.
                       </p>
                     </div>
                     <button
@@ -311,7 +379,9 @@ export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNav
                 className="q-icon-button grid h-10 w-10 place-items-center rounded-2xl bg-[#E1EFF7] text-[#138F81]"
                 onClick={() => setDarkMode((value) => !value)}
                 type="button"
-                aria-label={darkMode ? 'Aktifkan mode siang' : 'Aktifkan mode malam'}
+                aria-label={
+                  darkMode ? "Aktifkan mode siang" : "Aktifkan mode malam"
+                }
               >
                 {darkMode ? <Sun size={18} /> : <Moon size={18} />}
               </button>
@@ -327,22 +397,36 @@ export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNav
                   aria-haspopup="menu"
                 >
                   <UserRound size={17} />
-                  <span className="hidden max-w-[170px] truncate text-xs font-bold sm:inline">{session?.name ?? 'Admin'}</span>
-                  <ChevronDown className={`transition-transform ${profileOpen ? 'rotate-180' : ''}`} size={15} />
+                  <span className="hidden max-w-[170px] truncate text-xs font-bold sm:inline">
+                    {session?.name ?? "Admin"}
+                  </span>
+                  <ChevronDown
+                    className={`transition-transform ${profileOpen ? "rotate-180" : ""}`}
+                    size={15}
+                  />
                 </button>
                 {profileOpen ? (
-                  <div className="q-dropdown absolute right-0 top-12 z-30 w-72 rounded-3xl bg-[#FFFDF7] p-3 shadow-2xl shadow-black/15" role="menu">
+                  <div
+                    className="q-dropdown absolute right-0 top-12 z-30 w-72 rounded-3xl bg-[#FFFDF7] p-3 shadow-2xl shadow-black/15"
+                    role="menu"
+                  >
                     <div className="rounded-2xl bg-[#E1EFF7] p-4">
-                      <p className="text-sm font-extrabold text-[#2D3436]">{session?.name ?? 'Admin Madrasah'}</p>
-                      <p className="mt-1 text-xs font-semibold text-[#636E72]">{session?.email ?? 'Akun admin'}</p>
+                      <p className="text-sm font-extrabold text-[#2D3436]">
+                        {session?.name ?? "Admin Madrasah"}
+                      </p>
+                      <p className="mt-1 text-xs font-semibold text-[#636E72]">
+                        {session?.email ?? "Akun admin"}
+                      </p>
                       <span className="mt-3 inline-flex rounded-full bg-white px-3 py-1 text-xs font-extrabold text-[#138F81]">
-                        {session?.admin_type ? `Admin ${session.admin_type}` : 'Admin utama'}
+                        {session?.admin_type
+                          ? `Admin ${session.admin_type}`
+                          : "Admin utama"}
                       </span>
                     </div>
                     <button
                       className="mt-3 flex min-h-11 w-full items-center gap-3 rounded-2xl px-4 text-sm font-bold text-[#2D3436] hover:bg-[#E1EFF7]"
                       onClick={() => {
-                        onNavigate('account');
+                        onNavigate("account");
                         setProfileOpen(false);
                         setMobileOpen(false);
                       }}
@@ -369,8 +453,10 @@ export function AdminLayout({ activePage, activeMasterSection = 'ringkas', onNav
           <section key={activePage} className="q-page-enter">
             {children}
           </section>
-          <footer className="mt-8 text-center text-sm font-semibold text-[#636E72] pb-4">
-            By : ITQOm
+          <footer className="pb-4 pt-8 text-center">
+            <p className="text-sm font-semibold text-[#636E72]">
+              By : ITQOm
+            </p>
           </footer>
         </main>
       </div>
