@@ -243,7 +243,7 @@ export function AdminLayout({
   const nav = (
     <aside
       className={`q-sidebar flex h-full flex-col rounded-[26px] bg-[#FFFDF7] p-5 shadow-xl shadow-black/5 ${
-        collapsed ? "w-[92px]" : "w-[240px]"
+        collapsed ? "w-23" : "w-60"
       }`}
     >
       <div className={`mb-8 pt-2 text-center ${collapsed ? "px-0" : ""}`}>
@@ -354,7 +354,7 @@ export function AdminLayout({
     <div
       className={`q-app-shell min-h-screen bg-[#FFDC80] p-4 lg:p-6 ${darkMode ? "theme-dark" : "theme-light"}`}
     >
-      <div className="mx-auto flex max-w-[1440px] gap-6">
+      <div className="mx-auto flex max-w-360 gap-6">
         <div className="hidden shrink-0 lg:block">{nav}</div>
         {mobileOpen ? (
           <div
@@ -444,7 +444,7 @@ export function AdminLayout({
                       </div>
                       <Bell className="text-[#138F81]" size={20} />
                     </div>
-                    <div className="q-scrollbar mt-3 max-h-[22rem] space-y-2 overflow-y-auto">
+                    <div className="q-scrollbar mt-3 max-h-88 space-y-2 overflow-y-auto">
                       {notificationsLoading && notifications.length === 0 ? (
                         <p className="rounded-2xl bg-[#E8F7F3] px-4 py-5 text-center text-xs font-bold text-[#138F81]">
                           Memuat notifikasi...
@@ -522,7 +522,7 @@ export function AdminLayout({
                   aria-haspopup="menu"
                 >
                   <UserRound size={17} />
-                  <span className="hidden max-w-[170px] truncate text-xs font-bold sm:inline">
+                  <span className="hidden max-w-42.5 truncate text-xs font-bold sm:inline">
                     {session?.name ?? "Admin"}
                   </span>
                   <ChevronDown
