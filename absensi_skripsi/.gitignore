@@ -48,6 +48,29 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/.kotlin/
 
+# Project real, tidak ikut repository khusus skripsi
+/admin_web/
 
-PANDUAN_DEPLOY_SKRIPSI.md
+# Platform non-Android tidak dipakai untuk skripsi Android
+/ios/
+/linux/
+/macos/
+/web/
+/windows/
+
+# Local editor settings
+/.vscode/
+
+# Node/Vercel/build artifacts
+node_modules/
+dist/
+.vite/
+.vercel/
+*.tsbuildinfo
+
+# Local secrets and machine-specific env files
+**/.env
+**/.env.*
+!**/.env.example
