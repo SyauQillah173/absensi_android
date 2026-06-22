@@ -394,6 +394,7 @@ class _EditMapelScreenState extends State<EditMapelScreen> {
     return guruName.isNotEmpty && jadwalGuru == guruName.toLowerCase();
   }
 
+  // ignore: unused_element
   String _jadwalBusyKeyFromGroup(Map<String, dynamic> group) {
     final items = List<Map<String, dynamic>>.from(
       group['items'] as List? ?? [],
@@ -1158,6 +1159,7 @@ class _EditMapelScreenState extends State<EditMapelScreen> {
     return null;
   }
 
+  // ignore: unused_element
   Future<void> _showEditJadwalDialog(Map<String, dynamic>? jadwal) async {
     if (_assignedGuru.isEmpty &&
         (jadwal?['guru']?.toString().trim().isEmpty ?? true)) {
@@ -1695,6 +1697,7 @@ class _EditMapelScreenState extends State<EditMapelScreen> {
     }
   }
 
+  // ignore: unused_element
   Future<void> _deleteJadwalGroup(Map<String, dynamic> group) async {
     final items = List<Map<String, dynamic>>.from(
       group['items'] as List? ?? [],
@@ -1764,6 +1767,7 @@ class _EditMapelScreenState extends State<EditMapelScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ignore: unused_local_variable
     final jadwalGroups = _groupedJadwalList();
     return Scaffold(
       backgroundColor: const Color(0xFFFFDC80),
@@ -2014,8 +2018,6 @@ class _EditMapelScreenState extends State<EditMapelScreen> {
 
                       const SizedBox(height: 20),
 
-
-
                       // Save button
                       SizedBox(
                         width: double.infinity,
@@ -2061,6 +2063,7 @@ class _EditMapelScreenState extends State<EditMapelScreen> {
     );
   }
 
+  // ignore: unused_element
   Color _getHariColor(String? hari) {
     switch (_canonicalHari(hari)) {
       case 'Ahad':
