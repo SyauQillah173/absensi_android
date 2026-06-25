@@ -1,4 +1,4 @@
-package com.example.absensi_android
+package com.qomaruddin.absensi_skripsi
 
 import android.app.KeyguardManager
 import android.content.ActivityNotFoundException
