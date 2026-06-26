@@ -1460,6 +1460,20 @@ class ApiService {
     return _handleResponse(response);
   }
 
+  static Future<Map<String, dynamic>> updateKelompokBelajar(
+    int id,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await http
+        .put(
+          Uri.parse('$baseUrl/kelompok-belajar/$id'),
+          headers: await _headers(),
+          body: jsonEncode(data),
+        )
+        .timeout(const Duration(seconds: 10));
+    return _handleResponse(response);
+  }
+
   static Future<Map<String, dynamic>> deleteKelompokBelajar(int id) async {
     final response = await http
         .delete(

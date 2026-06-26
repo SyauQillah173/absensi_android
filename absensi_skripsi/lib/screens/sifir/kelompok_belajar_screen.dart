@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../services/cache_service.dart';
 import '../../services/sync_service.dart';
-import 'edit_kelompok_sifir_screen.dart';
 
 class KelompokBelajarScreen extends StatefulWidget {
   const KelompokBelajarScreen({super.key});
@@ -45,7 +44,8 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
   };
 
   List<Color> _getGradient(String sifir) =>
-      _sifirGradients[sifir] ?? [const Color(0xFF636E72), const Color(0xFF95A5A6)];
+      _sifirGradients[sifir] ??
+      [const Color(0xFF636E72), const Color(0xFF95A5A6)];
   IconData _getIcon(String sifir) => _sifirIcons[sifir] ?? Icons.school_rounded;
 
   // Sifir level options for adding new kelompok
@@ -61,14 +61,23 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
-    _fadeIn = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _fadeIn = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
     _loadKelompok();
   }
 
   Future<void> _loadKelompok() async {
-    setState(() { _isLoading = true; _errorMessage = null; });
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
     final result = await CacheService.fetchWithCache(
       cacheKey: 'kelompok_belajar',
@@ -84,7 +93,10 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
         _isLoading = false;
       });
     } else {
-      setState(() { _errorMessage = 'Tidak dapat terhubung ke server'; _isLoading = false; });
+      setState(() {
+        _errorMessage = 'Tidak dapat terhubung ke server';
+        _isLoading = false;
+      });
     }
   }
 
@@ -102,7 +114,9 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
       final kategori = (group['kategori'] ?? '').toString().toLowerCase();
       if (kategori.contains(q)) return true;
       final kelas = List<Map<String, dynamic>>.from(group['kelas'] ?? []);
-      return kelas.any((k) => (k['nama'] ?? '').toString().toLowerCase().contains(q));
+      return kelas.any(
+        (k) => (k['nama'] ?? '').toString().toLowerCase().contains(q),
+      );
     }).toList();
   }
 
@@ -120,38 +134,75 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
         builder: (ctx, setModalState) {
           // Auto-generate kategori from sifir + gender
           String kategori = presetKategori ?? '';
-          if (presetKategori == null && selectedSifir != null && selectedGender != null) {
-            final sifirLabel = _sifirOptions.firstWhere((s) => s['value'] == selectedSifir, orElse: () => {'label': ''})['label']!;
+          if (presetKategori == null &&
+              selectedSifir != null &&
+              selectedGender != null) {
+            final sifirLabel = _sifirOptions.firstWhere(
+              (s) => s['value'] == selectedSifir,
+              orElse: () => {'label': ''},
+            )['label']!;
             kategori = '$sifirLabel $selectedGender';
           }
 
           return Container(
-            padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+            padding: EdgeInsets.fromLTRB(
+              24,
+              20,
+              24,
+              MediaQuery.of(ctx).viewInsets.bottom + 24,
+            ),
             decoration: const BoxDecoration(
-              color: Color(0xFFE1EFF7), borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+              color: Color(0xFFE1EFF7),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
             ),
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[400], borderRadius: BorderRadius.circular(2)))),
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[400],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   Text(
-                    presetKategori != null ? 'Tambah Kelas di $presetKategori' : 'Tambah Kelas Baru',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF2D3436)),
+                    presetKategori != null
+                        ? 'Tambah Kelas di $presetKategori'
+                        : 'Tambah Kelas Baru',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF2D3436),
+                    ),
                   ),
                   const SizedBox(height: 16),
 
                   // Nama Kelas
-                  const Text('Nama Kelas', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF636E72))),
+                  const Text(
+                    'Nama Kelas',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF636E72),
+                    ),
+                  ),
                   const SizedBox(height: 6),
                   TextField(
                     controller: namaController,
                     textCapitalization: TextCapitalization.words,
                     decoration: InputDecoration(
-                      filled: true, fillColor: Colors.white,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
                       hintText: 'Contoh: Sifir Awal F PA',
                     ),
                   ),
@@ -159,27 +210,49 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
 
                   // Sifir Level (only if not preset)
                   if (presetKategori == null) ...[
-                    const Text('Tingkat Sifir', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF636E72))),
+                    const Text(
+                      'Tingkat Sifir',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF636E72),
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     Wrap(
-                      spacing: 6, runSpacing: 6,
+                      spacing: 6,
+                      runSpacing: 6,
                       children: _sifirOptions.map((s) {
                         final isSelected = selectedSifir == s['value'];
                         final grad = _getGradient(s['value']!);
                         return GestureDetector(
-                          onTap: () => setModalState(() => selectedSifir = s['value']),
+                          onTap: () =>
+                              setModalState(() => selectedSifir = s['value']),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
-                              gradient: isSelected ? LinearGradient(colors: grad) : null,
+                              gradient: isSelected
+                                  ? LinearGradient(colors: grad)
+                                  : null,
                               color: isSelected ? null : Colors.white,
                               borderRadius: BorderRadius.circular(10),
-                              border: isSelected ? null : Border.all(color: grad[0].withValues(alpha: 0.3)),
+                              border: isSelected
+                                  ? null
+                                  : Border.all(
+                                      color: grad[0].withValues(alpha: 0.3),
+                                    ),
                             ),
                             child: Text(
                               s['label']!,
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isSelected ? Colors.white : grad[0]),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: isSelected ? Colors.white : grad[0],
+                              ),
                             ),
                           ),
                         );
@@ -188,26 +261,45 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
                     const SizedBox(height: 14),
 
                     // Gender PA/PI
-                    const Text('Jenis Kelamin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF636E72))),
+                    const Text(
+                      'Jenis Kelamin',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF636E72),
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     Row(
                       children: ['PA', 'PI'].map((g) {
                         final isSelected = selectedGender == g;
                         return Expanded(
                           child: GestureDetector(
-                            onTap: () => setModalState(() => selectedGender = g),
+                            onTap: () =>
+                                setModalState(() => selectedGender = g),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
-                              margin: EdgeInsets.only(right: g == 'PA' ? 8 : 0, left: g == 'PI' ? 8 : 0),
+                              margin: EdgeInsets.only(
+                                right: g == 'PA' ? 8 : 0,
+                                left: g == 'PI' ? 8 : 0,
+                              ),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
-                                color: isSelected ? const Color(0xFF138F81) : Colors.white,
+                                color: isSelected
+                                    ? const Color(0xFF138F81)
+                                    : Colors.white,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Center(
                                 child: Text(
                                   g == 'PA' ? '👦 Putra (PA)' : '👧 Putri (PI)',
-                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: isSelected ? Colors.white : const Color(0xFF2D3436)),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : const Color(0xFF2D3436),
+                                  ),
                                 ),
                               ),
                             ),
@@ -222,15 +314,32 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: _getGradient(selectedSifir!)[0].withValues(alpha: 0.08),
+                          color: _getGradient(
+                            selectedSifir!,
+                          )[0].withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: _getGradient(selectedSifir!)[0].withValues(alpha: 0.2)),
+                          border: Border.all(
+                            color: _getGradient(
+                              selectedSifir!,
+                            )[0].withValues(alpha: 0.2),
+                          ),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.category_rounded, size: 16, color: _getGradient(selectedSifir!)[0]),
+                            Icon(
+                              Icons.category_rounded,
+                              size: 16,
+                              color: _getGradient(selectedSifir!)[0],
+                            ),
                             const SizedBox(width: 8),
-                            Text('Kelompok: $kategori', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _getGradient(selectedSifir!)[0])),
+                            Text(
+                              'Kelompok: $kategori',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: _getGradient(selectedSifir!)[0],
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -239,7 +348,8 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
 
                   // Simpan
                   SizedBox(
-                    width: double.infinity, height: 48,
+                    width: double.infinity,
+                    height: 48,
                     child: ElevatedButton.icon(
                       onPressed: () async {
                         final nama = namaController.text.trim();
@@ -247,39 +357,72 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
                         final kat = presetKategori ?? kategori;
                         if (nama.isEmpty || sifir == null || kat.isEmpty) {
                           ScaffoldMessenger.of(ctx).showSnackBar(
-                            SnackBar(content: const Text('Lengkapi semua field'), backgroundColor: const Color(0xFFD63031), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                            SnackBar(
+                              content: const Text('Lengkapi semua field'),
+                              backgroundColor: const Color(0xFFD63031),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
                           );
                           return;
                         }
-                          try {
-                            await ApiService.createKelompokBelajar({
-                              'nama': nama,
-                              'kategori': kat,
-                              'sifir': sifir,
-                            });
-                            await SyncService.notifyDataChanged(
-                              SyncTopics.kelas,
-                              message: 'Daftar kelas telah diperbarui',
-                            );
-                            if (!mounted || !ctx.mounted) return;
-                            Navigator.pop(ctx);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Kelas "$nama" berhasil ditambahkan!'), backgroundColor: const Color(0xFF138F81), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                            );
-                            _loadKelompok();
+                        try {
+                          await ApiService.createKelompokBelajar({
+                            'nama': nama,
+                            'kategori': kat,
+                            'sifir': sifir,
+                          });
+                          await SyncService.notifyDataChanged(
+                            SyncTopics.kelas,
+                            message: 'Daftar kelas telah diperbarui',
+                          );
+                          if (!mounted || !ctx.mounted) return;
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Kelas "$nama" berhasil ditambahkan!',
+                              ),
+                              backgroundColor: const Color(0xFF138F81),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          );
+                          _loadKelompok();
                         } catch (e) {
                           if (ctx.mounted) {
                             ScaffoldMessenger.of(ctx).showSnackBar(
-                              SnackBar(content: Text('Gagal: $e'), backgroundColor: const Color(0xFFD63031), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                              SnackBar(
+                                content: Text('Gagal: $e'),
+                                backgroundColor: const Color(0xFFD63031),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
                             );
                           }
                         }
                       },
                       icon: const Icon(Icons.add_rounded, size: 20),
-                      label: const Text('Tambah Kelas', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                      label: const Text(
+                        'Tambah Kelas',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF138F81), foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0,
+                        backgroundColor: const Color(0xFF138F81),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
                       ),
                     ),
                   ),
@@ -289,6 +432,183 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
           );
         },
       ),
+    );
+  }
+
+  void _showEditKelasNameDialog(Map<String, dynamic> kelas) {
+    final id = kelas['id'] as int?;
+    if (id == null) return;
+
+    final namaLama = kelas['nama']?.toString() ?? '';
+    final namaController = TextEditingController(text: namaLama);
+    final kategori = kelas['kategori']?.toString() ?? '';
+    final sifir = kelas['sifir']?.toString() ?? '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        bool saving = false;
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return Container(
+              padding: EdgeInsets.fromLTRB(
+                24,
+                20,
+                24,
+                MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
+              decoration: const BoxDecoration(
+                color: Color(0xFFE1EFF7),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[400],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Edit Nama Kelas',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF2D3436),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Nama Kelas',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF636E72),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: namaController,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      hintText: 'Contoh: Sifir Awal A PA',
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              final namaBaru = namaController.text.trim();
+                              if (namaBaru.isEmpty) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  SnackBar(
+                                    content: const Text(
+                                      'Nama kelas wajib diisi',
+                                    ),
+                                    backgroundColor: const Color(0xFFD63031),
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              setModalState(() => saving = true);
+                              try {
+                                await ApiService.updateKelompokBelajar(id, {
+                                  'nama': namaBaru,
+                                  if (kategori.isNotEmpty) 'kategori': kategori,
+                                  if (sifir.isNotEmpty) 'sifir': sifir,
+                                });
+                                await SyncService.notifyDataChanged(
+                                  SyncTopics.kelas,
+                                  message: 'Nama kelas telah diperbarui',
+                                );
+                                if (!mounted || !ctx.mounted) return;
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Kelas "$namaBaru" berhasil diperbarui',
+                                    ),
+                                    backgroundColor: const Color(0xFF138F81),
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                );
+                                _loadKelompok();
+                              } catch (e) {
+                                if (ctx.mounted) {
+                                  setModalState(() => saving = false);
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Gagal: $e'),
+                                      backgroundColor: const Color(0xFFD63031),
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                      icon: saving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.save_rounded, size: 20),
+                      label: const Text(
+                        'Simpan Nama Kelas',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF138F81),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -305,62 +625,117 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
         backgroundColor: const Color(0xFFE1EFF7),
         title: const Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Color(0xFFD63031), size: 24),
+            Icon(
+              Icons.warning_amber_rounded,
+              color: Color(0xFFD63031),
+              size: 24,
+            ),
             SizedBox(width: 8),
-            Text('Hapus Kelas?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            Text(
+              'Hapus Kelas?',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Apakah anda yakin ingin menghapus kelas:', style: const TextStyle(fontSize: 13, color: Color(0xFF636E72))),
+            Text(
+              'Apakah anda yakin ingin menghapus kelas:',
+              style: const TextStyle(fontSize: 13, color: Color(0xFF636E72)),
+            ),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: const Color(0xFFD63031).withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(
+                color: const Color(0xFFD63031).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
               child: Row(
                 children: [
-                  const Icon(Icons.class_rounded, color: Color(0xFFD63031), size: 18),
+                  const Icon(
+                    Icons.class_rounded,
+                    color: Color(0xFFD63031),
+                    size: 18,
+                  ),
                   const SizedBox(width: 8),
-                  Expanded(child: Text(nama, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFFD63031)))),
+                  Expanded(
+                    child: Text(
+                      nama,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFD63031),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 8),
-            const Text('Semua siswa yang terkait akan dilepas dari kelas ini.', style: TextStyle(fontSize: 11, color: Color(0xFF636E72))),
+            const Text(
+              'Semua siswa yang terkait akan dilepas dari kelas ini.',
+              style: TextStyle(fontSize: 11, color: Color(0xFF636E72)),
+            ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal', style: TextStyle(color: Color(0xFF636E72))),
+            child: const Text(
+              'Batal',
+              style: TextStyle(color: Color(0xFF636E72)),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-                try {
-                  await ApiService.deleteKelompokBelajar(id);
-                  await SyncService.notifyDataChanged(
-                    SyncTopics.kelas,
-                    message: 'Daftar kelas telah diperbarui',
-                  );
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('"$nama" berhasil dihapus'), backgroundColor: const Color(0xFFD63031), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              try {
+                await ApiService.deleteKelompokBelajar(id);
+                await SyncService.notifyDataChanged(
+                  SyncTopics.kelas,
+                  message: 'Daftar kelas telah diperbarui',
+                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('"$nama" berhasil dihapus'),
+                      backgroundColor: const Color(0xFFD63031),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   );
                   _loadKelompok();
                 }
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Gagal menghapus: $e'), backgroundColor: const Color(0xFFD63031), behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    SnackBar(
+                      content: Text('Gagal menghapus: $e'),
+                      backgroundColor: const Color(0xFFD63031),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   );
                 }
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD63031), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.w700)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD63031),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Hapus',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -370,10 +745,14 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
   @override
   Widget build(BuildContext context) {
     final filtered = _filteredData;
-    final totalKelas = _groupedData.fold<int>(0, (sum, g) => sum + (List.from(g['kelas'] ?? []).length));
+    final totalKelas = _groupedData.fold<int>(
+      0,
+      (sum, g) => sum + (List.from(g['kelas'] ?? []).length),
+    );
     final totalSiswa = _groupedData.fold<int>(0, (sum, g) {
       final kelas = List<Map<String, dynamic>>.from(g['kelas'] ?? []);
-      return sum + kelas.fold<int>(0, (s, k) => s + ((k['jumlah_siswa'] as int?) ?? 0));
+      return sum +
+          kelas.fold<int>(0, (s, k) => s + ((k['jumlah_siswa'] as int?) ?? 0));
     });
 
     return Scaffold(
@@ -383,7 +762,10 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
         backgroundColor: const Color(0xFF138F81),
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Tambah Kelas', style: TextStyle(fontWeight: FontWeight.w700)),
+        label: const Text(
+          'Tambah Kelas',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       body: SafeArea(
@@ -395,17 +777,30 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(color: const Color(0xFFE1EFF7), borderRadius: BorderRadius.circular(25)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE1EFF7),
+                    borderRadius: BorderRadius.circular(25),
+                  ),
                   child: Row(
                     children: [
                       Container(
-                        width: 50, height: 50,
+                        width: 50,
+                        height: 50,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF138F81).withValues(alpha: 0.15),
+                          color: const Color(
+                            0xFF138F81,
+                          ).withValues(alpha: 0.15),
                         ),
-                        child: const Icon(Icons.groups_rounded, color: Color(0xFF138F81), size: 26),
+                        child: const Icon(
+                          Icons.groups_rounded,
+                          color: Color(0xFF138F81),
+                          size: 26,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -414,24 +809,55 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
                           children: [
                             Row(
                               children: [
-                                const Text('Kelompok Belajar', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Color(0xFF2D3436))),
+                                const Text(
+                                  'Kelompok Belajar',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF2D3436),
+                                  ),
+                                ),
                                 if (_isFromCache) ...[
                                   const SizedBox(width: 6),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(color: const Color(0xFFE65100).withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
-                                    child: const Text('Offline', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: Color(0xFFE65100))),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(
+                                        0xFFE65100,
+                                      ).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Text(
+                                      'Offline',
+                                      style: TextStyle(
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFFE65100),
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ],
                             ),
-                            Text('$totalKelas kelas • $totalSiswa santri', style: const TextStyle(fontSize: 11, color: Color(0xFF636E72))),
+                            Text(
+                              '$totalKelas kelas • $totalSiswa santri',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF636E72),
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       IconButton(
                         onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back_ios_rounded, size: 20),
+                        icon: const Icon(
+                          Icons.arrow_back_ios_rounded,
+                          size: 20,
+                        ),
                       ),
                     ],
                   ),
@@ -443,19 +869,34 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(21)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(21),
+                  ),
                   child: Row(
                     children: [
-                      const Icon(Icons.search_rounded, size: 22, color: Color(0xFF636E72)),
+                      const Icon(
+                        Icons.search_rounded,
+                        size: 22,
+                        color: Color(0xFF636E72),
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: TextField(
                           controller: _searchController,
-                          onChanged: (val) => setState(() => _searchQuery = val),
+                          onChanged: (val) =>
+                              setState(() => _searchQuery = val),
                           decoration: const InputDecoration(
-                            hintText: 'Cari Kelas...', border: InputBorder.none,
-                            hintStyle: TextStyle(fontSize: 13, color: Color(0xFF636E72)),
+                            hintText: 'Cari Kelas...',
+                            border: InputBorder.none,
+                            hintStyle: TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF636E72),
+                            ),
                           ),
                           style: const TextStyle(fontSize: 13),
                         ),
@@ -475,7 +916,13 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
                       children: [
                         CircularProgressIndicator(color: Color(0xFF138F81)),
                         SizedBox(height: 16),
-                        Text('Memuat kelompok belajar...', style: TextStyle(fontSize: 13, color: Color(0xFF636E72))),
+                        Text(
+                          'Memuat kelompok belajar...',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF636E72),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -486,15 +933,32 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.wifi_off_rounded, size: 48, color: Color(0xFFE65100)),
+                        const Icon(
+                          Icons.wifi_off_rounded,
+                          size: 48,
+                          color: Color(0xFFE65100),
+                        ),
                         const SizedBox(height: 12),
-                        Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: Color(0xFF636E72))),
+                        Text(
+                          _errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF636E72),
+                          ),
+                        ),
                         const SizedBox(height: 16),
                         ElevatedButton.icon(
                           onPressed: _loadKelompok,
                           icon: const Icon(Icons.refresh_rounded),
                           label: const Text('Coba Lagi'),
-                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF138F81), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF138F81),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -506,7 +970,9 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
                     onRefresh: _loadKelompok,
                     color: const Color(0xFF138F81),
                     child: ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
                       itemCount: filtered.length,
                       itemBuilder: (context, index) {
@@ -526,10 +992,15 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
     final isExpanded = _expandedCategory == catIndex;
     final kategori = group['kategori']?.toString() ?? '';
     final kelasList = List<Map<String, dynamic>>.from(group['kelas'] ?? []);
-    final sifir = kelasList.isNotEmpty ? kelasList[0]['sifir']?.toString() ?? '' : '';
+    final sifir = kelasList.isNotEmpty
+        ? kelasList[0]['sifir']?.toString() ?? ''
+        : '';
     final gradient = _getGradient(sifir);
     final icon = _getIcon(sifir);
-    final totalSiswa = kelasList.fold<int>(0, (sum, k) => sum + ((k['jumlah_siswa'] as int?) ?? 0));
+    final totalSiswa = kelasList.fold<int>(
+      0,
+      (sum, k) => sum + ((k['jumlah_siswa'] as int?) ?? 0),
+    );
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
@@ -544,7 +1015,8 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(20),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: gradient[0].withValues(alpha: 0.1)),
         ),
         child: Column(
@@ -558,15 +1030,30 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [gradient[0].withValues(alpha: 0.08), gradient[1].withValues(alpha: 0.03)]),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20), bottom: isExpanded ? Radius.zero : const Radius.circular(20)),
+                  gradient: LinearGradient(
+                    colors: [
+                      gradient[0].withValues(alpha: 0.08),
+                      gradient[1].withValues(alpha: 0.03),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(20),
+                    bottom: isExpanded
+                        ? Radius.zero
+                        : const Radius.circular(20),
+                  ),
                 ),
                 child: Row(
                   children: [
                     Container(
-                      width: 48, height: 48,
+                      width: 48,
+                      height: 48,
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: gradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
+                        gradient: LinearGradient(
+                          colors: gradient,
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: Icon(icon, color: Colors.white, size: 24),
@@ -576,20 +1063,55 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(kategori, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: gradient[0])),
+                          Text(
+                            kategori,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: gradient[0],
+                            ),
+                          ),
                           const SizedBox(height: 3),
                           Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(color: gradient[0].withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                                child: Text('${kelasList.length} Kelas', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: gradient[0])),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: gradient[0].withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '${kelasList.length} Kelas',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: gradient[0],
+                                  ),
+                                ),
                               ),
                               const SizedBox(width: 4),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(color: const Color(0xFF636E72).withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
-                                child: Text('$totalSiswa Siswa', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF636E72))),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF636E72,
+                                  ).withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '$totalSiswa Siswa',
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF636E72),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -599,7 +1121,10 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
                     AnimatedRotation(
                       turns: isExpanded ? 0.25 : 0,
                       duration: const Duration(milliseconds: 200),
-                      child: Icon(Icons.chevron_right_rounded, color: gradient[0]),
+                      child: Icon(
+                        Icons.chevron_right_rounded,
+                        color: gradient[0],
+                      ),
                     ),
                   ],
                 ),
@@ -613,8 +1138,14 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
               child: isExpanded
                   ? Column(
                       children: [
-                        Container(margin: const EdgeInsets.symmetric(horizontal: 14), height: 1, color: gradient[0].withValues(alpha: 0.1)),
-                        ...kelasList.map((kelas) => _buildKelasItem(kelas, gradient)),
+                        Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 14),
+                          height: 1,
+                          color: gradient[0].withValues(alpha: 0.1),
+                        ),
+                        ...kelasList.map(
+                          (kelas) => _buildKelasItem(kelas, gradient),
+                        ),
 
                         // + Tambah Kelas Button
                         Padding(
@@ -626,14 +1157,28 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
                               decoration: BoxDecoration(
                                 color: gradient[0].withValues(alpha: 0.06),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: gradient[0].withValues(alpha: 0.2), style: BorderStyle.solid),
+                                border: Border.all(
+                                  color: gradient[0].withValues(alpha: 0.2),
+                                  style: BorderStyle.solid,
+                                ),
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.add_circle_outline_rounded, size: 16, color: gradient[0]),
+                                  Icon(
+                                    Icons.add_circle_outline_rounded,
+                                    size: 16,
+                                    color: gradient[0],
+                                  ),
                                   const SizedBox(width: 6),
-                                  Text('Tambah Kelas', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: gradient[0])),
+                                  Text(
+                                    'Tambah Kelas',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: gradient[0],
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -664,7 +1209,8 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
         child: Row(
           children: [
             Container(
-              width: 36, height: 36,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: gradient[0].withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
@@ -676,26 +1222,34 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(nama, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2D3436))),
-                  Text('$jumlahSiswa Siswa', style: const TextStyle(fontSize: 10, color: Color(0xFF636E72))),
+                  Text(
+                    nama,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF2D3436),
+                    ),
+                  ),
+                  Text(
+                    '$jumlahSiswa Siswa',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFF636E72),
+                    ),
+                  ),
                 ],
               ),
             ),
             // Edit Button
             GestureDetector(
-              onTap: () async {
-                final kelasId = kelas['id'];
-                if (kelasId != null) {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => EditKelompokSifirScreen(kelompokId: kelasId, namaKelas: nama)),
-                  );
-                  _loadKelompok();
-                }
-              },
+              onTap: () => _showEditKelasNameDialog(kelas),
               child: Container(
-                width: 32, height: 32,
-                decoration: BoxDecoration(color: gradient[0].withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: gradient[0].withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 child: Icon(Icons.edit_rounded, size: 14, color: gradient[0]),
               ),
             ),
@@ -704,9 +1258,17 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
             GestureDetector(
               onTap: () => _showDeleteKelasDialog(kelas),
               child: Container(
-                width: 32, height: 32,
-                decoration: BoxDecoration(color: const Color(0xFFD63031).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.delete_outline_rounded, size: 14, color: Color(0xFFD63031)),
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD63031).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.delete_outline_rounded,
+                  size: 14,
+                  color: Color(0xFFD63031),
+                ),
               ),
             ),
           ],

@@ -93,18 +93,14 @@ class _AbsensiMapelScreenState extends State<AbsensiMapelScreen> {
     final userRole = await SessionService.getUserRole();
     _userRole = userRole;
     final scopedUserId = null; // Versi skripsi: Guru melihat semua mapel
-    final kelasFilter = widget.namaKelas;
-    final classIdFilter = widget.classId;
     final cacheKey =
-        '${_cacheKeyVersion}_admin_${widget.namaKelas}_${classIdFilter ?? 0}';
+        '${_cacheKeyVersion}_skripsi_all_active_${widget.namaKelas}_${widget.classId ?? 0}';
 
     final result = await CacheService.fetchWithCache(
       cacheKey: cacheKey,
       apiFetch: () => ApiService.getMataPelajaran(
         status: 'Aktif',
         userId: scopedUserId,
-        kelas: kelasFilter,
-        classId: classIdFilter,
         requireJadwal: false, // Versi skripsi: Tidak butuh jadwal
       ),
     );
@@ -116,9 +112,7 @@ class _AbsensiMapelScreenState extends State<AbsensiMapelScreen> {
       );
       setState(() {
         _allMapel = loadedMapel;
-        _jumlahMapelAktif = loadedMapel
-            .where((mapel) => _scheduleForMapel(mapel) != null)
-            .length;
+        _jumlahMapelAktif = loadedMapel.length;
         _isLoading = false;
         _isOfflineMode = result['_fromCache'] == true;
         _errorMessage = null;
@@ -179,7 +173,7 @@ class _AbsensiMapelScreenState extends State<AbsensiMapelScreen> {
 
   String _scheduleInfoText(Map<String, dynamic>? jadwal) {
     if (jadwal == null) {
-      return _jumlahSiswa != null ? '${_jumlahSiswa!} Santri' : '';
+      return _jumlahSiswa != null ? '${_jumlahSiswa!} Santri - Aktif' : 'Aktif';
     }
 
     final teacher = jadwal['guru']?.toString().trim() ?? '';
@@ -644,9 +638,7 @@ class _AbsensiMapelScreenState extends State<AbsensiMapelScreen> {
     if (_filteredMapel.isEmpty) {
       return Center(
         child: Text(
-          _userRole == 'guru'
-              ? 'Belum ada mata pelajaran yang ditugaskan admin untuk kelas ini'
-              : 'Tidak ada mata pelajaran aktif',
+          'Tidak ada mata pelajaran aktif',
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 13, color: Color(0xFF636E72)),
         ),
@@ -716,8 +708,6 @@ class _AbsensiMapelScreenState extends State<AbsensiMapelScreen> {
         : hasPresence
         ? const Color(0xFFF5FBF9)
         : Colors.white;
-    final hasValidSchedule = jadwal != null;
-    final scheduleWarning = _userRole == 'admin' && !hasValidSchedule;
     final scheduleInfoText = _scheduleInfoText(jadwal);
 
     return TweenAnimationBuilder<double>(
@@ -820,20 +810,6 @@ class _AbsensiMapelScreenState extends State<AbsensiMapelScreen> {
                           color: Color(0xFF636E72),
                         ),
                       ),
-                    ] else if (scheduleWarning) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        scheduleInfoText.isNotEmpty
-                            ? '$scheduleInfoText - Aktif - jadwal kelas belum diatur'
-                            : 'Aktif - jadwal kelas belum diatur',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFE65100),
-                        ),
-                      ),
                     ] else if (isScheduleLocked) ...[
                       const SizedBox(height: 4),
                       Text(
@@ -886,15 +862,11 @@ class _AbsensiMapelScreenState extends State<AbsensiMapelScreen> {
                 ),
               ],
               Icon(
-                scheduleWarning
-                    ? Icons.info_outline_rounded
-                    : isScheduleLocked
+                isScheduleLocked
                     ? Icons.lock_rounded
                     : Icons.chevron_right_rounded,
                 size: 20,
-                color: scheduleWarning
-                    ? const Color(0xFFE65100)
-                    : isScheduleLocked
+                color: isScheduleLocked
                     ? const Color(0xFF546E7A)
                     : const Color(0xFF636E72),
               ),

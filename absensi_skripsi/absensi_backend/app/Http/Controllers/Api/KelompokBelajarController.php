@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Jadwal;
 use App\Models\KelompokBelajar;
 use App\Models\Siswa;
 use App\Services\ReferenceResolver;
@@ -65,30 +64,8 @@ class KelompokBelajarController extends Controller
 
     private function activeMapelCount(KelompokBelajar $kelompokBelajar, ?int $teacherId = null, ?string $teacherName = null): int
     {
-        return Jadwal::query()
-            ->where('status', 'Aktif')
-            ->whereNotNull('mapel_id')
-            ->when($teacherId, function ($query) use ($teacherId, $teacherName) {
-                $normalizedName = mb_strtolower(trim((string) $teacherName));
-                $query->where(function ($nested) use ($teacherId, $normalizedName) {
-                    $nested->where('teacher_id', $teacherId);
-                    if ($normalizedName !== '') {
-                        $nested->orWhereRaw('LOWER(TRIM(COALESCE(guru, \'\'))) = ?', [$normalizedName]);
-                    }
-                });
-            })
-            ->where(function ($query) use ($kelompokBelajar) {
-                if ($kelompokBelajar->class_id) {
-                    $query->where('class_id', $kelompokBelajar->class_id);
-                }
-                if ($kelompokBelajar->nama) {
-                    $method = $kelompokBelajar->class_id ? 'orWhere' : 'where';
-                    $query->{$method}('sifir', $kelompokBelajar->nama);
-                }
-            })
-            ->whereHas('mataPelajaran', fn ($query) => $query->where('status', 'Aktif'))
-            ->distinct()
-            ->count('mapel_id');
+        // Versi skripsi: semua guru melihat semua mata pelajaran aktif di semua kelas.
+        return DB::table('mata_pelajaran')->where('status', 'Aktif')->count();
     }
 
     public function show(KelompokBelajar $kelompokBelajar)

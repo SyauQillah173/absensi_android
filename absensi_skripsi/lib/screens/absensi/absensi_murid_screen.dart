@@ -128,7 +128,7 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
       setState(() {
         _isLoading = false;
         _errorMessage =
-            'Jadwal absensi belum lengkap.\nBuka melalui jadwal/mapel yang sudah diatur admin agar kelas, mapel, dan jadwal terbaca.';
+            'Data absensi belum lengkap.\nPilih kelas dan mata pelajaran dari menu Absensi.';
       });
       return;
     }
@@ -701,7 +701,7 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Absensi tidak bisa disimpan karena jadwal belum lengkap. Pilih jadwal dari menu admin/mapel.',
+            'Absensi tidak bisa disimpan karena kelas atau mata pelajaran belum lengkap.',
           ),
           backgroundColor: Color(0xFFE65100),
         ),
