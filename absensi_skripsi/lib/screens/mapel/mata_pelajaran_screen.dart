@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../services/cache_service.dart';
 import '../../services/sync_service.dart';
+import '../../widgets/adaptive_bottom_sheet.dart';
 import 'edit_mapel_screen.dart';
 
 class MataPelajaranScreen extends StatefulWidget {
@@ -17,7 +18,7 @@ class MataPelajaranScreen extends StatefulWidget {
 }
 
 class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
-  static const _cacheKey = 'mata_pelajaran_all_v2';
+  static const _cacheVersion = 'v3';
 
   final TextEditingController _searchController = TextEditingController();
   StreamSubscription<AppDataEvent>? _syncSubscription;
@@ -29,7 +30,12 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
   bool _isSyncing = false;
   String _searchQuery = '';
   String? _errorMessage;
+  final Set<int> _pendingToggleIds = <int>{};
+  final Set<int> _pendingDeleteIds = <int>{};
   int _skipNextMapelSyncReloads = 0;
+
+  String get _cacheKey =>
+      'mata_pelajaran_skripsi_${widget.readOnly ? 'guru_aktif' : 'admin_all'}_$_cacheVersion';
 
   @override
   void initState() {
@@ -87,7 +93,11 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
     }
 
     try {
-      final result = await ApiService.getMataPelajaran();
+      final result = await ApiService.getMataPelajaran(
+        status: widget.readOnly ? 'Aktif' : null,
+        userId: null,
+        requireJadwal: false,
+      );
       await CacheService.save(_cacheKey, result);
 
       if (!mounted) return;
@@ -167,6 +177,12 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
     _setLocalMapelList(next);
   }
 
+  void _removeLocalMapel(int id) {
+    final next = List<Map<String, dynamic>>.from(_allMapel)
+      ..removeWhere((item) => (item['id'] as num?)?.toInt() == id);
+    _setLocalMapelList(next);
+  }
+
   void _suppressNextMapelSyncReload() {
     _skipNextMapelSyncReloads++;
   }
@@ -185,6 +201,291 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
+  }
+
+  Future<void> _toggleStatus(Map<String, dynamic> mapel) async {
+    if (widget.readOnly) {
+      _showSnackBar('Guru hanya dapat melihat mata pelajaran.', isError: true);
+      return;
+    }
+
+    final id = (mapel['id'] as num?)?.toInt();
+    if (id == null || _pendingToggleIds.contains(id)) return;
+
+    final previous = Map<String, dynamic>.from(mapel);
+    final currentStatus = mapel['status']?.toString() == 'Nonaktif'
+        ? 'Nonaktif'
+        : 'Aktif';
+    final nextStatus = currentStatus == 'Aktif' ? 'Nonaktif' : 'Aktif';
+    final mapelName = (mapel['nama']?.toString().trim().isNotEmpty ?? false)
+        ? mapel['nama'].toString().trim()
+        : 'Mata pelajaran';
+
+    setState(() {
+      _pendingToggleIds.add(id);
+      _replaceLocalMapel({...previous, 'status': nextStatus});
+    });
+
+    try {
+      final result = await ApiService.toggleMapelStatus(id, nextStatus);
+      final updated = result['data'];
+      if (updated is Map) {
+        _replaceLocalMapel(Map<String, dynamic>.from(updated));
+      }
+      await _persistLocalCache();
+      _suppressNextMapelSyncReload();
+      await SyncService.notifyDataChanged(
+        SyncTopics.mapel,
+        message: 'Status mata pelajaran telah diperbarui',
+      );
+      await SyncService.notifyDataChanged(
+        SyncTopics.absensi,
+        message: 'Daftar absensi perlu diperbarui',
+      );
+      _showSnackBar('$mapelName menjadi $nextStatus');
+    } catch (e) {
+      if (mounted) {
+        setState(() => _replaceLocalMapel(previous));
+      }
+      _showSnackBar('Gagal mengubah status: $e', isError: true);
+    } finally {
+      if (mounted) {
+        setState(() => _pendingToggleIds.remove(id));
+      }
+    }
+  }
+
+  Future<void> _deleteMapel(Map<String, dynamic> mapel) async {
+    if (widget.readOnly) {
+      _showSnackBar('Guru hanya dapat melihat mata pelajaran.', isError: true);
+      return;
+    }
+
+    final id = (mapel['id'] as num?)?.toInt();
+    if (id == null || _pendingDeleteIds.contains(id)) return;
+
+    final name = (mapel['nama']?.toString().trim().isNotEmpty ?? false)
+        ? mapel['nama'].toString().trim()
+        : 'Mata pelajaran';
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Hapus Mata Pelajaran?'),
+        content: Text('"$name" akan dihapus dari data mata pelajaran.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE65100),
+            ),
+            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _pendingDeleteIds.add(id));
+    try {
+      await ApiService.deleteMataPelajaran(id);
+      if (mounted) {
+        setState(() => _removeLocalMapel(id));
+      }
+      await _persistLocalCache();
+      _suppressNextMapelSyncReload();
+      await SyncService.notifyDataChanged(
+        SyncTopics.mapel,
+        message: 'Data mata pelajaran telah diperbarui',
+      );
+      await SyncService.notifyDataChanged(
+        SyncTopics.absensi,
+        message: 'Daftar absensi perlu diperbarui',
+      );
+      _showSnackBar('$name berhasil dihapus');
+    } catch (e) {
+      _showSnackBar('Gagal menghapus mata pelajaran: $e', isError: true);
+    } finally {
+      if (mounted) {
+        setState(() => _pendingDeleteIds.remove(id));
+      }
+    }
+  }
+
+  void _showTambahMapelDialog() {
+    if (widget.readOnly) {
+      _showSnackBar('Guru hanya dapat melihat mata pelajaran.', isError: true);
+      return;
+    }
+
+    final namaController = TextEditingController();
+    final kodeController = TextEditingController();
+    bool isSaving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          Future<void> save() async {
+            final nama = namaController.text.trim().toUpperCase();
+            final kode = kodeController.text.trim().toUpperCase();
+            if (nama.isEmpty) {
+              _showSnackBar('Nama mata pelajaran wajib diisi', isError: true);
+              return;
+            }
+
+            setModalState(() => isSaving = true);
+            try {
+              final result = await ApiService.createMataPelajaran({
+                'nama': nama,
+                if (kode.isNotEmpty) 'kode': kode,
+                'status': 'Aktif',
+              });
+              final created = result['data'];
+              if (created is Map && mounted) {
+                setState(
+                  () => _replaceLocalMapel(Map<String, dynamic>.from(created)),
+                );
+                await _persistLocalCache();
+              }
+              _suppressNextMapelSyncReload();
+              await SyncService.notifyDataChanged(
+                SyncTopics.mapel,
+                message: 'Mata pelajaran baru ditambahkan',
+              );
+              await SyncService.notifyDataChanged(
+                SyncTopics.absensi,
+                message: 'Daftar absensi perlu diperbarui',
+              );
+              if (!mounted || !ctx.mounted) return;
+              Navigator.pop(ctx);
+              _showSnackBar('$nama berhasil ditambahkan');
+            } catch (e) {
+              _showSnackBar('Gagal menambah mata pelajaran: $e', isError: true);
+            } finally {
+              if (ctx.mounted) {
+                setModalState(() => isSaving = false);
+              }
+            }
+          }
+
+          return AdaptiveBottomSheet(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[400],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Tambah Mata Pelajaran',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF2D3436),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Nama Mata Pelajaran',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF636E72),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: namaController,
+                  textCapitalization: TextCapitalization.characters,
+                  enabled: !isSaving,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    hintText: 'Contoh: TAFSIR',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Kode Mapel (opsional)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF636E72),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: kodeController,
+                  textCapitalization: TextCapitalization.characters,
+                  enabled: !isSaving,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    hintText: 'TAF',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 22),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: isSaving ? null : save,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF138F81),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                    child: isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Simpan Mata Pelajaran',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    ).whenComplete(() {
+      namaController.dispose();
+      kodeController.dispose();
+    });
   }
 
   @override
@@ -254,8 +555,8 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
                           Text(
                             widget.readOnly
                                 ? 'Lihat semua mata pelajaran'
-                                : 'Edit nama mata pelajaran',
-                            style: TextStyle(
+                                : 'Kelola mata pelajaran',
+                            style: const TextStyle(
                               fontSize: 11,
                               color: Color(0xFF636E72),
                             ),
@@ -343,10 +644,21 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 8),
           ],
         ),
       ),
+      floatingActionButton: widget.readOnly
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: _showTambahMapelDialog,
+              backgroundColor: const Color(0xFF138F81),
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text(
+                'Tambah Mapel',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
     );
   }
 
@@ -504,6 +816,8 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
   Widget _buildMapelCard(Map<String, dynamic> mapel) {
     final mapelId = (mapel['id'] as num?)?.toInt() ?? 0;
     final isActive = mapel['status'] == 'Aktif';
+    final isToggling = _pendingToggleIds.contains(mapelId);
+    final isDeleting = _pendingDeleteIds.contains(mapelId);
 
     return Padding(
       key: ValueKey('mapel_card_$mapelId'),
@@ -598,6 +912,20 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   GestureDetector(
+                    onTap: isToggling ? null : () => _toggleStatus(mapel),
+                    child: _buildActionChip(
+                      label: isActive ? 'Nonaktifkan' : 'Aktifkan',
+                      icon: isActive
+                          ? Icons.pause_circle_outline_rounded
+                          : Icons.play_circle_outline_rounded,
+                      color: isActive
+                          ? const Color(0xFFE65100)
+                          : const Color(0xFF138F81),
+                      isLoading: isToggling,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
                     onTap: () async {
                       final result = await Navigator.push<dynamic>(
                         context,
@@ -625,6 +953,16 @@ class _MataPelajaranScreenState extends State<MataPelajaranScreen> {
                       label: 'Edit',
                       icon: Icons.edit_rounded,
                       color: const Color(0xFF2E86DE),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: isDeleting ? null : () => _deleteMapel(mapel),
+                    child: _buildActionChip(
+                      label: 'Hapus',
+                      icon: Icons.delete_outline_rounded,
+                      color: const Color(0xFFD63031),
+                      isLoading: isDeleting,
                     ),
                   ),
                 ],

@@ -80,7 +80,7 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
     });
 
     final result = await CacheService.fetchWithCache(
-      cacheKey: 'kelompok_belajar',
+      cacheKey: 'kelompok_belajar_skripsi_v2',
       apiFetch: () => ApiService.getKelompokBelajar(),
     );
 

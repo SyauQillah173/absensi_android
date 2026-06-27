@@ -107,7 +107,7 @@ class _AbsensiSifirScreenState extends State<AbsensiSifirScreen>
     final scopedUserId = null; // Versi skripsi: Guru melihat semua kelas
 
     final result = await CacheService.fetchWithCache(
-      cacheKey: 'absensi_sifir_all',
+      cacheKey: 'absensi_sifir_skripsi_all_v2',
       apiFetch: () => ApiService.getKelompokBelajar(userId: scopedUserId),
     );
 
