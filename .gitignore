@@ -51,3 +51,5 @@ app.*.map.json
 
 
 PANDUAN_DEPLOY_SKRIPSI.md
+.vercel
+.env*
