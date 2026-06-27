@@ -32,6 +32,88 @@ class ReferenceController extends Controller
         ]);
     }
 
+    public function storeClass(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', 'unique:classes,name'],
+            'code' => ['nullable', 'string', 'max:100', 'unique:classes,code'],
+            'category' => ['nullable', 'string', 'max:100'],
+            'gender_group' => ['nullable', 'string', 'max:20'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+        if (array_key_exists('code', $validated) && trim((string) $validated['code']) === '') {
+            unset($validated['code']);
+        }
+
+        $class = SchoolClass::create([
+            'name' => trim($validated['name']),
+            'code' => $validated['code'] ?? $this->uniqueClassCode($validated['name']),
+            'category' => $validated['category'] ?? $this->categoryFromClassName($validated['name']),
+            'gender_group' => $validated['gender_group'] ?? $this->genderGroupFromClassName($validated['name']),
+            'is_active' => $validated['is_active'] ?? true,
+        ]);
+
+        $this->ensureKelompokBelajarForClass($class);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Kelas sifir berhasil ditambahkan',
+            'data' => $class->fresh(),
+        ], 201);
+    }
+
+    public function updateClass(Request $request, SchoolClass $class)
+    {
+        $validated = $request->validate([
+            'name' => ['sometimes', 'string', 'max:255', Rule::unique('classes', 'name')->ignore($class->id)],
+            'code' => ['nullable', 'string', 'max:100', Rule::unique('classes', 'code')->ignore($class->id)],
+            'category' => ['nullable', 'string', 'max:100'],
+            'gender_group' => ['nullable', 'string', 'max:20'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        if (array_key_exists('name', $validated)) {
+            $validated['name'] = trim($validated['name']);
+            $validated['category'] = $validated['category'] ?? $this->categoryFromClassName($validated['name']);
+            $validated['gender_group'] = $validated['gender_group'] ?? $this->genderGroupFromClassName($validated['name']);
+        }
+        if (array_key_exists('code', $validated) && trim((string) $validated['code']) === '') {
+            unset($validated['code']);
+        }
+
+        $class->update($validated);
+        $this->syncKelompokBelajarForClass($class);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Kelas sifir berhasil diperbarui',
+            'data' => $class->fresh(),
+        ]);
+    }
+
+    public function destroyClass(SchoolClass $class)
+    {
+        $hasStudents = DB::table('siswa')->where('class_id', $class->id)->exists();
+        $hasAttendance = DB::table('absensi')->where('class_id', $class->id)->exists();
+
+        if ($hasStudents || $hasAttendance) {
+            $class->update(['is_active' => false]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Kelas sifir dipakai data siswa/absensi, jadi dinonaktifkan.',
+                'data' => $class->fresh(),
+            ]);
+        }
+
+        DB::table('kelompok_belajar')->where('class_id', $class->id)->delete();
+        $class->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Kelas sifir berhasil dihapus',
+        ]);
+    }
+
     public function schoolOrigins(Request $request)
     {
         $query = SchoolOrigin::query()->with(['province:id,name', 'city:id,name,province_id', 'district:id,name,city_id']);
@@ -350,5 +432,73 @@ class ReferenceController extends Controller
             'external_id' => $origin->external_id,
             'is_active' => (bool) $origin->is_active,
         ];
+    }
+
+    private function uniqueClassCode(string $name): string
+    {
+        $base = Str::of($name)->upper()->replaceMatches('/[^A-Z0-9]+/', '_')->trim('_')->limit(24, '')->toString() ?: 'KELAS';
+        $code = $base;
+        $counter = 2;
+
+        while (SchoolClass::where('code', $code)->exists()) {
+            $code = $base . '_' . $counter++;
+        }
+
+        return $code;
+    }
+
+    private function categoryFromClassName(string $name): string
+    {
+        $upper = Str::of($name)->upper()->toString();
+        foreach (['AWAL', 'TSANI', 'TSALIS', 'ROBI', 'KHOMIS', 'SADIS'] as $level) {
+            if (str_contains($upper, $level)) {
+                return 'Sifir ' . ucfirst(strtolower($level));
+            }
+        }
+
+        return 'Sifir';
+    }
+
+    private function genderGroupFromClassName(string $name): ?string
+    {
+        $upper = Str::of($name)->upper()->toString();
+        if (preg_match('/\bPA\b/', $upper)) {
+            return 'PA';
+        }
+        if (preg_match('/\bPI\b/', $upper)) {
+            return 'PI';
+        }
+
+        return null;
+    }
+
+    private function ensureKelompokBelajarForClass(SchoolClass $class): void
+    {
+        DB::table('kelompok_belajar')->updateOrInsert(
+            ['class_id' => $class->id],
+            [
+                'nama' => $class->name,
+                'kategori' => $class->category ?? $this->categoryFromClassName($class->name),
+                'sifir' => Str::of($class->category ?? $class->name)->lower()->replace('sifir ', '')->toString(),
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
+    }
+
+    private function syncKelompokBelajarForClass(SchoolClass $class): void
+    {
+        DB::table('kelompok_belajar')
+            ->where('class_id', $class->id)
+            ->update([
+                'nama' => $class->name,
+                'kategori' => $class->category ?? $this->categoryFromClassName($class->name),
+                'sifir' => Str::of($class->category ?? $class->name)->lower()->replace('sifir ', '')->toString(),
+                'updated_at' => now(),
+            ]);
+
+        if (!DB::table('kelompok_belajar')->where('class_id', $class->id)->exists()) {
+            $this->ensureKelompokBelajarForClass($class);
+        }
     }
 }

@@ -222,6 +222,10 @@ Route::middleware('api.auth')->group(function () {
         Route::put('school-origins/{schoolOrigin}', [ReferenceController::class, 'updateSchoolOrigin']);
         Route::delete('school-origins/{schoolOrigin}', [ReferenceController::class, 'destroySchoolOrigin']);
 
+        Route::post('classes', [ReferenceController::class, 'storeClass']);
+        Route::put('classes/{class}', [ReferenceController::class, 'updateClass']);
+        Route::delete('classes/{class}', [ReferenceController::class, 'destroyClass']);
+
         Route::post('mata-pelajaran', [MataPelajaranController::class, 'store']);
         Route::put('mata-pelajaran/{mataPelajaran}', [MataPelajaranController::class, 'update']);
         Route::delete('mata-pelajaran/{mataPelajaran}', [MataPelajaranController::class, 'destroy']);

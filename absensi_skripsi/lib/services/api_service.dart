@@ -366,14 +366,58 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  static Future<Map<String, dynamic>> getClasses({bool active = true}) async {
-    final uri = Uri.parse(
-      '$baseUrl/classes',
-    ).replace(queryParameters: {'active': active ? '1' : '0'});
+  static Future<Map<String, dynamic>> getClasses({
+    bool active = true,
+    bool includeInactive = false,
+  }) async {
+    final uri = Uri.parse('$baseUrl/classes').replace(
+      queryParameters: includeInactive ? null : {'active': active ? '1' : '0'},
+    );
     final response = await http
         .get(uri, headers: await _headers())
         .timeout(const Duration(seconds: 10));
     return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> createClass(
+    Map<String, dynamic> data,
+  ) async {
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/classes'),
+          headers: await _headers(),
+          body: jsonEncode(data),
+        )
+        .timeout(_standardRequestTimeout);
+    return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> updateClass(
+    int id,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await http
+        .put(
+          Uri.parse('$baseUrl/classes/$id'),
+          headers: await _headers(),
+          body: jsonEncode(data),
+        )
+        .timeout(_standardRequestTimeout);
+    return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> deleteClass(int id) async {
+    final response = await http
+        .delete(Uri.parse('$baseUrl/classes/$id'), headers: await _headers())
+        .timeout(_standardRequestTimeout);
+    return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> toggleClassStatus(
+    int id,
+    bool isActive,
+  ) {
+    return updateClass(id, {'is_active': isActive});
   }
 
   static Future<Map<String, dynamic>> getSchoolOrigins({

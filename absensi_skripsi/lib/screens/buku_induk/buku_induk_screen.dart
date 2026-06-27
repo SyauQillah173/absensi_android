@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../services/cache_service.dart';
 import 'data_admin_screen.dart';
+import 'data_kelas_screen.dart';
 import 'data_siswa_screen.dart';
 
 class BukuIndukScreen extends StatefulWidget {
@@ -21,6 +22,7 @@ class _BukuIndukScreenState extends State<BukuIndukScreen>
   // Realtime counts dari API
   int _siswaCount = 0;
   int _loginCount = 0;
+  int _kelasCount = 0;
   bool _isLoadingCounts = true;
   bool _hasLoadedCountSnapshot = false;
 
@@ -39,7 +41,11 @@ class _BukuIndukScreenState extends State<BukuIndukScreen>
     _loadRealtimeCounts(forceLoader: true);
   }
 
-  static const List<String> _countCacheKeys = ['siswa_list', 'users_all'];
+  static const List<String> _countCacheKeys = [
+    'siswa_list',
+    'users_all',
+    'classes_skripsi_all_v1',
+  ];
 
   int _extractCount(dynamic snapshot) {
     if (snapshot is Map && snapshot['data'] is List) {
@@ -62,6 +68,7 @@ class _BukuIndukScreenState extends State<BukuIndukScreen>
   void _applyCountSnapshots(List<dynamic> snapshots) {
     _siswaCount = _extractCount(snapshots[0]);
     _loginCount = _extractLoginCount(snapshots[1]);
+    _kelasCount = _extractCount(snapshots[2]);
   }
 
   Future<void> _loadCachedCounts() async {
@@ -97,6 +104,10 @@ class _BukuIndukScreenState extends State<BukuIndukScreen>
         CacheService.fetchWithCache(
           cacheKey: 'users_all',
           apiFetch: () => ApiService.getAllUsers(),
+        ),
+        CacheService.fetchWithCache(
+          cacheKey: 'classes_skripsi_all_v1',
+          apiFetch: () => ApiService.getClasses(includeInactive: true),
         ),
       ]);
 
@@ -235,8 +246,8 @@ class _BukuIndukScreenState extends State<BukuIndukScreen>
               const SizedBox(height: 6),
               Text(
                 widget.userRole == 'guru'
-                    ? 'Lihat data siswa dan login admin/guru'
-                    : 'Kelola data siswa dan login admin/guru',
+                    ? 'Lihat data siswa, kelas, dan login admin/guru'
+                    : 'Kelola data siswa, kelas, dan login admin/guru',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 12,
@@ -279,6 +290,24 @@ class _BukuIndukScreenState extends State<BukuIndukScreen>
                         const SizedBox(height: 16),
                         _buildCategoryCard(
                           index: 1,
+                          icon: Icons.school_rounded,
+                          title: 'Data Kelas Sifir',
+                          subtitle: _isLoadingCounts
+                              ? 'Memuat...'
+                              : '$_kelasCount Kelas Tersimpan',
+                          description: widget.userRole == 'guru'
+                              ? 'Mode lihat kelas sifir tanpa edit/hapus.'
+                              : 'Tambah, edit, nonaktifkan, dan hapus kelas.',
+                          color: const Color(0xFF138F81),
+                          onTap: () => _navigateTo(
+                            DataKelasScreen(
+                              readOnly: widget.userRole == 'guru',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildCategoryCard(
+                          index: 2,
                           icon: Icons.manage_accounts_rounded,
                           title: 'Data Login Admin/Guru',
                           subtitle: _isLoadingCounts

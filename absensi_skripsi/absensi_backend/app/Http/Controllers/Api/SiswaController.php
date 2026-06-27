@@ -28,10 +28,12 @@ class SiswaController extends Controller
         if ($request->boolean('with_wali')) {
             $query->with(['wali:id,name,email,no_hp,status']);
         }
-        if ($request->boolean('for_payment') || $request->boolean('for_boarding') || $request->filled('academic_year_id') || $request->filled('semester_id')) {
-            $query->with(['wali:id,name,email,no_hp,status', 'kelasRef:id,name', 'boardingRoom.complex', 'santriPondok.room.complex', 'kelompokBelajar:id,nama,kategori,sifir,class_id']);
+        if ($request->boolean('for_payment') || $request->filled('academic_year_id') || $request->filled('semester_id')) {
+            $query->with(['wali:id,name,email,no_hp,status', 'kelasRef:id,name', 'kelompokBelajar:id,nama,kategori,sifir,class_id']);
+        } elseif ($request->boolean('for_boarding')) {
+            $query->with(['wali:id,name,email,no_hp,status', 'kelasRef:id,name', 'kelompokBelajar:id,nama,kategori,sifir,class_id']);
         } else {
-            $query->with(['boardingRoom.complex', 'santriPondok.room.complex']);
+            $query->with(['kelasRef:id,name']);
         }
 
         if ($request->filled('academic_year_id')) {
@@ -75,7 +77,9 @@ class SiswaController extends Controller
                 ->get()
                 ->map(function (Siswa $siswa) use ($request) {
                 if (!$request->boolean('for_payment') && !$request->boolean('for_boarding') && !$request->filled('academic_year_id')) {
-                    return $siswa;
+                    $row = $siswa->toArray();
+                    $row['kelas'] = $siswa->kelasRef?->name ?? $siswa->kelas;
+                    return $row;
                 }
 
                 $row = $siswa->toArray();
@@ -339,7 +343,7 @@ class SiswaController extends Controller
     {
         return response()->json([
             'success' => true,
-            'data' => $siswa->load(['absensi', 'pembayaran', 'nilai', 'kelompokBelajar', 'boardingRoom.complex']),
+            'data' => $siswa->load(['absensi', 'nilai', 'kelompokBelajar', 'kelasRef']),
         ]);
     }
 
