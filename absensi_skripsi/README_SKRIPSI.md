@@ -7,7 +7,7 @@ Project khusus skripsi:
 ## Cakupan Repo
 
 - Aplikasi Android Flutter khusus skripsi.
-- Backend Laravel pendukung API dan database yang sama dengan project real.
+- Backend Laravel pendukung API dengan database terpisah khusus skripsi.
 - WhatsApp Bot pendukung notifikasi.
 - `admin_web/` tidak ikut repo ini karena merupakan project real terpisah.
 
@@ -15,7 +15,19 @@ Project khusus skripsi:
 
 ```bash
 flutter pub get
-flutter build apk --release
+flutter build apk --release --no-shrink
+```
+
+Jika backend skripsi sudah punya URL sendiri, build APK dengan:
+
+```bash
+flutter build apk --release --no-shrink --dart-define=API_BASE_URL=https://domain-backend-skripsi.vercel.app/api
+```
+
+Jika `API_BASE_URL` tidak diisi, aplikasi memakai default:
+
+```text
+https://absensi-android.vercel.app/api
 ```
 
 Output APK:
@@ -66,9 +78,35 @@ Environment variable penting perlu diisi di Vercel sesuai `.env.example`, teruta
 - `DB_PASSWORD`
 - `WHATSAPP_BOT_URL`
 
+## Database Khusus Skripsi
+
+Disarankan memakai database baru khusus skripsi agar CRUD dari aplikasi skripsi tidak mengubah data project real.
+
+Alur aman:
+
+1. Buat database PostgreSQL baru, misalnya di Neon atau Supabase.
+2. Isi environment backend skripsi di Vercel dengan kredensial database baru.
+3. Deploy backend skripsi.
+4. Jalankan migration dan seeder untuk database skripsi.
+5. Build APK dengan `API_BASE_URL` mengarah ke backend skripsi.
+
+Contoh env database:
+
+```text
+DB_CONNECTION=pgsql
+DB_HOST=host-database-skripsi
+DB_PORT=5432
+DB_DATABASE=absensi_skripsi
+DB_USERNAME=user_database_skripsi
+DB_PASSWORD=password_database_skripsi
+DB_SSLMODE=require
+```
+
+Jika ingin memakai data awal dari project real, lakukan copy/backup sekali ke database skripsi. Setelah itu perubahan di aplikasi skripsi tidak akan memengaruhi database real.
+
 Setelah backend punya URL baru, sesuaikan:
 
-- `lib/services/api_service.dart` pada `baseUrl`
+- build APK dengan `--dart-define=API_BASE_URL=...`
 - `APP_URL` di Vercel backend
 
 ## Deploy WhatsApp Bot
@@ -85,4 +123,4 @@ npm start
 
 - Jangan commit file `.env`.
 - Jangan commit `admin_web/`.
-- Database tetap mengikuti database yang sudah ada sesuai kebutuhan skripsi.
+- Database skripsi sebaiknya terpisah dari database project real.
