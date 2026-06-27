@@ -20,9 +20,9 @@ class ApiService {
   // static String baseUrl = 'http://192.168.0.101:8000/api';
   // static String baseUrl = 'http://10.180.254.198:8000/api';
   // Build APK untuk backend skripsi:
-  // flutter build apk --release --no-shrink --dart-define=API_BASE_URL=https://domain-backend-skripsi.vercel.app/api
+  // flutter build apk --release --no-shrink --dart-define=API_BASE_URL=https://absensi-android-skripsi.vercel.app/api
   static const String _defaultBaseUrl =
-      'https://absensi-android.vercel.app/api';
+      'https://absensi-android-skripsi.vercel.app/api';
   static String baseUrl = const String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: _defaultBaseUrl,
