@@ -25,26 +25,25 @@ class KelompokBelajarController extends Controller
 
         $data = $query->orderBy('kategori')->orderBy('nama')->get();
         $activeStatusId = app(ReferenceResolver::class)->studentStatusId('Aktif');
-        $teacherId = $request->integer('user_id') ?: null;
-        $teacherName = $teacherId
-            ? DB::table('users')->where('id', $teacherId)->where('role', 'guru')->value('name')
-            : null;
-        if ($teacherId && !$teacherName) {
-            $teacherId = null;
-        }
+        $activeStudentCounts = $this->activeStudentCounts($data, $activeStatusId);
+        $activeMapelCount = DB::table('mata_pelajaran')->where('status', 'Aktif')->count();
 
         // Group by kategori
-        $grouped = $data->groupBy('kategori')->map(function ($items, $kategori) use ($activeStatusId, $teacherId, $teacherName) {
+        $grouped = $data->groupBy('kategori')->map(function ($items, $kategori) use ($activeStudentCounts, $activeMapelCount) {
             return [
                 'kategori' => $kategori,
-                'kelas' => $items->map(function ($k) use ($activeStatusId, $teacherId, $teacherName) {
+                'kelas' => $items->map(function ($k) use ($activeStudentCounts, $activeMapelCount) {
+                    $classKey = $k->class_id ? 'class:' . $k->class_id : null;
+                    $nameKey = $k->nama ? 'name:' . $k->nama : null;
                     return [
                         'id' => $k->id,
                         'class_id' => $k->class_id,
                         'nama' => $k->nama,
                         'sifir' => $k->sifir,
-                        'jumlah_siswa' => $this->activeStudentCount($k, $activeStatusId),
-                        'jumlah_mapel_aktif' => $this->activeMapelCount($k, $teacherId, $teacherName),
+                        'jumlah_siswa' => $classKey && isset($activeStudentCounts[$classKey])
+                            ? $activeStudentCounts[$classKey]
+                            : ($activeStudentCounts[$nameKey] ?? 0),
+                        'jumlah_mapel_aktif' => $activeMapelCount,
                     ];
                 })->values(),
             ];
@@ -62,10 +61,50 @@ class KelompokBelajarController extends Controller
         return $this->activeStudentQuery($kelompokBelajar, $activeStatusId)->count();
     }
 
-    private function activeMapelCount(KelompokBelajar $kelompokBelajar, ?int $teacherId = null, ?string $teacherName = null): int
+    private function activeStudentCounts($kelompokBelajar, ?int $activeStatusId): array
     {
-        // Versi skripsi: semua guru melihat semua mata pelajaran aktif di semua kelas.
-        return DB::table('mata_pelajaran')->where('status', 'Aktif')->count();
+        $classIds = collect($kelompokBelajar)
+            ->pluck('class_id')
+            ->filter()
+            ->unique()
+            ->values();
+        $names = collect($kelompokBelajar)
+            ->pluck('nama')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $base = DB::table('siswa');
+        if ($activeStatusId) {
+            $base->where('student_status_id', $activeStatusId);
+        } else {
+            $base->where('status', 'Aktif');
+        }
+
+        $counts = [];
+        if ($classIds->isNotEmpty()) {
+            (clone $base)
+                ->whereIn('class_id', $classIds)
+                ->select('class_id', DB::raw('COUNT(*) as aggregate'))
+                ->groupBy('class_id')
+                ->get()
+                ->each(function ($row) use (&$counts) {
+                    $counts['class:' . $row->class_id] = (int) $row->aggregate;
+                });
+        }
+
+        if ($names->isNotEmpty()) {
+            (clone $base)
+                ->whereIn('kelas', $names)
+                ->select('kelas', DB::raw('COUNT(*) as aggregate'))
+                ->groupBy('kelas')
+                ->get()
+                ->each(function ($row) use (&$counts) {
+                    $counts['name:' . $row->kelas] = (int) $row->aggregate;
+                });
+        }
+
+        return $counts;
     }
 
     public function show(KelompokBelajar $kelompokBelajar)

@@ -23,6 +23,7 @@ use App\Services\MapelAccessService;
 use App\Services\PermissionService;
 use App\Services\ReferenceResolver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class DashboardController extends Controller
 {
@@ -64,8 +65,6 @@ class DashboardController extends Controller
             ->whereNotNull('mapel_id')
             ->whereNotNull('jadwal_id')
             ->get();
-        $pembayaranHariIni = Pembayaran::where('tanggal', $today)->get();
-
         $absensiPerKelas = $absensiHariIni->groupBy(function ($item) {
             return implode('|', [
                 $item->class_id,
@@ -104,12 +103,9 @@ class DashboardController extends Controller
                 'alfa' => $absensiHariIni->where('status', 'Alfa')->count(),
                 'per_kelas' => $absensiPerKelas,
             ],
-            'absensi_sholat' => $this->buildAdminPrayerSummary($today),
-            'absensi_ngaji' => $this->buildAdminNgajiSummary($today),
-            'pembayaran' => [
-                'total_masuk' => $pembayaranHariIni->sum('jumlah'),
-                'jumlah_transaksi' => $pembayaranHariIni->count(),
-            ],
+            'absensi_sholat' => $this->emptyPrayerSummary(),
+            'absensi_ngaji' => $this->emptyNgajiSummary(),
+            'pembayaran' => $this->emptyPaymentSummary(),
             'statistik' => [
                 'total_siswa' => Siswa::count(),
                 'siswa_aktif' => $this->activeStudentsQuery()->count(),
@@ -175,8 +171,6 @@ class DashboardController extends Controller
             })
             ->get();
 
-        $pembayaranHariIni = Pembayaran::where('tanggal', $today)->get();
-
         return [
             'success' => true,
             'tanggal' => $today,
@@ -189,12 +183,9 @@ class DashboardController extends Controller
                 'alfa' => $absensiHariIni->where('status', 'Alfa')->count(),
                 'per_kelas' => $cards,
             ],
-            'absensi_sholat' => $this->buildGuruPrayerSummary($guru, $today),
-            'absensi_ngaji' => $this->buildGuruNgajiSummary($guru, $today),
-            'pembayaran' => [
-                'total_masuk' => $pembayaranHariIni->sum('jumlah'),
-                'jumlah_transaksi' => $pembayaranHariIni->count(),
-            ],
+            'absensi_sholat' => $this->emptyPrayerSummary(),
+            'absensi_ngaji' => $this->emptyNgajiSummary(),
+            'pembayaran' => $this->emptyPaymentSummary(),
             'statistik' => [
                 'total_siswa' => Siswa::count(),
                 'siswa_aktif' => $this->activeStudentsQuery()->count(),
@@ -326,12 +317,9 @@ class DashboardController extends Controller
                 'alfa' => $absensiHariIni->where('status', 'Alfa')->count(),
                 'per_kelas' => $cards,
             ],
-            'absensi_sholat' => $this->buildWaliPrayerSummary($anakIds, $today),
-            'absensi_ngaji' => $this->buildWaliNgajiSummary($anakIds, $today),
-            'pembayaran' => [
-                'total_masuk' => 0,
-                'jumlah_transaksi' => 0,
-            ],
+            'absensi_sholat' => $this->emptyPrayerSummary(),
+            'absensi_ngaji' => $this->emptyNgajiSummary(),
+            'pembayaran' => $this->emptyPaymentSummary(),
             'statistik' => [
                 'total_siswa' => $anakIds->count(),
                 'siswa_aktif' => $this->activeStudentsQuery()->whereIn('id', $anakIds)->count(),
@@ -651,14 +639,57 @@ class DashboardController extends Controller
         return $inputVia === 'offline' ? 'pending' : 'completed';
     }
 
+    private function emptyPaymentSummary(): array
+    {
+        return [
+            'total_masuk' => 0,
+            'jumlah_transaksi' => 0,
+        ];
+    }
+
+    private function emptyPrayerSummary(): array
+    {
+        return [
+            'total' => 0,
+            'expected_total' => 0,
+            'M' => 0,
+            'I' => 0,
+            'S' => 0,
+            'kosong' => 0,
+            'kamar_sudah_diabsen' => 0,
+            'kamar_belum_diabsen' => 0,
+            'persentase_hadir' => 0,
+            'terbaru' => [],
+        ];
+    }
+
+    private function emptyNgajiSummary(): array
+    {
+        return [
+            'total' => 0,
+            'expected_total' => 0,
+            'H' => 0,
+            'I' => 0,
+            'S' => 0,
+            'A' => 0,
+            'kosong' => 0,
+            'jadwal_sudah_diabsen' => 0,
+            'jadwal_belum_diabsen' => 0,
+            'persentase_hadir' => 0,
+            'terbaru' => [],
+        ];
+    }
+
     private function withPermissions(array $payload, User $actor): array
     {
         $payload['permissions'] = $this->permissionService->permissionsForUser($actor);
         $payload['notifications'] = [
-            'unread_count' => AppNotification::query()
-                ->where('user_id', $actor->id)
-                ->where('is_read', false)
-                ->count(),
+            'unread_count' => Schema::hasTable('app_notifications')
+                ? AppNotification::query()
+                    ->where('user_id', $actor->id)
+                    ->where('is_read', false)
+                    ->count()
+                : 0,
         ];
 
         return $payload;

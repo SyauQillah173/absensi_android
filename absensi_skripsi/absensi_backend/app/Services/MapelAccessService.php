@@ -26,6 +26,7 @@ class MapelAccessService
             ? (int) $filters['day_id']
             : $resolver->dayId($hari);
         $requireJadwal = (bool) ($filters['require_jadwal'] ?? false);
+        $withRelations = (bool) ($filters['with_relations'] ?? false);
 
         $scopeOperationalJadwal = $status === 'Aktif'
             || $kelas !== ''
@@ -33,51 +34,54 @@ class MapelAccessService
             || $hari !== ''
             || $dayId;
 
-        $query = MataPelajaran::query()->with([
-            'guru' => function ($builder) {
-                $builder
-                    ->select('users.id', 'users.name', 'users.email', 'users.nis')
-                    ->orderBy('users.name');
-            },
-            'jadwal' => function ($builder) use ($actor, $kelas, $hari, $classId, $dayId, $scopeOperationalJadwal) {
-                $builder->where('status', 'Aktif');
+        $query = MataPelajaran::query();
+        if ($withRelations) {
+            $query->with([
+                'guru' => function ($builder) {
+                    $builder
+                        ->select('users.id', 'users.name', 'users.email', 'users.nis')
+                        ->orderBy('users.name');
+                },
+                'jadwal' => function ($builder) use ($actor, $kelas, $hari, $classId, $dayId, $scopeOperationalJadwal) {
+                    $builder->where('status', 'Aktif');
 
-                if ($classId || $kelas !== '') {
-                    $builder->where(function ($nested) use ($classId, $kelas) {
-                        if ($classId) {
-                            $nested->where('class_id', $classId);
-                        }
-                        if ($kelas !== '') {
-                            $nested->orWhere('sifir', $kelas);
-                        }
-                    });
-                }
+                    if ($classId || $kelas !== '') {
+                        $builder->where(function ($nested) use ($classId, $kelas) {
+                            if ($classId) {
+                                $nested->where('class_id', $classId);
+                            }
+                            if ($kelas !== '') {
+                                $nested->orWhere('sifir', $kelas);
+                            }
+                        });
+                    }
 
-                if ($dayId || $hari !== '') {
-                    $builder->where(function ($nested) use ($dayId, $hari) {
-                        if ($dayId) {
-                            $nested->where('day_id', $dayId);
-                        }
-                        if ($hari !== '') {
-                            $nested->orWhere('hari', $hari);
-                        }
-                    });
-                }
+                    if ($dayId || $hari !== '') {
+                        $builder->where(function ($nested) use ($dayId, $hari) {
+                            if ($dayId) {
+                                $nested->where('day_id', $dayId);
+                            }
+                            if ($hari !== '') {
+                                $nested->orWhere('hari', $hari);
+                            }
+                        });
+                    }
 
-                $builder
-                    ->orderByRaw("CASE hari
-                        WHEN 'Ahad' THEN 1
-                        WHEN 'Senin' THEN 2
-                        WHEN 'Selasa' THEN 3
-                        WHEN 'Rabu' THEN 4
-                        WHEN 'Kamis' THEN 5
-                        WHEN 'Jumat' THEN 6
-                        WHEN 'Sabtu' THEN 7
-                        ELSE 99
-                    END")
-                    ->orderBy('jam_mulai');
-            },
-        ]);
+                    $builder
+                        ->orderByRaw("CASE hari
+                            WHEN 'Ahad' THEN 1
+                            WHEN 'Senin' THEN 2
+                            WHEN 'Selasa' THEN 3
+                            WHEN 'Rabu' THEN 4
+                            WHEN 'Kamis' THEN 5
+                            WHEN 'Jumat' THEN 6
+                            WHEN 'Sabtu' THEN 7
+                            ELSE 99
+                        END")
+                        ->orderBy('jam_mulai');
+                },
+            ]);
+        }
 
         if ($status !== '') {
             $query->where('status', $status);

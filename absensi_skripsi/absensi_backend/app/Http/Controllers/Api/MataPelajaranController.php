@@ -29,6 +29,7 @@ class MataPelajaranController extends Controller
             'hari' => $request->input('hari'),
             'day_id' => $request->input('day_id'),
             'require_jadwal' => $request->boolean('require_jadwal'),
+            'with_relations' => $request->boolean('with_relations'),
         ]);
 
         return response()->json([

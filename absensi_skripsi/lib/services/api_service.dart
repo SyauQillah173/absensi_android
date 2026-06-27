@@ -508,7 +508,7 @@ class ApiService {
     ).replace(queryParameters: params.isNotEmpty ? params : null);
     final response = await http
         .get(uri, headers: await _headers())
-        .timeout(const Duration(seconds: 8));
+        .timeout(_standardRequestTimeout);
     return _handleResponse(response);
   }
 
@@ -1419,7 +1419,7 @@ class ApiService {
     ).replace(queryParameters: params.isNotEmpty ? params : null);
     final response = await http
         .get(uri, headers: await _headers())
-        .timeout(const Duration(seconds: 5));
+        .timeout(_standardRequestTimeout);
     return _handleResponse(response);
   }
 
