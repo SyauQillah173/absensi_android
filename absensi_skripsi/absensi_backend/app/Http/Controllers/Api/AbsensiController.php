@@ -135,20 +135,20 @@ class AbsensiController extends Controller
 
         $validated = $request->validate([
             'absensi' => 'required|array',
-            'absensi.*.siswa_id' => 'required|exists:siswa,id',
+            'absensi.*.siswa_id' => 'required|integer',
             'absensi.*.tanggal' => 'required|date',
             'absensi.*.status' => 'required|in:Hadir,Izin,Sakit,Alfa,H,S,I,A',
             'absensi.*.keterangan' => 'nullable|string',
             'absensi.*.kelas' => 'nullable|string',
-            'absensi.*.class_id' => 'required|integer|exists:classes,id',
+            'absensi.*.class_id' => 'required|integer',
             'absensi.*.mapel' => 'nullable|string',
-            'absensi.*.mapel_id' => 'required|integer|exists:mata_pelajaran,id',
-            'absensi.*.jadwal_id' => 'nullable|integer|exists:jadwal,id',
+            'absensi.*.mapel_id' => 'required|integer',
+            'absensi.*.jadwal_id' => 'nullable|integer',
             'absensi.*.diinput_oleh' => 'nullable|string',
             'absensi.*.diinput_via' => 'nullable|in:online,offline_sync',
             'absensi.*.device_id' => 'nullable|string',
-            'actor_user_id' => 'nullable|integer|exists:users,id',
-            'user_id' => 'nullable|integer|exists:users,id',
+            'actor_user_id' => 'nullable|integer',
+            'user_id' => 'nullable|integer',
         ]);
 
         $actor = $this->resolveActor($request);
@@ -160,57 +160,95 @@ class AbsensiController extends Controller
             return $this->forbiddenResponse('Hanya admin atau guru aktif yang boleh menginput absensi');
         }
 
-        $created = [];
-        $updated = [];
+        $resolver = app(ReferenceResolver::class);
+        $statusIds = collect($validated['absensi'])
+            ->pluck('status')
+            ->unique()
+            ->mapWithKeys(fn ($status) => [$status => $resolver->attendanceStatusId($status)]);
+
+        $now = now();
+        $actorLabel = $this->formatActorLabel($actor);
+        $payloads = [];
         $failed = [];
 
-        DB::transaction(function () use ($validated, $actor, &$created, &$updated, &$failed) {
-            foreach ($validated['absensi'] as $index => $item) {
-                $item['diinput_oleh'] = $this->formatActorLabel($actor);
-                $item['actor_user_id'] = $actor->id;
+        foreach ($validated['absensi'] as $index => $item) {
+            try {
+                $payload = [
+                    'siswa_id' => (int) $item['siswa_id'],
+                    'tanggal' => Carbon::parse($item['tanggal'])->toDateString(),
+                    'status' => $item['status'],
+                    'attendance_status_id' => $statusIds[$item['status']] ?? null,
+                    'keterangan' => $item['keterangan'] ?? null,
+                    'kelas' => $item['kelas'] ?? null,
+                    'class_id' => (int) $item['class_id'],
+                    'mapel' => $item['mapel'] ?? null,
+                    'mapel_id' => (int) $item['mapel_id'],
+                    'jadwal_id' => !empty($item['jadwal_id']) ? (int) $item['jadwal_id'] : null,
+                    'diinput_oleh' => $actorLabel,
+                    'actor_user_id' => $actor->id,
+                    'diinput_via' => $item['diinput_via'] ?? 'online',
+                    'device_id' => $item['device_id'] ?? null,
+                    'synced_at' => $now,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+                $this->assertCompleteAttendanceScope($payload);
+                $this->assertActorCanUseSchedule($actor, $payload);
+                $payload['attendance_key'] = $this->attendanceKey($payload);
+                $payloads[$index] = $payload;
+            } catch (ValidationException $exception) {
+                $failed[] = [
+                    'index' => $index,
+                    'siswa_id' => $item['siswa_id'] ?? null,
+                    'message' => collect($exception->errors())->flatten()->first(),
+                ];
+            }
+        }
 
-                try {
-                    $payload = $this->prepareWritePayload($item);
-                    $this->assertActorCanUseSchedule($actor, $payload);
-                    $existing = $this->findExistingAbsensi($payload);
-                    if ($existing) {
-                        if (!$this->canModifyAbsensi($existing, $actor, '', '')) {
-                            $failed[] = $this->attendanceConflictPayload($existing, $index, $item['siswa_id'] ?? null);
-                            continue;
-                        }
+        $existingByKey = Absensi::query()
+            ->whereIn('attendance_key', collect($payloads)->pluck('attendance_key')->all())
+            ->get()
+            ->keyBy('attendance_key');
 
-                        $existing->update(collect($payload)
-                            ->only(['status', 'attendance_status_id', 'keterangan', 'diinput_oleh', 'actor_user_id', 'synced_at'])
-                            ->all());
-                        $updated[] = $existing->fresh();
+        $createdResponse = collect();
+        $updatedResponse = collect();
+
+        foreach ($payloads as $index => $payload) {
+            try {
+                $existing = $existingByKey->get($payload['attendance_key']);
+                if ($existing) {
+                    if (!$this->canModifyAbsensi($existing, $actor, '', '')) {
+                        $failed[] = $this->attendanceConflictPayload($existing, $index, $payload['siswa_id'] ?? null);
                         continue;
                     }
 
-                    $created[] = Absensi::create($payload);
-                } catch (ValidationException $exception) {
-                    $failed[] = [
-                        'index' => $index,
-                        'siswa_id' => $item['siswa_id'] ?? null,
-                        'message' => collect($exception->errors())->flatten()->first(),
-                    ];
+                    DB::table('absensi')
+                        ->where('id', $existing->id)
+                        ->update(collect($payload)
+                            ->only(['status', 'attendance_status_id', 'keterangan', 'diinput_oleh', 'actor_user_id', 'diinput_via', 'device_id', 'synced_at', 'updated_at'])
+                            ->all());
+                    $updatedResponse->push(['id' => $existing->id, 'siswa_id' => $payload['siswa_id']]);
+                    continue;
                 }
-            }
-        });
 
-        $createdResponse = collect($created)
-            ->map(fn ($row) => ['id' => $row->id, 'siswa_id' => $row->siswa_id])
-            ->values();
-        $updatedResponse = collect($updated)
-            ->map(fn ($row) => ['id' => $row->id, 'siswa_id' => $row->siswa_id])
-            ->values();
+                $id = DB::table('absensi')->insertGetId($payload);
+                $createdResponse->push(['id' => $id, 'siswa_id' => $payload['siswa_id']]);
+            } catch (\Throwable $exception) {
+                $failed[] = [
+                    'index' => $index,
+                    'siswa_id' => $payload['siswa_id'] ?? null,
+                    'message' => $exception->getMessage(),
+                ];
+            }
+        }
 
         return response()->json([
             'success' => true,
-            'message' => count($created) . ' absensi baru, ' . count($updated) . ' diperbarui, ' . count($failed) . ' gagal/konflik',
-            'created' => $createdResponse,
-            'updated' => $updatedResponse,
+            'message' => $createdResponse->count() . ' absensi baru, ' . $updatedResponse->count() . ' diperbarui, ' . count($failed) . ' gagal/konflik',
+            'created' => $createdResponse->values(),
+            'updated' => $updatedResponse->values(),
             'failed' => $failed,
-        ], count($created) > 0 ? 201 : 200);
+        ], $createdResponse->isNotEmpty() ? 201 : 200);
     }
 
     public function update(Request $request, Absensi $absensi)
