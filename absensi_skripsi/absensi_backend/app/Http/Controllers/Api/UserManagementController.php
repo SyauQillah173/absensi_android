@@ -121,15 +121,25 @@ class UserManagementController extends Controller
         $validated = $this->validateUserPayload($request, user: $user);
         $payload = $this->normalizePayload($validated, false, $user);
 
-        $user->update($payload);
-        if ($user->role === 'wali') {
+        $dbPayload = $payload;
+        foreach (['unit_kerja', 'kategori_guru'] as $jsonField) {
+            if (array_key_exists($jsonField, $dbPayload)) {
+                $dbPayload[$jsonField] = is_array($dbPayload[$jsonField])
+                    ? json_encode($dbPayload[$jsonField])
+                    : $dbPayload[$jsonField];
+            }
+        }
+        $dbPayload['updated_at'] = now();
+        DB::table('users')->where('id', $user->id)->update($dbPayload);
+
+        if (($payload['role'] ?? $user->role) === 'wali') {
             $this->waliAccountService->attachMatchingStudents($user);
         }
 
         return response()->json([
             'success' => true,
             'message' => 'Data user berhasil diperbarui',
-            'data' => $user->fresh(),
+            'data' => User::query()->find($user->id),
         ]);
     }
 
