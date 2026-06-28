@@ -32,6 +32,7 @@ class ApiService {
   static const _authTokenKey = 'auth_token';
   static const _fastRequestTimeout = Duration(seconds: 12);
   static const _standardRequestTimeout = Duration(seconds: 18);
+  static const _writeRequestTimeout = Duration(seconds: 35);
   static const _loginRequestTimeout = Duration(seconds: 25);
   static const _dashboardRequestTimeout = Duration(seconds: 25);
 
@@ -413,10 +414,7 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  static Future<Map<String, dynamic>> toggleClassStatus(
-    int id,
-    bool isActive,
-  ) {
+  static Future<Map<String, dynamic>> toggleClassStatus(int id, bool isActive) {
     return updateClass(id, {'is_active': isActive});
   }
 
@@ -659,22 +657,26 @@ class ApiService {
   static Future<Map<String, dynamic>> createAbsensi(
     Map<String, dynamic> data,
   ) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/absensi'),
-      headers: await _headers(),
-      body: jsonEncode(data),
-    );
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/absensi'),
+          headers: await _headers(),
+          body: jsonEncode(data),
+        )
+        .timeout(_writeRequestTimeout);
     return _handleResponse(response);
   }
 
   static Future<Map<String, dynamic>> createAbsensiBulk(
     List<Map<String, dynamic>> absensiList,
   ) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/absensi/bulk'),
-      headers: await _headers(),
-      body: jsonEncode({'absensi': absensiList}),
-    );
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/absensi/bulk'),
+          headers: await _headers(),
+          body: jsonEncode({'absensi': absensiList}),
+        )
+        .timeout(_writeRequestTimeout);
     return _handleResponse(response);
   }
 
@@ -2206,7 +2208,7 @@ class ApiService {
           headers: await _headers(),
           body: jsonEncode(data),
         )
-        .timeout(const Duration(seconds: 10));
+        .timeout(_writeRequestTimeout);
     return _handleResponse(response);
   }
 
@@ -2220,14 +2222,14 @@ class ApiService {
           headers: await _headers(),
           body: jsonEncode(data),
         )
-        .timeout(const Duration(seconds: 10));
+        .timeout(_writeRequestTimeout);
     return _handleResponse(response);
   }
 
   static Future<Map<String, dynamic>> deleteUser(int id) async {
     final response = await http
         .delete(Uri.parse('$baseUrl/users/$id'), headers: await _headers())
-        .timeout(const Duration(seconds: 10));
+        .timeout(_writeRequestTimeout);
     return _handleResponse(response);
   }
 
@@ -2237,7 +2239,7 @@ class ApiService {
           Uri.parse('$baseUrl/users/$id/reset-password'),
           headers: await _headers(),
         )
-        .timeout(const Duration(seconds: 10));
+        .timeout(_writeRequestTimeout);
     return _handleResponse(response);
   }
 

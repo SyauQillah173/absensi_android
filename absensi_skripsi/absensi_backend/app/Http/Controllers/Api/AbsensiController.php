@@ -197,22 +197,18 @@ class AbsensiController extends Controller
             }
         });
 
-        app(AuditLogService::class)->record($request, 'absensi', 'bulk_upsert', 'bulk_absensi', null, [
-            'created' => collect($created)->pluck('id')->all(),
-            'updated' => collect($updated)->pluck('id')->all(),
-            'failed' => count($failed),
-        ], [
-            'created_count' => count($created),
-            'updated_count' => count($updated),
-            'failed_count' => count($failed),
-        ]);
-        $this->notifyGuardiansForAbsensi(collect($created)->merge($updated));
+        $createdResponse = collect($created)
+            ->map(fn ($row) => ['id' => $row->id, 'siswa_id' => $row->siswa_id])
+            ->values();
+        $updatedResponse = collect($updated)
+            ->map(fn ($row) => ['id' => $row->id, 'siswa_id' => $row->siswa_id])
+            ->values();
 
         return response()->json([
             'success' => true,
             'message' => count($created) . ' absensi baru, ' . count($updated) . ' diperbarui, ' . count($failed) . ' gagal/konflik',
-            'created' => $created,
-            'updated' => $updated,
+            'created' => $createdResponse,
+            'updated' => $updatedResponse,
             'failed' => $failed,
         ], count($created) > 0 ? 201 : 200);
     }

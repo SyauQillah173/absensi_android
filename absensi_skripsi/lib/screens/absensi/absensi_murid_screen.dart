@@ -778,45 +778,42 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
     var bulkHandled = false;
     if (!wasEditMode && !wasPendingOffline) {
       try {
-        final serverOk = await ApiService.testConnection();
-        if (serverOk) {
-          final bulkPayload = List<Map<String, dynamic>>.generate(
-            _studentsData.length,
-            (i) {
-              final newStatus = statusMap[_attendanceStatus[i]] ?? 'Hadir';
-              return {
-                'siswa_id': _studentsData[i]['id'] as int,
-                'tanggal': today,
-                'status': newStatus,
-                'keterangan': newStatus == 'Alfa'
-                    ? (_keteranganAlfa[i] ?? '')
-                    : '',
-                'kelas': widget.namaKelas,
-                'class_id': widget.classId,
-                'mapel': widget.namaMapel,
-                'mapel_id': widget.mapelId,
-                'jadwal_id': widget.jadwalId,
-                'diinput_oleh': _userName,
-                'actor_user_id': _userId > 0 ? _userId : null,
-                'diinput_via': 'online',
-              };
-            },
-          );
-          final response = await ApiService.createAbsensiBulk(bulkPayload);
-          final createdRows = response['created'] is List
-              ? response['created'] as List
-              : const [];
-          final updatedRows = response['updated'] is List
-              ? response['updated'] as List
-              : const [];
-          final failedRows = response['failed'] is List
-              ? response['failed'] as List
-              : const [];
-          online = createdRows.length;
-          updated = updatedRows.length;
-          conflict = failedRows.length;
-          bulkHandled = true;
-        }
+        final bulkPayload = List<Map<String, dynamic>>.generate(
+          _studentsData.length,
+          (i) {
+            final newStatus = statusMap[_attendanceStatus[i]] ?? 'Hadir';
+            return {
+              'siswa_id': _studentsData[i]['id'] as int,
+              'tanggal': today,
+              'status': newStatus,
+              'keterangan': newStatus == 'Alfa'
+                  ? (_keteranganAlfa[i] ?? '')
+                  : '',
+              'kelas': widget.namaKelas,
+              'class_id': widget.classId,
+              'mapel': widget.namaMapel,
+              'mapel_id': widget.mapelId,
+              'jadwal_id': widget.jadwalId,
+              'diinput_oleh': _userName,
+              'actor_user_id': _userId > 0 ? _userId : null,
+              'diinput_via': 'online',
+            };
+          },
+        );
+        final response = await ApiService.createAbsensiBulk(bulkPayload);
+        final createdRows = response['created'] is List
+            ? response['created'] as List
+            : const [];
+        final updatedRows = response['updated'] is List
+            ? response['updated'] as List
+            : const [];
+        final failedRows = response['failed'] is List
+            ? response['failed'] as List
+            : const [];
+        online = createdRows.length;
+        updated = updatedRows.length;
+        conflict = failedRows.length;
+        bulkHandled = true;
       } catch (_) {
         bulkHandled = false;
       }
@@ -1044,7 +1041,7 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'Gunakan tombol "Batal" untuk reset,\natau ubah status lalu tekan "Perbarui".',
+              'Tekan OK untuk kembali ke dashboard absensi hari ini.',
               style: const TextStyle(
                 fontSize: 10,
                 color: Color(0xFF636E72),
@@ -1060,7 +1057,8 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-                Navigator.of(ctx).pop(); // Tutup dialog saja
+                Navigator.of(ctx).pop();
+                Navigator.of(context).popUntil((route) => route.isFirst);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF138F81),

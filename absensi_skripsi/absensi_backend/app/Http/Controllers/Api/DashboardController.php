@@ -63,13 +63,12 @@ class DashboardController extends Controller
             ->where('tanggal', $today)
             ->whereNotNull('class_id')
             ->whereNotNull('mapel_id')
-            ->whereNotNull('jadwal_id')
             ->get();
         $absensiPerKelas = $absensiHariIni->groupBy(function ($item) {
             return implode('|', [
                 $item->class_id,
                 $item->mapel_id,
-                $item->jadwal_id,
+                $item->jadwal_id ?: 0,
             ]);
         })->map(function ($items) {
             $first = $items->first();
@@ -170,6 +169,56 @@ class DashboardController extends Controller
                     ->orWhere('diinput_oleh', 'ilike', '%Guru:%' . $guru->name . '%');
             })
             ->get();
+
+        $savedCards = $absensiHariIni
+            ->whereNotNull('class_id')
+            ->whereNotNull('mapel_id')
+            ->groupBy(function ($item) {
+                return implode('|', [
+                    $item->class_id,
+                    $item->mapel_id,
+                    $item->jadwal_id ?: 0,
+                ]);
+            })
+            ->map(function ($items) use ($guru, $today) {
+                $first = $items->first();
+                return [
+                    'kelas' => $first->kelas,
+                    'mapel' => $first->mapel,
+                    'class_id' => $first->class_id,
+                    'mapel_id' => $first->mapel_id,
+                    'jadwal_id' => $first->jadwal_id,
+                    'status' => 'completed',
+                    'total' => $items->count(),
+                    'hadir' => $items->where('status', 'Hadir')->count(),
+                    'izin' => $items->where('status', 'Izin')->count(),
+                    'sakit' => $items->where('status', 'Sakit')->count(),
+                    'alfa' => $items->where('status', 'Alfa')->count(),
+                    'diinput_oleh' => $first->diinput_oleh ?? 'Guru: ' . $guru->name,
+                    'diinput_via' => $first->diinput_via ?? 'online',
+                    'waktu' => optional($first->created_at)->format('H:i:s') ?? '-',
+                    'can_absen' => true,
+                    'status_message' => 'Absensi sudah tersimpan hari ini',
+                    'notification_key' => md5($today . '|' . $first->class_id . '|' . $first->mapel_id . '|' . ($first->jadwal_id ?: 0)),
+                ];
+            })
+            ->values();
+
+        $cardsByKey = $cards->keyBy(function (array $card) {
+            return implode('|', [
+                (int) ($card['class_id'] ?? 0),
+                (int) ($card['mapel_id'] ?? 0),
+                (int) ($card['jadwal_id'] ?? 0),
+            ]);
+        });
+        foreach ($savedCards as $savedCard) {
+            $cardsByKey->put(implode('|', [
+                (int) ($savedCard['class_id'] ?? 0),
+                (int) ($savedCard['mapel_id'] ?? 0),
+                (int) ($savedCard['jadwal_id'] ?? 0),
+            ]), $savedCard);
+        }
+        $cards = $cardsByKey->values();
 
         return [
             'success' => true,
