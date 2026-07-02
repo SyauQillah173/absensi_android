@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:excel/excel.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -160,6 +162,9 @@ class ExcelImportService {
     if (bytes == null) {
       throw Exception('Gagal membuat file template Excel');
     }
+    final outputBytes = type == ImportTemplateType.siswa
+        ? _addSiswaDropdownValidations(bytes)
+        : bytes;
 
     final dir = await getTemporaryDirectory();
     final file = File(
@@ -169,7 +174,7 @@ class ExcelImportService {
         ImportTemplateType.siswa => 'template_import_siswa',
       }}.xlsx',
     );
-    await file.writeAsBytes(bytes, flush: true);
+    await file.writeAsBytes(outputBytes, flush: true);
     return file;
   }
 
@@ -568,7 +573,7 @@ class ExcelImportService {
     sheet.merge(CellIndex.indexByString('A4'), CellIndex.indexByString('Y4'));
     sheet.cell(CellIndex.indexByString('A4'))
       ..value = TextCellValue(
-        'PETUNJUK: 1) Jangan ubah nama header. 2) Kolom wajib: nis, nama_lengkap_siswa, jenis_kelamin. 3) Format tanggal gunakan YYYY-MM-DD. 4) status_siswa isi Aktif, Nonaktif, atau Lulus. 5) jenis_santri resmi: Santri Pondok, Santri Madin, atau Keduanya. 6) kelompok_belajar, asal_sekolah, dan wilayah harus sesuai master jika diisi; data opsional yang tidak cocok akan dikosongkan dengan warning.',
+        'PETUNJUK: 1) Jangan ubah nama header. 2) Kolom wajib: nis, nama_lengkap_siswa, jenis_kelamin. 3) Kolom tempat_lahir, tanggal_lahir, alamat_lengkap, kewarganegaraan, provinsi, kota, kecamatan, dan kelurahan diberi dropdown/validasi master. 4) Dropdown bersifat warning, tetap boleh ketik manual jika data belum ada di master. 5) Format tanggal gunakan YYYY-MM-DD. 6) Data opsional yang tidak cocok akan diberi warning saat import.',
       )
       ..cellStyle = infoStyle;
 
@@ -742,6 +747,149 @@ class ExcelImportService {
     }
   }
 
+  static List<int> _addSiswaDropdownValidations(List<int> bytes) {
+    try {
+      final archive = ZipDecoder().decodeBytes(bytes);
+      final templateSheet = archive.findFile('xl/worksheets/sheet1.xml');
+      if (templateSheet == null) return bytes;
+
+      final xml = utf8.decode(templateSheet.content as List<int>);
+      final patchedXml = _insertWorksheetDataValidations(
+        xml,
+        _siswaValidationXml(startRow: 7, endRow: 251),
+      );
+      final patchedBytes = utf8.encode(patchedXml);
+      archive.addFile(
+        ArchiveFile(
+          'xl/worksheets/sheet1.xml',
+          patchedBytes.length,
+          patchedBytes,
+        ),
+      );
+
+      return ZipEncoder().encode(archive) ?? bytes;
+    } catch (_) {
+      return bytes;
+    }
+  }
+
+  static String _siswaValidationXml({
+    required int startRow,
+    required int endRow,
+  }) {
+    final validations = <String>[
+      _dataValidationTag(
+        type: 'list',
+        sqref: 'H$startRow:H$endRow',
+        prompt:
+            'Pilih dari master kota untuk tempat lahir, atau ketik manual jika belum ada.',
+        formula1: r'Master!$F$2:$F$1000',
+      ),
+      _dataValidationTag(
+        type: 'date',
+        sqref: 'I$startRow:I$endRow',
+        prompt: 'Isi tanggal_lahir format YYYY-MM-DD. Contoh: 2015-01-12.',
+        formula1: 'DATE(1900,1,1)',
+        formula2: 'DATE(2099,12,31)',
+        operator: 'between',
+      ),
+      _dataValidationTag(
+        type: 'textLength',
+        sqref: 'J$startRow:J$endRow',
+        prompt:
+            'Isi alamat lengkap. Boleh ketik manual karena alamat tidak selalu ada di master.',
+        formula1: '255',
+        operator: 'lessThanOrEqual',
+      ),
+      _dataValidationTag(
+        type: 'list',
+        sqref: 'K$startRow:K$endRow',
+        prompt:
+            'Pilih kewarganegaraan dari Master, atau ketik manual jika belum tersedia.',
+        formula1: r'Master!$D$2:$D$1000',
+      ),
+      _dataValidationTag(
+        type: 'list',
+        sqref: 'L$startRow:L$endRow',
+        prompt: 'Pilih provinsi dari Master agar ejaan sama dengan database.',
+        formula1: r'Master!$E$2:$E$1000',
+      ),
+      _dataValidationTag(
+        type: 'list',
+        sqref: 'M$startRow:M$endRow',
+        prompt: 'Pilih kota/kabupaten dari Master agar tidak typo.',
+        formula1: r'Master!$F$2:$F$1000',
+      ),
+      _dataValidationTag(
+        type: 'list',
+        sqref: 'N$startRow:N$endRow',
+        prompt:
+            'Pilih kecamatan dari Master contoh, atau ketik manual jika belum ada.',
+        formula1: r'Master!$G$2:$G$1000',
+      ),
+      _dataValidationTag(
+        type: 'list',
+        sqref: 'O$startRow:O$endRow',
+        prompt:
+            'Pilih kelurahan/desa dari Master contoh, atau ketik manual jika belum ada.',
+        formula1: r'Master!$H$2:$H$1000',
+      ),
+    ];
+    return '<dataValidations count="${validations.length}">'
+        '${validations.join()}'
+        '</dataValidations>';
+  }
+
+  static String _dataValidationTag({
+    required String type,
+    required String sqref,
+    required String prompt,
+    required String formula1,
+    String? formula2,
+    String? operator,
+  }) {
+    final operatorAttr =
+        operator == null ? '' : ' operator="${_escapeXml(operator)}"';
+    final secondFormula =
+        formula2 == null ? '' : '<formula2>${_escapeXml(formula2)}</formula2>';
+    return '<dataValidation type="${_escapeXml(type)}"$operatorAttr allowBlank="1" errorStyle="warning" showErrorMessage="1" showInputMessage="1" errorTitle="Di luar master" error="Nilai tidak ada di sheet Master. Boleh lanjut jika data memang baru, tapi cek ulang sebelum import." promptTitle="Bantuan input" prompt="${_escapeXml(prompt)}" sqref="${_escapeXml(sqref)}"><formula1>${_escapeXml(formula1)}</formula1>$secondFormula</dataValidation>';
+  }
+
+  static String _insertWorksheetDataValidations(
+    String xml,
+    String validationsXml,
+  ) {
+    final cleanXml = xml.replaceFirst(
+      RegExp(r'<dataValidations[\s\S]*?<\/dataValidations>'),
+      '',
+    );
+    const anchors = [
+      '<hyperlinks',
+      '<pageMargins',
+      '<pageSetup',
+      '<headerFooter',
+      '<drawing',
+      '<legacyDrawing',
+      '<extLst',
+      '</worksheet>',
+    ];
+    for (final anchor in anchors) {
+      if (cleanXml.contains(anchor)) {
+        return cleanXml.replaceFirst(anchor, '$validationsXml$anchor');
+      }
+    }
+    return cleanXml;
+  }
+
+  static String _escapeXml(String value) {
+    return value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&apos;');
+  }
+
   static void _buildMasterSheet(Sheet sheet, _TemplateMasterData data) {
     final columns = <List<String>>[
       ['jenis_kelamin', 'L', 'P'],
@@ -778,6 +926,8 @@ class ExcelImportService {
       'PANDUAN IMPORT',
       'Gunakan sheet Template untuk mengisi data. Sheet Master hanya rujukan pilihan resmi.',
       'Jangan mengubah nama header karena parser mencari header tersebut.',
+      'Pada template siswa, kolom tempat_lahir, tanggal_lahir, alamat_lengkap, kewarganegaraan, provinsi, kota, kecamatan, dan kelurahan diberi dropdown/validasi master.',
+      'Dropdown bersifat warning, bukan stop. Jika pilihan belum ada di Master, user tetap boleh mengetik manual agar data baru tidak tertahan.',
       'Kolom cek_* berisi rumus bantu. Jika muncul CEK atau WAJIB, periksa lagi sebelum import.',
       'tanggal_lahir dan tanggal_masuk gunakan format YYYY-MM-DD, contoh 2015-01-12.',
       'Untuk wilayah, gunakan nama resmi dari master database. Backend tetap memvalidasi master saat import.',

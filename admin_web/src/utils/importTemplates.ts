@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx-js-style';
+import JSZip from 'jszip';
 import { api, type ApiRecord } from '../services/api';
 
 export type ImportTemplateType = 'siswa' | 'guru' | 'user-admin' | 'user-wali' | 'user';
@@ -268,7 +269,9 @@ export async function downloadImportTemplate(type: ImportTemplateType) {
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
   XLSX.utils.book_append_sheet(workbook, buildMasterSheet(type, master), 'Master');
   XLSX.utils.book_append_sheet(workbook, buildGuideSheet(type), 'Petunjuk');
-  XLSX.writeFile(workbook, config.fileName, { bookType: 'xlsx', cellStyles: true });
+  const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array', cellStyles: true }) as ArrayBuffer;
+  const output = type === 'siswa' ? await addSiswaDropdownValidations(buffer) : buffer;
+  downloadXlsx(output, config.fileName);
 }
 
 function buildTemplateSheet(config: TemplateConfig, master: TemplateMasterData): XLSX.WorkSheet {
@@ -281,9 +284,10 @@ function buildTemplateSheet(config: TemplateConfig, master: TemplateMasterData):
   const note = [
     'Catatan:',
     '1. Kolom bertanda * wajib diisi.',
-    '2. Isi kolom master persis seperti sheet Master.',
-    '3. Kolom cek_* berisi rumus bantu. Jika muncul CEK, periksa lagi sebelum import.',
-    '4. Backend tetap memvalidasi data terhadap master database saat import.'
+    '2. Kolom tempat/tanggal lahir, alamat, kewarganegaraan, provinsi, kota, kecamatan, dan kelurahan punya validasi/dropdown master.',
+    '3. Dropdown bersifat bantuan. Jika data resmi belum ada di master, tetap boleh ketik manual lalu cek kembali sebelum import.',
+    '4. Kolom cek_* berisi rumus bantu. Jika muncul CEK, periksa lagi sebelum import.',
+    '5. Backend tetap memvalidasi data terhadap master database saat import.'
   ].join(' ');
 
   const aoa: unknown[][] = [
@@ -392,6 +396,8 @@ function buildGuideSheet(type: ImportTemplateType): XLSX.WorkSheet {
     ['PANDUAN IMPORT'],
     ['Gunakan sheet Template untuk mengisi data. Sheet Master hanya rujukan pilihan resmi.'],
     ['Jangan mengubah nama header karena parser mencari header tersebut.'],
+    ['Pada template siswa, kolom tempat_lahir, tanggal_lahir, alamat_lengkap, kewarganegaraan, provinsi, kota, kecamatan, dan kelurahan diberi dropdown/validasi master.'],
+    ['Dropdown bersifat warning, bukan stop. Jika pilihan belum ada di Master, user tetap boleh mengetik manual agar data baru tidak tertahan.'],
     ['Kolom cek_* boleh dibiarkan. Rumusnya membantu menemukan typo sebelum upload.'],
     ['tanggal_lahir dan tanggal_masuk gunakan format YYYY-MM-DD, contoh 2015-01-12.'],
     ['Untuk wilayah, gunakan nama resmi dari master database. Jika kecamatan/kelurahan tidak ada di contoh, pastikan ejaannya sama dengan master backend.'],
@@ -457,6 +463,125 @@ function text(value: unknown): string {
 function styleCell(worksheet: XLSX.WorkSheet, address: string, style: XLSX.CellStyle) {
   const cell = worksheet[address] as XLSX.CellObject | undefined;
   if (cell) cell.s = style;
+}
+
+async function addSiswaDropdownValidations(buffer: ArrayBuffer): Promise<ArrayBuffer> {
+  const zip = await JSZip.loadAsync(buffer);
+  const templateSheet = zip.file('xl/worksheets/sheet1.xml');
+  if (!templateSheet) return buffer;
+
+  const xml = await templateSheet.async('string');
+  const patchedXml = insertWorksheetDataValidations(xml, siswaValidationXml(5, maxTemplateRows));
+  zip.file('xl/worksheets/sheet1.xml', patchedXml);
+  return zip.generateAsync({
+    type: 'arraybuffer',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+}
+
+function siswaValidationXml(startRow: number, endRow: number): string {
+  const listValidations = [
+    {
+      sqref: `H${startRow}:H${endRow}`,
+      formula: 'Master!$F$2:$F$1000',
+      prompt: 'Pilih dari master kota untuk tempat lahir, atau ketik manual jika belum ada.'
+    },
+    {
+      sqref: `K${startRow}:K${endRow}`,
+      formula: 'Master!$D$2:$D$1000',
+      prompt: 'Pilih kewarganegaraan dari Master, atau ketik manual jika belum tersedia.'
+    },
+    {
+      sqref: `L${startRow}:L${endRow}`,
+      formula: 'Master!$E$2:$E$1000',
+      prompt: 'Pilih provinsi dari Master agar ejaan sama dengan database.'
+    },
+    {
+      sqref: `M${startRow}:M${endRow}`,
+      formula: 'Master!$F$2:$F$1000',
+      prompt: 'Pilih kota/kabupaten dari Master agar tidak typo.'
+    },
+    {
+      sqref: `N${startRow}:N${endRow}`,
+      formula: 'Master!$G$2:$G$1000',
+      prompt: 'Pilih kecamatan dari Master contoh, atau ketik manual jika belum ada.'
+    },
+    {
+      sqref: `O${startRow}:O${endRow}`,
+      formula: 'Master!$H$2:$H$1000',
+      prompt: 'Pilih kelurahan/desa dari Master contoh, atau ketik manual jika belum ada.'
+    }
+  ];
+  const validations = [
+    ...listValidations.map((item) => dataValidationTag({
+      type: 'list',
+      sqref: item.sqref,
+      prompt: item.prompt,
+      formula1: item.formula
+    })),
+    dataValidationTag({
+      type: 'date',
+      sqref: `I${startRow}:I${endRow}`,
+      prompt: 'Isi tanggal_lahir format YYYY-MM-DD. Contoh: 2015-01-12.',
+      formula1: 'DATE(1900,1,1)',
+      formula2: 'DATE(2099,12,31)',
+      operator: 'between'
+    }),
+    dataValidationTag({
+      type: 'textLength',
+      sqref: `J${startRow}:J${endRow}`,
+      prompt: 'Isi alamat lengkap. Boleh ketik manual karena alamat tidak selalu ada di master.',
+      formula1: '255',
+      operator: 'lessThanOrEqual'
+    })
+  ];
+  return `<dataValidations count="${validations.length}">${validations.join('')}</dataValidations>`;
+}
+
+function dataValidationTag(options: {
+  type: string;
+  sqref: string;
+  prompt: string;
+  formula1: string;
+  formula2?: string;
+  operator?: string;
+}): string {
+  const operator = options.operator ? ` operator="${escapeXml(options.operator)}"` : '';
+  const formula2 = options.formula2 ? `<formula2>${escapeXml(options.formula2)}</formula2>` : '';
+  return [
+    `<dataValidation type="${escapeXml(options.type)}"${operator} allowBlank="1" errorStyle="warning" showErrorMessage="1" showInputMessage="1"`,
+    ` errorTitle="Di luar master" error="Nilai tidak ada di sheet Master. Boleh lanjut jika data memang baru, tapi cek ulang sebelum import."`,
+    ` promptTitle="Bantuan input" prompt="${escapeXml(options.prompt)}" sqref="${escapeXml(options.sqref)}">`,
+    `<formula1>${escapeXml(options.formula1)}</formula1>${formula2}</dataValidation>`
+  ].join('');
+}
+
+function insertWorksheetDataValidations(xml: string, validationsXml: string): string {
+  const cleanXml = xml.replace(/<dataValidations[\s\S]*?<\/dataValidations>/, '');
+  const anchors = ['<hyperlinks', '<pageMargins', '<pageSetup', '<headerFooter', '<drawing', '<legacyDrawing', '<extLst', '</worksheet>'];
+  const anchor = anchors.find((candidate) => cleanXml.includes(candidate));
+  return anchor ? cleanXml.replace(anchor, `${validationsXml}${anchor}`) : cleanXml;
+}
+
+function downloadXlsx(data: ArrayBuffer, fileName: string) {
+  const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 function applyDateFormats(worksheet: XLSX.WorkSheet, headers: string[], dateHeaders: string[]) {
