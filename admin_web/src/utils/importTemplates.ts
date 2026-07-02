@@ -558,7 +558,7 @@ function dataValidationTag(options: {
 
 function insertWorksheetDataValidations(xml: string, validationsXml: string): string {
   const cleanXml = xml.replace(/<dataValidations[\s\S]*?<\/dataValidations>/, '');
-  const anchors = ['<hyperlinks', '<pageMargins', '<pageSetup', '<headerFooter', '<drawing', '<legacyDrawing', '<extLst', '</worksheet>'];
+  const anchors = ['<ignoredErrors', '<hyperlinks', '<pageMargins', '<pageSetup', '<headerFooter', '<drawing', '<legacyDrawing', '<extLst', '</worksheet>'];
   const anchor = anchors.find((candidate) => cleanXml.includes(candidate));
   return anchor ? cleanXml.replace(anchor, `${validationsXml}${anchor}`) : cleanXml;
 }

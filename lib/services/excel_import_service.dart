@@ -864,6 +864,7 @@ class ExcelImportService {
       '',
     );
     const anchors = [
+      '<ignoredErrors',
       '<hyperlinks',
       '<pageMargins',
       '<pageSetup',
