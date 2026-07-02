@@ -389,6 +389,21 @@ export const api = {
   classes() {
     return request<ApiRecord[]>('/classes');
   },
+  schoolOrigins(params?: Record<string, string | number | boolean>) {
+    return request<ApiRecord[]>('/school-origins', {}, params);
+  },
+  regionProvinces(params?: Record<string, string | number | boolean>) {
+    return request<ApiRecord[]>('/regions/provinces', {}, params);
+  },
+  regionCities(params?: Record<string, string | number | boolean>) {
+    return request<ApiRecord[]>('/regions/cities', {}, params);
+  },
+  regionDistricts(params?: Record<string, string | number | boolean>) {
+    return request<ApiRecord[]>('/regions/districts', {}, params);
+  },
+  regionVillages(params?: Record<string, string | number | boolean>) {
+    return request<ApiRecord[]>('/regions/villages', {}, params);
+  },
   mataPelajaran(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>('/mata-pelajaran', {}, params);
   },

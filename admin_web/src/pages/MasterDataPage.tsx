@@ -426,9 +426,16 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
     }
   }
 
-  function handleDownloadTemplate() {
+  async function handleDownloadTemplate() {
     if (!importConfig) return;
-    downloadImportTemplate(importConfig.template);
+    setError('');
+    setNotice('');
+    try {
+      await downloadImportTemplate(importConfig.template);
+      setNotice('Template import terbaru berhasil dibuat.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Template gagal dibuat.');
+    }
   }
 
   function handleExportRows() {

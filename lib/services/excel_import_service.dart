@@ -5,6 +5,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'api_service.dart';
+
 enum ImportTemplateType { user, guru, siswa }
 
 class ExcelImportService {
@@ -23,6 +25,50 @@ class ExcelImportService {
     'karyawan',
     'pejabat',
     'sertifikasi',
+  ];
+
+  static const List<String> _fallbackClasses = [
+    'Sifir Awal A PA',
+    'Sifir Awal B PI',
+    'Sifir Tsani A PA',
+    'Sifir Tsani B PI',
+  ];
+  static const List<String> _fallbackSchoolOrigins = [
+    "MI Assa'adah",
+    'MI Qomaruddin',
+    "MTs Assa'adah 1",
+    "SMP Assa'adah",
+  ];
+  static const List<String> _fallbackProvinces = [
+    'Jawa Timur',
+    'Jawa Tengah',
+    'Jawa Barat',
+    'DKI Jakarta',
+  ];
+  static const List<String> _fallbackCities = [
+    'Kabupaten Gresik',
+    'Kota Surabaya',
+    'Kabupaten Lamongan',
+    'Kabupaten Sidoarjo',
+  ];
+  static const List<String> _fallbackDistricts = [
+    'Bungah',
+    'Manyar',
+    'Sidayu',
+    'Dukun',
+    'Ujung Pangkah',
+  ];
+  static const List<String> _fallbackVillages = [
+    'Bungah',
+    'Sukorejo',
+    'Indrodelik',
+    'Pegundan',
+    'Abar-abir',
+  ];
+  static const List<String> _studentTypeOptions = [
+    'Santri Madin',
+    'Santri Pondok',
+    'Keduanya',
   ];
   static const _passwordTemplateHint = 'IsiPasswordAwal!2026';
   static const Set<String> _userMandatoryHeaders = {
@@ -95,55 +141,20 @@ class ExcelImportService {
   static Future<File> generateTemplate(ImportTemplateType type) async {
     final excel = Excel.createExcel();
     final sheetName = excel.getDefaultSheet() ?? 'Sheet1';
-    final sheet = excel[sheetName];
+    excel.rename(sheetName, 'Template');
+    excel.setDefaultSheet('Template');
+    final masterData = await _loadTemplateMasterData();
+    final sheet = excel['Template'];
 
     if (type == ImportTemplateType.user) {
-      sheet.appendRow([TextCellValue('TEMPLATE IMPORT USER / AKUN APLIKASI')]);
-      sheet.appendRow([
-        TextCellValue(
-          'PETUNJUK: Jangan ubah nama header. Kolom bertanda (*) wajib. role isi admin, guru, atau wali. status isi Aktif atau Nonaktif.',
-        ),
-      ]);
-      _appendHeaderRow(sheet, _userHeaders, _userMandatoryHeaders);
-      sheet.appendRow([
-        TextCellValue('Admin Baru'),
-        TextCellValue('adminbaru@absensi.com'),
-        TextCellValue('081234567890'),
-        TextCellValue('admin'),
-        TextCellValue(_passwordTemplateHint),
-        TextCellValue('Aktif'),
-      ]);
-      sheet.appendRow([
-        TextCellValue('Wali Baru'),
-        TextCellValue('walibaru@absensi.com'),
-        TextCellValue('081277788899'),
-        TextCellValue('wali'),
-        TextCellValue(_passwordTemplateHint),
-        TextCellValue('Aktif'),
-      ]);
+      _buildUserTemplateSheet(sheet);
     } else if (type == ImportTemplateType.guru) {
-      sheet.appendRow([TextCellValue('TEMPLATE IMPORT DATA GURU')]);
-      sheet.appendRow([
-        TextCellValue(
-          'PETUNJUK: Jangan ubah nama header. Kolom bertanda (*) wajib. unit_sekolah dan status_sebagai bisa lebih dari satu, pisahkan dengan tanda |.',
-        ),
-      ]);
-      _appendHeaderRow(sheet, _guruHeaders, _guruMandatoryHeaders);
-      sheet.appendRow([
-        TextCellValue("MTs Assa'adah 1|Aliyah Assa'adah"),
-        TextCellValue('Ust. Contoh Guru'),
-        TextCellValue('GRU099'),
-        TextCellValue('081234567890'),
-        TextCellValue('gurucontoh@absensi.com'),
-        TextCellValue('L'),
-        TextCellValue('Bungah, Gresik'),
-        TextCellValue('Aktif'),
-        TextCellValue('guru|sertifikasi'),
-        TextCellValue(_passwordTemplateHint),
-      ]);
+      _buildGuruTemplateSheet(sheet);
     } else {
-      _buildSiswaTemplateSheet(sheet);
+      _buildSiswaTemplateSheet(sheet, masterData);
     }
+    _buildMasterSheet(excel['Master'], masterData);
+    _buildGuideSheet(excel['Petunjuk'], type);
 
     final bytes = excel.encode();
     if (bytes == null) {
@@ -355,7 +366,149 @@ class ExcelImportService {
     return null;
   }
 
-  static void _buildSiswaTemplateSheet(Sheet sheet) {
+  static void _buildUserTemplateSheet(Sheet sheet) {
+    _buildBasicTemplateSheet(
+      sheet: sheet,
+      title: 'TEMPLATE IMPORT USER / AKUN APLIKASI',
+      hint:
+          'PETUNJUK: Jangan ubah nama header. role isi admin, guru, atau wali. status isi Aktif atau Nonaktif.',
+      headers: _userHeaders,
+      mandatoryHeaders: _userMandatoryHeaders,
+      sampleRows: const [
+        [
+          'Admin Baru',
+          'adminbaru@absensi.com',
+          '081234567890',
+          'admin',
+          _passwordTemplateHint,
+          'Aktif',
+        ],
+        [
+          'Wali Baru',
+          'walibaru@absensi.com',
+          '081277788899',
+          'wali',
+          _passwordTemplateHint,
+          'Aktif',
+        ],
+      ],
+      checks: const [
+        _TemplateCheck('cek_role', 'role', 10, true),
+        _TemplateCheck('cek_status', 'status', 1, true),
+      ],
+    );
+  }
+
+  static void _buildGuruTemplateSheet(Sheet sheet) {
+    _buildBasicTemplateSheet(
+      sheet: sheet,
+      title: 'TEMPLATE IMPORT DATA GURU',
+      hint:
+          'PETUNJUK: Jangan ubah nama header. unit_sekolah dan status_sebagai bisa lebih dari satu, pisahkan dengan tanda |.',
+      headers: _guruHeaders,
+      mandatoryHeaders: _guruMandatoryHeaders,
+      sampleRows: const [
+        [
+          "MTs Assa'adah 1|Aliyah Assa'adah",
+          'Ust. Contoh Guru',
+          'GRU099',
+          '081234567890',
+          'gurucontoh@absensi.com',
+          'L',
+          'Bungah, Gresik',
+          'Aktif',
+          'guru|sertifikasi',
+          _passwordTemplateHint,
+        ],
+      ],
+      checks: const [
+        _TemplateCheck('cek_jk', 'jenis_kelamin', 0, false),
+        _TemplateCheck('cek_status', 'status', 1, true),
+      ],
+    );
+  }
+
+  static void _buildBasicTemplateSheet({
+    required Sheet sheet,
+    required String title,
+    required String hint,
+    required List<String> headers,
+    required Set<String> mandatoryHeaders,
+    required List<List<String>> sampleRows,
+    required List<_TemplateCheck> checks,
+  }) {
+    final titleStyle = _titleStyle();
+    final subTitleStyle = _subTitleStyle();
+    final infoStyle = _infoStyle();
+    final mandatoryStyle = _mandatoryHeaderStyle();
+    final optionalStyle = _optionalHeaderStyle();
+    final checkStyle = _checkHeaderStyle();
+    final sampleStyle = _sampleStyle();
+
+    final allHeaders = [...headers, ...checks.map((check) => check.label)];
+    final lastCell = '${_columnName(allHeaders.length - 1)}1';
+    sheet.merge(
+      CellIndex.indexByString('A1'),
+      CellIndex.indexByString(lastCell),
+    );
+    sheet.cell(CellIndex.indexByString('A1'))
+      ..value = TextCellValue(title)
+      ..cellStyle = titleStyle;
+
+    sheet.merge(
+      CellIndex.indexByString('A2'),
+      CellIndex.indexByString('${_columnName(allHeaders.length - 1)}2'),
+    );
+    sheet.cell(CellIndex.indexByString('A2'))
+      ..value = TextCellValue(hint)
+      ..cellStyle = subTitleStyle;
+
+    sheet.merge(
+      CellIndex.indexByString('A4'),
+      CellIndex.indexByString('${_columnName(allHeaders.length - 1)}4'),
+    );
+    sheet.cell(CellIndex.indexByString('A4'))
+      ..value = TextCellValue(
+        'Kolom cek_* berisi rumus bantu. Jika muncul CEK atau WAJIB, periksa lagi sebelum import. Backend tetap memvalidasi data terhadap master database.',
+      )
+      ..cellStyle = infoStyle;
+
+    for (var i = 0; i < allHeaders.length; i++) {
+      final isCheck = i >= headers.length;
+      final header = allHeaders[i];
+      final isMandatory = mandatoryHeaders.contains(header);
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 5))
+        ..value = TextCellValue(isMandatory ? '$header *' : header)
+        ..cellStyle = isCheck
+            ? checkStyle
+            : isMandatory
+            ? mandatoryStyle
+            : optionalStyle;
+      sheet.setColumnWidth(i, isCheck ? 16 : 22);
+    }
+
+    for (var rowIndex = 0; rowIndex < sampleRows.length; rowIndex++) {
+      final excelRow = rowIndex + 6;
+      final row = sampleRows[rowIndex];
+      for (var col = 0; col < headers.length; col++) {
+        sheet.cell(
+            CellIndex.indexByColumnRow(columnIndex: col, rowIndex: excelRow),
+          )
+          ..value = TextCellValue(row[col])
+          ..cellStyle = sampleStyle;
+      }
+      _appendCheckFormulas(sheet, headers, checks, excelRow);
+    }
+
+    for (var excelRow = sampleRows.length + 6; excelRow <= 250; excelRow++) {
+      _appendCheckFormulas(sheet, headers, checks, excelRow);
+    }
+  }
+
+  static void _buildSiswaTemplateSheet(
+    Sheet sheet,
+    _TemplateMasterData masterData,
+  ) {
     final titleStyle = CellStyle(
       bold: true,
       fontSize: 16,
@@ -423,7 +576,48 @@ class ExcelImportService {
       'nis',
       'nama_lengkap_siswa',
       'jenis_kelamin',
+      'nama_wali',
+      'status_siswa',
+      'kelompok_belajar',
     };
+    final checks = <_TemplateCheck>[
+      const _TemplateCheck('cek_jk', 'jenis_kelamin', 0, true),
+      const _TemplateCheck('cek_status', 'status_siswa', 1, true),
+      const _TemplateCheck('cek_kelas', 'kelompok_belajar', 2, true),
+      const _TemplateCheck('cek_kewarganegaraan', 'kewarganegaraan', 3, false),
+      const _TemplateCheck('cek_provinsi', 'provinsi', 4, false),
+      const _TemplateCheck('cek_kota', 'kota', 5, false),
+      const _TemplateCheck(
+        'cek_kecamatan',
+        'kecamatan',
+        6,
+        false,
+        'CEK MASTER',
+      ),
+      const _TemplateCheck(
+        'cek_kelurahan',
+        'kelurahan',
+        7,
+        false,
+        'CEK MASTER',
+      ),
+      const _TemplateCheck('cek_asal_sekolah', 'asal_sekolah', 8, false),
+      const _TemplateCheck('cek_jenis_santri', 'jenis_santri', 9, false),
+      const _TemplateCheck(
+        'cek_tgl_lahir',
+        'tanggal_lahir',
+        null,
+        false,
+        'YYYY-MM-DD',
+      ),
+      const _TemplateCheck(
+        'cek_tgl_masuk',
+        'tanggal_masuk',
+        null,
+        false,
+        'YYYY-MM-DD',
+      ),
+    ];
 
     for (var i = 0; i < _siswaHeaders.length; i++) {
       final isMandatory = mandatoryHeaders.contains(_siswaHeaders[i]);
@@ -431,6 +625,13 @@ class ExcelImportService {
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 5))
         ..value = TextCellValue(label)
         ..cellStyle = isMandatory ? headerMandatoryStyle : headerOptionalStyle;
+    }
+    for (var i = 0; i < checks.length; i++) {
+      final col = _siswaHeaders.length + i;
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 5))
+        ..value = TextCellValue(checks[i].label)
+        ..cellStyle = _checkHeaderStyle();
+      sheet.setColumnWidth(col, 16);
     }
 
     final sampleRow = [
@@ -440,23 +641,35 @@ class ExcelImportService {
       'L',
       'Bp. Ahmad Fauzi',
       'Aktif',
-      'Sifir Awal A PA',
+      _firstOr(masterData.classes, 'Sifir Awal A PA'),
       'Gresik',
       '2010-03-15',
       'Jl. Contoh No. 1, Gresik',
       'Indonesia',
-      '',
-      '',
-      '',
-      '',
+      masterData.provinces.firstWhere(
+        (item) => item.toLowerCase() == 'jawa timur',
+        orElse: () => _firstOr(masterData.provinces, 'Jawa Timur'),
+      ),
+      masterData.cities.firstWhere(
+        (item) => item.toLowerCase().contains('gresik'),
+        orElse: () => _firstOr(masterData.cities, 'Kabupaten Gresik'),
+      ),
+      masterData.districts.firstWhere(
+        (item) => item.toLowerCase() == 'bungah',
+        orElse: () => _firstOr(masterData.districts, 'Bungah'),
+      ),
+      masterData.villages.firstWhere(
+        (item) => item.toLowerCase() == 'bungah',
+        orElse: () => _firstOr(masterData.villages, 'Bungah'),
+      ),
       '61152',
       '081234567890',
       'santri@example.com',
       'Ahmad Fauzi',
       'Siti Aisyah',
-      'MI Qomaruddin',
+      _firstOr(masterData.schoolOrigins, 'MI Qomaruddin'),
       '2025/2026',
-      'Santri Madin',
+      _firstOr(masterData.studentTypes, 'Santri Madin'),
       '2025-07-01',
       'Kolom opsional boleh dikosongkan',
     ];
@@ -465,6 +678,10 @@ class ExcelImportService {
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 6))
         ..value = TextCellValue(sampleRow[i])
         ..cellStyle = sampleStyle;
+    }
+    _appendCheckFormulas(sheet, _siswaHeaders, checks, 6);
+    for (var row = 7; row <= 250; row++) {
+      _appendCheckFormulas(sheet, _siswaHeaders, checks, row);
     }
 
     final widths = <int, double>{
@@ -500,16 +717,277 @@ class ExcelImportService {
     }
   }
 
-  static void _appendHeaderRow(
+  static void _appendCheckFormulas(
     Sheet sheet,
     List<String> headers,
-    Set<String> mandatoryHeaders,
+    List<_TemplateCheck> checks,
+    int rowIndex,
   ) {
-    sheet.appendRow(
-      headers.map((header) {
-        final label = mandatoryHeaders.contains(header) ? '$header *' : header;
-        return TextCellValue(label);
-      }).toList(),
+    for (var i = 0; i < checks.length; i++) {
+      final check = checks[i];
+      final sourceIndex = headers.indexOf(check.sourceHeader);
+      if (sourceIndex < 0) continue;
+      final checkIndex = headers.length + i;
+      final sourceCell = '${_columnName(sourceIndex)}${rowIndex + 1}';
+      final checkCell = CellIndex.indexByColumnRow(
+        columnIndex: checkIndex,
+        rowIndex: rowIndex,
+      );
+      final formula = check.masterColumn == null
+          ? 'IF($sourceCell="","",IF(ISNUMBER(DATEVALUE(TEXT($sourceCell,"yyyy-mm-dd"))),"OK","${check.message}"))'
+          : 'IF($sourceCell="","${check.required ? 'WAJIB' : ''}",IF(COUNTIF(Master!\$${_columnName(check.masterColumn!)}\$2:\$${_columnName(check.masterColumn!)}\$1000,$sourceCell)>0,"OK","${check.message}"))';
+      sheet.cell(checkCell)
+        ..value = FormulaCellValue(formula)
+        ..cellStyle = _checkCellStyle();
+    }
+  }
+
+  static void _buildMasterSheet(Sheet sheet, _TemplateMasterData data) {
+    final columns = <List<String>>[
+      ['jenis_kelamin', 'L', 'P'],
+      ['status', 'Aktif', 'Nonaktif', 'Lulus'],
+      ['kelompok_belajar', ...data.classes],
+      ['kewarganegaraan', 'Indonesia', 'WNA'],
+      ['provinsi', ...data.provinces],
+      ['kota', ...data.cities],
+      ['kecamatan_contoh', ...data.districts],
+      ['kelurahan_contoh', ...data.villages],
+      ['asal_sekolah', ...data.schoolOrigins],
+      ['jenis_santri', ...data.studentTypes],
+      ['role', 'admin', 'guru', 'wali'],
+      ['status_user', 'Aktif', 'Nonaktif'],
+    ];
+    final maxRows = columns
+        .map((col) => col.length)
+        .fold<int>(0, (a, b) => a > b ? a : b);
+    final headerStyle = _masterHeaderStyle();
+    final cellStyle = _masterCellStyle();
+    for (var col = 0; col < columns.length; col++) {
+      sheet.setColumnWidth(col, 24);
+      for (var row = 0; row < maxRows; row++) {
+        final value = row < columns[col].length ? columns[col][row] : '';
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row))
+          ..value = TextCellValue(value)
+          ..cellStyle = row == 0 ? headerStyle : cellStyle;
+      }
+    }
+  }
+
+  static void _buildGuideSheet(Sheet sheet, ImportTemplateType type) {
+    final rows = [
+      'PANDUAN IMPORT',
+      'Gunakan sheet Template untuk mengisi data. Sheet Master hanya rujukan pilihan resmi.',
+      'Jangan mengubah nama header karena parser mencari header tersebut.',
+      'Kolom cek_* berisi rumus bantu. Jika muncul CEK atau WAJIB, periksa lagi sebelum import.',
+      'tanggal_lahir dan tanggal_masuk gunakan format YYYY-MM-DD, contoh 2015-01-12.',
+      'Untuk wilayah, gunakan nama resmi dari master database. Backend tetap memvalidasi master saat import.',
+      type == ImportTemplateType.siswa
+          ? 'Khusus siswa: provinsi, kota, kecamatan, kelurahan, asal_sekolah, jenis_santri, dan kelompok_belajar harus mengikuti master.'
+          : 'Khusus user/guru: role, status, dan jenis_kelamin harus mengikuti pilihan master.',
+    ];
+    sheet.setColumnWidth(0, 110);
+    for (var i = 0; i < rows.length; i++) {
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: i))
+        ..value = TextCellValue(rows[i])
+        ..cellStyle = i == 0 ? _titleStyle() : _infoStyle();
+    }
+  }
+
+  static Future<_TemplateMasterData> _loadTemplateMasterData() async {
+    final data = _TemplateMasterData.fallback();
+    try {
+      final classes = await ApiService.getClasses();
+      data.classes = _mergeNames(classes['data'], _fallbackClasses);
+    } catch (_) {}
+
+    try {
+      final origins = await ApiService.getSchoolOrigins(limit: 1000);
+      data.schoolOrigins = _mergeNames(origins['data'], _fallbackSchoolOrigins);
+    } catch (_) {}
+
+    try {
+      final types = await ApiService.getReferenceMaster('student_types');
+      data.studentTypes = _mergeNames(types['data'], _studentTypeOptions);
+    } catch (_) {}
+
+    try {
+      final provinces = await ApiService.getProvinces();
+      data.provinces = _mergeNames(provinces['data'], _fallbackProvinces);
+    } catch (_) {}
+
+    try {
+      final cities = await ApiService.getCities(limit: 1000);
+      data.cities = _mergeNames(cities['data'], _fallbackCities);
+    } catch (_) {}
+
+    try {
+      final gresik = await ApiService.getCities(q: 'Gresik', limit: 20);
+      final cityRows = _asRecords(gresik['data']);
+      int? gresikId;
+      for (final row in cityRows) {
+        final name = row['name'].toString().toLowerCase();
+        final id = int.tryParse(row['id'].toString()) ?? 0;
+        if (name.contains('gresik') && id > 0) {
+          gresikId = id;
+          break;
+        }
+      }
+      if (gresikId != null) {
+        final districts = await ApiService.getDistricts(cityId: gresikId);
+        data.districts = _mergeNames(districts['data'], _fallbackDistricts);
+      }
+    } catch (_) {}
+
+    try {
+      final villages = await ApiService.getVillages(districtCode: '35.25.01');
+      data.villages = _mergeNames(villages['data'], _fallbackVillages);
+    } catch (_) {}
+
+    return data;
+  }
+
+  static List<String> _mergeNames(dynamic rows, List<String> fallback) {
+    final values = <String>[...fallback];
+    for (final row in _asRecords(rows)) {
+      final name = row['name']?.toString().trim() ?? '';
+      if (name.isNotEmpty) values.add(name);
+    }
+    return _unique(values);
+  }
+
+  static List<Map<String, dynamic>> _asRecords(dynamic rows) {
+    if (rows is! List) return const [];
+    return rows
+        .whereType<Map>()
+        .map((row) => row.map((key, value) => MapEntry(key.toString(), value)))
+        .toList();
+  }
+
+  static List<String> _unique(List<String> values) {
+    final seen = <String>{};
+    final result = <String>[];
+    for (final value in values) {
+      final clean = value.trim();
+      if (clean.isEmpty || seen.contains(clean.toLowerCase())) continue;
+      seen.add(clean.toLowerCase());
+      result.add(clean);
+    }
+    return result;
+  }
+
+  static String _firstOr(List<String> values, String fallback) {
+    return values.isEmpty ? fallback : values.first;
+  }
+
+  static String _columnName(int index) {
+    var dividend = index + 1;
+    var name = '';
+    while (dividend > 0) {
+      final modulo = (dividend - 1) % 26;
+      name = String.fromCharCode(65 + modulo) + name;
+      dividend = ((dividend - modulo) / 26).floor();
+    }
+    return name;
+  }
+
+  static CellStyle _titleStyle() {
+    return CellStyle(
+      bold: true,
+      fontSize: 16,
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+      backgroundColorHex: ExcelColor.fromHexString('#138F81'),
+      fontColorHex: ExcelColor.fromHexString('#FFFFFF'),
+    );
+  }
+
+  static CellStyle _subTitleStyle() {
+    return CellStyle(
+      bold: true,
+      fontSize: 11,
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+      backgroundColorHex: ExcelColor.fromHexString('#E8F7F3'),
+      fontColorHex: ExcelColor.fromHexString('#138F81'),
+      textWrapping: TextWrapping.WrapText,
+    );
+  }
+
+  static CellStyle _infoStyle() {
+    return CellStyle(
+      backgroundColorHex: ExcelColor.fromHexString('#FFF7E6'),
+      fontColorHex: ExcelColor.fromHexString('#8A5A00'),
+      textWrapping: TextWrapping.WrapText,
+      verticalAlign: VerticalAlign.Top,
+    );
+  }
+
+  static CellStyle _mandatoryHeaderStyle() {
+    return CellStyle(
+      bold: true,
+      backgroundColorHex: ExcelColor.fromHexString('#D8F3EE'),
+      fontColorHex: ExcelColor.fromHexString('#0F6D62'),
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+      textWrapping: TextWrapping.WrapText,
+    );
+  }
+
+  static CellStyle _optionalHeaderStyle() {
+    return CellStyle(
+      bold: true,
+      backgroundColorHex: ExcelColor.fromHexString('#EAF1FF'),
+      fontColorHex: ExcelColor.fromHexString('#2E5AAC'),
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+      textWrapping: TextWrapping.WrapText,
+    );
+  }
+
+  static CellStyle _checkHeaderStyle() {
+    return CellStyle(
+      bold: true,
+      backgroundColorHex: ExcelColor.fromHexString('#FFE7B8'),
+      fontColorHex: ExcelColor.fromHexString('#8A5A00'),
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+      textWrapping: TextWrapping.WrapText,
+    );
+  }
+
+  static CellStyle _sampleStyle() {
+    return CellStyle(
+      backgroundColorHex: ExcelColor.fromHexString('#F8FBFF'),
+      textWrapping: TextWrapping.WrapText,
+      verticalAlign: VerticalAlign.Center,
+    );
+  }
+
+  static CellStyle _checkCellStyle() {
+    return CellStyle(
+      backgroundColorHex: ExcelColor.fromHexString('#FFF7E6'),
+      fontColorHex: ExcelColor.fromHexString('#8A5A00'),
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+    );
+  }
+
+  static CellStyle _masterHeaderStyle() {
+    return CellStyle(
+      bold: true,
+      backgroundColorHex: ExcelColor.fromHexString('#2D3436'),
+      fontColorHex: ExcelColor.fromHexString('#FFFFFF'),
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+      textWrapping: TextWrapping.WrapText,
+    );
+  }
+
+  static CellStyle _masterCellStyle() {
+    return CellStyle(
+      backgroundColorHex: ExcelColor.fromHexString('#F7FAFC'),
+      textWrapping: TextWrapping.WrapText,
+      verticalAlign: VerticalAlign.Center,
     );
   }
 
@@ -563,5 +1041,55 @@ class ExcelImportService {
       default:
         return value.toString().trim();
     }
+  }
+}
+
+class _TemplateCheck {
+  final String label;
+  final String sourceHeader;
+  final int? masterColumn;
+  final bool required;
+  final String message;
+
+  const _TemplateCheck(
+    this.label,
+    this.sourceHeader,
+    this.masterColumn,
+    this.required, [
+    this.message = 'CEK',
+  ]);
+}
+
+class _TemplateMasterData {
+  List<String> classes;
+  List<String> schoolOrigins;
+  List<String> studentTypes;
+  List<String> provinces;
+  List<String> cities;
+  List<String> districts;
+  List<String> villages;
+
+  _TemplateMasterData({
+    required this.classes,
+    required this.schoolOrigins,
+    required this.studentTypes,
+    required this.provinces,
+    required this.cities,
+    required this.districts,
+    required this.villages,
+  });
+
+  factory _TemplateMasterData.fallback() {
+    return _TemplateMasterData(
+      classes: List<String>.from(ExcelImportService._fallbackClasses),
+      schoolOrigins: List<String>.from(
+        ExcelImportService._fallbackSchoolOrigins,
+      ),
+      studentTypes: List<String>.from(ExcelImportService._studentTypeOptions),
+      provinces: List<String>.from(ExcelImportService._fallbackProvinces),
+      cities: List<String>.from(ExcelImportService._fallbackCities),
+      districts: List<String>.from(ExcelImportService._fallbackDistricts),
+      villages: List<String>.from(ExcelImportService._fallbackVillages),
+    );
   }
 }
