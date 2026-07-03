@@ -57,15 +57,13 @@ Artisan::command(
 Artisan::command(
     'regions:sync-postal-codes {file? : Path CSV kode pos lokal} {--overwrite : Timpa postal_code yang sudah ada} {--dry-run : Hitung calon update tanpa menyimpan}',
     function () {
-        if (!Schema::hasTable('villages') || !Schema::hasColumn('villages', 'postal_code')) {
-            $this->warn('Kolom villages.postal_code belum tersedia. Jalankan migrate lebih dulu.');
+        if (!Schema::hasTable('postal_codes')) {
+            $this->warn('Tabel postal_codes belum tersedia. Jalankan migrate lebih dulu.');
             return 1;
         }
 
-        $path = $this->argument('file') ?: database_path('data/kodepos_indonesia.csv');
-
-        if (!File::exists($path)) {
-            $this->error("File kode pos tidak ditemukan: {$path}");
+        if (!Schema::hasTable('villages') || !Schema::hasColumn('villages', 'postal_code')) {
+            $this->warn('Kolom villages.postal_code belum tersedia. Jalankan migrate lebih dulu.');
             return 1;
         }
 
@@ -76,6 +74,89 @@ Artisan::command(
             $value = preg_replace('/[^a-z0-9]+/', ' ', $value) ?? $value;
             return trim(preg_replace('/\s+/', ' ', $value) ?? $value);
         };
+
+        $path = $this->argument('file') ?: database_path('data/kodepos_indonesia.csv');
+
+        if (!File::exists($path)) {
+            $this->error("File kode pos tidak ditemukan: {$path}");
+            return 1;
+        }
+
+        $handle = fopen($path, 'rb');
+        if (!$handle) {
+            $this->error("File kode pos tidak dapat dibuka: {$path}");
+            return 1;
+        }
+
+        $header = fgetcsv($handle);
+        if (!$header) {
+            fclose($handle);
+            $this->error('CSV kode pos kosong.');
+            return 1;
+        }
+
+        $indexes = array_flip(array_map(fn ($item) => trim((string) $item), $header));
+        foreach (['urban', 'sub_district', 'city', 'province_code', 'postal_code'] as $column) {
+            if (!array_key_exists($column, $indexes)) {
+                fclose($handle);
+                $this->error("Kolom CSV {$column} tidak ditemukan.");
+                return 1;
+            }
+        }
+
+        $postalRows = [];
+        $imported = 0;
+        $now = now();
+
+        while (($row = fgetcsv($handle)) !== false) {
+            $postalCode = trim((string) ($row[$indexes['postal_code']] ?? ''));
+            $provinceCode = trim((string) ($row[$indexes['province_code']] ?? ''));
+            $cityName = trim((string) ($row[$indexes['city']] ?? ''));
+            $districtName = trim((string) ($row[$indexes['sub_district']] ?? ''));
+            $villageName = trim((string) ($row[$indexes['urban']] ?? ''));
+
+            if (!preg_match('/^\d{5}$/', $postalCode) || $provinceCode === '' || $cityName === '' || $districtName === '' || $villageName === '') {
+                continue;
+            }
+
+            $postalRows[] = [
+                'province_code' => $provinceCode,
+                'city_name' => $cityName,
+                'district_name' => $districtName,
+                'village_name' => $villageName,
+                'postal_code' => $postalCode,
+                'city_key' => $normalize($cityName),
+                'district_key' => $normalize($districtName),
+                'village_key' => $normalize($villageName),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+
+            if (count($postalRows) >= 1000) {
+                if (!$this->option('dry-run')) {
+                    DB::table('postal_codes')->upsert(
+                        $postalRows,
+                        ['province_code', 'city_key', 'district_key', 'village_key', 'postal_code'],
+                        ['city_name', 'district_name', 'village_name', 'updated_at']
+                    );
+                }
+                $imported += count($postalRows);
+                $postalRows = [];
+            }
+        }
+
+        fclose($handle);
+
+        if ($postalRows) {
+            if (!$this->option('dry-run')) {
+                DB::table('postal_codes')->upsert(
+                    $postalRows,
+                    ['province_code', 'city_key', 'district_key', 'village_key', 'postal_code'],
+                    ['city_name', 'district_name', 'village_name', 'updated_at']
+                );
+            }
+            $imported += count($postalRows);
+        }
 
         $villages = DB::table('villages')
             ->join('districts', 'districts.id', '=', 'villages.district_id')
@@ -109,92 +190,68 @@ Artisan::command(
             $looseMap[$looseKey][] = $village;
         }
 
-        $handle = fopen($path, 'rb');
-        if (!$handle) {
-            $this->error("File kode pos tidak dapat dibuka: {$path}");
-            return 1;
-        }
-
-        $header = fgetcsv($handle);
-        if (!$header) {
-            fclose($handle);
-            $this->error('CSV kode pos kosong.');
-            return 1;
-        }
-
-        $indexes = array_flip(array_map(fn ($item) => trim((string) $item), $header));
-        foreach (['urban', 'sub_district', 'city', 'province_code', 'postal_code'] as $column) {
-            if (!array_key_exists($column, $indexes)) {
-                fclose($handle);
-                $this->error("Kolom CSV {$column} tidak ditemukan.");
-                return 1;
-            }
-        }
-
         $updated = 0;
         $matched = 0;
         $skippedExisting = 0;
         $unmatched = 0;
         $ambiguous = 0;
 
-        while (($row = fgetcsv($handle)) !== false) {
-            $postalCode = trim((string) ($row[$indexes['postal_code']] ?? ''));
-            if (!preg_match('/^\d{5}$/', $postalCode)) {
-                continue;
-            }
-
-            $provinceCode = trim((string) ($row[$indexes['province_code']] ?? ''));
-            $fullKey = implode('|', [
-                $provinceCode,
-                $normalize($row[$indexes['city']] ?? ''),
-                $normalize($row[$indexes['sub_district']] ?? ''),
-                $normalize($row[$indexes['urban']] ?? ''),
-            ]);
-            $looseKey = implode('|', [
-                $provinceCode,
-                $normalize($row[$indexes['sub_district']] ?? ''),
-                $normalize($row[$indexes['urban']] ?? ''),
-            ]);
-
-            $candidates = $fullMap[$fullKey] ?? null;
-            if (!$candidates || count($candidates) !== 1) {
-                $candidates = $looseMap[$looseKey] ?? null;
-            }
-
-            if (!$candidates) {
-                $unmatched++;
-                continue;
-            }
-
-            if (count($candidates) !== 1) {
-                $ambiguous++;
-                continue;
-            }
-
-            $village = $candidates[0];
-            $matched++;
-
-            if (!$this->option('overwrite') && !empty($village->postal_code)) {
-                $skippedExisting++;
-                continue;
-            }
-
-            if (!$this->option('dry-run')) {
-                DB::table('villages')
-                    ->where('id', $village->id)
-                    ->update([
-                        'postal_code' => $postalCode,
-                        'updated_at' => now(),
+        DB::table('postal_codes')
+            ->select('province_code', 'city_key', 'district_key', 'village_key', 'postal_code')
+            ->orderBy('id')
+            ->chunk(1000, function ($postalCodes) use (&$updated, &$matched, &$skippedExisting, &$unmatched, &$ambiguous, $fullMap, $looseMap) {
+                foreach ($postalCodes as $postalCodeRow) {
+                    $fullKey = implode('|', [
+                        $postalCodeRow->province_code,
+                        $postalCodeRow->city_key,
+                        $postalCodeRow->district_key,
+                        $postalCodeRow->village_key,
                     ]);
-            }
-            $updated++;
-        }
+                    $looseKey = implode('|', [
+                        $postalCodeRow->province_code,
+                        $postalCodeRow->district_key,
+                        $postalCodeRow->village_key,
+                    ]);
 
-        fclose($handle);
+                    $candidates = $fullMap[$fullKey] ?? null;
+                    if (!$candidates || count($candidates) !== 1) {
+                        $candidates = $looseMap[$looseKey] ?? null;
+                    }
+
+                    if (!$candidates) {
+                        $unmatched++;
+                        continue;
+                    }
+
+                    if (count($candidates) !== 1) {
+                        $ambiguous++;
+                        continue;
+                    }
+
+                    $village = $candidates[0];
+                    $matched++;
+
+                    if (!$this->option('overwrite') && !empty($village->postal_code)) {
+                        $skippedExisting++;
+                        continue;
+                    }
+
+                    if (!$this->option('dry-run')) {
+                        DB::table('villages')
+                            ->where('id', $village->id)
+                            ->update([
+                                'postal_code' => $postalCodeRow->postal_code,
+                                'updated_at' => now(),
+                            ]);
+                    }
+                    $updated++;
+                }
+            });
 
         $this->table(
             ['Metric', 'Jumlah'],
             [
+                ['postal_codes_imported', $imported],
                 ['matched', $matched],
                 ['updated', $updated],
                 ['skipped_existing', $skippedExisting],
