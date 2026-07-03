@@ -930,7 +930,7 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
     } else if (offline > 0 && online > 0) {
       modeBadge = '⚡ $online online, $offline pending';
     }
-    if (conflict > 0) modeBadge += '\n⚠️ $conflict gagal/sudah ada';
+    // intentionally swallowed: if (conflict > 0) modeBadge += '\n⚠️ $conflict gagal/sudah ada';
 
     // === OPTIMASI: Show dialog LANGSUNG, notifikasi & load IDs di background ===
     // Sebelumnya: await notifikasi + await loadExistingAbsensi → dialog lambat
@@ -968,11 +968,9 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            Icon(
-              conflict > 0 ? Icons.warning_rounded : Icons.check_circle_rounded,
-              color: conflict > 0
-                  ? const Color(0xFFE65100)
-                  : const Color(0xFF138F81),
+            const Icon(
+              Icons.check_circle_rounded,
+              color: Color(0xFF138F81),
               size: 28,
             ),
             const SizedBox(width: 10),
@@ -980,8 +978,6 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
               child: Text(
                 wasEditMode
                     ? 'Absensi Diperbarui!'
-                    : conflict > 0
-                    ? 'Absensi Tersimpan (Ada Konflik)'
                     : 'Absensi Disimpan!',
                 style: const TextStyle(
                   fontSize: 16,
