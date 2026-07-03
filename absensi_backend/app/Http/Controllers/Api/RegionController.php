@@ -25,6 +25,7 @@ class RegionController extends Controller
             'province_id' => 'nullable|integer|exists:provinces,id',
             'province_code' => 'nullable|string',
             'q' => 'nullable|string',
+            'all' => 'nullable|boolean',
         ]);
 
         $provinceId = $request->integer('province_id') ?: null;
@@ -51,6 +52,7 @@ class RegionController extends Controller
             'city_id' => 'nullable|integer|exists:cities,id',
             'city_code' => 'nullable|string',
             'q' => 'nullable|string',
+            'all' => 'nullable|boolean',
         ]);
 
         $cityId = $request->integer('city_id') ?: null;
@@ -77,6 +79,8 @@ class RegionController extends Controller
             'district_id' => 'nullable|integer|exists:districts,id',
             'district_code' => 'nullable|string',
             'q' => 'nullable|string',
+            'all' => 'nullable|boolean',
+            'flat' => 'nullable|boolean',
         ]);
 
         $districtId = $request->integer('district_id') ?: null;
@@ -86,12 +90,32 @@ class RegionController extends Controller
                 ->value('id');
         }
 
+        $query = DB::table('villages')
+            ->when($districtId, fn ($query) => $query->where('villages.district_id', $districtId))
+            ->when($request->filled('q'), fn ($query) => $query->where('villages.name', 'ilike', '%' . $request->q . '%'));
+
+        if ($request->boolean('flat')) {
+            $query
+                ->join('districts', 'districts.id', '=', 'villages.district_id')
+                ->join('cities', 'cities.id', '=', 'districts.city_id')
+                ->join('provinces', 'provinces.id', '=', 'cities.province_id')
+                ->select(
+                    'villages.id',
+                    'villages.district_id',
+                    'villages.external_code as code',
+                    'villages.name',
+                    'villages.postal_code',
+                    'districts.name as district_name',
+                    'cities.name as city_name',
+                    'provinces.name as province_name'
+                );
+        } else {
+            $query->select('id', 'district_id', 'external_code as code', 'name', 'postal_code');
+        }
+
         return $this->respond(
-            DB::table('villages')
-                ->select('id', 'district_id', 'external_code as code', 'name', 'postal_code')
-                ->when($districtId, fn ($query) => $query->where('district_id', $districtId))
-                ->when($request->filled('q'), fn ($query) => $query->where('name', 'ilike', '%' . $request->q . '%'))
-                ->orderBy('external_code')
+            $query
+                ->orderBy('villages.external_code')
                 ->limit($this->limit($request))
                 ->get()
         );
@@ -108,6 +132,7 @@ class RegionController extends Controller
     private function limit(Request $request): int
     {
         $limit = (int) $request->input('limit', 500);
-        return max(1, min($limit, 1000));
+        $max = $request->boolean('all') ? 100000 : 1000;
+        return max(1, min($limit, $max));
     }
 }

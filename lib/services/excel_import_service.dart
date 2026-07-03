@@ -12,6 +12,8 @@ import 'api_service.dart';
 enum ImportTemplateType { user, guru, siswa }
 
 class ExcelImportService {
+  static const int _masterValidationRows = 100000;
+
   static const List<String> schoolUnitOptions = [
     "SMP Assa'adah",
     "SMA Assa'adah",
@@ -73,6 +75,15 @@ class ExcelImportService {
     '61152',
     '61152',
     '61152',
+  ];
+  static const List<_RegionMasterRow> _fallbackRegionRows = [
+    _RegionMasterRow(
+      province: 'Jawa Timur',
+      city: 'Kabupaten Gresik',
+      district: 'Bungah',
+      village: 'Bungah',
+      postalCode: '61152',
+    ),
   ];
   static const List<String> _studentTypeOptions = [
     'Santri Madin',
@@ -752,7 +763,7 @@ class ExcelImportService {
       );
       final formula = check.masterColumn == null
           ? 'IF($sourceCell="","",IF(ISNUMBER(DATEVALUE(TEXT($sourceCell,"yyyy-mm-dd"))),"OK","${check.message}"))'
-          : 'IF($sourceCell="","${check.required ? 'WAJIB' : ''}",IF(COUNTIF(Master!\$${_columnName(check.masterColumn!)}\$2:\$${_columnName(check.masterColumn!)}\$1000,$sourceCell)>0,"OK","${check.message}"))';
+          : 'IF($sourceCell="","${check.required ? 'WAJIB' : ''}",IF(COUNTIF(Master!\$${_columnName(check.masterColumn!)}\$2:\$${_columnName(check.masterColumn!)}\$$_masterValidationRows,$sourceCell)>0,"OK","${check.message}"))';
       sheet.cell(checkCell)
         ..value = FormulaCellValue(formula)
         ..cellStyle = _checkCellStyle();
@@ -764,7 +775,7 @@ class ExcelImportService {
     final cell = CellIndex.indexByColumnRow(columnIndex: 15, rowIndex: rowIndex);
     sheet.cell(cell)
       ..value = FormulaCellValue(
-        'IF(O$excelRow="","",IFERROR(INDEX(Master!\$M\$2:\$M\$1000,MATCH(O$excelRow,Master!\$H\$2:\$H\$1000,0)),""))',
+        'IF(O$excelRow="","",IFERROR(INDEX(Master!\$O\$2:\$O\$$_masterValidationRows,MATCH(L$excelRow&"|"&M$excelRow&"|"&N$excelRow&"|"&O$excelRow,Master!\$N\$2:\$N\$$_masterValidationRows,0)),IFERROR(INDEX(Master!\$M\$2:\$M\$$_masterValidationRows,MATCH(O$excelRow,Master!\$H\$2:\$H\$$_masterValidationRows,0)),"")))',
       )
       ..cellStyle = _textSampleStyle();
   }
@@ -804,14 +815,14 @@ class ExcelImportService {
         type: 'list',
         sqref: 'D$startRow:D$endRow',
         prompt: 'Pilih L atau P dari Master.',
-        formula1: r'Master!$A$2:$A$1000',
+        formula1: 'Master!\$A\$2:\$A\$$_masterValidationRows',
       ),
       _dataValidationTag(
         type: 'list',
         sqref: 'H$startRow:H$endRow',
         prompt:
             'Pilih kota/kabupaten resmi untuk tempat lahir, atau ketik manual jika belum ada.',
-        formula1: r'Master!$F$2:$F$1000',
+        formula1: 'Master!\$F\$2:\$F\$$_masterValidationRows',
       ),
       _dataValidationTag(
         type: 'date',
@@ -823,9 +834,9 @@ class ExcelImportService {
       ),
       _dataValidationTag(
         type: 'textLength',
-        sqref: 'J$startRow:J$endRow P$startRow:P$endRow',
+        sqref: 'J$startRow:J$endRow',
         prompt:
-            'Isi teks manual. Kolom kode_pos otomatis dari kelurahan jika master memiliki kode pos.',
+            'Isi alamat lengkap. Boleh ketik manual karena alamat tidak selalu ada di master.',
         formula1: '255',
         operator: 'lessThanOrEqual',
       ),
@@ -834,33 +845,40 @@ class ExcelImportService {
         sqref: 'K$startRow:K$endRow',
         prompt:
             'Pilih kewarganegaraan dari Master, atau ketik manual jika belum tersedia.',
-        formula1: r'Master!$D$2:$D$1000',
+        formula1: 'Master!\$D\$2:\$D\$$_masterValidationRows',
       ),
       _dataValidationTag(
         type: 'list',
         sqref: 'L$startRow:L$endRow',
         prompt: 'Pilih provinsi dari Master agar ejaan sama dengan database.',
-        formula1: r'Master!$E$2:$E$1000',
+        formula1: 'Master!\$E\$2:\$E\$$_masterValidationRows',
       ),
       _dataValidationTag(
         type: 'list',
         sqref: 'M$startRow:M$endRow',
         prompt: 'Pilih kota/kabupaten dari Master agar tidak typo.',
-        formula1: r'Master!$F$2:$F$1000',
+        formula1: 'Master!\$F\$2:\$F\$$_masterValidationRows',
       ),
       _dataValidationTag(
         type: 'list',
         sqref: 'N$startRow:N$endRow',
         prompt:
-            'Pilih kecamatan dari Master contoh, atau ketik manual jika belum ada.',
-        formula1: r'Master!$G$2:$G$1000',
+            'Pilih kecamatan dari Master, atau ketik manual jika belum ada.',
+        formula1: 'Master!\$G\$2:\$G\$$_masterValidationRows',
       ),
       _dataValidationTag(
         type: 'list',
         sqref: 'O$startRow:O$endRow',
         prompt:
-            'Pilih kelurahan/desa dari Master contoh, atau ketik manual jika belum ada.',
-        formula1: r'Master!$H$2:$H$1000',
+            'Pilih kelurahan/desa dari Master, atau ketik manual jika belum ada.',
+        formula1: 'Master!\$H\$2:\$H\$$_masterValidationRows',
+      ),
+      _dataValidationTag(
+        type: 'list',
+        sqref: 'P$startRow:P$endRow',
+        prompt:
+            'Kode pos otomatis dari kelurahan. Jika perlu, pilih dari Master atau ketik manual.',
+        formula1: 'Master!\$M\$2:\$M\$$_masterValidationRows',
       ),
     ];
     return '<dataValidations count="${validations.length}">'
@@ -934,6 +952,8 @@ class ExcelImportService {
       ['role', 'admin', 'guru', 'wali'],
       ['status_user', 'Aktif', 'Nonaktif'],
       ['kode_pos', ...data.postalCodes],
+      ['wilayah_key', ...data.regionRows.map((row) => row.key)],
+      ['wilayah_key_kode_pos', ...data.regionRows.map((row) => row.postalCode)],
     ];
     final maxRows = columns
         .map((col) => col.length)
@@ -1019,10 +1039,40 @@ class ExcelImportService {
     } catch (_) {}
 
     try {
-      final villages = await ApiService.getVillages(districtCode: '35.25.01');
-      final villageRows = _asRecords(villages['data']);
-      data.villages = _mergeNames(villageRows, _fallbackVillages);
-      data.postalCodes = _mergePostalCodes(villageRows, _fallbackPostalCodes);
+      final villages = await ApiService.getVillages(
+        all: true,
+        flat: true,
+        limit: _masterValidationRows,
+      );
+      final regionRows = _mergeRegionRows(villages['data']);
+      if (regionRows.isNotEmpty) {
+        data.regionRows = regionRows;
+        data.provinces = _unique([
+          ...regionRows.map((row) => row.province),
+          ...data.provinces,
+        ]);
+        data.cities = _unique([
+          ...regionRows.map((row) => row.city),
+          ...data.cities,
+        ]);
+        data.districts = _unique([
+          ...regionRows.map((row) => row.district),
+          ...data.districts,
+        ]);
+        data.villages = _unique([
+          ...regionRows.map((row) => row.village),
+          ..._fallbackVillages,
+        ]);
+        data.postalCodes = _unique([
+          ...regionRows.map((row) => row.postalCode).where((code) => code.isNotEmpty),
+          ..._fallbackPostalCodes,
+        ]);
+      } else {
+        final fallbackVillages = await ApiService.getVillages(districtCode: '35.25.01');
+        final villageRows = _asRecords(fallbackVillages['data']);
+        data.villages = _mergeNames(villageRows, _fallbackVillages);
+        data.postalCodes = _mergePostalCodes(villageRows, _fallbackPostalCodes);
+      }
     } catch (_) {}
 
     return data;
@@ -1044,6 +1094,25 @@ class ExcelImportService {
       if (code.isNotEmpty) values.add(code);
     }
     return _unique(values);
+  }
+
+  static List<_RegionMasterRow> _mergeRegionRows(dynamic rows) {
+    return _asRecords(rows)
+        .map((row) => _RegionMasterRow(
+              province: row['province_name']?.toString().trim() ?? '',
+              city: row['city_name']?.toString().trim() ?? '',
+              district: row['district_name']?.toString().trim() ?? '',
+              village: row['name']?.toString().trim() ?? '',
+              postalCode: row['postal_code']?.toString().trim() ?? '',
+            ))
+        .where(
+          (row) =>
+              row.province.isNotEmpty &&
+              row.city.isNotEmpty &&
+              row.district.isNotEmpty &&
+              row.village.isNotEmpty,
+        )
+        .toList();
   }
 
   static List<Map<String, dynamic>> _asRecords(dynamic rows) {
@@ -1269,6 +1338,7 @@ class _TemplateMasterData {
   List<String> districts;
   List<String> villages;
   List<String> postalCodes;
+  List<_RegionMasterRow> regionRows;
 
   _TemplateMasterData({
     required this.classes,
@@ -1279,6 +1349,7 @@ class _TemplateMasterData {
     required this.districts,
     required this.villages,
     required this.postalCodes,
+    required this.regionRows,
   });
 
   factory _TemplateMasterData.fallback() {
@@ -1293,6 +1364,27 @@ class _TemplateMasterData {
       districts: List<String>.from(ExcelImportService._fallbackDistricts),
       villages: List<String>.from(ExcelImportService._fallbackVillages),
       postalCodes: List<String>.from(ExcelImportService._fallbackPostalCodes),
+      regionRows: List<_RegionMasterRow>.from(
+        ExcelImportService._fallbackRegionRows,
+      ),
     );
   }
+}
+
+class _RegionMasterRow {
+  final String province;
+  final String city;
+  final String district;
+  final String village;
+  final String postalCode;
+
+  const _RegionMasterRow({
+    required this.province,
+    required this.city,
+    required this.district,
+    required this.village,
+    required this.postalCode,
+  });
+
+  String get key => [province, city, district, village].join('|');
 }

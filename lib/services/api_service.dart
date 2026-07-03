@@ -295,6 +295,7 @@ class ApiService {
     String? provinceCode,
     String? q,
     int? limit,
+    bool all = false,
   }) async {
     final params = <String, String>{};
     if (provinceId != null && provinceId > 0) {
@@ -305,6 +306,7 @@ class ApiService {
     }
     if (q != null && q.trim().isNotEmpty) params['q'] = q.trim();
     if (limit != null && limit > 0) params['limit'] = limit.toString();
+    if (all) params['all'] = '1';
 
     final uri = Uri.parse(
       '$baseUrl/regions/cities',
@@ -319,6 +321,8 @@ class ApiService {
     int? cityId,
     String? cityCode,
     String? q,
+    int? limit,
+    bool all = false,
   }) async {
     final params = <String, String>{};
     if (cityId != null && cityId > 0) params['city_id'] = cityId.toString();
@@ -326,6 +330,8 @@ class ApiService {
       params['city_code'] = cityCode.trim();
     }
     if (q != null && q.trim().isNotEmpty) params['q'] = q.trim();
+    if (limit != null && limit > 0) params['limit'] = limit.toString();
+    if (all) params['all'] = '1';
 
     final uri = Uri.parse(
       '$baseUrl/regions/districts',
@@ -340,6 +346,9 @@ class ApiService {
     int? districtId,
     String? districtCode,
     String? q,
+    int? limit,
+    bool all = false,
+    bool flat = false,
   }) async {
     final params = <String, String>{};
     if (districtId != null && districtId > 0) {
@@ -349,6 +358,9 @@ class ApiService {
       params['district_code'] = districtCode.trim();
     }
     if (q != null && q.trim().isNotEmpty) params['q'] = q.trim();
+    if (limit != null && limit > 0) params['limit'] = limit.toString();
+    if (all) params['all'] = '1';
+    if (flat) params['flat'] = '1';
 
     final uri = Uri.parse(
       '$baseUrl/regions/villages',

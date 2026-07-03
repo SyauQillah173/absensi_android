@@ -27,6 +27,15 @@ interface MasterColumn {
   values: string[];
 }
 
+interface RegionMasterRow {
+  province: string;
+  city: string;
+  district: string;
+  village: string;
+  postalCode: string;
+  key: string;
+}
+
 interface TemplateMasterData {
   classes: string[];
   schoolOrigins: string[];
@@ -36,10 +45,12 @@ interface TemplateMasterData {
   districts: string[];
   villages: string[];
   postalCodes: string[];
+  regionRows: RegionMasterRow[];
 }
 
 const passwordHint = 'IsiPasswordAwal!2026';
 const maxTemplateRows = 250;
+const masterValidationRows = 100000;
 
 const userHeaders = ['name', 'email', 'phone', 'role', 'password', 'status'];
 const guruHeaders = ['unit_sekolah', 'name', 'kode_guru', 'phone', 'email', 'jenis_kelamin', 'alamat', 'status', 'status_sebagai', 'password'];
@@ -79,7 +90,17 @@ const fallbackMasterData: TemplateMasterData = {
   cities: ['Kabupaten Gresik', 'Kota Surabaya', 'Kabupaten Lamongan', 'Kabupaten Sidoarjo'],
   districts: ['Bungah', 'Manyar', 'Sidayu', 'Dukun', 'Ujung Pangkah'],
   villages: ['Bungah', 'Sukorejo', 'Indrodelik', 'Pegundan', 'Abar-abir'],
-  postalCodes: ['61152', '61152', '61152', '61152', '61152']
+  postalCodes: ['61152', '61152', '61152', '61152', '61152'],
+  regionRows: [
+    {
+      province: 'Jawa Timur',
+      city: 'Kabupaten Gresik',
+      district: 'Bungah',
+      village: 'Bungah',
+      postalCode: '61152',
+      key: regionKey('Jawa Timur', 'Kabupaten Gresik', 'Bungah', 'Bungah')
+    }
+  ]
 };
 
 const styles = {
@@ -359,7 +380,7 @@ function buildCheckFormulas(config: TemplateConfig, headers: string[], rowNumber
     const emptyResult = check.required ? 'WAJIB' : '';
     const invalidResult = check.message ?? 'CEK';
     return {
-      f: `IF(${sourceCell}="","${emptyResult}",IF(COUNTIF(Master!$${masterCol}$2:$${masterCol}$1000,${sourceCell})>0,"OK","${invalidResult}"))`,
+      f: `IF(${sourceCell}="","${emptyResult}",IF(COUNTIF(Master!$${masterCol}$2:$${masterCol}$${masterValidationRows},${sourceCell})>0,"OK","${invalidResult}"))`,
       v: ''
     };
   });
@@ -379,7 +400,9 @@ function buildMasterSheet(type: ImportTemplateType, master: TemplateMasterData):
     { title: 'jenis_santri', values: master.studentTypes },
     { title: 'role', values: ['admin', 'guru', 'wali'] },
     { title: 'status_user', values: ['Aktif', 'Nonaktif'] },
-    { title: 'kode_pos', values: master.postalCodes }
+    { title: 'kode_pos', values: master.postalCodes },
+    { title: 'wilayah_key', values: master.regionRows.map((row) => row.key) },
+    { title: 'wilayah_key_kode_pos', values: master.regionRows.map((row) => row.postalCode) }
   ];
   const maxRows = Math.max(...columns.map((column) => column.values.length), 1);
   const aoa = [
@@ -421,13 +444,14 @@ function buildGuideSheet(type: ImportTemplateType): XLSX.WorkSheet {
 }
 
 async function loadTemplateMasterData(): Promise<TemplateMasterData> {
-  const [classes, schoolOrigins, studentTypes, provinces, cities, gresikCities] = await Promise.allSettled([
+  const [classes, schoolOrigins, studentTypes, provinces, cities, gresikCities, allVillages] = await Promise.allSettled([
     api.classes(),
     api.schoolOrigins({ active: 1, limit: 1000 }),
     api.references('student_types'),
     api.regionProvinces(),
     api.regionCities({ limit: 1000 }),
-    api.regionCities({ q: 'Gresik', limit: 20 })
+    api.regionCities({ q: 'Gresik', limit: 20 }),
+    api.regionVillages({ all: 1, flat: 1, limit: masterValidationRows })
   ]);
 
   const gresikCity = fulfilledData(gresikCities).find((item) => text(item.name).toLowerCase().includes('gresik'));
@@ -436,15 +460,21 @@ async function loadTemplateMasterData(): Promise<TemplateMasterData> {
     api.regionVillages({ district_code: '35.25.01', limit: 1000 })
   ]);
 
+  const regionMasterRows = regionRows(fulfilledData(allVillages));
+  const villageRows = regionMasterRows.length
+    ? regionMasterRows.map((row) => ({ name: row.village, postal_code: row.postalCode }))
+    : fulfilledData(bungahVillages);
+
   return {
     classes: unique([...names(fulfilledData(classes)), ...fallbackMasterData.classes]),
     schoolOrigins: unique([...names(fulfilledData(schoolOrigins)), ...fallbackMasterData.schoolOrigins]),
     studentTypes: unique([...names(fulfilledData(studentTypes)), ...fallbackMasterData.studentTypes]),
-    provinces: unique([...names(fulfilledData(provinces)), ...fallbackMasterData.provinces]),
-    cities: unique([...names(fulfilledData(cities)), ...fallbackMasterData.cities]),
-    districts: unique([...names(fulfilledData(districts)), ...fallbackMasterData.districts]),
-    villages: unique([...names(fulfilledData(bungahVillages)), ...fallbackMasterData.villages]),
-    postalCodes: unique([...postalCodes(fulfilledData(bungahVillages)), ...fallbackMasterData.postalCodes])
+    provinces: unique([...regionMasterRows.map((row) => row.province), ...names(fulfilledData(provinces)), ...fallbackMasterData.provinces]),
+    cities: unique([...regionMasterRows.map((row) => row.city), ...names(fulfilledData(cities)), ...fallbackMasterData.cities]),
+    districts: unique([...regionMasterRows.map((row) => row.district), ...names(fulfilledData(districts)), ...fallbackMasterData.districts]),
+    villages: unique([...names(villageRows), ...fallbackMasterData.villages]),
+    postalCodes: unique([...postalCodes(villageRows), ...fallbackMasterData.postalCodes]),
+    regionRows: regionMasterRows.length ? regionMasterRows : fallbackMasterData.regionRows
   };
 }
 
@@ -460,6 +490,28 @@ function names(rows: ApiRecord[]): string[] {
 
 function postalCodes(rows: ApiRecord[]): string[] {
   return rows.map((row) => text(row.postal_code)).filter(Boolean);
+}
+
+function regionRows(rows: ApiRecord[]): RegionMasterRow[] {
+  return rows.map((row) => {
+    const province = text(row.province_name);
+    const city = text(row.city_name);
+    const district = text(row.district_name);
+    const village = text(row.name);
+    const postalCode = text(row.postal_code);
+    return {
+      province,
+      city,
+      district,
+      village,
+      postalCode,
+      key: regionKey(province, city, district, village)
+    };
+  }).filter((row) => row.province && row.city && row.district && row.village);
+}
+
+function regionKey(province: string, city: string, district: string, village: string): string {
+  return [province, city, district, village].map((value) => value.trim()).join('|');
 }
 
 function unique(values: string[]): string[] {
@@ -493,38 +545,43 @@ function siswaValidationXml(startRow: number, endRow: number): string {
   const listValidations = [
     {
       sqref: `D${startRow}:D${endRow}`,
-      formula: 'Master!$A$2:$A$1000',
+      formula: `Master!$A$2:$A$${masterValidationRows}`,
       prompt: 'Pilih L atau P dari Master.'
     },
     {
       sqref: `H${startRow}:H${endRow}`,
-      formula: 'Master!$F$2:$F$1000',
+      formula: `Master!$F$2:$F$${masterValidationRows}`,
       prompt: 'Pilih kota/kabupaten resmi untuk tempat lahir, atau ketik manual jika belum ada.'
     },
     {
       sqref: `K${startRow}:K${endRow}`,
-      formula: 'Master!$D$2:$D$1000',
+      formula: `Master!$D$2:$D$${masterValidationRows}`,
       prompt: 'Pilih kewarganegaraan dari Master, atau ketik manual jika belum tersedia.'
     },
     {
       sqref: `L${startRow}:L${endRow}`,
-      formula: 'Master!$E$2:$E$1000',
+      formula: `Master!$E$2:$E$${masterValidationRows}`,
       prompt: 'Pilih provinsi dari Master agar ejaan sama dengan database.'
     },
     {
       sqref: `M${startRow}:M${endRow}`,
-      formula: 'Master!$F$2:$F$1000',
+      formula: `Master!$F$2:$F$${masterValidationRows}`,
       prompt: 'Pilih kota/kabupaten dari Master agar tidak typo.'
     },
     {
       sqref: `N${startRow}:N${endRow}`,
-      formula: 'Master!$G$2:$G$1000',
-      prompt: 'Pilih kecamatan dari Master contoh, atau ketik manual jika belum ada.'
+      formula: `Master!$G$2:$G$${masterValidationRows}`,
+      prompt: 'Pilih kecamatan dari Master, atau ketik manual jika belum ada.'
     },
     {
       sqref: `O${startRow}:O${endRow}`,
-      formula: 'Master!$H$2:$H$1000',
-      prompt: 'Pilih kelurahan/desa dari Master contoh, atau ketik manual jika belum ada.'
+      formula: `Master!$H$2:$H$${masterValidationRows}`,
+      prompt: 'Pilih kelurahan/desa dari Master, atau ketik manual jika belum ada.'
+    },
+    {
+      sqref: `P${startRow}:P${endRow}`,
+      formula: `Master!$M$2:$M$${masterValidationRows}`,
+      prompt: 'Kode pos otomatis dari kelurahan. Jika perlu, pilih dari Master atau ketik manual.'
     }
   ];
   const validations = [
@@ -544,8 +601,8 @@ function siswaValidationXml(startRow: number, endRow: number): string {
     }),
     dataValidationTag({
       type: 'textLength',
-      sqref: `J${startRow}:J${endRow} P${startRow}:P${endRow}`,
-      prompt: 'Isi teks manual. Kolom kode_pos otomatis dari kelurahan jika master memiliki kode pos.',
+      sqref: `J${startRow}:J${endRow}`,
+      prompt: 'Isi alamat lengkap. Boleh ketik manual karena alamat tidak selalu ada di master.',
       formula1: '255',
       operator: 'lessThanOrEqual'
     })
@@ -629,10 +686,19 @@ function applyPostalCodeFormulas(worksheet: XLSX.WorkSheet, headers: string[]) {
   if (villageIndex < 0 || postalIndex < 0) return;
   const villageCol = colName(villageIndex);
   const postalCol = colName(postalIndex);
+  const provinceIndex = headers.indexOf('provinsi');
+  const cityIndex = headers.indexOf('kota');
+  const districtIndex = headers.indexOf('kecamatan');
+  const provinceCol = provinceIndex >= 0 ? colName(provinceIndex) : '';
+  const cityCol = cityIndex >= 0 ? colName(cityIndex) : '';
+  const districtCol = districtIndex >= 0 ? colName(districtIndex) : '';
   for (let row = 5; row <= maxTemplateRows; row += 1) {
     const cell = worksheet[`${postalCol}${row}`] as XLSX.CellObject | undefined;
     if (!cell) continue;
-    cell.f = `IF(${villageCol}${row}="","",IFERROR(INDEX(Master!$M$2:$M$1000,MATCH(${villageCol}${row},Master!$H$2:$H$1000,0)),""))`;
+    const keyFormula = provinceCol && cityCol && districtCol
+      ? `${provinceCol}${row}&"|"&${cityCol}${row}&"|"&${districtCol}${row}&"|"&${villageCol}${row}`
+      : `${villageCol}${row}`;
+    cell.f = `IF(${villageCol}${row}="","",IFERROR(INDEX(Master!$O$2:$O$${masterValidationRows},MATCH(${keyFormula},Master!$N$2:$N$${masterValidationRows},0)),IFERROR(INDEX(Master!$M$2:$M$${masterValidationRows},MATCH(${villageCol}${row},Master!$H$2:$H$${masterValidationRows},0)),"")))`;
     cell.v = '';
     cell.z = '@';
   }
