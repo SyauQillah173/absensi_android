@@ -8,7 +8,6 @@ use App\Services\PaymentBillService;
 use App\Services\RegionSyncService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -42,19 +41,9 @@ Artisan::command(
 )->purpose('Sinkron master wilayah Indonesia dari wilayah.id ke tabel provinces/cities/districts/villages');
 
 Artisan::command(
-    'regions:import-sql {file? : Path file db/wilayah.sql dari cahyadsn/wilayah} {--url=https://raw.githubusercontent.com/cahyadsn/wilayah/master/db/wilayah.sql : URL sumber jika file tidak diisi}',
+    'regions:import-sql {file? : Path file wilayah.sql lokal}',
     function () {
-        $path = $this->argument('file');
-
-        if (!$path) {
-            $path = storage_path('app/imports/wilayah.sql');
-            File::ensureDirectoryExists(dirname($path));
-
-            $this->info('Mengunduh file wilayah resmi...');
-            $response = Http::timeout(120)->retry(3, 1000)->get((string) $this->option('url'));
-            $response->throw();
-            File::put($path, $response->body());
-        }
+        $path = $this->argument('file') ?: database_path('data/wilayah.sql');
 
         $stats = app(RegionSyncService::class)->importSqlFile($path, $this);
 
@@ -63,28 +52,17 @@ Artisan::command(
             collect($stats)->map(fn ($count, $level) => [$level, $count])->values()->all()
         );
     }
-)->purpose('Import master wilayah Indonesia lengkap dari file SQL cahyadsn/wilayah');
+)->purpose('Import master wilayah Indonesia lengkap dari file SQL lokal');
 
 Artisan::command(
-    'regions:sync-postal-codes {file? : Path CSV kode pos} {--url=https://raw.githubusercontent.com/pentagonal/Indonesia-Postal-Code/master/Csv/Comma/first_row_header_db_postal_code_data.csv : URL CSV kode pos} {--refresh : Unduh ulang CSV walau cache lokal sudah ada} {--overwrite : Timpa postal_code yang sudah ada} {--dry-run : Hitung calon update tanpa menyimpan}',
+    'regions:sync-postal-codes {file? : Path CSV kode pos lokal} {--overwrite : Timpa postal_code yang sudah ada} {--dry-run : Hitung calon update tanpa menyimpan}',
     function () {
         if (!Schema::hasTable('villages') || !Schema::hasColumn('villages', 'postal_code')) {
             $this->warn('Kolom villages.postal_code belum tersedia. Jalankan migrate lebih dulu.');
             return 1;
         }
 
-        $path = $this->argument('file');
-        if (!$path) {
-            $path = storage_path('app/imports/kodepos_indonesia.csv');
-            File::ensureDirectoryExists(dirname($path));
-
-            if (!File::exists($path) || $this->option('refresh')) {
-                $this->info('Mengunduh CSV kode pos Indonesia...');
-                $response = Http::timeout(120)->retry(3, 1000)->get((string) $this->option('url'));
-                $response->throw();
-                File::put($path, $response->body());
-            }
-        }
+        $path = $this->argument('file') ?: database_path('data/kodepos_indonesia.csv');
 
         if (!File::exists($path)) {
             $this->error("File kode pos tidak ditemukan: {$path}");
@@ -228,7 +206,7 @@ Artisan::command(
         $this->info($this->option('dry-run') ? 'Dry-run sync kode pos selesai.' : 'Sync kode pos selesai.');
         return 0;
     }
-)->purpose('Backfill postal_code desa/kelurahan dari CSV kode pos Indonesia');
+)->purpose('Backfill postal_code desa/kelurahan dari CSV kode pos lokal');
 
 Artisan::command(
     'attendance:repair-duplicates {--dry-run : Hanya tampilkan duplikat tanpa menghapus} {--apply : Hapus duplikat dan isi attendance_key}',

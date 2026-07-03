@@ -113,7 +113,6 @@ class RegionSyncService
                     'district_code' => implode('.', array_slice($segments, 0, 3)),
                     'external_code' => $code,
                     'name' => $name,
-                    'postal_code' => null,
                     'created_at' => $timestamp,
                     'updated_at' => $timestamp,
                 ];
@@ -153,7 +152,7 @@ class RegionSyncService
                     return $row;
                 })
                 ->filter(fn (array $row) => $row['district_id']);
-            $this->upsert('villages', $villages, ['external_code'], ['district_id', 'name', 'postal_code', 'updated_at']);
+            $this->upsert('villages', $villages, ['external_code'], ['district_id', 'name', 'updated_at']);
         });
 
         $stats = [

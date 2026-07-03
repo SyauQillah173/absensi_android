@@ -24,6 +24,7 @@ php artisan view:clear || true
 php artisan package:discover --ansi || true
 php artisan storage:link || true
 php artisan migrate --force
+php artisan regions:import-sql --quiet || true
 php artisan regions:sync-postal-codes --quiet || true
 
 php artisan serve --host=0.0.0.0 --port="${PORT_TO_USE}"
