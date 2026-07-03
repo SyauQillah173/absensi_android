@@ -1058,7 +1058,6 @@ class _AbsensiMuridScreenState extends State<AbsensiMuridScreen>
             child: ElevatedButton(
               onPressed: () {
                 Navigator.of(ctx).pop();
-                Navigator.of(context).popUntil((route) => route.isFirst);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF138F81),

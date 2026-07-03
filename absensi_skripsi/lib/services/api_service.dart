@@ -1947,7 +1947,7 @@ class ApiService {
     try {
       final response = await http
           .get(Uri.parse('$baseUrl/health'), headers: _defaultHeaders)
-          .timeout(_fastRequestTimeout);
+          .timeout(const Duration(seconds: 3));
       return response.statusCode == 200;
     } catch (e) {
       return false;
