@@ -35,6 +35,7 @@ interface TemplateMasterData {
   cities: string[];
   districts: string[];
   villages: string[];
+  postalCodes: string[];
 }
 
 const passwordHint = 'IsiPasswordAwal!2026';
@@ -77,7 +78,8 @@ const fallbackMasterData: TemplateMasterData = {
   provinces: ['Jawa Timur', 'Jawa Tengah', 'Jawa Barat', 'DKI Jakarta'],
   cities: ['Kabupaten Gresik', 'Kota Surabaya', 'Kabupaten Lamongan', 'Kabupaten Sidoarjo'],
   districts: ['Bungah', 'Manyar', 'Sidayu', 'Dukun', 'Ujung Pangkah'],
-  villages: ['Bungah', 'Sukorejo', 'Indrodelik', 'Pegundan', 'Abar-abir']
+  villages: ['Bungah', 'Sukorejo', 'Indrodelik', 'Pegundan', 'Abar-abir'],
+  postalCodes: ['61152', '61152', '61152', '61152', '61152']
 };
 
 const styles = {
@@ -164,7 +166,7 @@ function configFor(type: ImportTemplateType, master: TemplateMasterData): Templa
           'Wali Ahmad Fauzan',
           'Aktif',
           master.classes[0] ?? 'Sifir Awal A PA',
-          'Gresik',
+          master.cities.find((item) => item.toLowerCase().includes('gresik')) ?? master.cities[0] ?? 'Kabupaten Gresik',
           '2015-01-12',
           'Bungah, Gresik',
           'Indonesia',
@@ -172,7 +174,7 @@ function configFor(type: ImportTemplateType, master: TemplateMasterData): Templa
           master.cities.find((item) => item.toLowerCase().includes('gresik')) ?? master.cities[0] ?? 'Kabupaten Gresik',
           master.districts.find((item) => item.toLowerCase() === 'bungah') ?? master.districts[0] ?? 'Bungah',
           master.villages.find((item) => item.toLowerCase() === 'bungah') ?? master.villages[0] ?? 'Bungah',
-          '61152',
+          '',
           '081234567890',
           'zaki@example.com',
           'Ahmad Fauzan',
@@ -334,6 +336,8 @@ function buildTemplateSheet(config: TemplateConfig, master: TemplateMasterData):
   }
 
   applyDateFormats(worksheet, config.headers, ['tanggal_lahir', 'tanggal_masuk']);
+  applyTextFormats(worksheet, config.headers, ['kode_pos', 'nis', 'nisn', 'no_hp_whatsapp']);
+  applyPostalCodeFormulas(worksheet, config.headers);
   return worksheet;
 }
 
@@ -374,7 +378,8 @@ function buildMasterSheet(type: ImportTemplateType, master: TemplateMasterData):
     { title: 'asal_sekolah', values: master.schoolOrigins },
     { title: 'jenis_santri', values: master.studentTypes },
     { title: 'role', values: ['admin', 'guru', 'wali'] },
-    { title: 'status_user', values: ['Aktif', 'Nonaktif'] }
+    { title: 'status_user', values: ['Aktif', 'Nonaktif'] },
+    { title: 'kode_pos', values: master.postalCodes }
   ];
   const maxRows = Math.max(...columns.map((column) => column.values.length), 1);
   const aoa = [
@@ -438,7 +443,8 @@ async function loadTemplateMasterData(): Promise<TemplateMasterData> {
     provinces: unique([...names(fulfilledData(provinces)), ...fallbackMasterData.provinces]),
     cities: unique([...names(fulfilledData(cities)), ...fallbackMasterData.cities]),
     districts: unique([...names(fulfilledData(districts)), ...fallbackMasterData.districts]),
-    villages: unique([...names(fulfilledData(bungahVillages)), ...fallbackMasterData.villages])
+    villages: unique([...names(fulfilledData(bungahVillages)), ...fallbackMasterData.villages]),
+    postalCodes: unique([...postalCodes(fulfilledData(bungahVillages)), ...fallbackMasterData.postalCodes])
   };
 }
 
@@ -450,6 +456,10 @@ function fulfilledData(result: PromiseSettledResult<unknown>): ApiRecord[] {
 
 function names(rows: ApiRecord[]): string[] {
   return rows.map((row) => text(row.name)).filter(Boolean);
+}
+
+function postalCodes(rows: ApiRecord[]): string[] {
+  return rows.map((row) => text(row.postal_code)).filter(Boolean);
 }
 
 function unique(values: string[]): string[] {
@@ -482,9 +492,14 @@ async function addSiswaDropdownValidations(buffer: ArrayBuffer): Promise<ArrayBu
 function siswaValidationXml(startRow: number, endRow: number): string {
   const listValidations = [
     {
+      sqref: `D${startRow}:D${endRow}`,
+      formula: 'Master!$A$2:$A$1000',
+      prompt: 'Pilih L atau P dari Master.'
+    },
+    {
       sqref: `H${startRow}:H${endRow}`,
       formula: 'Master!$F$2:$F$1000',
-      prompt: 'Pilih dari master kota untuk tempat lahir, atau ketik manual jika belum ada.'
+      prompt: 'Pilih kota/kabupaten resmi untuk tempat lahir, atau ketik manual jika belum ada.'
     },
     {
       sqref: `K${startRow}:K${endRow}`,
@@ -529,8 +544,8 @@ function siswaValidationXml(startRow: number, endRow: number): string {
     }),
     dataValidationTag({
       type: 'textLength',
-      sqref: `J${startRow}:J${endRow}`,
-      prompt: 'Isi alamat lengkap. Boleh ketik manual karena alamat tidak selalu ada di master.',
+      sqref: `J${startRow}:J${endRow} P${startRow}:P${endRow}`,
+      prompt: 'Isi teks manual. Kolom kode_pos otomatis dari kelurahan jika master memiliki kode pos.',
       formula1: '255',
       operator: 'lessThanOrEqual'
     })
@@ -593,6 +608,34 @@ function applyDateFormats(worksheet: XLSX.WorkSheet, headers: string[], dateHead
       if (cell) cell.z = 'yyyy-mm-dd';
     }
   });
+}
+
+function applyTextFormats(worksheet: XLSX.WorkSheet, headers: string[], textHeaders: string[]) {
+  textHeaders.forEach((header) => {
+    const index = headers.indexOf(header);
+    if (index < 0) return;
+    for (let row = 5; row <= maxTemplateRows; row += 1) {
+      const cell = worksheet[`${colName(index)}${row}`] as XLSX.CellObject | undefined;
+      if (cell) {
+        cell.z = '@';
+      }
+    }
+  });
+}
+
+function applyPostalCodeFormulas(worksheet: XLSX.WorkSheet, headers: string[]) {
+  const villageIndex = headers.indexOf('kelurahan');
+  const postalIndex = headers.indexOf('kode_pos');
+  if (villageIndex < 0 || postalIndex < 0) return;
+  const villageCol = colName(villageIndex);
+  const postalCol = colName(postalIndex);
+  for (let row = 5; row <= maxTemplateRows; row += 1) {
+    const cell = worksheet[`${postalCol}${row}`] as XLSX.CellObject | undefined;
+    if (!cell) continue;
+    cell.f = `IF(${villageCol}${row}="","",IFERROR(INDEX(Master!$M$2:$M$1000,MATCH(${villageCol}${row},Master!$H$2:$H$1000,0)),""))`;
+    cell.v = '';
+    cell.z = '@';
+  }
 }
 
 function columnWidth(header: string, master: TemplateMasterData): number {

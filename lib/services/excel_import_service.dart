@@ -67,6 +67,13 @@ class ExcelImportService {
     'Pegundan',
     'Abar-abir',
   ];
+  static const List<String> _fallbackPostalCodes = [
+    '61152',
+    '61152',
+    '61152',
+    '61152',
+    '61152',
+  ];
   static const List<String> _studentTypeOptions = [
     'Santri Madin',
     'Santri Pondok',
@@ -647,7 +654,10 @@ class ExcelImportService {
       'Bp. Ahmad Fauzi',
       'Aktif',
       _firstOr(masterData.classes, 'Sifir Awal A PA'),
-      'Gresik',
+      masterData.cities.firstWhere(
+        (item) => item.toLowerCase().contains('gresik'),
+        orElse: () => _firstOr(masterData.cities, 'Kabupaten Gresik'),
+      ),
       '2010-03-15',
       'Jl. Contoh No. 1, Gresik',
       'Indonesia',
@@ -667,7 +677,7 @@ class ExcelImportService {
         (item) => item.toLowerCase() == 'bungah',
         orElse: () => _firstOr(masterData.villages, 'Bungah'),
       ),
-      '61152',
+      '',
       '081234567890',
       'santri@example.com',
       'Ahmad Fauzi',
@@ -685,8 +695,10 @@ class ExcelImportService {
         ..cellStyle = sampleStyle;
     }
     _appendCheckFormulas(sheet, _siswaHeaders, checks, 6);
+    _appendPostalCodeFormula(sheet, 6);
     for (var row = 7; row <= 250; row++) {
       _appendCheckFormulas(sheet, _siswaHeaders, checks, row);
+      _appendPostalCodeFormula(sheet, row);
     }
 
     final widths = <int, double>{
@@ -747,6 +759,16 @@ class ExcelImportService {
     }
   }
 
+  static void _appendPostalCodeFormula(Sheet sheet, int rowIndex) {
+    final excelRow = rowIndex + 1;
+    final cell = CellIndex.indexByColumnRow(columnIndex: 15, rowIndex: rowIndex);
+    sheet.cell(cell)
+      ..value = FormulaCellValue(
+        'IF(O$excelRow="","",IFERROR(INDEX(Master!\$M\$2:\$M\$1000,MATCH(O$excelRow,Master!\$H\$2:\$H\$1000,0)),""))',
+      )
+      ..cellStyle = _textSampleStyle();
+  }
+
   static List<int> _addSiswaDropdownValidations(List<int> bytes) {
     try {
       final archive = ZipDecoder().decodeBytes(bytes);
@@ -780,9 +802,15 @@ class ExcelImportService {
     final validations = <String>[
       _dataValidationTag(
         type: 'list',
+        sqref: 'D$startRow:D$endRow',
+        prompt: 'Pilih L atau P dari Master.',
+        formula1: r'Master!$A$2:$A$1000',
+      ),
+      _dataValidationTag(
+        type: 'list',
         sqref: 'H$startRow:H$endRow',
         prompt:
-            'Pilih dari master kota untuk tempat lahir, atau ketik manual jika belum ada.',
+            'Pilih kota/kabupaten resmi untuk tempat lahir, atau ketik manual jika belum ada.',
         formula1: r'Master!$F$2:$F$1000',
       ),
       _dataValidationTag(
@@ -795,9 +823,9 @@ class ExcelImportService {
       ),
       _dataValidationTag(
         type: 'textLength',
-        sqref: 'J$startRow:J$endRow',
+        sqref: 'J$startRow:J$endRow P$startRow:P$endRow',
         prompt:
-            'Isi alamat lengkap. Boleh ketik manual karena alamat tidak selalu ada di master.',
+            'Isi teks manual. Kolom kode_pos otomatis dari kelurahan jika master memiliki kode pos.',
         formula1: '255',
         operator: 'lessThanOrEqual',
       ),
@@ -905,6 +933,7 @@ class ExcelImportService {
       ['jenis_santri', ...data.studentTypes],
       ['role', 'admin', 'guru', 'wali'],
       ['status_user', 'Aktif', 'Nonaktif'],
+      ['kode_pos', ...data.postalCodes],
     ];
     final maxRows = columns
         .map((col) => col.length)
@@ -991,7 +1020,9 @@ class ExcelImportService {
 
     try {
       final villages = await ApiService.getVillages(districtCode: '35.25.01');
-      data.villages = _mergeNames(villages['data'], _fallbackVillages);
+      final villageRows = _asRecords(villages['data']);
+      data.villages = _mergeNames(villageRows, _fallbackVillages);
+      data.postalCodes = _mergePostalCodes(villageRows, _fallbackPostalCodes);
     } catch (_) {}
 
     return data;
@@ -1002,6 +1033,15 @@ class ExcelImportService {
     for (final row in _asRecords(rows)) {
       final name = row['name']?.toString().trim() ?? '';
       if (name.isNotEmpty) values.add(name);
+    }
+    return _unique(values);
+  }
+
+  static List<String> _mergePostalCodes(dynamic rows, List<String> fallback) {
+    final values = <String>[...fallback];
+    for (final row in _asRecords(rows)) {
+      final code = row['postal_code']?.toString().trim() ?? '';
+      if (code.isNotEmpty) values.add(code);
     }
     return _unique(values);
   }
@@ -1114,6 +1154,15 @@ class ExcelImportService {
     );
   }
 
+  static CellStyle _textSampleStyle() {
+    return CellStyle(
+      backgroundColorHex: ExcelColor.fromHexString('#F8FBFF'),
+      textWrapping: TextWrapping.WrapText,
+      verticalAlign: VerticalAlign.Center,
+      numberFormat: NumFormat.standard_49,
+    );
+  }
+
   static CellStyle _checkCellStyle() {
     return CellStyle(
       backgroundColorHex: ExcelColor.fromHexString('#FFF7E6'),
@@ -1219,6 +1268,7 @@ class _TemplateMasterData {
   List<String> cities;
   List<String> districts;
   List<String> villages;
+  List<String> postalCodes;
 
   _TemplateMasterData({
     required this.classes,
@@ -1228,6 +1278,7 @@ class _TemplateMasterData {
     required this.cities,
     required this.districts,
     required this.villages,
+    required this.postalCodes,
   });
 
   factory _TemplateMasterData.fallback() {
@@ -1241,6 +1292,7 @@ class _TemplateMasterData {
       cities: List<String>.from(ExcelImportService._fallbackCities),
       districts: List<String>.from(ExcelImportService._fallbackDistricts),
       villages: List<String>.from(ExcelImportService._fallbackVillages),
+      postalCodes: List<String>.from(ExcelImportService._fallbackPostalCodes),
     );
   }
 }

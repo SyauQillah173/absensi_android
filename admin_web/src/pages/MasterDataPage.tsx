@@ -45,6 +45,16 @@ interface SiswaFormState {
   tempat_lahir: string;
   tanggal_lahir: string;
   alamat: string;
+  kewarganegaraan: string;
+  provinsi: string;
+  province_id: string;
+  kota: string;
+  city_id: string;
+  kecamatan: string;
+  district_id: string;
+  kelurahan: string;
+  village_id: string;
+  kode_pos: string;
   status: SiswaStatus;
   tanggal_masuk: string;
   tahun_lulus: string;
@@ -161,6 +171,16 @@ function newSiswaForm(row?: ApiRecord): SiswaFormState {
     tempat_lahir: optionalText(row?.tempat_lahir),
     tanggal_lahir: optionalText(row?.tanggal_lahir),
     alamat: optionalText(row?.alamat),
+    kewarganegaraan: optionalText(row?.kewarganegaraan) || 'Indonesia',
+    provinsi: optionalText(row?.provinsi),
+    province_id: optionalText(row?.province_id),
+    kota: optionalText(row?.kota),
+    city_id: optionalText(row?.city_id),
+    kecamatan: optionalText(row?.kecamatan),
+    district_id: optionalText(row?.district_id),
+    kelurahan: optionalText(row?.kelurahan),
+    village_id: optionalText(row?.village_id),
+    kode_pos: optionalText(row?.kode_pos),
     status: text(row?.status, 'Aktif') === 'Lulus' ? 'Lulus' : text(row?.status, 'Aktif') === 'Nonaktif' ? 'Nonaktif' : 'Aktif',
     tanggal_masuk: optionalText(row?.tanggal_masuk),
     tahun_lulus: optionalText(row?.tahun_lulus)
@@ -189,6 +209,11 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [siswaForm, setSiswaForm] = useState<SiswaFormState | null>(null);
   const [userForm, setUserForm] = useState<UserFormState | null>(null);
+  const [provinceOptions, setProvinceOptions] = useState<ApiRecord[]>([]);
+  const [cityOptions, setCityOptions] = useState<ApiRecord[]>([]);
+  const [districtOptions, setDistrictOptions] = useState<ApiRecord[]>([]);
+  const [villageOptions, setVillageOptions] = useState<ApiRecord[]>([]);
+  const [birthPlaceOptions, setBirthPlaceOptions] = useState<ApiRecord[]>([]);
   const [detailTarget, setDetailTarget] = useState<ApiRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ApiRecord | null>(null);
   const [resetTarget, setResetTarget] = useState<ApiRecord | null>(null);
@@ -203,6 +228,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
   const importConfig = getImportConfig(variant);
   const userMode = isUserVariant(variant);
   const siswaMode = variant === 'siswa';
+  const isSiswaFormOpen = siswaForm !== null;
   const pondokMode = variant === 'pondok';
 
   async function load() {
@@ -237,6 +263,68 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variant]);
+
+  useEffect(() => {
+    if (!siswaMode || !isSiswaFormOpen) {
+      setProvinceOptions([]);
+      setBirthPlaceOptions([]);
+      return;
+    }
+    let cancelled = false;
+    api.regionProvinces().then((result) => {
+      if (!cancelled) setProvinceOptions(Array.isArray(result.data) ? result.data : []);
+    }).catch(() => {
+      if (!cancelled) setProvinceOptions([]);
+    });
+    api.regionCities({ limit: 1000 }).then((result) => {
+      if (!cancelled) setBirthPlaceOptions(Array.isArray(result.data) ? result.data : []);
+    }).catch(() => {
+      if (!cancelled) setBirthPlaceOptions([]);
+    });
+    return () => { cancelled = true; };
+  }, [siswaMode, isSiswaFormOpen]);
+
+  useEffect(() => {
+    if (!siswaForm?.province_id) {
+      setCityOptions([]);
+      return;
+    }
+    let cancelled = false;
+    api.regionCities({ province_id: siswaForm.province_id, limit: 1000 }).then((result) => {
+      if (!cancelled) setCityOptions(Array.isArray(result.data) ? result.data : []);
+    }).catch(() => {
+      if (!cancelled) setCityOptions([]);
+    });
+    return () => { cancelled = true; };
+  }, [siswaForm?.province_id]);
+
+  useEffect(() => {
+    if (!siswaForm?.city_id) {
+      setDistrictOptions([]);
+      return;
+    }
+    let cancelled = false;
+    api.regionDistricts({ city_id: siswaForm.city_id, limit: 1000 }).then((result) => {
+      if (!cancelled) setDistrictOptions(Array.isArray(result.data) ? result.data : []);
+    }).catch(() => {
+      if (!cancelled) setDistrictOptions([]);
+    });
+    return () => { cancelled = true; };
+  }, [siswaForm?.city_id]);
+
+  useEffect(() => {
+    if (!siswaForm?.district_id) {
+      setVillageOptions([]);
+      return;
+    }
+    let cancelled = false;
+    api.regionVillages({ district_id: siswaForm.district_id, limit: 1000 }).then((result) => {
+      if (!cancelled) setVillageOptions(Array.isArray(result.data) ? result.data : []);
+    }).catch(() => {
+      if (!cancelled) setVillageOptions([]);
+    });
+    return () => { cancelled = true; };
+  }, [siswaForm?.district_id]);
 
   const filtered = useMemo(() => {
     const keyword = search.toLowerCase();
@@ -348,6 +436,16 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
         tempat_lahir: siswaForm.tempat_lahir.trim() || null,
         tanggal_lahir: siswaForm.tanggal_lahir || null,
         alamat: siswaForm.alamat.trim() || null,
+        kewarganegaraan: siswaForm.kewarganegaraan.trim() || null,
+        provinsi: siswaForm.provinsi.trim() || null,
+        province_id: siswaForm.province_id ? Number(siswaForm.province_id) : null,
+        kota: siswaForm.kota.trim() || null,
+        city_id: siswaForm.city_id ? Number(siswaForm.city_id) : null,
+        kecamatan: siswaForm.kecamatan.trim() || null,
+        district_id: siswaForm.district_id ? Number(siswaForm.district_id) : null,
+        kelurahan: siswaForm.kelurahan.trim() || null,
+        village_id: siswaForm.village_id ? Number(siswaForm.village_id) : null,
+        kode_pos: siswaForm.kode_pos.trim() || null,
         status: siswaForm.status,
         tanggal_masuk: siswaForm.tanggal_masuk || null,
         tahun_lulus: siswaForm.tahun_lulus || null
@@ -633,10 +731,96 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
             <Field label="Kelas/Kelompok" value={siswaForm.kelas} onChange={(value) => setSiswaForm({ ...siswaForm, kelas: value })} />
             <Field label="Nama Wali" value={siswaForm.nama_wali} onChange={(value) => setSiswaForm({ ...siswaForm, nama_wali: value })} />
             <Field label="Kontak Wali" value={siswaForm.no_telepon_wali} onChange={(value) => setSiswaForm({ ...siswaForm, no_telepon_wali: value })} />
-            <Field label="Tempat Lahir" value={siswaForm.tempat_lahir} onChange={(value) => setSiswaForm({ ...siswaForm, tempat_lahir: value })} />
+            <Field
+              label="Tempat Lahir"
+              value={siswaForm.tempat_lahir}
+              onChange={(value) => setSiswaForm({ ...siswaForm, tempat_lahir: value })}
+              datalistId="tempat-lahir-options"
+              datalistOptions={birthPlaceOptions.map((item) => text(item.name))}
+            />
             <Field label="Tanggal Lahir" type="date" value={siswaForm.tanggal_lahir} onChange={(value) => setSiswaForm({ ...siswaForm, tanggal_lahir: value })} />
             <Field label="Tanggal Masuk" type="date" value={siswaForm.tanggal_masuk} onChange={(value) => setSiswaForm({ ...siswaForm, tanggal_masuk: value })} />
             <Field label="Tahun Lulus" value={siswaForm.tahun_lulus} onChange={(value) => setSiswaForm({ ...siswaForm, tahun_lulus: value })} />
+            <label className="block">
+              <span className="mb-2 block text-sm font-bold text-[#636E72]">Kewarganegaraan</span>
+              <select className="q-input" value={siswaForm.kewarganegaraan} onChange={(event) => setSiswaForm({ ...siswaForm, kewarganegaraan: event.target.value })}>
+                <option value="Indonesia">Indonesia</option>
+                <option value="WNA">WNA</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-bold text-[#636E72]">Provinsi</span>
+              <select className="q-input" value={siswaForm.province_id} onChange={(event) => {
+                const selected = provinceOptions.find((item) => text(item.id, '') === event.target.value);
+                setSiswaForm({
+                  ...siswaForm,
+                  province_id: event.target.value,
+                  provinsi: text(selected?.name, ''),
+                  city_id: '',
+                  kota: '',
+                  district_id: '',
+                  kecamatan: '',
+                  village_id: '',
+                  kelurahan: '',
+                  kode_pos: ''
+                });
+              }}>
+                <option value="">{siswaForm.provinsi || 'Pilih provinsi'}</option>
+                {provinceOptions.map((item) => <option key={text(item.id)} value={text(item.id, '')}>{text(item.name)}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-bold text-[#636E72]">Kota/Kabupaten</span>
+              <select className="q-input" value={siswaForm.city_id} onChange={(event) => {
+                const selected = cityOptions.find((item) => text(item.id, '') === event.target.value);
+                setSiswaForm({
+                  ...siswaForm,
+                  city_id: event.target.value,
+                  kota: text(selected?.name, ''),
+                  district_id: '',
+                  kecamatan: '',
+                  village_id: '',
+                  kelurahan: '',
+                  kode_pos: ''
+                });
+              }} disabled={!siswaForm.province_id}>
+                <option value="">{siswaForm.kota || 'Pilih kota/kabupaten'}</option>
+                {cityOptions.map((item) => <option key={text(item.id)} value={text(item.id, '')}>{text(item.name)}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-bold text-[#636E72]">Kecamatan</span>
+              <select className="q-input" value={siswaForm.district_id} onChange={(event) => {
+                const selected = districtOptions.find((item) => text(item.id, '') === event.target.value);
+                setSiswaForm({
+                  ...siswaForm,
+                  district_id: event.target.value,
+                  kecamatan: text(selected?.name, ''),
+                  village_id: '',
+                  kelurahan: '',
+                  kode_pos: ''
+                });
+              }} disabled={!siswaForm.city_id}>
+                <option value="">{siswaForm.kecamatan || 'Pilih kecamatan'}</option>
+                {districtOptions.map((item) => <option key={text(item.id)} value={text(item.id, '')}>{text(item.name)}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-bold text-[#636E72]">Kelurahan/Desa</span>
+              <select className="q-input" value={siswaForm.village_id} onChange={(event) => {
+                const selected = villageOptions.find((item) => text(item.id, '') === event.target.value);
+                setSiswaForm({
+                  ...siswaForm,
+                  village_id: event.target.value,
+                  kelurahan: text(selected?.name, ''),
+                  kode_pos: text(selected?.postal_code, siswaForm.kode_pos)
+                });
+              }} disabled={!siswaForm.district_id}>
+                <option value="">{siswaForm.kelurahan || 'Pilih kelurahan/desa'}</option>
+                {villageOptions.map((item) => <option key={text(item.id)} value={text(item.id, '')}>{text(item.name)}{item.postal_code ? ` - ${text(item.postal_code)}` : ''}</option>)}
+              </select>
+            </label>
+            <Field label="Kode Pos" value={siswaForm.kode_pos} onChange={(value) => setSiswaForm({ ...siswaForm, kode_pos: value })} />
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-[#636E72]">Status</span>
               <select className="q-input" value={siswaForm.status} onChange={(event) => setSiswaForm({ ...siswaForm, status: event.target.value as SiswaStatus })}>
@@ -736,18 +920,28 @@ function Field({
   value,
   onChange,
   type = 'text',
-  required = false
+  required = false,
+  datalistId,
+  datalistOptions = []
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
   required?: boolean;
+  datalistId?: string;
+  datalistOptions?: string[];
 }) {
+  const options = Array.from(new Set(datalistOptions.map((option) => option.trim()).filter(Boolean)));
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-bold text-[#636E72]">{label}</span>
-      <input className="q-input" type={type} value={value} onChange={(event) => onChange(event.target.value)} required={required} />
+      <input className="q-input" type={type} value={value} list={options.length ? datalistId : undefined} onChange={(event) => onChange(event.target.value)} required={required} />
+      {datalistId && options.length ? (
+        <datalist id={datalistId}>
+          {options.map((option) => <option key={option} value={option} />)}
+        </datalist>
+      ) : null}
     </label>
   );
 }

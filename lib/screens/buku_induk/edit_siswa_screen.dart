@@ -1072,6 +1072,7 @@ class _EditSiswaScreenState extends State<EditSiswaScreen> {
                             _c['kota']?.text = '';
                             _c['kecamatan']?.text = '';
                             _c['kelurahan']?.text = '';
+                            _c['kodePos']?.text = '';
                             if (_selectedProvinsiId?.isNotEmpty == true) {
                               _loadKota(_selectedProvinsiId!);
                             }
@@ -1090,6 +1091,7 @@ class _EditSiswaScreenState extends State<EditSiswaScreen> {
                             _selectedKelurahanId = null;
                             _c['kecamatan']?.text = '';
                             _c['kelurahan']?.text = '';
+                            _c['kodePos']?.text = '';
                             if (_selectedKotaId?.isNotEmpty == true) {
                               _loadKecamatan(_selectedKotaId!);
                             }
@@ -1106,6 +1108,7 @@ class _EditSiswaScreenState extends State<EditSiswaScreen> {
                             _selectedKecamatanId = item['id']?.toString();
                             _selectedKelurahanId = null;
                             _c['kelurahan']?.text = '';
+                            _c['kodePos']?.text = '';
                             if (_selectedKecamatanId?.isNotEmpty == true) {
                               _loadKelurahan(_selectedKecamatanId!);
                             }
@@ -1120,6 +1123,8 @@ class _EditSiswaScreenState extends State<EditSiswaScreen> {
                           (item) {
                             _c['kelurahan']?.text = item['name'] ?? '';
                             _selectedKelurahanId = item['id']?.toString();
+                            _c['kodePos']?.text =
+                                item['postal_code']?.toString() ?? '';
                             setState(() {});
                           },
                         ),
