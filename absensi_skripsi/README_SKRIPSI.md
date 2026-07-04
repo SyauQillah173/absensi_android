@@ -27,7 +27,7 @@ flutter build apk --release --no-shrink --dart-define=API_BASE_URL=https://domai
 Jika `API_BASE_URL` tidak diisi, aplikasi memakai default:
 
 ```text
-https://absensi-android.vercel.app/api
+https://absensi-android-skripsi.vercel.app/api
 ```
 
 Output APK:
