@@ -530,7 +530,7 @@ class AbsensiController extends Controller
 
         if (!$key) {
             throw ValidationException::withMessages([
-                'attendance_key' => ['Identitas absensi belum lengkap. Pilih kelas, mapel, jadwal, siswa, dan tanggal yang valid.'],
+                'attendance_key' => ['Identitas absensi belum lengkap. Pilih kelas, mapel, siswa, dan tanggal yang valid.'],
             ]);
         }
 

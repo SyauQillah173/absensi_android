@@ -30,7 +30,6 @@ class ApiService {
   // ==================================
 
   static const _authTokenKey = 'auth_token';
-  static const _fastRequestTimeout = Duration(seconds: 12);
   static const _standardRequestTimeout = Duration(seconds: 18);
   static const _writeRequestTimeout = Duration(seconds: 35);
   static const _loginRequestTimeout = Duration(seconds: 25);
@@ -582,7 +581,9 @@ class ApiService {
     final uri = Uri.parse(
       '$baseUrl/jadwal',
     ).replace(queryParameters: params.isNotEmpty ? params : null);
-    final response = await http.get(uri, headers: await _headers());
+    final response = await http
+        .get(uri, headers: await _headers())
+        .timeout(_standardRequestTimeout);
     return _handleResponse(response);
   }
 
@@ -650,7 +651,9 @@ class ApiService {
     final uri = Uri.parse(
       '$baseUrl/absensi',
     ).replace(queryParameters: params.isNotEmpty ? params : null);
-    final response = await http.get(uri, headers: await _headers());
+    final response = await http
+        .get(uri, headers: await _headers())
+        .timeout(_standardRequestTimeout);
     return _handleResponse(response);
   }
 
@@ -1852,9 +1855,13 @@ class ApiService {
         details.isEmpty
             ? 'Validasi gagal: $message'
             : 'Validasi gagal: $message. $details',
+        statusCode: response.statusCode,
       );
     } else {
-      throw ApiException(body['message'] ?? 'Terjadi kesalahan server');
+      throw ApiException(
+        body['message'] ?? 'Terjadi kesalahan server',
+        statusCode: response.statusCode,
+      );
     }
   }
 
@@ -2811,7 +2818,9 @@ class ApiService {
 
 class ApiException implements Exception {
   final String message;
-  ApiException(this.message);
+  final int? statusCode;
+
+  ApiException(this.message, {this.statusCode});
 
   @override
   String toString() => message;

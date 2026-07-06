@@ -1,25 +1,72 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:workmanager/workmanager.dart';
 
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/splash_screen.dart';
 import 'screens/auth/change_password_screen.dart';
 import 'screens/beranda/dashboard_screen.dart';
+import 'services/api_service.dart';
 import 'services/session_service.dart';
 import 'services/sync_service.dart';
 
+@pragma('vm:entry-point')
+void absensiSyncCallbackDispatcher() {
+  Workmanager().executeTask((taskName, inputData) async {
+    WidgetsFlutterBinding.ensureInitialized();
+
+    if (taskName != SyncService.workManagerTaskSyncAbsensi) {
+      return true;
+    }
+
+    await SyncService.initForBackgroundWorker();
+    final result = await SyncService.syncPendingAbsensi();
+    return !result.serverDown && result.errors == 0;
+  });
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Workmanager().initialize(absensiSyncCallbackDispatcher);
   await SyncService.init();
+  await SyncService.registerBackgroundSync();
 
   // === AUTO-LOGIN: Cek apakah user masih login ===
   // SharedPreferences PERMANEN — guru tidak perlu login ulang
   // setiap buka app. Cukup login 1x, setelahnya langsung dashboard.
-  final isLoggedIn = await SessionService.isLoggedIn();
+  final isLoggedIn = await _hasUsableLoginSession();
   final mustChangePassword = await SessionService.mustChangePassword();
 
   runApp(MyApp(isLoggedIn: isLoggedIn, mustChangePassword: mustChangePassword));
+}
+
+Future<bool> _hasUsableLoginSession() async {
+  if (!await SessionService.isLoggedIn()) return false;
+
+  final token = await SessionService.getAuthToken();
+  if (token.isEmpty) {
+    await SessionService.clearSession();
+    return false;
+  }
+
+  if (!await ApiService.testConnection()) {
+    return true;
+  }
+
+  try {
+    final userId = await SessionService.getUserId();
+    await ApiService.getProfile(userId);
+    return true;
+  } on ApiException catch (error) {
+    if (error.statusCode == 401 || error.statusCode == 403) {
+      await SessionService.clearSession();
+      return false;
+    }
+    return true;
+  } catch (_) {
+    return true;
+  }
 }
 
 class MyApp extends StatelessWidget {

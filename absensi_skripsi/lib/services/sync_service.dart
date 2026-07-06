@@ -10,10 +10,11 @@
 // ================================================================
 
 import 'dart:async';
-import 'dart:io' show Platform, SocketException;
+import 'dart:io' show Platform;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:workmanager/workmanager.dart';
 
 import 'api_service.dart';
 import 'local_db_service.dart';
@@ -26,9 +27,13 @@ class SyncService {
   static final StreamController<AppDataEvent> _dataEvents =
       StreamController<AppDataEvent>.broadcast();
   static bool _isSyncing = false;
-  static bool _isSyncingSholat = false;
   static Timer? _heartbeatTimer;
   static bool? _lastConnectivityState;
+  static const String workManagerTaskSyncAbsensi = 'sync_pending_absensi';
+  static const String _workManagerOneOffSync = 'sync_pending_absensi_once';
+  static const String _workManagerPeriodicSync =
+      'sync_pending_absensi_periodic';
+  static const String _workManagerTag = 'absensi_madin_sync';
 
   // Callback untuk update UI
   static Function()? onSyncComplete;
@@ -36,14 +41,7 @@ class SyncService {
 
   // ===== INIT =====
   static Future<void> init() async {
-    // Init notifications
-    const androidSettings = AndroidInitializationSettings(
-      '@drawable/ic_stat_notification',
-    );
-    const initSettings = InitializationSettings(android: androidSettings);
-    await _notifications.initialize(initSettings);
-
-    // Request notification permission for Android 13+
+    await _initNotifications();
     await _requestNotificationPermission();
 
     // Listen to connectivity changes
@@ -62,9 +60,9 @@ class SyncService {
       if (hasInternet) {
         // === AUTO-SYNC saat internet tersedia ===
         // Guru cukup nyalakan WiFi → absensi offline otomatis di-sync
-        // Notifikasi muncul meskipun guru TIDAK buka app
+        // WorkManager menjadi pengaman background retry saat aplikasi tidak aktif.
         syncPendingAbsensi();
-        syncPendingAbsensiSholat();
+        scheduleOneOffSync();
         _emitEvent(const AppDataEvent(topic: SyncTopics.heartbeat));
       }
     });
@@ -72,6 +70,54 @@ class SyncService {
     // Cleanup old synced data (>7 hari) saat app start
     await LocalDbService.cleanupOldSyncedData();
     _startHeartbeat();
+  }
+
+  static Future<void> initForBackgroundWorker() async {
+    await _initNotifications();
+  }
+
+  static Future<void> _initNotifications() async {
+    const androidSettings = AndroidInitializationSettings(
+      '@drawable/ic_stat_notification',
+    );
+    const initSettings = InitializationSettings(android: androidSettings);
+    await _notifications.initialize(initSettings);
+  }
+
+  static Future<void> registerBackgroundSync() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await Workmanager().registerPeriodicTask(
+        _workManagerPeriodicSync,
+        workManagerTaskSyncAbsensi,
+        frequency: const Duration(minutes: 15),
+        constraints: Constraints(networkType: NetworkType.connected),
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
+        backoffPolicy: BackoffPolicy.exponential,
+        backoffPolicyDelay: const Duration(minutes: 1),
+        tag: _workManagerTag,
+      );
+    } catch (_) {
+      // WorkManager tidak boleh mengganggu alur utama aplikasi.
+    }
+  }
+
+  static Future<void> scheduleOneOffSync() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await Workmanager().registerOneOffTask(
+        _workManagerOneOffSync,
+        workManagerTaskSyncAbsensi,
+        initialDelay: const Duration(minutes: 1),
+        constraints: Constraints(networkType: NetworkType.connected),
+        existingWorkPolicy: ExistingWorkPolicy.replace,
+        backoffPolicy: BackoffPolicy.exponential,
+        backoffPolicyDelay: const Duration(minutes: 1),
+        tag: _workManagerTag,
+      );
+    } catch (_) {
+      // Sync foreground tetap berjalan walau worker gagal dijadwalkan.
+    }
   }
 
   // ===== REQUEST NOTIFICATION PERMISSION (Android 13+) =====
@@ -186,114 +232,10 @@ class SyncService {
     return SyncResult(synced: synced, conflicts: conflicts, errors: errors);
   }
 
-  // ===== SMART ABSENSI — Online atau Offline =====
+  // Fitur di luar scope Bab 1-3 skripsi. Method dipertahankan sebagai guard
+  // agar file layar lama yang belum dihapus fisik tidak menyentuh database.
   static Future<SyncResult> syncPendingAbsensiSholat() async {
-    if (_isSyncingSholat) {
-      return SyncResult(synced: 0, conflicts: 0, errors: 0);
-    }
-    _isSyncingSholat = true;
-
-    int synced = 0;
-    int conflicts = 0;
-    int errors = 0;
-
-    try {
-      final serverOk = await ApiService.testConnection();
-      if (!serverOk) {
-        _isSyncingSholat = false;
-        return SyncResult(synced: 0, conflicts: 0, errors: 0, serverDown: true);
-      }
-
-      final pendingList = await LocalDbService.getPendingAbsensiSholat();
-      if (pendingList.isEmpty) {
-        _isSyncingSholat = false;
-        return SyncResult(synced: 0, conflicts: 0, errors: 0);
-      }
-
-      final grouped = <String, List<Map<String, dynamic>>>{};
-      for (final item in pendingList) {
-        final key =
-            '${item['tanggal']}_${item['boarding_room_id']}_${item['prayer_attendance_type_id'] ?? 0}';
-        grouped.putIfAbsent(key, () => []).add(item);
-      }
-
-      for (final items in grouped.values) {
-        for (final item in items) {
-          await LocalDbService.markPrayerAsSyncing(item['id'] as int);
-        }
-
-        try {
-          final response = await ApiService.createAbsensiSholatBulk(
-            tanggal: items.first['tanggal']?.toString() ?? '',
-            boardingRoomId:
-                int.tryParse(
-                  items.first['boarding_room_id']?.toString() ?? '',
-                ) ??
-                0,
-            prayerAttendanceTypeId: int.tryParse(
-              items.first['prayer_attendance_type_id']?.toString() ?? '',
-            ),
-            items: items
-                .map(
-                  (item) => {
-                    'siswa_id': item['siswa_id'],
-                    'status_code': item['status_code'],
-                    'keterangan': item['keterangan'],
-                  },
-                )
-                .toList(),
-            diinputOleh: items.first['diinput_oleh']?.toString(),
-            actorUserId: int.tryParse(
-              items.first['actor_user_id']?.toString() ?? '',
-            ),
-            diinputVia: 'offline_sync',
-            deviceId: items.first['device_id']?.toString(),
-          );
-
-          if (response['success'] == true) {
-            for (final item in items) {
-              await LocalDbService.markPrayerAsSynced(item['id'] as int);
-            }
-            synced += items.length;
-          } else if (response['conflict'] == true) {
-            final message =
-                response['message'] ?? 'Ada absensi sholat yang konflik';
-            for (final item in items) {
-              await LocalDbService.markPrayerAsConflict(
-                item['id'] as int,
-                message,
-              );
-            }
-            conflicts += items.length;
-          }
-        } catch (e) {
-          final detail = _syncErrorMessage(e);
-          for (final item in items) {
-            await LocalDbService.markPrayerAsFailed(
-              item['id'] as int,
-              'Sinkronisasi gagal: $detail',
-            );
-          }
-          errors += items.length;
-        }
-      }
-
-      if (synced > 0 || conflicts > 0 || errors > 0) {
-        _emitEvent(
-          AppDataEvent(
-            topic: SyncTopics.absensiSholat,
-            message: errors > 0
-                ? 'Ada absensi sholat offline yang gagal sinkron'
-                : 'Sinkronisasi absensi sholat berhasil diperbarui',
-          ),
-        );
-      }
-    } catch (e) {
-      errors++;
-    }
-
-    _isSyncingSholat = false;
-    return SyncResult(synced: synced, conflicts: conflicts, errors: errors);
+    return SyncResult(synced: 0, conflicts: 0, errors: 0);
   }
 
   static String _syncErrorMessage(Object error) {
@@ -381,6 +323,7 @@ class SyncService {
             'Absensi pending sudah dibuat oleh akun lain di perangkat ini. Gunakan akun pemilik pending atau sinkronkan dulu.',
       );
     }
+    await scheduleOneOffSync();
     return AbsensiResult(
       success: true,
       mode: 'offline',
@@ -388,7 +331,7 @@ class SyncService {
     );
   }
 
-  // ===== NOTIFIKASI SYNC (DETAIL) =====
+  // ===== GUARD FITUR DI LUAR SCOPE SKRIPSI =====
   static Future<AbsensiResult> inputAbsensiSholat({
     required int siswaId,
     required int boardingRoomId,
@@ -400,74 +343,10 @@ class SyncService {
     int? actorUserId,
     String? deviceId,
   }) async {
-    final normalizedCode = statusCode.toUpperCase();
-    final data = {
-      'siswa_id': siswaId,
-      'boarding_room_id': boardingRoomId,
-      'prayer_attendance_type_id': prayerAttendanceTypeId,
-      'tanggal': tanggal,
-      'status_code': normalizedCode,
-      'status_label': _prayerStatusLabel(normalizedCode),
-      'keterangan': keterangan,
-      'diinput_oleh': diinputOleh,
-      'actor_user_id': actorUserId,
-      'device_id': deviceId,
-    };
-
-    final online = await isOnline();
-    if (online) {
-      try {
-        final serverOk = await ApiService.testConnection();
-        if (serverOk) {
-          final response = await ApiService.createAbsensiSholatBulk(
-            tanggal: tanggal,
-            boardingRoomId: boardingRoomId,
-            prayerAttendanceTypeId: prayerAttendanceTypeId,
-            items: [
-              {
-                'siswa_id': siswaId,
-                'status_code': normalizedCode,
-                'keterangan': keterangan,
-              },
-            ],
-            diinputOleh: diinputOleh,
-            actorUserId: actorUserId,
-            diinputVia: 'online',
-            deviceId: deviceId,
-          );
-
-          if (response['success'] == true) {
-            return AbsensiResult(
-              success: true,
-              mode: 'online',
-              message: 'Absensi sholat tersimpan ke server',
-            );
-          } else if (response['conflict'] == true) {
-            return AbsensiResult(
-              success: false,
-              mode: 'conflict',
-              message: response['message'] ?? 'Absensi sholat konflik',
-            );
-          }
-        }
-      } catch (e) {
-        // Server bermasalah, simpan sebagai pending offline.
-      }
-    }
-
-    final localId = await LocalDbService.insertAbsensiSholatPending(data);
-    if (localId < 0) {
-      return AbsensiResult(
-        success: false,
-        mode: 'conflict',
-        message:
-            'Absensi sholat pending sudah dibuat oleh akun lain di perangkat ini.',
-      );
-    }
     return AbsensiResult(
-      success: true,
-      mode: 'offline',
-      message: 'Disimpan offline, akan di-sync saat online',
+      success: false,
+      mode: 'disabled',
+      message: 'Absensi sholat tidak termasuk scope aplikasi skripsi ini.',
     );
   }
 
@@ -480,145 +359,11 @@ class SyncService {
     int? actorUserId,
     String? deviceId,
   }) async {
-    if (items.isEmpty) {
-      return AbsensiResult(
-        success: false,
-        mode: 'error',
-        message: 'Tidak ada data absensi sholat untuk disimpan.',
-      );
-    }
-
-    final normalizedItems = items
-        .map(
-          (item) => {
-            'siswa_id': item['siswa_id'],
-            'status_code': item['status_code']?.toString().toUpperCase(),
-            'keterangan': item['keterangan'],
-          },
-        )
-        .toList();
-
-    final online = await isOnline();
-    if (online) {
-      try {
-        final serverOk = await ApiService.testConnection();
-        if (serverOk) {
-          final response = await ApiService.createAbsensiSholatBulk(
-            tanggal: tanggal,
-            boardingRoomId: boardingRoomId,
-            prayerAttendanceTypeId: prayerAttendanceTypeId,
-            items: normalizedItems,
-            diinputOleh: diinputOleh,
-            actorUserId: actorUserId,
-            diinputVia: 'online',
-            deviceId: deviceId,
-          );
-
-          if (response['success'] == true) {
-            _emitEvent(
-              const AppDataEvent(
-                topic: SyncTopics.absensiSholat,
-                message: 'Absensi sholat berhasil disimpan online',
-              ),
-            );
-            return AbsensiResult(
-              success: true,
-              mode: 'online',
-              message: response['message'] ?? 'Absensi sholat berhasil disimpan',
-            );
-          }
-
-          if (response['conflict'] == true) {
-            return AbsensiResult(
-              success: false,
-              mode: 'conflict',
-              message: response['message'] ?? 'Absensi sholat konflik',
-            );
-          }
-
-          return AbsensiResult(
-            success: false,
-            mode: 'error',
-            message: response['message'] ?? 'Absensi sholat gagal disimpan',
-          );
-        }
-      } on TimeoutException catch (_) {
-        // Server tidak merespons, lanjut simpan offline.
-      } on SocketException catch (_) {
-        // Tidak bisa menjangkau server, lanjut simpan offline.
-      } on ApiException catch (e) {
-        return AbsensiResult(
-          success: false,
-          mode: 'error',
-          message: e.message,
-        );
-      } catch (e) {
-        return AbsensiResult(
-          success: false,
-          mode: 'error',
-          message: _syncErrorMessage(e),
-        );
-      }
-    }
-
-    var inserted = 0;
-    var conflicts = 0;
-    for (final item in normalizedItems) {
-      final normalizedCode = item['status_code']?.toString().toUpperCase() ?? '';
-      final data = {
-        'siswa_id': item['siswa_id'],
-        'boarding_room_id': boardingRoomId,
-        'prayer_attendance_type_id': prayerAttendanceTypeId,
-        'tanggal': tanggal,
-        'status_code': normalizedCode,
-        'status_label': _prayerStatusLabel(normalizedCode),
-        'keterangan': item['keterangan'],
-        'diinput_oleh': diinputOleh,
-        'actor_user_id': actorUserId,
-        'device_id': deviceId,
-      };
-      final localId = await LocalDbService.insertAbsensiSholatPending(data);
-      if (localId < 0) {
-        conflicts++;
-      } else {
-        inserted++;
-      }
-    }
-
-    if (inserted == 0 && conflicts > 0) {
-      return AbsensiResult(
-        success: false,
-        mode: 'conflict',
-        message: 'Absensi sholat pending sudah ada di perangkat ini.',
-      );
-    }
-
-    _emitEvent(
-      const AppDataEvent(
-        topic: SyncTopics.absensiSholat,
-        message: 'Absensi sholat disimpan offline',
-      ),
-    );
     return AbsensiResult(
-      success: true,
-      mode: 'offline',
-      message: conflicts > 0
-          ? '$inserted data disimpan offline, $conflicts sudah ada pending'
-          : 'Tersimpan offline, menunggu sinkronisasi',
+      success: false,
+      mode: 'disabled',
+      message: 'Absensi sholat tidak termasuk scope aplikasi skripsi ini.',
     );
-  }
-
-  static String _prayerStatusLabel(String code) {
-    switch (code) {
-      case 'M':
-        return 'Masuk';
-      case 'I':
-        return 'Izin';
-      case 'S':
-        return 'Sakit';
-      default:
-        return code;
-    }
   }
 
   static Future<void> _showSyncNotification(

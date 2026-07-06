@@ -47,18 +47,8 @@ class _LoginScreenState extends State<LoginScreen> {
       _loadingHint = 'Mencoba koneksi ke server...';
     });
 
-    // === RACE CONDITION: API login vs tunnel timeout ===
-    // Cloudflare/Laravel lokal kadang butuh cold start, jadi beri waktu cukup
-    // sebelum fallback ke login offline.
     try {
-      final result = await Future.any([
-        // Attempt 1: Online login
-        ApiService.login(identifier, password),
-        // Attempt 2: timeout realistis untuk tunnel lokal.
-        Future.delayed(const Duration(seconds: 20), () {
-          throw TimeoutException('Server tidak merespon dalam 20 detik');
-        }),
-      ]);
+      final result = await ApiService.login(identifier, password);
 
       if (!mounted) return;
 
@@ -99,15 +89,28 @@ class _LoginScreenState extends State<LoginScreen> {
           _loadingHint = null;
         });
       }
-    } catch (e) {
-      // Server timeout/gagal → langsung coba offline login (CEPAT)
-      if (mounted) {
-        setState(
-          () => _loadingHint = 'Server tidak tersedia, mencoba offline...',
-        );
-        await _tryOfflineLogin(identifier, password);
+    } on ApiException catch (e) {
+      if (e.statusCode == 401 || e.statusCode == 403 || e.statusCode == 422) {
+        if (!mounted) return;
+        setState(() {
+          _errorMessage = e.message;
+          _isLoading = false;
+          _loadingHint = null;
+        });
+        return;
       }
+      await _fallbackToOffline(identifier, password);
+    } on TimeoutException {
+      await _fallbackToOffline(identifier, password);
+    } catch (_) {
+      await _fallbackToOffline(identifier, password);
     }
+  }
+
+  Future<void> _fallbackToOffline(String identifier, String password) async {
+    if (!mounted) return;
+    setState(() => _loadingHint = 'Server tidak tersedia, mencoba offline...');
+    await _tryOfflineLogin(identifier, password);
   }
 
   Future<void> _tryOfflineLogin(String identifier, String password) async {
@@ -130,7 +133,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // === OFFLINE LOGIN BERHASIL ===
       // Set user data dari cached account
-      await SessionService.saveLoginSession(matchedAccount);
+      await SessionService.saveLoginSession(
+        matchedAccount,
+        preserveExistingToken: true,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -117,7 +117,10 @@ class SessionService {
     }
   }
 
-  static Future<void> saveLoginSession(Map<String, dynamic> userData) async {
+  static Future<void> saveLoginSession(
+    Map<String, dynamic> userData, {
+    bool preserveExistingToken = false,
+  }) async {
     final prefs = await _prefs;
     final userId = int.tryParse(userData['id']?.toString() ?? '') ?? 0;
     await prefs.setString(_keyUserName, userData['name']?.toString() ?? '');
@@ -135,7 +138,7 @@ class SessionService {
     final token = userData['token']?.toString() ?? '';
     if (token.isNotEmpty) {
       await prefs.setString(_keyAuthToken, token);
-    } else {
+    } else if (!preserveExistingToken) {
       await prefs.remove(_keyAuthToken);
     }
     await prefs.setBool(_keyIsLoggedIn, true);
@@ -220,6 +223,8 @@ class SessionService {
       'nis': userData['nis'] ?? '',
       'nisn': userData['nisn'] ?? '',
       'must_change_password': _asBool(userData['must_change_password']),
+      if ((userData['token']?.toString() ?? '').isNotEmpty)
+        'token': userData['token'].toString(),
     };
 
     if (userData['role'] == 'wali' && userData['anak'] != null) {

@@ -201,34 +201,6 @@ return new class extends Migration
                 'message_template' => "Assalamualaikum, wali santri {nama_siswa}.\nAbsensi Madin tanggal {tanggal}: {status_absensi}.\nKelas: {kelas}.\n- {nama_sekolah}",
             ],
             [
-                'name' => 'Absensi Ngaji',
-                'code' => 'absensi_ngaji',
-                'module' => 'absensi_ngaji',
-                'event_type' => 'created',
-                'message_template' => "Assalamualaikum, wali santri {nama_siswa}.\nAbsensi Ngaji {sesi} ({kitab}) tanggal {tanggal}: {status_absensi}.\n- {nama_sekolah}",
-            ],
-            [
-                'name' => 'Absensi Sholat',
-                'code' => 'absensi_sholat',
-                'module' => 'absensi_sholat',
-                'event_type' => 'created',
-                'message_template' => "Assalamualaikum, wali santri {nama_siswa}.\nAbsensi {jenis_sholat} tanggal {tanggal}: {status_absensi}.\nKomplek/Kamar: {komplek} {kamar}.\n- {nama_sekolah}",
-            ],
-            [
-                'name' => 'Tagihan Pembayaran',
-                'code' => 'tagihan_pembayaran',
-                'module' => 'tagihan',
-                'event_type' => 'manual',
-                'message_template' => "Assalamualaikum, wali santri {nama_siswa}.\nTagihan {judul_tagihan} sebesar {nominal_tagihan} menunggu pembayaran. Jatuh tempo: {tanggal_jatuh_tempo}.\n- {nama_sekolah}",
-            ],
-            [
-                'name' => 'Pembayaran Berhasil',
-                'code' => 'pembayaran_berhasil',
-                'module' => 'pembayaran',
-                'event_type' => 'paid',
-                'message_template' => "Assalamualaikum, pembayaran {judul_tagihan} santri {nama_siswa} sebesar {nominal_bayar} telah tercatat pada {tanggal_bayar}.\nTerima kasih.\n- {nama_sekolah}",
-            ],
-            [
                 'name' => 'Pesan Manual',
                 'code' => 'manual',
                 'module' => 'manual',
@@ -248,7 +220,7 @@ return new class extends Migration
             return;
         }
 
-        foreach (['absensi_madin', 'absensi_ngaji', 'absensi_sholat', 'tagihan', 'pembayaran', 'manual'] as $module) {
+        foreach (['absensi_madin', 'manual'] as $module) {
             $templateId = DB::table('whatsapp_templates')
                 ->where('module', $module)
                 ->orWhere('code', $module)
@@ -258,8 +230,8 @@ return new class extends Migration
                 ['module' => $module],
                 [
                     'channel_app' => $module !== 'manual',
-                    'channel_whatsapp' => false,
-                    'send_mode' => in_array($module, ['tagihan', 'manual'], true) ? 'manual' : 'automatic',
+                    'channel_whatsapp' => $module === 'absensi_madin',
+                    'send_mode' => $module === 'manual' ? 'manual' : 'automatic',
                     'template_id' => $templateId,
                     'is_active' => true,
                     'retry_limit' => 3,
