@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/api_service.dart';
 import '../../services/cache_service.dart';
+import '../sifir/kelompok_belajar_screen.dart';
 import 'data_admin_screen.dart';
 import 'data_kelas_screen.dart';
 import 'data_siswa_screen.dart';
@@ -23,6 +24,7 @@ class _BukuIndukScreenState extends State<BukuIndukScreen>
   int _siswaCount = 0;
   int _loginCount = 0;
   int _kelasCount = 0;
+  int _kelompokCount = 0;
   bool _isLoadingCounts = true;
   bool _hasLoadedCountSnapshot = false;
 
@@ -45,6 +47,7 @@ class _BukuIndukScreenState extends State<BukuIndukScreen>
     'siswa_list',
     'users_all',
     'classes_skripsi_all_v1',
+    'kelompok_belajar_skripsi_v2',
   ];
 
   int _extractCount(dynamic snapshot) {
@@ -65,10 +68,19 @@ class _BukuIndukScreenState extends State<BukuIndukScreen>
     return 0;
   }
 
+  int _extractKelompokCount(dynamic snapshot) {
+    if (snapshot is! Map || snapshot['data'] is! List) return 0;
+    return (snapshot['data'] as List).fold<int>(0, (total, group) {
+      if (group is! Map || group['kelas'] is! List) return total;
+      return total + (group['kelas'] as List).length;
+    });
+  }
+
   void _applyCountSnapshots(List<dynamic> snapshots) {
     _siswaCount = _extractCount(snapshots[0]);
     _loginCount = _extractLoginCount(snapshots[1]);
     _kelasCount = _extractCount(snapshots[2]);
+    _kelompokCount = _extractKelompokCount(snapshots[3]);
   }
 
   Future<void> _loadCachedCounts() async {
@@ -108,6 +120,10 @@ class _BukuIndukScreenState extends State<BukuIndukScreen>
         CacheService.fetchWithCache(
           cacheKey: 'classes_skripsi_all_v1',
           apiFetch: () => ApiService.getClasses(includeInactive: true),
+        ),
+        CacheService.fetchWithCache(
+          cacheKey: 'kelompok_belajar_skripsi_v2',
+          apiFetch: () => ApiService.getKelompokBelajar(),
         ),
       ]);
 
@@ -306,8 +322,24 @@ class _BukuIndukScreenState extends State<BukuIndukScreen>
                           ),
                         ),
                         const SizedBox(height: 16),
+                        if (widget.userRole == 'admin') ...[
+                          _buildCategoryCard(
+                            index: 2,
+                            icon: Icons.groups_rounded,
+                            title: 'Kelompok Belajar',
+                            subtitle: _isLoadingCounts
+                                ? 'Memuat...'
+                                : '$_kelompokCount Kelompok Tersimpan',
+                            description:
+                                'Atur kelas dan keanggotaan santri Madin.',
+                            color: const Color(0xFF6C5CE7),
+                            onTap: () =>
+                                _navigateTo(const KelompokBelajarScreen()),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
                         _buildCategoryCard(
-                          index: 2,
+                          index: 3,
                           icon: Icons.manage_accounts_rounded,
                           title: 'Data Login Admin/Guru',
                           subtitle: _isLoadingCounts

@@ -81,9 +81,10 @@ class _EditKelompokSifirScreenState extends State<EditKelompokSifirScreen>
     }
   }
 
-  Future<void> _addStudent(Map<String, dynamic> siswa) async {
+  Future<bool> _addStudents(List<int> siswaIds) async {
+    if (siswaIds.isEmpty) return false;
     try {
-      await ApiService.addSiswaToKelompok(widget.kelompokId, siswa['id']);
+      await ApiService.addSiswaBulkToKelompok(widget.kelompokId, siswaIds);
       await SyncService.notifyDataChanged(
         SyncTopics.kelas,
         message: 'Keanggotaan kelas telah diperbarui',
@@ -92,7 +93,9 @@ class _EditKelompokSifirScreenState extends State<EditKelompokSifirScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${siswa['nama']} berhasil ditambahkan'),
+            content: Text(
+              '${siswaIds.length} santri berhasil dimasukkan ke ${widget.namaKelas}',
+            ),
             backgroundColor: const Color(0xFF138F81),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -101,6 +104,7 @@ class _EditKelompokSifirScreenState extends State<EditKelompokSifirScreen>
           ),
         );
       }
+      return true;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -111,6 +115,7 @@ class _EditKelompokSifirScreenState extends State<EditKelompokSifirScreen>
           ),
         );
       }
+      return false;
     }
   }
 
@@ -147,7 +152,6 @@ class _EditKelompokSifirScreenState extends State<EditKelompokSifirScreen>
   }
 
   void _showAddSiswaDialog() {
-    // Filter out students already in the kelompok
     final siswaIds = _siswaList.map((s) => s['id']).toSet();
     final available = _allSiswa
         .where((s) => !siswaIds.contains(s['id']))
@@ -159,16 +163,29 @@ class _EditKelompokSifirScreenState extends State<EditKelompokSifirScreen>
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         String searchTerm = '';
+        final selectedIds = <int>{};
+        bool isSaving = false;
         return StatefulBuilder(
           builder: (ctx, setModalState) {
             final filtered = available.where((s) {
               final nama = (s['nama'] ?? '').toString().toLowerCase();
+              final nis = (s['nis'] ?? '').toString().toLowerCase();
+              final kelas = (s['kelas'] ?? '').toString().toLowerCase();
+              final query = searchTerm.toLowerCase();
               return searchTerm.isEmpty ||
-                  nama.contains(searchTerm.toLowerCase());
+                  nama.contains(query) ||
+                  nis.contains(query) ||
+                  kelas.contains(query);
             }).toList();
+            final filteredIds = filtered
+                .map((s) => int.tryParse(s['id']?.toString() ?? '') ?? 0)
+                .where((id) => id > 0)
+                .toSet();
+            final allFilteredSelected =
+                filteredIds.isNotEmpty && selectedIds.containsAll(filteredIds);
 
             return Container(
-              height: MediaQuery.of(context).size.height * 0.7,
+              height: MediaQuery.of(context).size.height * 0.82,
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
@@ -185,8 +202,9 @@ class _EditKelompokSifirScreenState extends State<EditKelompokSifirScreen>
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Tambah Siswa ke Kelompok',
+                  Text(
+                    'Tambah Santri ke ${widget.namaKelas}',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -194,6 +212,47 @@ class _EditKelompokSifirScreenState extends State<EditKelompokSifirScreen>
                     ),
                   ),
                   const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${selectedIds.length} dipilih',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF636E72),
+                            ),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: filteredIds.isEmpty || isSaving
+                              ? null
+                              : () {
+                                  setModalState(() {
+                                    if (allFilteredSelected) {
+                                      selectedIds.removeAll(filteredIds);
+                                    } else {
+                                      selectedIds.addAll(filteredIds);
+                                    }
+                                  });
+                                },
+                          icon: Icon(
+                            allFilteredSelected
+                                ? Icons.deselect_rounded
+                                : Icons.select_all_rounded,
+                            size: 18,
+                          ),
+                          label: Text(
+                            allFilteredSelected
+                                ? 'Batalkan Semua'
+                                : 'Pilih Semua',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Container(
@@ -209,7 +268,7 @@ class _EditKelompokSifirScreenState extends State<EditKelompokSifirScreen>
                         onChanged: (val) =>
                             setModalState(() => searchTerm = val),
                         decoration: const InputDecoration(
-                          hintText: 'Cari nama siswa...',
+                          hintText: 'Cari nama, NIS, atau kelas...',
                           border: InputBorder.none,
                           icon: Icon(Icons.search, size: 20),
                           hintStyle: TextStyle(fontSize: 13),
@@ -234,8 +293,22 @@ class _EditKelompokSifirScreenState extends State<EditKelompokSifirScreen>
                             itemCount: filtered.length,
                             itemBuilder: (ctx, i) {
                               final s = filtered[i];
-                              return ListTile(
-                                leading: CircleAvatar(
+                              final id =
+                                  int.tryParse(s['id']?.toString() ?? '') ?? 0;
+                              final selected = selectedIds.contains(id);
+                              return CheckboxListTile(
+                                value: selected,
+                                enabled: !isSaving && id > 0,
+                                onChanged: (_) {
+                                  setModalState(() {
+                                    selected
+                                        ? selectedIds.remove(id)
+                                        : selectedIds.add(id);
+                                  });
+                                },
+                                controlAffinity:
+                                    ListTileControlAffinity.trailing,
+                                secondary: CircleAvatar(
                                   backgroundColor: s['jenis_kelamin'] == 'L'
                                       ? const Color(
                                           0xFF2E86DE,
@@ -264,19 +337,86 @@ class _EditKelompokSifirScreenState extends State<EditKelompokSifirScreen>
                                   'NIS: ${s['nis'] ?? '-'} • ${s['kelas'] ?? '-'}',
                                   style: const TextStyle(fontSize: 10),
                                 ),
-                                trailing: IconButton(
-                                  icon: const Icon(
-                                    Icons.add_circle_rounded,
-                                    color: Color(0xFF138F81),
-                                  ),
-                                  onPressed: () {
-                                    Navigator.pop(ctx);
-                                    _addStudent(s);
-                                  },
-                                ),
                               );
                             },
                           ),
+                  ),
+                  SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: selectedIds.isEmpty || isSaving
+                              ? null
+                              : () async {
+                                  final count = selectedIds.length;
+                                  final confirmed = await showDialog<bool>(
+                                    context: context,
+                                    builder: (dialogContext) => AlertDialog(
+                                      title: const Text(
+                                        'Masukkan Santri?',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      content: Text(
+                                        '$count santri akan dimasukkan ke ${widget.namaKelas}.',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(
+                                            dialogContext,
+                                            false,
+                                          ),
+                                          child: const Text('Batal'),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () => Navigator.pop(
+                                            dialogContext,
+                                            true,
+                                          ),
+                                          child: const Text('Masukkan'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirmed != true || !ctx.mounted) return;
+                                  setModalState(() => isSaving = true);
+                                  final success = await _addStudents(
+                                    selectedIds.toList(),
+                                  );
+                                  if (success && ctx.mounted) {
+                                    Navigator.pop(ctx);
+                                  } else if (ctx.mounted) {
+                                    setModalState(() => isSaving = false);
+                                  }
+                                },
+                          icon: isSaving
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.group_add_rounded),
+                          label: Text(
+                            isSaving
+                                ? 'Menyimpan...'
+                                : 'Masukkan ${selectedIds.length} Santri',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF138F81),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),

@@ -142,6 +142,7 @@ Route::middleware('api.auth')->group(function () {
 
         Route::post('kelompok-belajar', [KelompokBelajarController::class, 'store']);
         Route::post('kelompok-belajar/{kelompokBelajar}/siswa', [KelompokBelajarController::class, 'addSiswa']);
+        Route::post('kelompok-belajar/{kelompokBelajar}/siswa/bulk', [KelompokBelajarController::class, 'addSiswaBulk']);
         Route::put('kelompok-belajar/{kelompokBelajar}', [KelompokBelajarController::class, 'update']);
         Route::delete('kelompok-belajar/{kelompokBelajar}', [KelompokBelajarController::class, 'destroy']);
         Route::delete('kelompok-belajar/{kelompokBelajar}/siswa/{siswaId}', [KelompokBelajarController::class, 'removeSiswa']);

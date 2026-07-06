@@ -163,21 +163,7 @@ class KelompokBelajarController extends Controller
             'siswa_id' => 'required|exists:siswa,id',
         ]);
 
-        // Cek apakah siswa sudah ada di kelompok ini
-        if ($kelompokBelajar->siswa()->where('siswa_id', $validated['siswa_id'])->exists()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Siswa sudah ada di kelompok ini',
-            ], 409);
-        }
-
-        $kelompokBelajar->siswa()->attach($validated['siswa_id']);
-
-        // Update kelas siswa to match kelompok
-        Siswa::where('id', $validated['siswa_id'])->update([
-            'kelas' => $kelompokBelajar->nama,
-            'class_id' => $kelompokBelajar->class_id,
-        ]);
+        $this->assignStudents($kelompokBelajar, [(int) $validated['siswa_id']]);
 
         return response()->json([
             'success' => true,
@@ -186,15 +172,72 @@ class KelompokBelajarController extends Controller
         ]);
     }
 
+    public function addSiswaBulk(Request $request, KelompokBelajar $kelompokBelajar)
+    {
+        $validated = $request->validate([
+            'siswa_ids' => 'required|array|min:1',
+            'siswa_ids.*' => 'required|integer|distinct|exists:siswa,id',
+        ]);
+
+        $studentIds = collect($validated['siswa_ids'])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $this->assignStudents($kelompokBelajar, $studentIds);
+
+        return response()->json([
+            'success' => true,
+            'message' => count($studentIds) . ' santri berhasil dimasukkan ke ' . $kelompokBelajar->nama,
+            'added_count' => count($studentIds),
+        ]);
+    }
+
     // DELETE /api/kelompok-belajar/{id}/siswa/{siswaId} — hapus siswa dari kelompok
     public function removeSiswa(KelompokBelajar $kelompokBelajar, $siswaId)
     {
-        $kelompokBelajar->siswa()->detach($siswaId);
+        DB::transaction(function () use ($kelompokBelajar, $siswaId) {
+            $kelompokBelajar->siswa()->detach($siswaId);
+            Siswa::query()
+                ->whereKey($siswaId)
+                ->where(function ($query) use ($kelompokBelajar) {
+                    $query
+                        ->when(
+                            $kelompokBelajar->class_id,
+                            fn ($inner) => $inner->where('class_id', $kelompokBelajar->class_id)
+                        )
+                        ->orWhere('kelas', $kelompokBelajar->nama);
+                })
+                ->update([
+                    'kelas' => null,
+                    'class_id' => null,
+                ]);
+        });
 
         return response()->json([
             'success' => true,
             'message' => 'Siswa berhasil dihapus dari kelompok',
         ]);
+    }
+
+    private function assignStudents(KelompokBelajar $kelompokBelajar, array $studentIds): void
+    {
+        DB::transaction(function () use ($kelompokBelajar, $studentIds) {
+            DB::table('kelompok_belajar_siswa')
+                ->whereIn('siswa_id', $studentIds)
+                ->where('kelompok_id', '!=', $kelompokBelajar->id)
+                ->delete();
+
+            $kelompokBelajar->siswa()->syncWithoutDetaching($studentIds);
+
+            Siswa::query()
+                ->whereIn('id', $studentIds)
+                ->update([
+                    'kelas' => $kelompokBelajar->nama,
+                    'class_id' => $kelompokBelajar->class_id,
+                ]);
+        });
     }
 
     // GET /api/kelompok-belajar/by-kelas/{nama} — ambil siswa berdasarkan nama kelas

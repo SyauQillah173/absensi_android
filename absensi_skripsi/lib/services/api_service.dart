@@ -1494,6 +1494,20 @@ class ApiService {
     return _handleResponse(response);
   }
 
+  static Future<Map<String, dynamic>> addSiswaBulkToKelompok(
+    int kelompokId,
+    List<int> siswaIds,
+  ) async {
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/kelompok-belajar/$kelompokId/siswa/bulk'),
+          headers: await _headers(),
+          body: jsonEncode({'siswa_ids': siswaIds}),
+        )
+        .timeout(const Duration(seconds: 20));
+    return _handleResponse(response);
+  }
+
   static Future<Map<String, dynamic>> removeSiswaFromKelompok(
     int kelompokId,
     int siswaId,

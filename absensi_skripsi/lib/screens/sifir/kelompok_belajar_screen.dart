@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../services/cache_service.dart';
 import '../../services/sync_service.dart';
+import 'edit_kelompok_sifir_screen.dart';
 
 class KelompokBelajarScreen extends StatefulWidget {
   const KelompokBelajarScreen({super.key});
@@ -1197,6 +1198,7 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
   Widget _buildKelasItem(Map<String, dynamic> kelas, List<Color> gradient) {
     final jumlahSiswa = (kelas['jumlah_siswa'] as int?) ?? 0;
     final nama = kelas['nama']?.toString() ?? '';
+    final kelompokId = (kelas['id'] as num?)?.toInt() ?? 0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
@@ -1240,34 +1242,72 @@ class _KelompokBelajarScreenState extends State<KelompokBelajarScreen>
                 ],
               ),
             ),
-            // Edit Button
-            GestureDetector(
-              onTap: () => _showEditKelasNameDialog(kelas),
-              child: Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: gradient[0].withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+            Tooltip(
+              message: 'Kelola santri',
+              child: GestureDetector(
+                onTap: kelompokId <= 0
+                    ? null
+                    : () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => EditKelompokSifirScreen(
+                              kelompokId: kelompokId,
+                              namaKelas: nama,
+                            ),
+                          ),
+                        ).then((_) => _loadKelompok());
+                      },
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF138F81).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.group_add_rounded,
+                    size: 16,
+                    color: Color(0xFF138F81),
+                  ),
                 ),
-                child: Icon(Icons.edit_rounded, size: 14, color: gradient[0]),
+              ),
+            ),
+            const SizedBox(width: 6),
+            // Edit Button
+            Tooltip(
+              message: 'Edit kelompok',
+              child: GestureDetector(
+                onTap: () => _showEditKelasNameDialog(kelas),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: gradient[0].withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.edit_rounded, size: 14, color: gradient[0]),
+                ),
               ),
             ),
             const SizedBox(width: 6),
             // Delete Button
-            GestureDetector(
-              onTap: () => _showDeleteKelasDialog(kelas),
-              child: Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD63031).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.delete_outline_rounded,
-                  size: 14,
-                  color: Color(0xFFD63031),
+            Tooltip(
+              message: 'Hapus kelompok',
+              child: GestureDetector(
+                onTap: () => _showDeleteKelasDialog(kelas),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD63031).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.delete_outline_rounded,
+                    size: 14,
+                    color: Color(0xFFD63031),
+                  ),
                 ),
               ),
             ),
