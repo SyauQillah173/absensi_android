@@ -196,8 +196,29 @@ class LocalDbService {
   // ===== INSERT ABSENSI PENDING =====
   static Future<int> insertAbsensiPending(Map<String, dynamic> data) async {
     final db = await database;
+    return _insertAbsensiPending(db, data);
+  }
+
+  static Future<List<int>> insertAbsensiPendingBatch(
+    List<Map<String, dynamic>> items,
+  ) async {
+    final db = await database;
+    return db.transaction((txn) async {
+      final ids = <int>[];
+      for (final item in items) {
+        ids.add(await _insertAbsensiPending(txn, item));
+      }
+      return ids;
+    });
+  }
+
+  static Future<int> _insertAbsensiPending(
+    DatabaseExecutor executor,
+    Map<String, dynamic> source,
+  ) async {
+    final data = Map<String, dynamic>.from(source);
     data['attendance_key'] = buildAttendanceKey(data);
-    final existing = await db.query(
+    final existing = await executor.query(
       'absensi_pending',
       where: 'attendance_key = ? AND sync_status IN (?, ?, ?)',
       whereArgs: [data['attendance_key'], 'pending', 'failed', 'syncing'],
@@ -216,7 +237,7 @@ class LocalDbService {
     data['sync_status'] = 'pending';
     data['sync_message'] = 'Menunggu sinkronisasi ke server';
     data['retry_count'] = 0;
-    return await db.insert(
+    return executor.insert(
       'absensi_pending',
       data,
       conflictAlgorithm: ConflictAlgorithm.replace,

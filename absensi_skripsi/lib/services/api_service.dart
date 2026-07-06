@@ -679,7 +679,7 @@ class ApiService {
           headers: await _headers(),
           body: jsonEncode({'absensi': absensiList}),
         )
-        .timeout(_writeRequestTimeout);
+        .timeout(const Duration(seconds: 30));
     return _handleResponse(response);
   }
 

@@ -108,7 +108,6 @@ class SyncService {
       await Workmanager().registerOneOffTask(
         _workManagerOneOffSync,
         workManagerTaskSyncAbsensi,
-        initialDelay: const Duration(minutes: 1),
         constraints: Constraints(networkType: NetworkType.connected),
         existingWorkPolicy: ExistingWorkPolicy.replace,
         backoffPolicy: BackoffPolicy.exponential,
@@ -166,45 +165,74 @@ class SyncService {
       }
 
       for (final item in pendingList) {
-        try {
-          await LocalDbService.markAsSyncing(item['id'] as int);
-          final response = await ApiService.createAbsensi({
-            'siswa_id': item['siswa_id'],
-            'tanggal': item['tanggal'],
-            'status': item['status'],
-            'attendance_status_id': item['attendance_status_id'],
-            'keterangan': item['keterangan'],
-            'kelas': item['kelas'],
-            'class_id': item['class_id'],
-            'mapel': item['mapel'],
-            'mapel_id': item['mapel_id'],
-            'jadwal_id': item['jadwal_id'],
-            'diinput_oleh': item['diinput_oleh'],
-            'actor_user_id': item['actor_user_id'],
-            'diinput_via': 'offline_sync',
-            'device_id': item['device_id'],
-            'attendance_key': item['attendance_key'],
-          });
+        await LocalDbService.markAsSyncing(item['id'] as int);
+      }
 
-          if (response['success'] == true) {
+      try {
+        final payload = pendingList
+            .map(
+              (item) => {
+                'siswa_id': item['siswa_id'],
+                'tanggal': item['tanggal'],
+                'status': item['status'],
+                'attendance_status_id': item['attendance_status_id'],
+                'keterangan': item['keterangan'],
+                'kelas': item['kelas'],
+                'class_id': item['class_id'],
+                'mapel': item['mapel'],
+                'mapel_id': item['mapel_id'],
+                'jadwal_id': item['jadwal_id'],
+                'diinput_oleh': item['diinput_oleh'],
+                'actor_user_id': item['actor_user_id'],
+                'diinput_via': 'offline_sync',
+                'device_id': item['device_id'],
+                'attendance_key': item['attendance_key'],
+              },
+            )
+            .toList();
+        final response = await ApiService.createAbsensiBulk(payload);
+        if (response['success'] != true) {
+          throw ApiException(
+            response['message']?.toString() ?? 'Sinkronisasi batch gagal',
+          );
+        }
+        final failedRows = List<Map<String, dynamic>>.from(
+          response['failed'] ?? const [],
+        );
+        final failedByIndex = <int, Map<String, dynamic>>{
+          for (final row in failedRows)
+            if (int.tryParse(row['index']?.toString() ?? '') != null)
+              int.parse(row['index'].toString()): row,
+        };
+
+        for (var index = 0; index < pendingList.length; index++) {
+          final item = pendingList[index];
+          final failed = failedByIndex[index];
+          if (failed == null) {
             await LocalDbService.markAsSynced(item['id'] as int);
             synced++;
-          } else if (response['conflict'] == true) {
-            // === CONFLICT: Absensi sudah diinput oleh orang lain ===
-            final conflictMsg = response['message'] ?? 'Absensi sudah ada';
-            await LocalDbService.markAsConflict(item['id'] as int, conflictMsg);
-            conflicts++;
-            // Simpan detail conflict untuk notifikasi
-            conflictMessages.add(conflictMsg);
+            continue;
           }
-        } catch (e) {
-          final detail = _syncErrorMessage(e);
+
+          final message = failed['message']?.toString() ?? 'Sinkronisasi gagal';
+          if (failed['conflict'] == true) {
+            await LocalDbService.markAsConflict(item['id'] as int, message);
+            conflicts++;
+            conflictMessages.add(message);
+          } else {
+            await LocalDbService.markAsFailed(item['id'] as int, message);
+            errors++;
+          }
+        }
+      } catch (error) {
+        final detail = _syncErrorMessage(error);
+        for (final item in pendingList) {
           await LocalDbService.markAsFailed(
             item['id'] as int,
             'Sinkronisasi gagal: $detail',
           );
-          errors++;
         }
+        errors += pendingList.length;
       }
 
       // === KIRIM NOTIFIKASI DETAIL ===
@@ -497,6 +525,9 @@ class SyncService {
     _heartbeatTimer?.cancel();
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
       if (await isOnline()) {
+        if (await LocalDbService.countPending() > 0) {
+          unawaited(syncPendingAbsensi());
+        }
         _emitEvent(const AppDataEvent(topic: SyncTopics.heartbeat));
       }
     });

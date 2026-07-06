@@ -242,6 +242,17 @@ class AbsensiController extends Controller
             }
         }
 
+        if ($createdResponse->isNotEmpty()) {
+            try {
+                $createdAbsensi = Absensi::query()
+                    ->whereIn('id', $createdResponse->pluck('id')->all())
+                    ->get();
+                $this->notifyGuardiansForAbsensi($createdAbsensi);
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
+
         return response()->json([
             'success' => true,
             'message' => $createdResponse->count() . ' absensi baru, ' . $updatedResponse->count() . ' diperbarui, ' . count($failed) . ' gagal/konflik',

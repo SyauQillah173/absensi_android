@@ -71,6 +71,9 @@ class _AbsensiMapelScreenState extends State<AbsensiMapelScreen> {
       if (event.topic == SyncTopics.absensi ||
           event.topic == SyncTopics.connectivity ||
           event.topic == SyncTopics.heartbeat) {
+        if (event.topic == SyncTopics.absensi) {
+          _lastPresenceProbeAt = null;
+        }
         _loadAbsensiPresence(silent: true);
       }
     });
