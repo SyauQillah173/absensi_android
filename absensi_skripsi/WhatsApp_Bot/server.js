@@ -14,8 +14,9 @@ const sessionsDir = path.join(dataDir, 'sessions');
 if (!fs.existsSync(sessionsDir)) {
     fs.mkdirSync(sessionsDir, { recursive: true });
 }
+const browserPath = resolveBrowserPath();
 console.log(`Data bot tersimpan di: ${dataDir}`);
-console.log(`Browser Chrome: ${process.env.PUPPETEER_EXECUTABLE_PATH || 'default puppeteer'}`);
+console.log(`Browser Chrome: ${browserPath || 'default puppeteer'}`);
 
 // User Agent Rotation untuk Anti-Ban
 const userAgents = [
@@ -54,7 +55,7 @@ class SessionManager {
                 ? new LocalAuth({ dataPath: sessionsDir })
                 : new LocalAuth({ clientId: clientId, dataPath: sessionsDir }),
             puppeteer: {
-                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+                executablePath: browserPath,
                 headless: true,
                 args: [
                     '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
@@ -240,6 +241,25 @@ class SessionManager {
 }
 
 const sessionManager = new SessionManager();
+
+function resolveBrowserPath() {
+    const candidates = [
+        process.env.PUPPETEER_EXECUTABLE_PATH,
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/google-chrome',
+        '/usr/bin/chromium',
+        '/usr/bin/chromium-browser',
+        '/opt/google/chrome/chrome',
+    ].filter(Boolean);
+
+    for (const candidate of candidates) {
+        if (fs.existsSync(candidate)) {
+            return candidate;
+        }
+    }
+
+    return undefined;
+}
 
 console.log('');
 console.log('╔════════════════════════════════════════╗');
