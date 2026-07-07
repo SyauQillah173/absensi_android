@@ -77,6 +77,17 @@ Environment variable penting perlu diisi di Vercel sesuai `.env.example`, teruta
 - `DB_USERNAME`
 - `DB_PASSWORD`
 - `WHATSAPP_BOT_URL`
+- `WHATSAPP_BOT_SECRET`
+- `WHATSAPP_DISPATCH_WHEN_SYNC_QUEUE`
+
+Untuk bot Railway yang sedang dipakai:
+
+```text
+WHATSAPP_BOT_URL=https://absensiandroid-production.up.railway.app
+WHATSAPP_BOT_SECRET=isi_sama_dengan_BOT_SECRET_di_Railway
+WHATSAPP_BOT_TIMEOUT=20
+WHATSAPP_DISPATCH_WHEN_SYNC_QUEUE=true
+```
 
 ## Database Khusus Skripsi
 
@@ -117,6 +128,12 @@ WhatsApp bot tidak otomatis berjalan di Vercel static frontend. Jalankan sebagai
 cd WhatsApp_Bot
 npm install
 npm start
+```
+
+Jika memakai Railway:
+
+```text
+https://absensiandroid-production.up.railway.app
 ```
 
 ## Catatan Penting

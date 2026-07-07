@@ -35,7 +35,7 @@ class ThesisNotificationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $log ? 'Notifikasi WhatsApp masuk antrean.' : 'Status Hadir tidak memerlukan notifikasi WhatsApp.',
+            'message' => $log ? 'Notifikasi WhatsApp masuk antrean.' : 'Notifikasi WhatsApp tidak dibuat.',
             'data' => $log,
         ], 201);
     }

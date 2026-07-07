@@ -130,9 +130,7 @@ class ThesisPresensiController extends Controller
         });
 
         foreach ($presensi->detail as $detail) {
-            if (in_array($detail->status_presensi, ['Sakit', 'Izin', 'Alpa'], true)) {
-                $notification->queue($detail);
-            }
+            $notification->queue($detail);
         }
 
         return $presensi;

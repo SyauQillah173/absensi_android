@@ -157,7 +157,7 @@ Jika berhasil, response berisi `sukses: true`.
 Pada environment backend Vercel skripsi, isi:
 
 ```text
-WHATSAPP_BOT_URL=https://nama-service.up.railway.app
+WHATSAPP_BOT_URL=https://absensiandroid-production.up.railway.app
 WHATSAPP_BOT_SECRET=isi_secret_acak_yang_sama_dengan_backend
 WHATSAPP_BOT_TIMEOUT=20
 WHATSAPP_DISPATCH_WHEN_SYNC_QUEUE=true
