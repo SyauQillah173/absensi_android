@@ -197,6 +197,15 @@ interface ThesisDao {
     @Query("SELECT COUNT(*) FROM sync_outbox WHERE status != 'completed'")
     fun pendingCount(): Int
 
+    @Query("SELECT COUNT(*) FROM sync_outbox WHERE status = 'failed'")
+    fun failedCount(): Int
+
+    @Query("SELECT COUNT(*) FROM sync_outbox WHERE status = 'syncing'")
+    fun syncingCount(): Int
+
+    @Query("SELECT last_error FROM sync_outbox WHERE last_error IS NOT NULL ORDER BY created_at DESC LIMIT 1")
+    fun latestSyncError(): String?
+
     @Query("UPDATE sync_outbox SET status=:status, last_error=:error, retry_count=retry_count+:retry WHERE operation_id=:id")
     fun updateOutbox(id: String, status: String, error: String?, retry: Int)
 
@@ -294,18 +303,15 @@ class ThesisRoomBridge(
                             "saveMaster" -> saveMaster(call.arguments as Map<*, *>)
                             "deleteMaster" -> deleteMaster(call.arguments as Map<*, *>)
                             "pendingCount" -> db.dao().pendingCount()
+                            "syncStatus" -> syncStatus()
                             "history" -> db.dao().history().map(::historyMap)
                             "requestSync" -> {
                                 scheduleOneOff()
                                 true
                             }
                             "syncNow" -> {
-                                if (ThesisSyncRunner.hasInternet(context)) {
-                                    ThesisSyncRunner.sync(context)
-                                } else {
-                                    scheduleOneOff()
-                                    mapOf("online" to false, "synced" to 0, "pending" to db.dao().pendingCount())
-                                }
+                                scheduleOneOff()
+                                ThesisSyncRunner.sync(context)
                             }
                             else -> null
                         }
@@ -443,6 +449,13 @@ class ThesisRoomBridge(
         scheduleOneOff()
         return operationId
     }
+
+    private fun syncStatus(): Map<String, Any?> = mapOf(
+        "pending" to db.dao().pendingCount(),
+        "failed" to db.dao().failedCount(),
+        "syncing" to db.dao().syncingCount(),
+        "last_error" to db.dao().latestSyncError(),
+    )
 
     private fun saveMaster(args: Map<*, *>): Map<String, Any?> {
         val entity = text(args, "entity")

@@ -22,6 +22,9 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
   String _name = '';
   String _role = '';
   int _pending = 0;
+  int _failed = 0;
+  int _syncingCount = 0;
+  String? _syncError;
   Timer? _timer;
   bool _syncing = false;
 
@@ -36,7 +39,11 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
   Future<void> _load() async {
     _name = await ThesisSession.name();
     _role = await ThesisSession.role();
-    _pending = await ThesisDatabase.instance.pendingCount();
+    final status = await ThesisDatabase.instance.syncStatus();
+    _pending = (status['pending'] as num? ?? 0).toInt();
+    _failed = (status['failed'] as num? ?? 0).toInt();
+    _syncingCount = (status['syncing'] as num? ?? 0).toInt();
+    _syncError = status['last_error']?.toString();
     if (mounted) setState(() {});
   }
 
@@ -47,11 +54,27 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _sync() async {
+  Future<void> _sync({bool notify = false}) async {
     if (_syncing) return;
     _syncing = true;
     try {
-      await ThesisSync.syncPending();
+      final result = await ThesisSync.syncPending();
+      if (!mounted || !notify) return;
+      final synced = (result['synced'] as num? ?? 0).toInt();
+      final failed = (result['failed'] as num? ?? 0).toInt();
+      if (synced > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$synced data berhasil masuk server.')),
+        );
+      } else if (failed > 0) {
+        final status = await ThesisDatabase.instance.syncStatus();
+        if (!mounted) return;
+        final error =
+            status['last_error']?.toString() ?? 'Server belum menerima data.';
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Sinkronisasi gagal: $error')));
+      }
     } finally {
       _syncing = false;
       await _load();
@@ -76,7 +99,15 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final admin = _role == 'admin';
     final pages = <Widget>[
-      _Home(name: _name, role: _role, pending: _pending, onSync: _sync),
+      _Home(
+        name: _name,
+        role: _role,
+        pending: _pending,
+        failed: _failed,
+        syncing: _syncing || _syncingCount > 0,
+        syncError: _syncError,
+        onSync: () => _sync(notify: true),
+      ),
       AttendanceScreen(onSaved: _load),
       HistoryScreen(onChanged: _load),
       if (admin) const MasterDataScreen(),
@@ -150,12 +181,18 @@ class _Home extends StatelessWidget {
   final String name;
   final String role;
   final int pending;
+  final int failed;
+  final bool syncing;
+  final String? syncError;
   final VoidCallback onSync;
 
   const _Home({
     required this.name,
     required this.role,
     required this.pending,
+    required this.failed,
+    required this.syncing,
+    required this.syncError,
     required this.onSync,
   });
 
@@ -178,23 +215,42 @@ class _Home extends StatelessWidget {
             leading: Icon(
               pending == 0
                   ? Icons.cloud_done_outlined
+                  : failed > 0
+                  ? Icons.error_outline
                   : Icons.cloud_upload_outlined,
-              color: pending == 0 ? Colors.green : Colors.orange.shade800,
+              color: pending == 0
+                  ? Colors.green
+                  : failed > 0
+                  ? Colors.red
+                  : Colors.orange.shade800,
             ),
             title: Text(
               pending == 0
                   ? 'Semua data tersinkron'
+                  : syncing
+                  ? 'Sedang mengirim $pending data'
+                  : failed > 0
+                  ? '$failed data gagal sinkronisasi'
                   : '$pending data menunggu sinkronisasi',
             ),
             subtitle: Text(
               pending == 0
                   ? 'Data lokal dan server sudah sama.'
+                  : failed > 0 && syncError != null
+                  ? syncError!
+                  : syncing
+                  ? 'App sedang mencoba mengirim ke server.'
                   : 'Akan dikirim otomatis ketika internet tersedia.',
             ),
             trailing: IconButton(
               tooltip: 'Sinkronkan',
               onPressed: onSync,
-              icon: const Icon(Icons.sync),
+              icon: syncing
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.sync),
             ),
           ),
         ),

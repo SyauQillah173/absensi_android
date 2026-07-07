@@ -24,19 +24,22 @@ class ThesisSync {
     await ThesisDatabase.instance.requestSync();
   }
 
-  static Future<bool> syncPending() async {
-    if (!await ThesisSession.hasValidSession()) return false;
+  static Future<Map<String, dynamic>> syncPending() async {
+    if (!await ThesisSession.hasValidSession()) {
+      return const {'pending': 0, 'synced': 0, 'failed': 0};
+    }
     await ThesisDatabase.instance.requestSync();
     try {
       final result = await ThesisDatabase.instance.syncNow();
-      if ((result['synced'] as int? ?? 0) > 0 ||
-          (result['pending'] as int? ?? 0) == 0) {
+      if ((result['synced'] as num? ?? 0) > 0 ||
+          (result['pending'] as num? ?? 0) == 0) {
         await refreshBootstrap();
       }
+      return result;
     } catch (_) {
       // WorkManager tetap menyimpan retry ketika sinkronisasi foreground gagal.
+      return ThesisDatabase.instance.syncStatus();
     }
-    return true;
   }
 
   static Future<void> refreshBootstrap() async {

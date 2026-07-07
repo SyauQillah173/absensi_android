@@ -103,6 +103,13 @@ class ThesisDatabase {
   Future<int> pendingCount() async =>
       await _channel.invokeMethod<int>('pendingCount') ?? 0;
 
+  Future<Map<String, dynamic>> syncStatus() async {
+    final result = await _channel.invokeMapMethod<dynamic, dynamic>(
+      'syncStatus',
+    );
+    return Map<String, dynamic>.from(result ?? const {});
+  }
+
   Future<List<Map<String, dynamic>>> history() => _list('history');
 
   Future<void> requestSync() async {
