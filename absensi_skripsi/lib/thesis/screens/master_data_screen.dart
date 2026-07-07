@@ -1,4 +1,10 @@
+import 'dart:io';
+
+import 'package:excel/excel.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../services/thesis_database.dart';
 import '../services/thesis_sync.dart';
@@ -61,7 +67,7 @@ class _MasterDataScreenState extends State<MasterDataScreen>
     if (confirmed != true) return;
     try {
       await ThesisDatabase.instance.deleteMaster(entity: entity, id: id);
-      await ThesisSync.requestNow();
+      await ThesisSync.syncPending();
       await _load();
       _message('Perubahan disimpan lokal dan akan disinkronkan otomatis.');
     } catch (error) {
@@ -124,10 +130,32 @@ class _MasterDataScreenState extends State<MasterDataScreen>
         },
       ),
     ),
-    floatingActionButton: FloatingActionButton(
-      tooltip: 'Tambah santri',
-      onPressed: () => _studentDialog(null),
-      child: const Icon(Icons.person_add_alt_1),
+    floatingActionButton: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        FloatingActionButton.small(
+          heroTag: 'template-santri',
+          tooltip: 'Template Excel',
+          onPressed: _shareStudentTemplate,
+          child: const Icon(Icons.description_outlined),
+        ),
+        const SizedBox(height: 8),
+        FloatingActionButton.extended(
+          heroTag: 'import-santri',
+          tooltip: 'Import santri dari Excel',
+          onPressed: _importStudentsFromExcel,
+          icon: const Icon(Icons.upload_file),
+          label: const Text('Import Excel'),
+        ),
+        const SizedBox(height: 8),
+        FloatingActionButton(
+          heroTag: 'add-santri',
+          tooltip: 'Tambah santri',
+          onPressed: () => _studentDialog(null),
+          child: const Icon(Icons.person_add_alt_1),
+        ),
+      ],
     ),
   );
 
@@ -254,7 +282,7 @@ class _MasterDataScreenState extends State<MasterDataScreen>
                       'status_aktif': true,
                     },
                   );
-                  await ThesisSync.requestNow();
+                  await ThesisSync.syncPending();
                   if (context.mounted) Navigator.pop(context, true);
                 } catch (error) {
                   _message(error.toString());
@@ -307,7 +335,7 @@ class _MasterDataScreenState extends State<MasterDataScreen>
             'status_aktif': true,
           },
         );
-        await ThesisSync.requestNow();
+        await ThesisSync.syncPending();
         return {'success': true};
       },
     );
@@ -392,7 +420,7 @@ class _MasterDataScreenState extends State<MasterDataScreen>
                       'status_aktif': true,
                     },
                   );
-                  await ThesisSync.requestNow();
+                  await ThesisSync.syncPending();
                   if (context.mounted) Navigator.pop(context, true);
                 } catch (error) {
                   _message(error.toString());
@@ -408,6 +436,213 @@ class _MasterDataScreenState extends State<MasterDataScreen>
       item.dispose();
     }
     if (saved == true) await _load();
+  }
+
+  Future<void> _shareStudentTemplate() async {
+    final excel = Excel.createExcel();
+    final sheet = excel['Santri'];
+    excel.setDefaultSheet('Santri');
+    sheet.appendRow([
+      TextCellValue('nisn'),
+      TextCellValue('nama_santri'),
+      TextCellValue('nama_kelas'),
+      TextCellValue('jenis_kelamin'),
+      TextCellValue('nama_wali'),
+      TextCellValue('nomor_wa_wali'),
+      TextCellValue('alamat'),
+      TextCellValue('tgl_lahir'),
+    ]);
+    sheet.appendRow([
+      TextCellValue('1234567890'),
+      TextCellValue('Ahmad Fulan'),
+      TextCellValue(
+        _classes.isEmpty ? 'Kelas 1' : _classes.first['nama_kelas'].toString(),
+      ),
+      TextCellValue('L'),
+      TextCellValue('Bapak Ahmad'),
+      TextCellValue('081234567890'),
+      TextCellValue('Gresik'),
+      TextCellValue('2012-01-31'),
+    ]);
+    final bytes = excel.encode();
+    if (bytes == null) {
+      _message('Template Excel gagal dibuat.');
+      return;
+    }
+    final directory = await getTemporaryDirectory();
+    final file = File('${directory.path}/template_import_santri.xlsx');
+    await file.writeAsBytes(bytes, flush: true);
+    await Share.shareXFiles([XFile(file.path)], text: 'Template import santri');
+  }
+
+  Future<void> _importStudentsFromExcel() async {
+    if (_classes.isEmpty) {
+      _message('Tambahkan kelas sebelum import santri.');
+      return;
+    }
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['xlsx'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+
+    setState(() => _loading = true);
+    try {
+      final picked = result.files.single;
+      final bytes = picked.bytes ?? await File(picked.path!).readAsBytes();
+      final workbook = Excel.decodeBytes(bytes);
+      final sheets = workbook.tables.values
+          .where((sheet) => sheet.maxRows > 0)
+          .toList();
+      if (sheets.isEmpty) {
+        _message('File Excel kosong.');
+        return;
+      }
+      final sheet = sheets.first;
+      final headerRow = sheet.rows.first;
+      final headers = <String, int>{};
+      for (var index = 0; index < headerRow.length; index += 1) {
+        final key = _normalizeHeader(_cellText(headerRow[index]));
+        if (key.isNotEmpty) headers[key] = index;
+      }
+
+      final classesByName = {
+        for (final row in _classes)
+          row['nama_kelas'].toString().trim().toLowerCase(): row,
+      };
+      final classesById = {
+        for (final row in _classes) (row['id_kelas'] as num).toInt(): row,
+      };
+      final studentsByNisn = {
+        for (final row in _students) row['nisn'].toString().trim(): row,
+      };
+
+      var imported = 0;
+      final skipped = <String>[];
+      for (var rowIndex = 1; rowIndex < sheet.rows.length; rowIndex += 1) {
+        final row = sheet.rows[rowIndex];
+        if (row.every((cell) => _cellText(cell).isEmpty)) continue;
+
+        final nisn = _excelValue(row, headers, ['nisn']);
+        final name = _excelValue(row, headers, ['namasantri', 'nama']);
+        final className = _excelValue(row, headers, ['namakelas', 'kelas']);
+        final classIdText = _excelValue(row, headers, ['idkelas']);
+        final guardian = _excelValue(row, headers, ['namawali', 'wali']);
+        final phone = _excelValue(row, headers, [
+          'nomorwawali',
+          'nowa',
+          'whatsapp',
+          'nohpwali',
+        ]);
+        if ([nisn, name, guardian, phone].any((value) => value.isEmpty)) {
+          skipped.add(
+            'Baris ${rowIndex + 1}: NISN, nama, wali, atau nomor WA kosong.',
+          );
+          continue;
+        }
+
+        final parsedClassId = int.tryParse(classIdText);
+        final classRow = parsedClassId == null
+            ? classesByName[className.toLowerCase()]
+            : classesById[parsedClassId];
+        if (classRow == null) {
+          skipped.add('Baris ${rowIndex + 1}: kelas tidak ditemukan.');
+          continue;
+        }
+
+        final existing = studentsByNisn[nisn];
+        await ThesisDatabase.instance.saveMaster(
+          entity: 'santri',
+          data: {
+            if (existing != null) 'id_santri': existing['id_santri'],
+            'id_kelas': (classRow['id_kelas'] as num).toInt(),
+            'nisn': nisn,
+            'nama_santri': name,
+            'jenis_kelamin': _normalizeGender(
+              _excelValue(row, headers, ['jeniskelamin', 'jk', 'gender']),
+            ),
+            'tgl_lahir': _nullableExcelValue(row, headers, [
+              'tgllahir',
+              'tanggallahir',
+            ]),
+            'nama_wali': guardian,
+            'nomor_wa_wali': phone,
+            'alamat': _nullableExcelValue(row, headers, ['alamat']),
+            'status_aktif': true,
+          },
+        );
+        imported += 1;
+      }
+
+      await ThesisSync.syncPending();
+      await _load();
+      final note = skipped.isEmpty ? '' : ' ${skipped.take(3).join(' ')}';
+      _message(
+        '$imported santri berhasil diproses.${skipped.isEmpty ? '' : ' ${skipped.length} baris dilewati.'}$note',
+      );
+    } catch (error) {
+      _message('Import Excel gagal: $error');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String _excelValue(
+    List<Data?> row,
+    Map<String, int> headers,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final index = headers[key];
+      if (index != null && index < row.length) {
+        final value = _cellText(row[index]);
+        if (value.isNotEmpty) return value;
+      }
+    }
+    return '';
+  }
+
+  String? _nullableExcelValue(
+    List<Data?> row,
+    Map<String, int> headers,
+    List<String> keys,
+  ) {
+    final value = _excelValue(row, headers, keys);
+    return value.isEmpty ? null : value;
+  }
+
+  String _cellText(Data? cell) {
+    final value = cell?.value;
+    if (value == null) return '';
+    return switch (value) {
+      TextCellValue() => value.value.toString().trim(),
+      IntCellValue() => value.value.toString(),
+      DoubleCellValue() =>
+        value.value % 1 == 0
+            ? value.value.toInt().toString()
+            : value.value.toString(),
+      DateCellValue() =>
+        value.asDateTimeLocal().toIso8601String().split('T').first,
+      DateTimeCellValue() =>
+        value.asDateTimeLocal().toIso8601String().split('T').first,
+      BoolCellValue() => value.value ? '1' : '0',
+      TimeCellValue() => value.toString(),
+      FormulaCellValue() => value.formula.trim(),
+    };
+  }
+
+  String _normalizeHeader(String value) =>
+      value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+  String _normalizeGender(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized == 'p' ||
+        normalized == 'perempuan' ||
+        normalized == 'wanita') {
+      return 'P';
+    }
+    return 'L';
   }
 
   Future<bool> _formDialog({

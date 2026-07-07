@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../services/thesis_database.dart';
@@ -13,11 +15,13 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   Future<List<Map<String, dynamic>>>? _history;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _reload();
+    _timer = Timer.periodic(const Duration(seconds: 6), (_) => _reload());
   }
 
   void _reload() =>
@@ -108,5 +112,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
         },
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 }

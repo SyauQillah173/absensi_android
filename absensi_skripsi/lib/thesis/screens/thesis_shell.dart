@@ -17,18 +17,20 @@ class ThesisShell extends StatefulWidget {
   State<ThesisShell> createState() => _ThesisShellState();
 }
 
-class _ThesisShellState extends State<ThesisShell> {
+class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
   int _index = 0;
   String _name = '';
   String _role = '';
   int _pending = 0;
   Timer? _timer;
+  bool _syncing = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
-    _timer = Timer.periodic(const Duration(seconds: 6), (_) => _load());
+    _timer = Timer.periodic(const Duration(seconds: 6), (_) => _tick());
   }
 
   Future<void> _load() async {
@@ -38,13 +40,34 @@ class _ThesisShellState extends State<ThesisShell> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _sync() async {
-    await ThesisSync.syncPending();
+  Future<void> _tick() async {
     await _load();
+    if (_pending > 0) {
+      unawaited(_sync());
+    }
+  }
+
+  Future<void> _sync() async {
+    if (_syncing) return;
+    _syncing = true;
+    try {
+      await ThesisSync.syncPending();
+    } finally {
+      _syncing = false;
+      await _load();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_sync());
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     super.dispose();
   }

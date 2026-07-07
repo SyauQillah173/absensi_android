@@ -586,6 +586,7 @@ object ThesisSyncRunner {
         if (token.isBlank()) return mapOf("online" to true, "synced" to 0, "pending" to dao.pendingCount())
 
         var synced = 0
+        var failed = 0
         for (item in dao.pending()) {
             try {
                 dao.updateOutbox(item.operation_id, "syncing", null, 0)
@@ -611,14 +612,14 @@ object ThesisSyncRunner {
                 dao.deleteOutbox(item.operation_id)
                 synced += 1
             } catch (error: Throwable) {
+                failed += 1
                 dao.updateOutbox(item.operation_id, "failed", error.message, 1)
                 if (item.entity_type == "presensi") {
                     dao.updatePresensi(item.operation_id, "failed", error.message, null)
                 }
-                throw error
             }
         }
-        return mapOf("online" to true, "synced" to synced, "pending" to dao.pendingCount())
+        return mapOf("online" to true, "synced" to synced, "failed" to failed, "pending" to dao.pendingCount())
     }
 }
 
@@ -628,8 +629,8 @@ class ThesisSyncWorker(context: Context, params: WorkerParameters) : Worker(cont
             return Result.retry()
         }
         return try {
-            ThesisSyncRunner.sync(applicationContext)
-            Result.success()
+            val result = ThesisSyncRunner.sync(applicationContext)
+            if ((result["failed"] as? Int ?: 0) > 0) Result.retry() else Result.success()
         } catch (_: Throwable) {
             Result.retry()
         }
