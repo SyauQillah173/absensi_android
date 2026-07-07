@@ -327,8 +327,7 @@ return new class extends Migration
     private function dropOutOfScopeTables(): void
     {
         $keep = [
-            'migrations', 'users', 'password_reset_tokens', 'sessions', 'cache',
-            'cache_locks', 'jobs', 'job_batches', 'failed_jobs',
+            'migrations', 'users',
             'api_access_tokens', 'guru', 'kelas', 'santri', 'presensi',
             'detail_presensi', 'sync_operations', 'whatsapp_message_logs',
             'audit_logs',
@@ -339,6 +338,11 @@ return new class extends Migration
                 ->where('table_schema', 'public')
                 ->where('table_type', 'BASE TABLE')
                 ->pluck('table_name');
+        } elseif (in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
+            $tables = DB::table('information_schema.tables')
+                ->where('table_schema', DB::getDatabaseName())
+                ->where('table_type', 'BASE TABLE')
+                ->pluck('table_name');
         } else {
             $tables = DB::select("select name from sqlite_master where type = 'table' and name not like 'sqlite_%'");
             $tables = collect($tables)->pluck('name');
@@ -346,8 +350,13 @@ return new class extends Migration
 
         foreach ($tables as $table) {
             if (!in_array($table, $keep, true)) {
-                $suffix = DB::getDriverName() === 'pgsql' ? ' cascade' : '';
-                DB::statement('drop table if exists "'.str_replace('"', '""', $table).'"'.$suffix);
+                if (DB::getDriverName() === 'pgsql') {
+                    DB::statement('drop table if exists "'.str_replace('"', '""', $table).'" cascade');
+                } elseif (in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
+                    DB::statement('drop table if exists `'.str_replace('`', '``', $table).'`');
+                } else {
+                    DB::statement('drop table if exists "'.str_replace('"', '""', $table).'"');
+                }
             }
         }
         DB::table('users')->whereNotIn('role', ['admin', 'guru'])->delete();
