@@ -8,7 +8,8 @@ import '../services/thesis_sync.dart';
 
 class AttendanceScreen extends StatefulWidget {
   final VoidCallback onSaved;
-  const AttendanceScreen({super.key, required this.onSaved});
+  final String? editLocalId;
+  const AttendanceScreen({super.key, required this.onSaved, this.editLocalId});
 
   @override
   State<AttendanceScreen> createState() => _AttendanceScreenState();
@@ -32,6 +33,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   TimeOfDay _time = TimeOfDay.now();
   bool _loading = true;
   bool _saving = false;
+  bool get _editing => widget.editLocalId != null;
 
   @override
   void initState() {
@@ -41,20 +43,44 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Future<void> _loadClasses() async {
     _classes = await ThesisDatabase.instance.classes();
-    if (_classes.isNotEmpty) {
-      _classId = _classes.first['id_kelas'] as int;
+    if (_editing) {
+      final attendance = await ThesisDatabase.instance.attendance(
+        widget.editLocalId!,
+      );
+      if (attendance != null) {
+        _classId = (attendance['id_kelas'] as num).toInt();
+        _date = DateTime.parse(attendance['tanggal'].toString());
+        _time = _parseTime(attendance['waktu_mulai'].toString());
+        final detail = (attendance['detail'] as List? ?? const [])
+            .map((row) => Map<String, dynamic>.from(row as Map))
+            .toList();
+        await _loadStudents(existingDetails: detail);
+      }
+    } else if (_classes.isNotEmpty) {
+      _classId = (_classes.first['id_kelas'] as num).toInt();
       await _loadStudents();
     }
     if (mounted) setState(() => _loading = false);
   }
 
-  Future<void> _loadStudents() async {
+  Future<void> _loadStudents({
+    List<Map<String, dynamic>> existingDetails = const [],
+  }) async {
     if (_classId == null) return;
     _students = await ThesisDatabase.instance.students(_classId!);
+    final existing = {
+      for (final row in existingDetails) (row['id_santri'] as num).toInt(): row,
+    };
     _status
       ..clear()
       ..addEntries(
-        _students.map((row) => MapEntry(row['id_santri'] as int, 'Hadir')),
+        _students.map((row) {
+          final id = (row['id_santri'] as num).toInt();
+          return MapEntry(
+            id,
+            existing[id]?['status_presensi']?.toString() ?? 'Hadir',
+          );
+        }),
       );
     for (final controller in _notes.values) {
       controller.dispose();
@@ -62,11 +88,25 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     _notes
       ..clear()
       ..addEntries(
-        _students.map(
-          (row) => MapEntry(row['id_santri'] as int, TextEditingController()),
-        ),
+        _students.map((row) {
+          final id = (row['id_santri'] as num).toInt();
+          return MapEntry(
+            id,
+            TextEditingController(
+              text: existing[id]?['keterangan']?.toString() ?? '',
+            ),
+          );
+        }),
       );
     if (mounted) setState(() {});
+  }
+
+  TimeOfDay _parseTime(String value) {
+    final parts = value.split(':');
+    return TimeOfDay(
+      hour: parts.isNotEmpty ? int.tryParse(parts[0]) ?? 0 : 0,
+      minute: parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0,
+    );
   }
 
   Future<void> _save() async {
@@ -74,7 +114,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     setState(() => _saving = true);
     try {
       final details = _students.map((student) {
-        final id = student['id_santri'] as int;
+        final id = (student['id_santri'] as num).toInt();
         final status = _status[id] ?? 'Hadir';
         return {
           'id_santri': id,
@@ -84,19 +124,32 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       }).toList();
       final time =
           '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}:00';
-      await ThesisDatabase.instance.saveAttendance(
-        classId: _classId!,
-        date: DateFormat('yyyy-MM-dd').format(_date),
-        startTime: time,
-        details: details,
-      );
+      final date = DateFormat('yyyy-MM-dd').format(_date);
+      if (_editing) {
+        await ThesisDatabase.instance.updateAttendance(
+          localId: widget.editLocalId!,
+          classId: _classId!,
+          date: date,
+          startTime: time,
+          details: details,
+        );
+      } else {
+        await ThesisDatabase.instance.saveAttendance(
+          classId: _classId!,
+          date: date,
+          startTime: time,
+          details: details,
+        );
+      }
       widget.onSaved();
       unawaited(ThesisSync.syncPending().then((_) => widget.onSaved()));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'Presensi tersimpan. Jika internet aktif, sinkronisasi dikirim sekarang.',
+              _editing
+                  ? 'Perubahan presensi tersimpan. Jika internet aktif, database server ikut diperbarui.'
+                  : 'Presensi tersimpan. Jika internet aktif, sinkronisasi dikirim sekarang.',
             ),
           ),
         );
@@ -129,7 +182,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   items: _classes
                       .map(
                         (row) => DropdownMenuItem<int>(
-                          value: row['id_kelas'] as int,
+                          value: (row['id_kelas'] as num).toInt(),
                           child: Text(row['nama_kelas'].toString()),
                         ),
                       )
@@ -186,7 +239,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             separatorBuilder: (_, index) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final student = _students[index];
-              final id = student['id_santri'] as int;
+              final id = (student['id_santri'] as num).toInt();
               final status = _status[id] ?? 'Hadir';
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 10),
@@ -263,7 +316,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.save),
-                label: Text('Simpan ${_students.length} Presensi'),
+                label: Text(
+                  _editing
+                      ? 'Update ${_students.length} Presensi'
+                      : 'Simpan ${_students.length} Presensi',
+                ),
               ),
             ),
           ),

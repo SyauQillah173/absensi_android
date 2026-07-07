@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../services/thesis_database.dart';
+import 'attendance_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key});
+  final VoidCallback onChanged;
+  const HistoryScreen({super.key, required this.onChanged});
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -20,6 +22,24 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   void _reload() =>
       setState(() => _history = ThesisDatabase.instance.history());
+
+  Future<void> _edit(Map<String, dynamic> row) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => Scaffold(
+          appBar: AppBar(title: const Text('Edit Presensi')),
+          body: AttendanceScreen(
+            editLocalId: row['local_id'].toString(),
+            onSaved: () {
+              widget.onChanged();
+              _reload();
+            },
+          ),
+        ),
+      ),
+    );
+    _reload();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,21 +75,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     'Hadir ${row['hadir']}  Sakit ${row['sakit']}  Izin ${row['izin']}  Alpa ${row['alpa']}',
                   ),
                   isThreeLine: true,
-                  trailing: Tooltip(
-                    message: status,
-                    child: Icon(
-                      status == 'completed'
-                          ? Icons.cloud_done
-                          : status == 'failed'
-                          ? Icons.error_outline
-                          : Icons.cloud_upload_outlined,
-                      color: status == 'completed'
-                          ? Colors.green
-                          : status == 'failed'
-                          ? Colors.red
-                          : Colors.orange.shade800,
-                    ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Tooltip(
+                        message: status,
+                        child: Icon(
+                          status == 'completed'
+                              ? Icons.cloud_done
+                              : status == 'failed'
+                              ? Icons.error_outline
+                              : Icons.cloud_upload_outlined,
+                          color: status == 'completed'
+                              ? Colors.green
+                              : status == 'failed'
+                              ? Colors.red
+                              : Colors.orange.shade800,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Edit presensi',
+                        onPressed: () => _edit(row),
+                        icon: const Icon(Icons.edit),
+                      ),
+                    ],
                   ),
+                  onTap: () => _edit(row),
                 ),
               );
             },

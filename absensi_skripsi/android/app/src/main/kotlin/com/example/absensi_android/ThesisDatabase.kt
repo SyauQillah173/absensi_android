@@ -111,14 +111,25 @@ data class OutboxEntity(
 
 data class HistoryRow(
     val local_id: String,
+    val id_presensi: Long?,
+    val id_kelas: Long,
     val nama_kelas: String,
     val tanggal: String,
     val waktu_mulai: String,
+    val catatan: String?,
     val sync_status: String,
     val hadir: Int,
     val sakit: Int,
     val izin: Int,
     val alpa: Int,
+)
+
+data class DetailRow(
+    val id_santri: Long,
+    val nisn: String,
+    val nama_santri: String,
+    val status_presensi: String,
+    val keterangan: String?,
 )
 
 @Dao
@@ -189,14 +200,27 @@ interface ThesisDao {
     @Query("UPDATE sync_outbox SET status=:status, last_error=:error, retry_count=retry_count+:retry WHERE operation_id=:id")
     fun updateOutbox(id: String, status: String, error: String?, retry: Int)
 
-    @Query("UPDATE presensi SET sync_status=:status, sync_message=:message, id_presensi=:serverId WHERE operation_id=:id")
+    @Query("UPDATE presensi SET sync_status=:status, sync_message=:message, id_presensi=COALESCE(:serverId, id_presensi) WHERE operation_id=:id")
     fun updatePresensi(id: String, status: String, message: String?, serverId: Long?)
 
     @Query("DELETE FROM sync_outbox WHERE operation_id=:id")
     fun deleteOutbox(id: String)
 
+    @Query("DELETE FROM detail_presensi WHERE presensi_local_id=:localId")
+    fun deleteDetails(localId: String)
+
+    @Query("SELECT * FROM presensi WHERE local_id=:localId LIMIT 1")
+    fun presensi(localId: String): PresensiEntity?
+
     @Query(
-        """SELECT p.local_id, k.nama_kelas, p.tanggal, p.waktu_mulai, p.sync_status,
+        """SELECT d.id_santri, s.nisn, s.nama_santri, d.status_presensi, d.keterangan
+        FROM detail_presensi d JOIN santri s ON s.id_santri=d.id_santri
+        WHERE d.presensi_local_id=:localId ORDER BY s.nama_santri""",
+    )
+    fun attendanceDetails(localId: String): List<DetailRow>
+
+    @Query(
+        """SELECT p.local_id, p.id_presensi, p.id_kelas, k.nama_kelas, p.tanggal, p.waktu_mulai, p.catatan, p.sync_status,
         SUM(CASE WHEN d.status_presensi='Hadir' THEN 1 ELSE 0 END) hadir,
         SUM(CASE WHEN d.status_presensi='Sakit' THEN 1 ELSE 0 END) sakit,
         SUM(CASE WHEN d.status_presensi='Izin' THEN 1 ELSE 0 END) izin,
@@ -264,7 +288,9 @@ class ThesisRoomBridge(
                             "gurus" -> db.dao().gurus().map(::guruMap)
                             "students" -> db.dao().students((call.argument<Number>("classId")!!).toLong()).map(::santriMap)
                             "allStudents" -> allStudents()
+                            "attendance" -> attendance(text(call.arguments as Map<*, *>, "localId"))
                             "saveAttendance" -> saveAttendance(call.arguments as Map<*, *>)
+                            "updateAttendance" -> updateAttendance(call.arguments as Map<*, *>)
                             "saveMaster" -> saveMaster(call.arguments as Map<*, *>)
                             "deleteMaster" -> deleteMaster(call.arguments as Map<*, *>)
                             "pendingCount" -> db.dao().pendingCount()
@@ -361,6 +387,57 @@ class ThesisRoomBridge(
             db.dao().insertDetails(entities)
             db.dao().insertOutbox(
                 OutboxEntity(operationId, "presensi", "POST", "/presensi", payload.toString(), "pending", 0, null, text(args, "updatedAt")),
+            )
+        }
+        scheduleOneOff()
+        return operationId
+    }
+
+    private fun attendance(localId: String): Map<String, Any?>? {
+        val row = db.dao().presensi(localId) ?: return null
+        return presensiMap(row) + mapOf(
+            "detail" to db.dao().attendanceDetails(localId).map(::detailMap),
+        )
+    }
+
+    private fun updateAttendance(args: Map<*, *>): String {
+        val localId = text(args, "localId")
+        val operationId = text(args, "operationId")
+        val existing = db.dao().presensi(localId) ?: throw IllegalArgumentException("Data presensi tidak ditemukan.")
+        val details = args["details"] as List<*>
+        val payloadDetails = JSONArray()
+        val entities = details.map {
+            val row = it as Map<*, *>
+            payloadDetails.put(JSONObject().apply {
+                put("id_santri", long(row, "id_santri"))
+                put("status_presensi", text(row, "status_presensi"))
+                put("keterangan", row["keterangan"])
+            })
+            DetailPresensiEntity(localId, long(row, "id_santri"), text(row, "status_presensi"), nullableText(row, "keterangan"))
+        }
+        val payload = JSONObject().apply {
+            put("operation_id", operationId)
+            put("id_kelas", long(args, "classId"))
+            put("tanggal", text(args, "date"))
+            put("waktu_mulai", text(args, "startTime"))
+            put("catatan", args["note"])
+            put("allow_update", true)
+            put("detail", payloadDetails)
+        }
+        val endpoint = if (existing.id_presensi != null) "/presensi/${existing.id_presensi}" else "/presensi"
+        val method = if (existing.id_presensi != null) "PUT" else "POST"
+        db.runInTransaction {
+            db.dao().insertPresensi(
+                PresensiEntity(
+                    localId, existing.id_presensi, operationId, existing.id_guru, long(args, "classId"),
+                    text(args, "date"), text(args, "startTime"), null,
+                    nullableText(args, "note"), "pending", null, text(args, "updatedAt"),
+                ),
+            )
+            db.dao().deleteDetails(localId)
+            db.dao().insertDetails(entities)
+            db.dao().insertOutbox(
+                OutboxEntity(operationId, "presensi", method, endpoint, payload.toString(), "pending", 0, null, text(args, "updatedAt")),
             )
         }
         scheduleOneOff()
@@ -577,9 +654,22 @@ private fun santriMap(row: SantriEntity): Map<String, Any?> = mapOf(
     "nomor_wa_wali" to row.nomor_wa_wali, "status_aktif" to row.status_aktif,
 )
 
+private fun presensiMap(row: PresensiEntity): Map<String, Any?> = mapOf(
+    "local_id" to row.local_id, "id_presensi" to row.id_presensi, "operation_id" to row.operation_id,
+    "id_guru" to row.id_guru, "id_kelas" to row.id_kelas, "tanggal" to row.tanggal,
+    "waktu_mulai" to row.waktu_mulai, "waktu_selesai" to row.waktu_selesai,
+    "catatan" to row.catatan, "sync_status" to row.sync_status, "sync_message" to row.sync_message,
+)
+
+private fun detailMap(row: DetailRow): Map<String, Any?> = mapOf(
+    "id_santri" to row.id_santri, "nisn" to row.nisn, "nama_santri" to row.nama_santri,
+    "status_presensi" to row.status_presensi, "keterangan" to row.keterangan,
+)
+
 private fun historyMap(row: HistoryRow): Map<String, Any?> = mapOf(
-    "local_id" to row.local_id, "nama_kelas" to row.nama_kelas, "tanggal" to row.tanggal,
-    "waktu_mulai" to row.waktu_mulai, "sync_status" to row.sync_status,
+    "local_id" to row.local_id, "id_presensi" to row.id_presensi, "id_kelas" to row.id_kelas,
+    "nama_kelas" to row.nama_kelas, "tanggal" to row.tanggal,
+    "waktu_mulai" to row.waktu_mulai, "catatan" to row.catatan, "sync_status" to row.sync_status,
     "hadir" to row.hadir, "sakit" to row.sakit, "izin" to row.izin, "alpa" to row.alpa,
 )
 

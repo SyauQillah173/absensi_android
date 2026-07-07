@@ -55,7 +55,7 @@ class _ThesisShellState extends State<ThesisShell> {
     final pages = <Widget>[
       _Home(name: _name, role: _role, pending: _pending, onSync: _sync),
       AttendanceScreen(onSaved: _load),
-      const HistoryScreen(),
+      HistoryScreen(onChanged: _load),
       if (admin) const MasterDataScreen(),
     ];
     final destinations = <NavigationDestination>[

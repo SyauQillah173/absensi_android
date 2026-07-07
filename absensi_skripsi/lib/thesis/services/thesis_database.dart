@@ -44,6 +44,37 @@ class ThesisDatabase {
         operationId;
   }
 
+  Future<Map<String, dynamic>?> attendance(String localId) async {
+    final result = await _channel.invokeMapMethod<dynamic, dynamic>(
+      'attendance',
+      {'localId': localId},
+    );
+    return result == null ? null : Map<String, dynamic>.from(result);
+  }
+
+  Future<String> updateAttendance({
+    required String localId,
+    required int classId,
+    required String date,
+    required String startTime,
+    required List<Map<String, dynamic>> details,
+    String? note,
+  }) async {
+    const uuid = Uuid();
+    final operationId = uuid.v4();
+    return await _channel.invokeMethod<String>('updateAttendance', {
+          'localId': localId,
+          'operationId': operationId,
+          'classId': classId,
+          'date': date,
+          'startTime': startTime,
+          'details': details,
+          'note': note,
+          'updatedAt': DateTime.now().toIso8601String(),
+        }) ??
+        operationId;
+  }
+
   Future<Map<String, dynamic>> saveMaster({
     required String entity,
     required Map<String, dynamic> data,
