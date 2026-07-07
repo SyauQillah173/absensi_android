@@ -19,6 +19,7 @@ RUN if [ -f /tmp/source/package.json ] && [ -f /tmp/source/server.js ]; then \
         exit 1; \
     fi \
     && npm ci --omit=dev \
+    && npx puppeteer browsers install chrome \
     && rm -rf /tmp/source
 
 EXPOSE 3001

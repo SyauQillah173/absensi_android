@@ -17,6 +17,7 @@ if (!fs.existsSync(sessionsDir)) {
 const browserPath = resolveBrowserPath();
 console.log(`Data bot tersimpan di: ${dataDir}`);
 console.log(`Browser Chrome: ${browserPath || 'default puppeteer'}`);
+console.log(`Cache Puppeteer: ${process.env.PUPPETEER_CACHE_DIR || path.join(process.env.HOME || '/root', '.cache', 'puppeteer')}`);
 
 // User Agent Rotation untuk Anti-Ban
 const userAgents = [
