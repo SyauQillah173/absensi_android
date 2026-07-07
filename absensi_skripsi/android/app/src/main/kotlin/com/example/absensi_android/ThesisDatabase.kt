@@ -23,10 +23,12 @@ import androidx.work.Worker
 import androidx.work.WorkerParameters
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
@@ -146,7 +148,7 @@ interface ThesisDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertOutbox(row: OutboxEntity)
 
-    @Query("SELECT * FROM guru ORDER BY nama_guru")
+    @Query("SELECT * FROM guru WHERE status_aktif = 1 ORDER BY nama_guru")
     fun gurus(): List<GuruEntity>
 
     @Query("SELECT * FROM kelas WHERE status_aktif = 1 ORDER BY tingkat, nama_kelas")
@@ -155,8 +157,26 @@ interface ThesisDao {
     @Query("SELECT * FROM santri WHERE id_kelas = :classId AND status_aktif = 1 ORDER BY nama_santri")
     fun students(classId: Long): List<SantriEntity>
 
-    @Query("SELECT * FROM santri ORDER BY nama_santri")
+    @Query("SELECT * FROM santri WHERE status_aktif = 1 ORDER BY nama_santri")
     fun allStudents(): List<SantriEntity>
+
+    @Query("SELECT MIN(id_guru) FROM guru")
+    fun minGuruId(): Long?
+
+    @Query("SELECT MIN(id_kelas) FROM kelas")
+    fun minKelasId(): Long?
+
+    @Query("SELECT MIN(id_santri) FROM santri")
+    fun minSantriId(): Long?
+
+    @Query("UPDATE guru SET status_aktif = 0 WHERE id_guru = :id")
+    fun deactivateGuru(id: Long)
+
+    @Query("UPDATE kelas SET status_aktif = 0 WHERE id_kelas = :id")
+    fun deactivateKelas(id: Long)
+
+    @Query("UPDATE santri SET status_aktif = 0 WHERE id_santri = :id")
+    fun deactivateSantri(id: Long)
 
     @Query("SELECT * FROM sync_outbox WHERE status IN ('pending','failed','syncing') ORDER BY created_at")
     fun pending(): List<OutboxEntity>
@@ -206,11 +226,15 @@ abstract class ThesisRoomDatabase : RoomDatabase() {
 
         fun get(context: Context): ThesisRoomDatabase =
             instance ?: synchronized(this) {
+                System.loadLibrary("sqlcipher")
+                val factory = SupportOpenHelperFactory(
+                    "presensi-skripsi-room-sqlcipher".toByteArray(StandardCharsets.UTF_8),
+                )
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     ThesisRoomDatabase::class.java,
-                    "presensi_skripsi_room.db",
-                ).build().also { instance = it }
+                    context.getDatabasePath("presensi_skripsi_room_encrypted.db").absolutePath,
+                ).openHelperFactory(factory).build().also { instance = it }
             }
     }
 }
@@ -239,6 +263,8 @@ class ThesisRoomBridge(
                             "students" -> db.dao().students((call.argument<Number>("classId")!!).toLong()).map(::santriMap)
                             "allStudents" -> allStudents()
                             "saveAttendance" -> saveAttendance(call.arguments as Map<*, *>)
+                            "saveMaster" -> saveMaster(call.arguments as Map<*, *>)
+                            "deleteMaster" -> deleteMaster(call.arguments as Map<*, *>)
                             "pendingCount" -> db.dao().pendingCount()
                             "history" -> db.dao().history().map(::historyMap)
                             "requestSync" -> {
@@ -331,6 +357,104 @@ class ThesisRoomBridge(
         return operationId
     }
 
+    private fun saveMaster(args: Map<*, *>): Map<String, Any?> {
+        val entity = text(args, "entity")
+        val operationId = text(args, "operationId")
+        val data = args["data"] as Map<*, *>
+        val updatedAt = text(args, "updatedAt")
+        val existingId = nullableLong(data, idKey(entity))
+        val id = existingId ?: nextLocalId(entity)
+        val endpoint = if (existingId == null) "/$entity" else "/$entity/$id"
+        val method = if (existingId == null) "POST" else "PUT"
+        val payload = JSONObject().apply {
+            put("operation_id", operationId)
+            for ((key, value) in data) {
+                if (key != null && value != null) put(key.toString(), value)
+            }
+        }
+
+        db.runInTransaction {
+            when (entity) {
+                "guru" -> db.dao().insertGuru(listOf(
+                    GuruEntity(
+                        id,
+                        nullableLong(data, "id_user"),
+                        text(data, "nama_guru"),
+                        nullableText(data, "username"),
+                        nullableText(data, "nip_nidm"),
+                        nullableText(data, "nomor_hp"),
+                        nullableText(data, "alamat"),
+                        bool(data, "status_aktif", true),
+                    ),
+                ))
+                "kelas" -> db.dao().insertKelas(listOf(
+                    KelasEntity(
+                        id,
+                        long(data, "id_guru"),
+                        text(data, "nama_kelas"),
+                        int(data, "tingkat"),
+                        bool(data, "status_aktif", true),
+                    ),
+                ))
+                "santri" -> db.dao().insertSantri(listOf(
+                    SantriEntity(
+                        id,
+                        long(data, "id_kelas"),
+                        text(data, "nisn"),
+                        text(data, "nama_santri"),
+                        nullableText(data, "jenis_kelamin"),
+                        nullableText(data, "tgl_lahir"),
+                        nullableText(data, "alamat"),
+                        nullableText(data, "nama_wali"),
+                        nullableText(data, "nomor_wa_wali"),
+                        bool(data, "status_aktif", true),
+                    ),
+                ))
+            }
+            db.dao().insertOutbox(
+                OutboxEntity(operationId, entity, method, endpoint, payload.toString(), "pending", 0, null, updatedAt),
+            )
+        }
+        scheduleOneOff()
+
+        return mapOf(idKey(entity) to id, "operation_id" to operationId, "sync_status" to "pending")
+    }
+
+    private fun deleteMaster(args: Map<*, *>): Boolean {
+        val entity = text(args, "entity")
+        val id = long(args, "id")
+        val operationId = text(args, "operationId")
+        val updatedAt = text(args, "updatedAt")
+        db.runInTransaction {
+            when (entity) {
+                "guru" -> db.dao().deactivateGuru(id)
+                "kelas" -> db.dao().deactivateKelas(id)
+                "santri" -> db.dao().deactivateSantri(id)
+            }
+            db.dao().insertOutbox(
+                OutboxEntity(operationId, entity, "DELETE", "/$entity/$id", "{}", "pending", 0, null, updatedAt),
+            )
+        }
+        scheduleOneOff()
+        return true
+    }
+
+    private fun nextLocalId(entity: String): Long {
+        val min = when (entity) {
+            "guru" -> db.dao().minGuruId()
+            "kelas" -> db.dao().minKelasId()
+            "santri" -> db.dao().minSantriId()
+            else -> null
+        } ?: 0
+        return if (min < 0) min - 1 else -1
+    }
+
+    private fun idKey(entity: String) = when (entity) {
+        "guru" -> "id_guru"
+        "kelas" -> "id_kelas"
+        else -> "id_santri"
+    }
+
     private fun allStudents(): List<Map<String, Any?>> {
         val classes = db.dao().classes().associateBy { it.id_kelas }
         return db.dao().allStudents().map {
@@ -381,12 +505,16 @@ class ThesisSyncWorker(context: Context, params: WorkerParameters) : Worker(cont
                 val stream = if (connection.responseCode in 200..299) connection.inputStream else connection.errorStream
                 val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
                 if (connection.responseCode !in 200..299) throw IllegalStateException(JSONObject(response).optString("message", "Sinkronisasi ditolak server."))
-                val serverId = JSONObject(response).optJSONObject("data")?.optLong("id_presensi")
-                dao.updatePresensi(item.operation_id, "completed", null, serverId)
+                if (item.entity_type == "presensi") {
+                    val serverId = JSONObject(response).optJSONObject("data")?.optLong("id_presensi")
+                    dao.updatePresensi(item.operation_id, "completed", null, serverId)
+                }
                 dao.deleteOutbox(item.operation_id)
             } catch (error: Throwable) {
                 dao.updateOutbox(item.operation_id, "failed", error.message, 1)
-                dao.updatePresensi(item.operation_id, "failed", error.message, null)
+                if (item.entity_type == "presensi") {
+                    dao.updatePresensi(item.operation_id, "failed", error.message, null)
+                }
                 return Result.retry()
             }
         }
@@ -424,3 +552,4 @@ private fun long(row: Map<*, *>, key: String) = (row[key] as? Number)?.toLong() 
 private fun nullableLong(row: Map<*, *>, key: String) = (row[key] as? Number)?.toLong() ?: row[key]?.toString()?.toLongOrNull()
 private fun int(row: Map<*, *>, key: String) = (row[key] as? Number)?.toInt() ?: row[key].toString().toInt()
 private fun bool(row: Map<*, *>, key: String) = row[key] == true || row[key] == 1 || row[key]?.toString() == "1"
+private fun bool(row: Map<*, *>, key: String, default: Boolean) = if (row.containsKey(key)) bool(row, key) else default

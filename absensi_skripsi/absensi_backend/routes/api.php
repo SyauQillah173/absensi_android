@@ -20,7 +20,9 @@ Route::post('login', [AuthController::class, 'login']);
 
 Route::middleware('api.auth')->group(function (): void {
     Route::post('auth/logout', [AuthController::class, 'logout']);
+    Route::post('auth/refresh-token', [AuthController::class, 'refresh']);
     Route::post('logout', [AuthController::class, 'logout']);
+    Route::post('refresh-token', [AuthController::class, 'refresh']);
     Route::get('sync/bootstrap', [ThesisMasterController::class, 'bootstrap']);
     Route::post('sync/batch', [ThesisPresensiController::class, 'syncBatch']);
 
@@ -51,6 +53,7 @@ Route::middleware('api.auth')->group(function (): void {
         Route::delete('santri/{santri}', [ThesisMasterController::class, 'santriDestroy']);
 
         Route::get('notifikasi', [ThesisNotificationController::class, 'index']);
+        Route::post('notifikasi/whatsapp', [ThesisNotificationController::class, 'whatsapp']);
         Route::post('notifikasi/{notification}/retry', [ThesisNotificationController::class, 'retry']);
     });
 });

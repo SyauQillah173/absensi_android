@@ -14,6 +14,13 @@ class AttendanceScreen extends StatefulWidget {
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
   final _statuses = const ['Hadir', 'Sakit', 'Izin', 'Alpa'];
+  final _noteTemplates = const [
+    'Sakit di rumah',
+    'Pergi pulang kampung',
+    'Tidak ada kabar (pergi tanpa izin)',
+    'Keluarga ada acara',
+    'Lainnya',
+  ];
   List<Map<String, dynamic>> _classes = [];
   List<Map<String, dynamic>> _students = [];
   final Map<int, String> _status = {};
@@ -203,6 +210,27 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           setState(() => _status[id] = value.first),
                     ),
                     if (status != 'Hadir') ...[
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: 'Template keterangan',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        items: _noteTemplates
+                            .map(
+                              (item) => DropdownMenuItem(
+                                value: item,
+                                child: Text(item),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value != null && value != 'Lainnya') {
+                            _notes[id]?.text = value;
+                          }
+                        },
+                      ),
                       const SizedBox(height: 8),
                       TextField(
                         controller: _notes[id],

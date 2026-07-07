@@ -48,6 +48,16 @@ class ThesisApi {
     return _decode(response);
   }
 
+  static Future<Map<String, dynamic>> refreshToken() async {
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/auth/refresh-token'),
+          headers: await _headers(),
+        )
+        .timeout(const Duration(seconds: 12));
+    return _decode(response);
+  }
+
   static Future<Map<String, String>> _headers() async => {
     'Accept': 'application/json',
     'Content-Type': 'application/json',

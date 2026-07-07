@@ -80,4 +80,26 @@ class AuthController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Logout berhasil.']);
     }
+
+    public function refresh(Request $request, JwtService $jwt)
+    {
+        $oldToken = $request->attributes->get('api_access_token');
+        $user = $request->user();
+        $token = $jwt->issue($user->id, $user->role);
+
+        ApiAccessToken::create([
+            'user_id' => $user->id,
+            'name' => $oldToken?->name ?? 'android-refresh',
+            'token_hash' => hash('sha256', $token),
+            'expires_at' => now()->addDay(),
+        ]);
+        $oldToken?->delete();
+
+        return response()->json([
+            'success' => true,
+            'token_type' => 'Bearer',
+            'token' => $token,
+            'expires_in' => 86400,
+        ]);
+    }
 }

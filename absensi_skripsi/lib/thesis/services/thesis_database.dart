@@ -44,6 +44,31 @@ class ThesisDatabase {
         operationId;
   }
 
+  Future<Map<String, dynamic>> saveMaster({
+    required String entity,
+    required Map<String, dynamic> data,
+  }) async {
+    const uuid = Uuid();
+    final result = await _channel
+        .invokeMapMethod<dynamic, dynamic>('saveMaster', {
+          'entity': entity,
+          'operationId': uuid.v4(),
+          'data': data,
+          'updatedAt': DateTime.now().toIso8601String(),
+        });
+    return Map<String, dynamic>.from(result ?? const {});
+  }
+
+  Future<void> deleteMaster({required String entity, required int id}) async {
+    const uuid = Uuid();
+    await _channel.invokeMethod<bool>('deleteMaster', {
+      'entity': entity,
+      'id': id,
+      'operationId': uuid.v4(),
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
+  }
+
   Future<int> pendingCount() async =>
       await _channel.invokeMethod<int>('pendingCount') ?? 0;
 

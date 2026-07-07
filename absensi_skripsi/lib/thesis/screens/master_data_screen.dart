@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../services/thesis_api.dart';
 import '../services/thesis_database.dart';
 import '../services/thesis_sync.dart';
 
@@ -61,8 +60,10 @@ class _MasterDataScreenState extends State<MasterDataScreen>
     );
     if (confirmed != true) return;
     try {
-      await ThesisApi.send('DELETE', '/$entity/$id', {});
-      await _refresh();
+      await ThesisDatabase.instance.deleteMaster(entity: entity, id: id);
+      await ThesisSync.requestNow();
+      await _load();
+      _message('Perubahan disimpan lokal dan akan disinkronkan otomatis.');
     } catch (error) {
       _message(error.toString());
     }
@@ -243,15 +244,17 @@ class _MasterDataScreenState extends State<MasterDataScreen>
             FilledButton(
               onPressed: () async {
                 try {
-                  await ThesisApi.send(
-                    row == null ? 'POST' : 'PUT',
-                    row == null ? '/kelas' : '/kelas/${row['id_kelas']}',
-                    {
+                  await ThesisDatabase.instance.saveMaster(
+                    entity: 'kelas',
+                    data: {
+                      if (row != null) 'id_kelas': row['id_kelas'],
                       'nama_kelas': name.text.trim(),
                       'tingkat': int.tryParse(level.text) ?? 1,
                       'id_guru': guruId,
+                      'status_aktif': true,
                     },
                   );
+                  await ThesisSync.requestNow();
                   if (context.mounted) Navigator.pop(context, true);
                 } catch (error) {
                   _message(error.toString());
@@ -265,7 +268,7 @@ class _MasterDataScreenState extends State<MasterDataScreen>
     );
     name.dispose();
     level.dispose();
-    if (saved == true) await _refresh();
+    if (saved == true) await _load();
   }
 
   Future<void> _guruDialog(Map<String, dynamic>? row) async {
@@ -289,23 +292,29 @@ class _MasterDataScreenState extends State<MasterDataScreen>
         _field(phone, 'Nomor HP', phone: true),
         _field(address, 'Alamat'),
       ],
-      save: () => ThesisApi.send(
-        row == null ? 'POST' : 'PUT',
-        row == null ? '/guru' : '/guru/${row['id_guru']}',
-        {
-          'nama_guru': name.text.trim(),
-          'username': username.text.trim(),
-          if (password.text.isNotEmpty) 'password': password.text,
-          'nip_nidm': nip.text.trim().isEmpty ? null : nip.text.trim(),
-          'nomor_hp': phone.text.trim(),
-          'alamat': address.text.trim(),
-        },
-      ),
+      save: () async {
+        await ThesisDatabase.instance.saveMaster(
+          entity: 'guru',
+          data: {
+            if (row != null) 'id_guru': row['id_guru'],
+            if (row != null) 'id_user': row['id_user'],
+            'nama_guru': name.text.trim(),
+            'username': username.text.trim(),
+            if (password.text.isNotEmpty) 'password': password.text,
+            'nip_nidm': nip.text.trim().isEmpty ? null : nip.text.trim(),
+            'nomor_hp': phone.text.trim(),
+            'alamat': address.text.trim(),
+            'status_aktif': true,
+          },
+        );
+        await ThesisSync.requestNow();
+        return {'success': true};
+      },
     );
     for (final item in [name, username, password, nip, phone, address]) {
       item.dispose();
     }
-    if (saved) await _refresh();
+    if (saved) await _load();
   }
 
   Future<void> _studentDialog(Map<String, dynamic>? row) async {
@@ -369,10 +378,10 @@ class _MasterDataScreenState extends State<MasterDataScreen>
             FilledButton(
               onPressed: () async {
                 try {
-                  await ThesisApi.send(
-                    row == null ? 'POST' : 'PUT',
-                    row == null ? '/santri' : '/santri/${row['id_santri']}',
-                    {
+                  await ThesisDatabase.instance.saveMaster(
+                    entity: 'santri',
+                    data: {
+                      if (row != null) 'id_santri': row['id_santri'],
                       'id_kelas': classId,
                       'nisn': nisn.text.trim(),
                       'nama_santri': name.text.trim(),
@@ -380,8 +389,10 @@ class _MasterDataScreenState extends State<MasterDataScreen>
                       'nama_wali': guardian.text.trim(),
                       'nomor_wa_wali': phone.text.trim(),
                       'alamat': address.text.trim(),
+                      'status_aktif': true,
                     },
                   );
+                  await ThesisSync.requestNow();
                   if (context.mounted) Navigator.pop(context, true);
                 } catch (error) {
                   _message(error.toString());
@@ -396,7 +407,7 @@ class _MasterDataScreenState extends State<MasterDataScreen>
     for (final item in [nisn, name, guardian, phone, address]) {
       item.dispose();
     }
-    if (saved == true) await _refresh();
+    if (saved == true) await _load();
   }
 
   Future<bool> _formDialog({
