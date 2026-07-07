@@ -4,6 +4,11 @@ const { startApi } = require('./api');
 const fs = require('fs');
 const path = require('path');
 
+if (!process.env.BOT_SECRET) {
+    console.error('BOT_SECRET belum diisi. Tambahkan BOT_SECRET pada Railway Variables lalu redeploy.');
+    process.exit(1);
+}
+
 const dataDir = process.env.BOT_DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH || __dirname;
 const sessionsDir = path.join(dataDir, 'sessions');
 if (!fs.existsSync(sessionsDir)) {
@@ -52,6 +57,7 @@ class SessionManager {
                 args: [
                     '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
                     '--disable-accelerated-2d-canvas', '--no-first-run', '--disable-gpu',
+                    '--disable-crash-reporter', '--disable-crashpad', '--no-zygote',
                     '--disable-blink-features=AutomationControlled',
                     '--disable-features=IsolateOrigins,site-per-process',
                     '--window-size=1366,768', '--disable-extensions',

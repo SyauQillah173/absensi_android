@@ -66,6 +66,12 @@ ADMIN_PHONE=628xxxxxxxxxx
 NODE_ENV=production
 ```
 
+Wajib: `BOT_SECRET` harus terisi. Kalau kosong, Railway akan restart terus dan log akan menampilkan:
+
+```text
+BOT_SECRET missing
+```
+
 Catatan:
 
 - `PORT` tidak perlu diisi manual karena Railway menyediakannya otomatis.
