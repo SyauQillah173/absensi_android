@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../services/thesis_database.dart';
@@ -20,11 +22,13 @@ class _ThesisShellState extends State<ThesisShell> {
   String _name = '';
   String _role = '';
   int _pending = 0;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _timer = Timer.periodic(const Duration(seconds: 6), (_) => _load());
   }
 
   Future<void> _load() async {
@@ -35,9 +39,14 @@ class _ThesisShellState extends State<ThesisShell> {
   }
 
   Future<void> _sync() async {
-    await ThesisSync.requestNow();
     await ThesisSync.syncPending();
     await _load();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   @override

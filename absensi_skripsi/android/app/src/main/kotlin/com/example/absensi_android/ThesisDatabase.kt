@@ -1,6 +1,8 @@
 package com.qomaruddin.absensi_skripsi
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
 import androidx.room.Dao
@@ -271,6 +273,14 @@ class ThesisRoomBridge(
                                 scheduleOneOff()
                                 true
                             }
+                            "syncNow" -> {
+                                if (ThesisSyncRunner.hasInternet(context)) {
+                                    ThesisSyncRunner.sync(context)
+                                } else {
+                                    scheduleOneOff()
+                                    mapOf("online" to false, "synced" to 0, "pending" to db.dao().pendingCount())
+                                }
+                            }
                             else -> null
                         }
                         main.post { result.success(value) }
@@ -482,23 +492,35 @@ class ThesisRoomBridge(
     }
 }
 
-class ThesisSyncWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
-    override fun doWork(): Result {
-        val dao = ThesisRoomDatabase.get(applicationContext).dao()
-        val prefs = applicationContext.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-        val session = prefs.getString("flutter.thesis_session", null) ?: return Result.failure()
-        val token = JSONObject(session).optString("token")
-        if (token.isBlank()) return Result.failure()
+object ThesisSyncRunner {
+    fun hasInternet(context: Context): Boolean {
+        val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = manager.activeNetwork ?: return false
+        val capabilities = manager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
 
+    fun sync(context: Context): Map<String, Any> {
+        val dao = ThesisRoomDatabase.get(context).dao()
+        val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+        val session = prefs.getString("flutter.thesis_session", null)
+            ?: return mapOf("online" to true, "synced" to 0, "pending" to dao.pendingCount())
+        val token = JSONObject(session).optString("token")
+        if (token.isBlank()) return mapOf("online" to true, "synced" to 0, "pending" to dao.pendingCount())
+
+        var synced = 0
         for (item in dao.pending()) {
             try {
                 dao.updateOutbox(item.operation_id, "syncing", null, 0)
-                dao.updatePresensi(item.operation_id, "syncing", null, null)
+                if (item.entity_type == "presensi") {
+                    dao.updatePresensi(item.operation_id, "syncing", null, null)
+                }
                 val connection = URL("https://absensi-android-skripsi.vercel.app/api${item.endpoint}").openConnection() as HttpURLConnection
                 connection.requestMethod = item.method
                 connection.connectTimeout = 15000
                 connection.readTimeout = 20000
                 connection.doOutput = true
+                connection.setRequestProperty("Accept", "application/json")
                 connection.setRequestProperty("Authorization", "Bearer $token")
                 connection.setRequestProperty("Content-Type", "application/json")
                 connection.outputStream.use { it.write(item.payload.toByteArray()) }
@@ -510,15 +532,30 @@ class ThesisSyncWorker(context: Context, params: WorkerParameters) : Worker(cont
                     dao.updatePresensi(item.operation_id, "completed", null, serverId)
                 }
                 dao.deleteOutbox(item.operation_id)
+                synced += 1
             } catch (error: Throwable) {
                 dao.updateOutbox(item.operation_id, "failed", error.message, 1)
                 if (item.entity_type == "presensi") {
                     dao.updatePresensi(item.operation_id, "failed", error.message, null)
                 }
-                return Result.retry()
+                throw error
             }
         }
-        return Result.success()
+        return mapOf("online" to true, "synced" to synced, "pending" to dao.pendingCount())
+    }
+}
+
+class ThesisSyncWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
+    override fun doWork(): Result {
+        if (!ThesisSyncRunner.hasInternet(applicationContext)) {
+            return Result.retry()
+        }
+        return try {
+            ThesisSyncRunner.sync(applicationContext)
+            Result.success()
+        } catch (_: Throwable) {
+            Result.retry()
+        }
     }
 }
 

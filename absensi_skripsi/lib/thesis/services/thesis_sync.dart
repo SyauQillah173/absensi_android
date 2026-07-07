@@ -13,11 +13,11 @@ class ThesisSync {
   static Future<void> initialize() async {
     _subscription ??= Connectivity().onConnectivityChanged.listen((results) {
       if (results.any((item) => item != ConnectivityResult.none)) {
-        requestNow();
+        unawaited(syncPending());
       }
     });
     await refreshBootstrap();
-    await requestNow();
+    await syncPending();
   }
 
   static Future<void> requestNow() async {
@@ -27,7 +27,15 @@ class ThesisSync {
   static Future<bool> syncPending() async {
     if (!await ThesisSession.hasValidSession()) return false;
     await ThesisDatabase.instance.requestSync();
-    await refreshBootstrap();
+    try {
+      final result = await ThesisDatabase.instance.syncNow();
+      if ((result['synced'] as int? ?? 0) > 0 ||
+          (result['pending'] as int? ?? 0) == 0) {
+        await refreshBootstrap();
+      }
+    } catch (_) {
+      // WorkManager tetap menyimpan retry ketika sinkronisasi foreground gagal.
+    }
     return true;
   }
 

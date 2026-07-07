@@ -78,6 +78,11 @@ class ThesisDatabase {
     await _channel.invokeMethod<bool>('requestSync');
   }
 
+  Future<Map<String, dynamic>> syncNow() async {
+    final result = await _channel.invokeMapMethod<dynamic, dynamic>('syncNow');
+    return Map<String, dynamic>.from(result ?? const {});
+  }
+
   Future<List<Map<String, dynamic>>> _list(
     String method, [
     Map<String, dynamic>? arguments,

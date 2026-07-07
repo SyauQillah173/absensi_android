@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -88,13 +90,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         startTime: time,
         details: details,
       );
-      await ThesisSync.requestNow();
       widget.onSaved();
+      unawaited(ThesisSync.syncPending().then((_) => widget.onSaved()));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Presensi tersimpan di perangkat. Sinkronisasi berjalan otomatis.',
+              'Presensi tersimpan. Jika internet aktif, sinkronisasi dikirim sekarang.',
             ),
           ),
         );
