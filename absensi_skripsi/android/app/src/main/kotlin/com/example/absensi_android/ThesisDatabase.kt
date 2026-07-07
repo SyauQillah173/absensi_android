@@ -218,8 +218,25 @@ interface ThesisDao {
     @Query("DELETE FROM detail_presensi WHERE presensi_local_id=:localId")
     fun deleteDetails(localId: String)
 
+    @Query("DELETE FROM presensi WHERE local_id=:localId")
+    fun deletePresensi(localId: String)
+
     @Query("SELECT * FROM presensi WHERE local_id=:localId LIMIT 1")
     fun presensi(localId: String): PresensiEntity?
+
+    @Query(
+        """SELECT * FROM presensi
+        WHERE id_kelas=:classId AND tanggal=:date AND waktu_mulai=:startTime
+        ORDER BY updated_at DESC LIMIT 1""",
+    )
+    fun presensiByScope(classId: Long, date: String, startTime: String): PresensiEntity?
+
+    @Query(
+        """SELECT * FROM presensi
+        WHERE id_kelas=:classId AND tanggal=:date
+        ORDER BY updated_at DESC LIMIT 1""",
+    )
+    fun presensiByClassDate(classId: Long, date: String): PresensiEntity?
 
     @Query(
         """SELECT d.id_santri, s.nisn, s.nama_santri, d.status_presensi, d.keterangan
@@ -298,8 +315,10 @@ class ThesisRoomBridge(
                             "students" -> db.dao().students((call.argument<Number>("classId")!!).toLong()).map(::santriMap)
                             "allStudents" -> allStudents()
                             "attendance" -> attendance(text(call.arguments as Map<*, *>, "localId"))
+                            "attendanceByScope" -> attendanceByScope(call.arguments as Map<*, *>)
                             "saveAttendance" -> saveAttendance(call.arguments as Map<*, *>)
                             "updateAttendance" -> updateAttendance(call.arguments as Map<*, *>)
+                            "deleteAttendance" -> deleteAttendance(call.arguments as Map<*, *>)
                             "saveMaster" -> saveMaster(call.arguments as Map<*, *>)
                             "deleteMaster" -> deleteMaster(call.arguments as Map<*, *>)
                             "pendingCount" -> db.dao().pendingCount()
@@ -362,6 +381,16 @@ class ThesisRoomBridge(
 
     private fun saveAttendance(args: Map<*, *>): String {
         val operationId = text(args, "operationId")
+        val existing = db.dao().presensiByScope(
+            long(args, "classId"),
+            text(args, "date"),
+            text(args, "startTime"),
+        ) ?: db.dao().presensiByClassDate(long(args, "classId"), text(args, "date"))
+        if (existing != null) {
+            val updateArgs = args.toMutableMap()
+            updateArgs["localId"] = existing.local_id
+            return updateAttendance(updateArgs)
+        }
         val details = args["details"] as List<*>
         val payloadDetails = JSONArray()
         val entities = details.map {
@@ -406,6 +435,15 @@ class ThesisRoomBridge(
         )
     }
 
+    private fun attendanceByScope(args: Map<*, *>): Map<String, Any?>? {
+        val row = db.dao().presensiByScope(
+            long(args, "classId"),
+            text(args, "date"),
+            text(args, "startTime"),
+        ) ?: db.dao().presensiByClassDate(long(args, "classId"), text(args, "date")) ?: return null
+        return attendance(row.local_id)
+    }
+
     private fun updateAttendance(args: Map<*, *>): String {
         val localId = text(args, "localId")
         val operationId = text(args, "operationId")
@@ -433,6 +471,7 @@ class ThesisRoomBridge(
         val endpoint = if (existing.id_presensi != null) "/presensi/${existing.id_presensi}" else "/presensi"
         val method = if (existing.id_presensi != null) "PUT" else "POST"
         db.runInTransaction {
+            db.dao().deleteOutbox(existing.operation_id)
             db.dao().insertPresensi(
                 PresensiEntity(
                     localId, existing.id_presensi, operationId, existing.id_guru, long(args, "classId"),
@@ -448,6 +487,35 @@ class ThesisRoomBridge(
         }
         scheduleOneOff()
         return operationId
+    }
+
+    private fun deleteAttendance(args: Map<*, *>): Boolean {
+        val localId = text(args, "localId")
+        val operationId = text(args, "operationId")
+        val updatedAt = text(args, "updatedAt")
+        val existing = db.dao().presensi(localId) ?: return true
+        db.runInTransaction {
+            db.dao().deleteDetails(localId)
+            db.dao().deletePresensi(localId)
+            db.dao().deleteOutbox(existing.operation_id)
+            if (existing.id_presensi != null) {
+                db.dao().insertOutbox(
+                    OutboxEntity(
+                        operationId,
+                        "presensi_delete",
+                        "DELETE",
+                        "/presensi/${existing.id_presensi}",
+                        "{}",
+                        "pending",
+                        0,
+                        null,
+                        updatedAt,
+                    ),
+                )
+            }
+        }
+        if (existing.id_presensi != null) scheduleOneOff()
+        return true
     }
 
     private fun syncStatus(): Map<String, Any?> = mapOf(

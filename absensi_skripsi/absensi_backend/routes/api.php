@@ -36,6 +36,7 @@ Route::middleware('api.auth')->group(function (): void {
         Route::get('presensi/rekap', [ThesisPresensiController::class, 'rekap']);
         Route::post('presensi', [ThesisPresensiController::class, 'store']);
         Route::put('presensi/{presensi}', [ThesisPresensiController::class, 'store']);
+        Route::delete('presensi/{presensi}', [ThesisPresensiController::class, 'destroy']);
     });
 
     Route::middleware('role:admin')->group(function (): void {

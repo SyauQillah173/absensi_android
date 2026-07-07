@@ -33,7 +33,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   TimeOfDay _time = TimeOfDay.now();
   bool _loading = true;
   bool _saving = false;
-  bool get _editing => widget.editLocalId != null;
+  String? _activeLocalId;
+  String _syncStatus = 'new';
+  bool get _editing => _activeLocalId != null;
 
   @override
   void initState() {
@@ -43,11 +45,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Future<void> _loadClasses() async {
     _classes = await ThesisDatabase.instance.classes();
-    if (_editing) {
+    if (widget.editLocalId != null) {
       final attendance = await ThesisDatabase.instance.attendance(
         widget.editLocalId!,
       );
       if (attendance != null) {
+        _activeLocalId =
+            attendance['local_id']?.toString() ?? widget.editLocalId;
+        _syncStatus = attendance['sync_status']?.toString() ?? 'pending';
         _classId = (attendance['id_kelas'] as num).toInt();
         _date = DateTime.parse(attendance['tanggal'].toString());
         _time = _parseTime(attendance['waktu_mulai'].toString());
@@ -59,8 +64,38 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     } else if (_classes.isNotEmpty) {
       _classId = (_classes.first['id_kelas'] as num).toInt();
       await _loadStudents();
+      await _loadExistingForCurrentScope();
     }
     if (mounted) setState(() => _loading = false);
+  }
+
+  String get _dateText => DateFormat('yyyy-MM-dd').format(_date);
+
+  String get _timeText =>
+      '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}:00';
+
+  Future<void> _loadExistingForCurrentScope() async {
+    if (_classId == null) return;
+    final existing = await ThesisDatabase.instance.attendanceByScope(
+      classId: _classId!,
+      date: _dateText,
+      startTime: _timeText,
+    );
+    if (existing == null) {
+      _activeLocalId = null;
+      _syncStatus = 'new';
+      await _loadStudents();
+      return;
+    }
+
+    _activeLocalId = existing['local_id']?.toString();
+    _syncStatus = existing['sync_status']?.toString() ?? 'pending';
+    _date = DateTime.parse(existing['tanggal'].toString());
+    _time = _parseTime(existing['waktu_mulai'].toString());
+    final detail = (existing['detail'] as List? ?? const [])
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
+    await _loadStudents(existingDetails: detail);
   }
 
   Future<void> _loadStudents({
@@ -122,27 +157,34 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           'keterangan': status == 'Hadir' ? null : _notes[id]?.text.trim(),
         };
       }).toList();
-      final time =
-          '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}:00';
-      final date = DateFormat('yyyy-MM-dd').format(_date);
+      final time = _timeText;
+      final date = _dateText;
       if (_editing) {
         await ThesisDatabase.instance.updateAttendance(
-          localId: widget.editLocalId!,
+          localId: _activeLocalId!,
           classId: _classId!,
           date: date,
           startTime: time,
           details: details,
         );
+        _syncStatus = 'pending';
       } else {
-        await ThesisDatabase.instance.saveAttendance(
+        _activeLocalId = await ThesisDatabase.instance.saveAttendance(
           classId: _classId!,
           date: date,
           startTime: time,
           details: details,
         );
+        _syncStatus = 'pending';
       }
+      if (mounted) setState(() {});
       widget.onSaved();
-      unawaited(ThesisSync.syncPending().then((_) => widget.onSaved()));
+      unawaited(
+        ThesisSync.syncPending().then((_) async {
+          await _loadExistingForCurrentScope();
+          widget.onSaved();
+        }),
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -153,6 +195,48 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             ),
           ),
         );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _cancelAttendance() async {
+    final localId = _activeLocalId;
+    if (localId == null || _saving) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Batalkan Presensi?'),
+        content: const Text(
+          'Data presensi pada kelas, tanggal, dan waktu ini akan dibatalkan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Tidak'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Batalkan'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _saving = true);
+    try {
+      await ThesisDatabase.instance.deleteAttendance(localId);
+      _activeLocalId = null;
+      _syncStatus = 'new';
+      await _loadStudents();
+      widget.onSaved();
+      unawaited(ThesisSync.syncPending().then((_) => widget.onSaved()));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Presensi dibatalkan.')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -189,7 +273,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       .toList(),
                   onChanged: (value) async {
                     _classId = value;
-                    await _loadStudents();
+                    await _loadExistingForCurrentScope();
                   },
                 ),
               ),
@@ -203,7 +287,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     firstDate: DateTime.now().subtract(const Duration(days: 7)),
                     lastDate: DateTime.now(),
                   );
-                  if (value != null) setState(() => _date = value);
+                  if (value != null) {
+                    setState(() => _date = value);
+                    await _loadExistingForCurrentScope();
+                  }
                 },
                 icon: const Icon(Icons.calendar_today),
               ),
@@ -215,7 +302,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     context: context,
                     initialTime: _time,
                   );
-                  if (value != null) setState(() => _time = value);
+                  if (value != null) {
+                    setState(() => _time = value);
+                    await _loadExistingForCurrentScope();
+                  }
                 },
                 icon: const Icon(Icons.schedule),
               ),
@@ -224,11 +314,25 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              '${DateFormat('dd MMMM yyyy', 'id_ID').format(_date)} - ${_time.format(context)}',
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${DateFormat('dd MMMM yyyy', 'id_ID').format(_date)} - ${_time.format(context)}',
+                ),
+              ),
+              if (_editing)
+                Chip(
+                  visualDensity: VisualDensity.compact,
+                  label: Text(
+                    _syncStatus == 'completed'
+                        ? 'Berhasil'
+                        : _syncStatus == 'failed'
+                        ? 'Gagal'
+                        : 'Pending',
+                  ),
+                ),
+            ],
           ),
         ),
         const Divider(height: 20),
@@ -306,22 +410,36 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           top: false,
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _saving || _students.isEmpty ? null : _save,
-                icon: _saving
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.save),
-                label: Text(
-                  _editing
-                      ? 'Update ${_students.length} Presensi'
-                      : 'Simpan ${_students.length} Presensi',
+            child: Row(
+              children: [
+                if (_editing) ...[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _saving ? null : _cancelAttendance,
+                      icon: const Icon(Icons.cancel_outlined),
+                      label: const Text('Batalkan'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  flex: 2,
+                  child: FilledButton.icon(
+                    onPressed: _saving || _students.isEmpty ? null : _save,
+                    icon: _saving
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(_editing ? Icons.edit : Icons.save),
+                    label: Text(
+                      _editing
+                          ? 'Perbarui ${_students.length} Presensi'
+                          : 'Simpan ${_students.length} Presensi',
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ),

@@ -182,6 +182,17 @@ class ThesisPresensiController extends Controller
         ]);
     }
 
+    public function destroy(Request $request, Presensi $presensi)
+    {
+        $this->authorizedClass($request, (int) $presensi->id_kelas);
+        $presensi->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Presensi berhasil dibatalkan.',
+        ]);
+    }
+
     private function filtered(Request $request)
     {
         $request->validate([
