@@ -15,32 +15,26 @@ class DatabaseSeeder extends Seeder
     {
         $password = env('SEED_DEFAULT_PASSWORD', 'skripsi123');
 
-        User::updateOrCreate(
-            ['username' => 'admin'],
-            [
-                'name' => 'Admin Madrasah',
-                'email' => 'admin@skripsi.local',
-                'password' => Hash::make($password),
-                'password_hash' => Hash::make($password),
-                'role' => 'admin',
-                'status' => 'Aktif',
-                'status_aktif' => true,
-            ]
-        );
+        $this->upsertUser('admin', 'admin', [
+            'name' => 'Admin Madrasah',
+            'email' => 'admin@skripsi.local',
+            'password' => Hash::make($password),
+            'password_hash' => Hash::make($password),
+            'role' => 'admin',
+            'status' => 'Aktif',
+            'status_aktif' => true,
+        ]);
 
-        $guruUser = User::updateOrCreate(
-            ['username' => 'guru'],
-            [
-                'name' => 'Ustadz Ahmad',
-                'email' => 'guru@skripsi.local',
-                'password' => Hash::make($password),
-                'password_hash' => Hash::make($password),
-                'role' => 'guru',
-                'status' => 'Aktif',
-                'status_aktif' => true,
-                'no_hp' => '6282111111111',
-            ]
-        );
+        $guruUser = $this->upsertUser('guru', 'guru', [
+            'name' => 'Ustadz Ahmad',
+            'email' => 'guru@skripsi.local',
+            'password' => Hash::make($password),
+            'password_hash' => Hash::make($password),
+            'role' => 'guru',
+            'status' => 'Aktif',
+            'status_aktif' => true,
+            'no_hp' => '6282111111111',
+        ]);
         $guru = Guru::updateOrCreate(
             ['id_user' => $guruUser->id],
             [
@@ -65,5 +59,22 @@ class DatabaseSeeder extends Seeder
                 'status_aktif' => true,
             ]
         );
+    }
+
+    private function upsertUser(string $username, string $role, array $values): User
+    {
+        $user = User::query()
+            ->where('username', $username)
+            ->orWhere(function ($query) use ($role): void {
+                $query->where('role', $role)->orderBy('id');
+            })
+            ->first();
+
+        if ($user) {
+            $user->forceFill(['username' => $username] + $values)->save();
+            return $user->refresh();
+        }
+
+        return User::create(['username' => $username] + $values);
     }
 }

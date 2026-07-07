@@ -100,6 +100,10 @@ return new class extends Migration
 
     private function createDomainTables(): void
     {
+        foreach (['audit_logs', 'whatsapp_message_logs', 'sync_operations', 'detail_presensi', 'presensi', 'santri', 'kelas', 'guru'] as $table) {
+            Schema::dropIfExists($table);
+        }
+
         Schema::create('guru', function (Blueprint $table): void {
             $table->id('id_guru');
             $table->foreignId('id_user')->unique()->constrained('users')->cascadeOnDelete();
@@ -296,11 +300,17 @@ return new class extends Migration
                 $guruId = $guruByUser[$first->actor_user_id] ?? DB::table('kelas')
                     ->where('id_kelas', $classId)->value('id_guru');
                 $createdAt = $first->created_at ?: now();
-                $presensiId = DB::table('presensi')->insertGetId([
+                $waktuMulai = date('H:i:s', strtotime((string) $createdAt));
+                $existingPresensi = DB::table('presensi')
+                    ->where('id_kelas', $classId)
+                    ->whereDate('tanggal', $first->tanggal)
+                    ->where('waktu_mulai', $waktuMulai)
+                    ->value('id_presensi');
+                $presensiId = $existingPresensi ?: DB::table('presensi')->insertGetId([
                     'id_guru' => $guruId,
                     'id_kelas' => $classId,
                     'tanggal' => $first->tanggal,
-                    'waktu_mulai' => date('H:i:s', strtotime((string) $createdAt)),
+                    'waktu_mulai' => $waktuMulai,
                     'sync_flag' => true,
                     'operation_id' => (string) Str::uuid(),
                     'created_at' => $createdAt,
@@ -310,15 +320,19 @@ return new class extends Migration
                     if (!isset($santriMap[$row->siswa_id])) {
                         continue;
                     }
-                    DB::table('detail_presensi')->insert([
-                        'id_presensi' => $presensiId,
-                        'id_santri' => $santriMap[$row->siswa_id],
-                        'status_presensi' => in_array($row->status, ['Alfa', 'Alpha'], true) ? 'Alpa' : $row->status,
-                        'keterangan' => $row->keterangan,
-                        'sync_flag' => true,
-                        'created_at' => $row->created_at ?: now(),
-                        'updated_at' => $row->updated_at ?: now(),
-                    ]);
+                    DB::table('detail_presensi')->updateOrInsert(
+                        [
+                            'id_presensi' => $presensiId,
+                            'id_santri' => $santriMap[$row->siswa_id],
+                        ],
+                        [
+                            'status_presensi' => in_array($row->status, ['Alfa', 'Alpha'], true) ? 'Alpa' : $row->status,
+                            'keterangan' => $row->keterangan,
+                            'sync_flag' => true,
+                            'created_at' => $row->created_at ?: now(),
+                            'updated_at' => $row->updated_at ?: now(),
+                        ]
+                    );
                 }
             }
         }
