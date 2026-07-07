@@ -58,14 +58,15 @@ class SessionManager {
             puppeteer: {
                 executablePath: browserPath,
                 headless: true,
+                dumpio: true,
+                protocolTimeout: 120000,
                 args: [
                     '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
                     '--disable-accelerated-2d-canvas', '--no-first-run', '--disable-gpu',
                     '--disable-crash-reporter', '--disable-crashpad', '--disable-breakpad',
-                    '--no-zygote', '--single-process',
+                    '--no-zygote',
                     '--disable-blink-features=AutomationControlled',
                     '--disable-features=IsolateOrigins,site-per-process,VizDisplayCompositor',
-                    '--disable-software-rasterizer',
                     '--window-size=1366,768', '--disable-extensions',
                     '--disable-background-networking', '--disable-background-timer-throttling',
                     '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding',
@@ -132,6 +133,7 @@ class SessionManager {
         try {
             await client.initialize();
         } catch (err) {
+            this.logError(clientId, 'Gagal inisialisasi', err);
             console.error(`❌ [${clientId}] Gagal inisialisasi:`, err.message);
             state.status = 'error';
         }
@@ -220,6 +222,13 @@ class SessionManager {
                 }
             }
         }, delayMs);
+    }
+
+    logError(clientId, label, err) {
+        const detail = err instanceof Error
+            ? { name: err.name, message: err.message, stack: err.stack }
+            : err;
+        console.error(`ERROR_DETAIL [${clientId}] ${label}:`, JSON.stringify(detail, null, 2));
     }
 
     async loadExistingSessions() {
