@@ -38,6 +38,22 @@ absensi_skripsi/WhatsApp_Bot
 
 6. Deploy.
 
+### Jika Root Directory Tidak Bisa Diset
+
+Kalau field **Root Directory** tidak muncul, tidak bisa diklik, atau tidak bisa disimpan, pakai cara fallback ini:
+
+1. Deploy repository `absensi_android` dari root seperti biasa.
+2. Biarkan **Root Directory** kosong atau `/`.
+3. Railway akan membaca file `railway.json` di root repository.
+4. Railway akan memakai `Dockerfile.railway-bot`.
+5. Dockerfile tersebut tetap membuild bot dari folder:
+
+```text
+absensi_skripsi/WhatsApp_Bot
+```
+
+Jadi tidak masalah kalau Root Directory tidak bisa diatur, karena konfigurasi root sudah mengarahkan Railway ke bot WhatsApp skripsi.
+
 ## 3. Tambahkan Environment Variables
 
 Masuk ke service bot -> **Variables** -> tambahkan:
