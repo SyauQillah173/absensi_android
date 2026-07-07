@@ -4,7 +4,8 @@ const { startApi } = require('./api');
 const fs = require('fs');
 const path = require('path');
 
-const sessionsDir = path.join(__dirname, 'sessions');
+const dataDir = process.env.BOT_DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH || __dirname;
+const sessionsDir = path.join(dataDir, 'sessions');
 if (!fs.existsSync(sessionsDir)) {
     fs.mkdirSync(sessionsDir, { recursive: true });
 }
@@ -43,9 +44,10 @@ class SessionManager {
 
         const client = new Client({
             authStrategy: legacyAuth
-                ? new LocalAuth({ dataPath: './sessions' })
-                : new LocalAuth({ clientId: clientId, dataPath: './sessions' }),
+                ? new LocalAuth({ dataPath: sessionsDir })
+                : new LocalAuth({ clientId: clientId, dataPath: sessionsDir }),
             puppeteer: {
+                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
                 headless: true,
                 args: [
                     '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
@@ -169,7 +171,7 @@ class SessionManager {
     cleanupSessionFiles(state) {
         const targets = [
             path.join(sessionsDir, state.authDirName),
-            path.join(__dirname, '.wwebjs_auth', state.authDirName),
+            path.join(dataDir, '.wwebjs_auth', state.authDirName),
         ];
         for (const target of targets) {
             if (fs.existsSync(target)) {

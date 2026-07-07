@@ -8,6 +8,7 @@ Untuk integrasi khusus skripsi, baca juga:
 
 ```text
 PANDUAN_BOT_SKRIPSI.md
+PANDUAN_DEPLOY_RAILWAY.md
 ```
 
 ---

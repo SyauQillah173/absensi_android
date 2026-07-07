@@ -3,7 +3,8 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
 
-const LOG_DIR = path.join(__dirname, 'logs');
+const DATA_DIR = process.env.BOT_DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH || __dirname;
+const LOG_DIR = path.join(DATA_DIR, 'logs');
 const LOG_FILE = path.join(LOG_DIR, 'pesan.log');
 const MAX_RETRY = 3;
 const RETRY_DELAY_MS = 60000;
