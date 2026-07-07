@@ -1,0 +1,81 @@
+import 'package:flutter/material.dart';
+
+import '../services/thesis_database.dart';
+
+class HistoryScreen extends StatefulWidget {
+  const HistoryScreen({super.key});
+
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  Future<List<Map<String, dynamic>>>? _history;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() =>
+      setState(() => _history = ThesisDatabase.instance.history());
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: () async => _reload(),
+      child: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _history,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final rows = snapshot.data!;
+          if (rows.isEmpty) {
+            return ListView(
+              children: const [
+                SizedBox(height: 180),
+                Center(child: Text('Belum ada riwayat presensi.')),
+              ],
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: rows.length,
+            separatorBuilder: (_, index) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final row = rows[index];
+              final status = row['sync_status'].toString();
+              return Card(
+                child: ListTile(
+                  title: Text(row['nama_kelas'].toString()),
+                  subtitle: Text(
+                    '${row['tanggal']} ${row['waktu_mulai']}\n'
+                    'Hadir ${row['hadir']}  Sakit ${row['sakit']}  Izin ${row['izin']}  Alpa ${row['alpa']}',
+                  ),
+                  isThreeLine: true,
+                  trailing: Tooltip(
+                    message: status,
+                    child: Icon(
+                      status == 'completed'
+                          ? Icons.cloud_done
+                          : status == 'failed'
+                          ? Icons.error_outline
+                          : Icons.cloud_upload_outlined,
+                      color: status == 'completed'
+                          ? Colors.green
+                          : status == 'failed'
+                          ? Colors.red
+                          : Colors.orange.shade800,
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}

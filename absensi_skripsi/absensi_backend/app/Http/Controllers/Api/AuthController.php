@@ -4,202 +4,80 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ApiAccessToken;
-use App\Models\Siswa;
 use App\Models\User;
-use App\Services\AuditLogService;
+use App\Services\JwtService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
-    /**
-     * Login — accepts username/email/NIS/NISN + password
-     * POST /api/login
-     */
-    public function login(Request $request)
+    public function login(Request $request, JwtService $jwt)
     {
-        $request->validate([
-            'identifier' => 'required|string',
-            'password' => 'required|string',
+        $validated = $request->validate([
+            'username' => 'nullable|required_without:identifier|string',
+            'identifier' => 'nullable|required_without:username|string',
+            'password' => 'required|string|min:8',
+            'device_name' => 'nullable|string|max:100',
         ]);
+        $username = trim($validated['username'] ?? $validated['identifier']);
+        $user = User::query()
+            ->whereIn('role', ['admin', 'guru'])
+            ->where(fn ($query) => $query->where('username', $username)->orWhere('email', $username))
+            ->first();
 
-        $user = $this->findUserByIdentifier($request->identifier);
-
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if ($user?->locked_until?->isFuture()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Username/email/NIS atau password salah',
-            ], 401);
+                'message' => 'Login dikunci sementara. Coba lagi setelah '.$user->locked_until->format('H:i').'.',
+            ], 429);
         }
 
-        if (($user->status ?? 'Aktif') !== 'Aktif') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Akun Anda sedang nonaktif. Hubungi admin madrasah.',
-            ], 403);
+        $hash = $user?->password_hash ?: $user?->password;
+        if (!$user || !$hash || !Hash::check($validated['password'], $hash)) {
+            if ($user) {
+                $recent = $user->login_failed_at && now()->diffInMinutes($user->login_failed_at) < 15;
+                $count = $recent ? ((int) $user->login_failed_count + 1) : 1;
+                $user->forceFill([
+                    'login_failed_count' => $count,
+                    'login_failed_at' => now(),
+                    'locked_until' => $count >= 5 ? now()->addMinutes(15) : null,
+                ])->save();
+            }
+            return response()->json(['success' => false, 'message' => 'Username atau password salah.'], 401);
         }
 
-        $this->captureOperationalPassword($user, $request->password);
-        $plainToken = Str::random(80);
+        if (!$user->status_aktif) {
+            return response()->json(['success' => false, 'message' => 'Akun tidak aktif.'], 403);
+        }
 
+        $user->forceFill(['login_failed_count' => 0, 'login_failed_at' => null, 'locked_until' => null])->save();
+        $token = $jwt->issue($user->id, $user->role);
         ApiAccessToken::create([
             'user_id' => $user->id,
-            'name' => $request->input('device_name', 'mobile'),
-            'token_hash' => hash('sha256', $plainToken),
-            'expires_at' => now()->addDays(30),
+            'name' => $validated['device_name'] ?? 'android',
+            'token_hash' => hash('sha256', $token),
+            'expires_at' => now()->addDay(),
         ]);
-        app(AuditLogService::class)->record($request, 'auth', 'login', $user, null, [
-            'user_id' => $user->id,
-            'role' => $user->role,
-            'device_name' => $request->input('device_name', 'mobile'),
-        ]);
-
-        $responseData = [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'role' => $user->role,
-            'admin_type' => $user->admin_type,
-            'nis' => $user->nis,
-            'nisn' => $user->nisn,
-            'status' => $user->status ?? 'Aktif',
-            'must_change_password' => $this->mustChangePassword($user),
-        ];
-
-        // Jika role wali → sertakan data anak (siswa yang terhubung)
-        if ($user->role === 'wali') {
-            $anak = Siswa::where('wali_id', $user->id)
-                ->orWhereHas('guardianProfile', fn ($query) => $query->where('user_id', $user->id))
-                ->select('id', 'nama', 'kelas', 'class_id', 'nis', 'jenis_kelamin', 'status')
-                ->get();
-            $responseData['anak'] = $anak;
-        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Login berhasil',
             'token_type' => 'Bearer',
-            'token' => $plainToken,
-            'data' => $responseData,
+            'token' => $token,
+            'expires_in' => 86400,
+            'data' => [
+                'id_user' => $user->id,
+                'username' => $user->username,
+                'nama' => $user->name,
+                'role' => ucfirst($user->role),
+                'id_guru' => $user->guru?->id_guru,
+            ],
         ]);
     }
 
     public function logout(Request $request)
     {
-        $accessToken = $request->attributes->get('api_access_token');
-        if ($accessToken instanceof ApiAccessToken) {
-            $accessToken->delete();
-        }
-        app(AuditLogService::class)->record($request, 'auth', 'logout', $request->user(), null, [
-            'user_id' => $request->user()?->id,
-        ]);
+        $request->attributes->get('api_access_token')?->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Logout berhasil',
-        ]);
-    }
-
-    public function changePassword(Request $request)
-    {
-        $validated = $request->validate([
-            'identifier' => 'required|string',
-            'current_password' => 'required|string',
-            'new_password' => 'required|string|min:6|confirmed',
-        ]);
-
-        $user = $this->findUserByIdentifier($validated['identifier']);
-
-        if (!$user || !Hash::check($validated['current_password'], $user->password)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Verifikasi akun gagal. Cek kembali identitas akun dan password lama/default Anda.',
-            ], 422);
-        }
-
-        if (($user->status ?? 'Aktif') !== 'Aktif') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Akun Anda sedang nonaktif. Hubungi admin madrasah.',
-            ], 403);
-        }
-
-        $user->forceFill([
-            'password' => Hash::make($validated['new_password']),
-            'password_current_encrypted' => null,
-            'password_changed_at' => now(),
-        ])->save();
-
-        $responseData = [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'role' => $user->role,
-            'admin_type' => $user->admin_type,
-            'nis' => $user->nis,
-            'nisn' => $user->nisn,
-            'status' => $user->status ?? 'Aktif',
-            'must_change_password' => false,
-        ];
-
-        if ($user->role === 'wali') {
-            $responseData['anak'] = Siswa::where('wali_id', $user->id)
-                ->orWhereHas('guardianProfile', fn ($query) => $query->where('user_id', $user->id))
-                ->select('id', 'nama', 'kelas', 'class_id', 'nis', 'jenis_kelamin', 'status')
-                ->get();
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Password berhasil diperbarui. Gunakan password baru saat login.',
-            'data' => $responseData,
-        ]);
-    }
-
-    private function findUserByIdentifier(string $identifier): ?User
-    {
-        $identifier = trim($identifier);
-
-        $user = User::where('email', $identifier)
-            ->orWhere('name', $identifier)
-            ->orWhere('nis', $identifier)
-            ->orWhere('nisn', $identifier)
-            ->first();
-
-        if ($user) {
-            return $user;
-        }
-
-        $student = Siswa::with('wali')
-            ->where('nis', $identifier)
-            ->orWhere('nisn', $identifier)
-            ->first();
-
-        if ($student?->wali && $student->wali->role === 'wali') {
-            return $student->wali;
-        }
-
-        return null;
-    }
-
-    private function captureOperationalPassword(User $user, string $plainPassword): void
-    {
-        $updates = [];
-
-        $defaultPassword = config('auth.operational_default_password');
-        if (empty($user->password_default_encrypted) && $plainPassword === $defaultPassword) {
-            $updates['password_default_encrypted'] = Crypt::encryptString($plainPassword);
-        }
-
-        if (!empty($updates)) {
-            $user->forceFill($updates)->save();
-        }
-    }
-
-    private function mustChangePassword(User $user): bool
-    {
-        return in_array($user->role, ['guru', 'wali'], true) && empty($user->password_changed_at);
+        return response()->json(['success' => true, 'message' => 'Logout berhasil.']);
     }
 }
