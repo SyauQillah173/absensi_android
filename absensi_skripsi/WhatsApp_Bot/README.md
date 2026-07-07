@@ -4,6 +4,12 @@ Bot WhatsApp notifikasi otomatis menggunakan **whatsapp-web.js**.
 Dipakai untuk mengirim notifikasi tagihan, pembayaran, absensi, dan pengumuman
 ke wali santri secara otomatis dari sistem backend.
 
+Untuk integrasi khusus skripsi, baca juga:
+
+```text
+PANDUAN_BOT_SKRIPSI.md
+```
+
 ---
 
 ## 📋 Fitur

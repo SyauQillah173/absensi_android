@@ -237,6 +237,14 @@ console.log('╚═════════════════════�
 console.log('');
 
 sessionManager.loadExistingSessions().then(() => {
+    const autoStart = process.env.AUTO_START_SESSION !== 'false';
+    const defaultSessionId = process.env.DEFAULT_SESSION_ID || 'bot1';
+    if (autoStart && sessionManager.sessions.size === 0) {
+        console.log(`Membuat sesi default: ${defaultSessionId}`);
+        sessionManager.createSession(defaultSessionId).catch((err) => {
+            console.error(`Gagal membuat sesi default ${defaultSessionId}:`, err.message);
+        });
+    }
     startApi(sessionManager);
 });
 
