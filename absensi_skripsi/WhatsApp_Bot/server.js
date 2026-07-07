@@ -14,6 +14,8 @@ const sessionsDir = path.join(dataDir, 'sessions');
 if (!fs.existsSync(sessionsDir)) {
     fs.mkdirSync(sessionsDir, { recursive: true });
 }
+console.log(`Data bot tersimpan di: ${dataDir}`);
+console.log(`Browser Chrome: ${process.env.PUPPETEER_EXECUTABLE_PATH || 'default puppeteer'}`);
 
 // User Agent Rotation untuk Anti-Ban
 const userAgents = [
@@ -57,9 +59,11 @@ class SessionManager {
                 args: [
                     '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
                     '--disable-accelerated-2d-canvas', '--no-first-run', '--disable-gpu',
-                    '--disable-crash-reporter', '--disable-crashpad', '--no-zygote',
+                    '--disable-crash-reporter', '--disable-crashpad', '--disable-breakpad',
+                    '--no-zygote', '--single-process',
                     '--disable-blink-features=AutomationControlled',
-                    '--disable-features=IsolateOrigins,site-per-process',
+                    '--disable-features=IsolateOrigins,site-per-process,VizDisplayCompositor',
+                    '--disable-software-rasterizer',
                     '--window-size=1366,768', '--disable-extensions',
                     '--disable-background-networking', '--disable-background-timer-throttling',
                     '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding',
