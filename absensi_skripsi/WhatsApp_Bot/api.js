@@ -12,8 +12,10 @@ const RETRY_DELAY_MS = 60000;
 const BULK_DELAY_MIN = 3000;
 const BULK_DELAY_MAX = 7000;
 const DAILY_QUOTA_PER_SESSION = 200; // Kuota 200 per bot
-const TYPING_DURATION_MIN = 1500; // Minimal 1.5 detik typing (ditingkatkan)
-const TYPING_DURATION_MAX = 4000; // Maksimal 4 detik typing (ditingkatkan)
+const SEND_TIMEOUT_MS = parseInt(process.env.SEND_TIMEOUT_MS || '45000', 10);
+const ENABLE_TYPING_SIMULATION = process.env.ENABLE_TYPING_SIMULATION === 'true';
+const TYPING_DURATION_MIN = 800;
+const TYPING_DURATION_MAX = 1500;
 
 // stats structure: Map<clientId, {tanggal, total, berhasil, gagal}>
 const sessionStats = new Map();
@@ -81,16 +83,48 @@ function formatNomor(nomor) {
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 function randomDelay(min, max) { return delay(Math.floor(Math.random() * (max - min + 1)) + min); }
 
+function withTimeout(promise, ms, label) {
+    let timer;
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new Error(`${label} melewati batas waktu ${ms / 1000} detik`)), ms);
+        }),
+    ]).finally(() => clearTimeout(timer));
+}
+
+function isBrowserTimeout(err) {
+    const text = String(err?.message || err || '').toLowerCase();
+    return text.includes('runtime.callfunctionon timed out')
+        || text.includes('protocoltime')
+        || text.includes('protocol timeout')
+        || text.includes('target closed')
+        || text.includes('session closed')
+        || text.includes('execution context was destroyed')
+        || text.includes('melewati batas waktu');
+}
+
+function enqueueRetry(nomor, pesan) {
+    const existing = retryQueue.find((item) => item.nomor === nomor && item.pesan === pesan);
+    if (existing) return;
+    retryQueue.push({ nomor, pesan, attempts: 0 });
+}
+
 async function simulateTypingAndSend(client, chatId, message) {
-    try {
-        const chat = await client.getChatById(chatId);
-        await chat.sendStateTyping();
-        await randomDelay(TYPING_DURATION_MIN, TYPING_DURATION_MAX);
-        await chat.sendMessage(message);
-        await chat.clearState();
-    } catch (e) {
-        await client.sendMessage(chatId, message);
+    if (ENABLE_TYPING_SIMULATION) {
+        try {
+            const chat = await withTimeout(client.getChatById(chatId), SEND_TIMEOUT_MS, 'Mengambil chat WhatsApp');
+            await withTimeout(chat.sendStateTyping(), SEND_TIMEOUT_MS, 'Menampilkan status mengetik');
+            await randomDelay(TYPING_DURATION_MIN, TYPING_DURATION_MAX);
+            await withTimeout(chat.sendMessage(message), SEND_TIMEOUT_MS, 'Mengirim pesan WhatsApp');
+            await withTimeout(chat.clearState(), SEND_TIMEOUT_MS, 'Menghapus status mengetik').catch(() => {});
+            return;
+        } catch (e) {
+            if (isBrowserTimeout(e)) throw e;
+        }
     }
+
+    await withTimeout(client.sendMessage(chatId, message), SEND_TIMEOUT_MS, 'Mengirim pesan WhatsApp');
 }
 
 // Round Robin pointer
@@ -234,8 +268,8 @@ function startApi(sessionManager) {
     app.post('/sessions/reconnect', authMw, async (req, res) => {
         const id = req.body.id;
         if (!id || !sessionManager.sessions.has(id)) return res.status(404).json({sukses:false, pesan:'Tidak ditemukan'});
-        sessionManager.attemptReconnect(id);
-        res.json({ sukses: true, data: { id }, pesan: 'Reconnect dijadwalkan' });
+        sessionManager.restartSession(id, 'Reconnect manual dari dashboard/API').catch(console.error);
+        res.json({ sukses: true, data: { id }, pesan: 'Restart sesi dijadwalkan' });
     });
 
     // Send Single
@@ -271,7 +305,11 @@ function startApi(sessionManager) {
         } catch (err) {
             stats.gagal++;
             writeLog('GAGAL', validasi.nomor, err.message, botId);
-            retryQueue.push({ nomor: validasi.nomor, pesan, attempts: 0 });
+            state.lastError = err.message;
+            if (isBrowserTimeout(err)) {
+                sessionManager.restartSession(botId, err.message).catch(console.error);
+            }
+            enqueueRetry(validasi.nomor, pesan);
             res.status(500).json({ sukses: false, pesan: err.message });
         }
     });
@@ -311,6 +349,10 @@ function startApi(sessionManager) {
             } catch (err) {
                 stats.gagal++;
                 writeLog('GAGAL', validasi.nomor, err.message, bot.id);
+                bot.state.lastError = err.message;
+                if (isBrowserTimeout(err)) {
+                    sessionManager.restartSession(bot.id, err.message).catch(console.error);
+                }
                 hasil.push({ nomor: validasi.nomor, sukses: false, pesan: err.message });
             }
             
@@ -345,6 +387,10 @@ function startApi(sessionManager) {
             getStats(bot.id).berhasil++;
         } catch (err) {
             writeLog('RETRY_GAGAL', item.nomor, `Attempt ${item.attempts}: ${err.message}`, bot.id);
+            bot.state.lastError = err.message;
+            if (isBrowserTimeout(err)) {
+                sessionManager.restartSession(bot.id, err.message).catch(console.error);
+            }
             if (item.attempts >= MAX_RETRY) retryQueue.shift();
         }
     }, RETRY_DELAY_MS);

@@ -62,7 +62,7 @@ class SessionManager {
                 executablePath: browserPath,
                 headless: true,
                 dumpio: true,
-                protocolTimeout: 120000,
+                protocolTimeout: parseInt(process.env.PUPPETEER_PROTOCOL_TIMEOUT || '300000', 10),
                 args: [
                     '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
                     '--disable-accelerated-2d-canvas', '--no-first-run', '--disable-gpu',
@@ -186,6 +186,29 @@ class SessionManager {
                 console.error(`❌ [${clientId}] Gagal membuat sesi scan ulang:`, err.message);
             });
         }, 1000);
+    }
+
+    async restartSession(clientId, reason = 'Restart diminta') {
+        const state = this.sessions.get(clientId);
+        if (!state || state.resetting || state.deleted) return;
+
+        state.resetting = true;
+        state.status = 'restarting';
+        state.lastError = reason;
+        if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
+
+        console.warn(`Restart sesi ${clientId}: ${reason}`);
+        try {
+            await state.client.destroy();
+        } catch (e) {}
+
+        const legacyAuth = state.legacyAuth;
+        this.sessions.delete(clientId);
+        setTimeout(() => {
+            this.createSession(clientId, { legacyAuth }).catch((err) => {
+                console.error(`Gagal restart sesi ${clientId}:`, err.message);
+            });
+        }, 1500);
     }
 
     cleanupSessionFiles(state) {
