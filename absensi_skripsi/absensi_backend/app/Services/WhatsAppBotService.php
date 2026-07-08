@@ -90,6 +90,9 @@ class WhatsAppBotService
         }
 
         $baseUrl = rtrim((string) config('services.whatsapp_bot.base_url'), '/');
+        if (preg_match('/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/i', $baseUrl)) {
+            $baseUrl = 'https://absensiandroid-production.up.railway.app';
+        }
         $headers = [];
         if ($auth) {
             $headers['x-bot-secret'] = (string) config('services.whatsapp_bot.secret');
