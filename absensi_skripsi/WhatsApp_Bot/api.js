@@ -164,6 +164,7 @@ function startApi(sessionManager) {
             data.push({
                 id,
                 status: state.status,
+                last_error: state.lastError || null,
                 qr_code: state.qr,
                 nomor: state.info ? state.info.wid.user : null,
                 nama: state.info ? state.info.pushname : null,
@@ -182,6 +183,7 @@ function startApi(sessionManager) {
             sessions.push({
                 id,
                 status: state.status,
+                last_error: state.lastError || null,
                 qr_code: state.qr,
                 nomor: state.info ? state.info.wid.user : null,
                 nama: state.info ? state.info.pushname : null,
@@ -217,9 +219,9 @@ function startApi(sessionManager) {
         if (!cleanId) return res.status(400).json({sukses:false, pesan:'ID tidak valid'});
         if (sessionManager.sessions.has(cleanId)) return res.status(400).json({sukses:false, pesan:'Sesi sudah ada'});
         
-        // Sengaja tidak di-await agar tidak memblokir respon
-        sessionManager.createSession(cleanId).catch(console.error);
         res.json({ sukses: true, data: { id: cleanId }, pesan: 'Sesi sedang dibuat...' });
+        // Jalankan setelah response agar kegagalan Chromium tidak memutus request API.
+        setTimeout(() => sessionManager.createSession(cleanId).catch(console.error), 100);
     });
 
     app.post('/sessions/delete', authMw, async (req, res) => {

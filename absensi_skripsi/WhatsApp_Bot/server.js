@@ -49,7 +49,8 @@ class SessionManager {
             authDirName: legacyAuth ? 'session' : `session-${clientId}`,
             legacyAuth,
             deleted: false,
-            resetting: false
+            resetting: false,
+            lastError: null
         };
         this.sessions.set(clientId, state);
 
@@ -106,6 +107,7 @@ class SessionManager {
         client.on('auth_failure', (msg) => {
             state.qr = null;
             state.status = 'error';
+            state.lastError = String(msg || 'Autentikasi WhatsApp gagal');
             console.error(`❌ [${clientId}] Autentikasi gagal:`, msg);
         });
 
@@ -113,6 +115,7 @@ class SessionManager {
             state.qr = null;
             state.reconnectAttempt = 0;
             state.status = 'aktif';
+            state.lastError = null;
             state.info = client.info;
             console.log(`✅ [${clientId}] SIAP! Nama: ${client.info.pushname} (${client.info.wid.user})`);
         });
@@ -138,6 +141,7 @@ class SessionManager {
             this.logError(clientId, 'Gagal inisialisasi', err);
             console.error(`❌ [${clientId}] Gagal inisialisasi:`, err.message);
             state.status = 'error';
+            state.lastError = err.message || String(err);
         }
     }
 
@@ -216,6 +220,7 @@ class SessionManager {
                 try { await state.client.destroy(); } catch (e) {}
                 await state.client.initialize();
             } catch (err) {
+                state.lastError = err.message || String(err);
                 if (state.reconnectAttempt < 10) {
                     this.attemptReconnect(clientId);
                 } else {
@@ -242,12 +247,12 @@ class SessionManager {
                 hasMultiSession = true;
                 const clientId = file.replace('session-', '');
                 console.log(`🔄 Memuat sesi lama: ${clientId}`);
-                await this.createSession(clientId);
+                this.createSession(clientId).catch((err) => this.logError(clientId, 'Gagal memuat sesi lama', err));
             }
         }
         if (files.includes('session') && !hasMultiSession) {
             console.log('🔄 Memuat sesi lama: bot1');
-            await this.createSession('bot1', { legacyAuth: true });
+            this.createSession('bot1', { legacyAuth: true }).catch((err) => this.logError('bot1', 'Gagal memuat sesi lama', err));
         }
     }
 }
@@ -285,9 +290,11 @@ sessionManager.loadExistingSessions().then(() => {
     const defaultSessionId = process.env.DEFAULT_SESSION_ID || 'bot1';
     if (autoStart && sessionManager.sessions.size === 0) {
         console.log(`Membuat sesi default: ${defaultSessionId}`);
-        sessionManager.createSession(defaultSessionId).catch((err) => {
-            console.error(`Gagal membuat sesi default ${defaultSessionId}:`, err.message);
-        });
+        setTimeout(() => {
+            sessionManager.createSession(defaultSessionId).catch((err) => {
+                console.error(`Gagal membuat sesi default ${defaultSessionId}:`, err.message);
+            });
+        }, 1000);
     }
     startApi(sessionManager);
 });
