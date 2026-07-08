@@ -11,6 +11,7 @@ use App\Services\ThesisNotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -130,7 +131,14 @@ class ThesisPresensiController extends Controller
         });
 
         foreach ($presensi->detail as $detail) {
-            $notification->queue($detail);
+            try {
+                $notification->queue($detail);
+            } catch (\Throwable $error) {
+                Log::warning('Gagal membuat notifikasi WhatsApp presensi skripsi', [
+                    'id_detail_presensi' => $detail->id_detail_presensi,
+                    'error' => $error->getMessage(),
+                ]);
+            }
         }
 
         return $presensi;

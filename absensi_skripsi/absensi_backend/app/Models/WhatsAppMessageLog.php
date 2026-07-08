@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class WhatsAppMessageLog extends Model
 {
+    protected $table = 'whatsapp_message_logs';
+
     protected $guarded = [];
 
     protected function casts(): array
