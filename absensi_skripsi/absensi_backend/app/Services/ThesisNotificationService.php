@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Jobs\SendThesisWhatsAppJob;
 use App\Models\DetailPresensi;
 use App\Models\WhatsAppMessageLog;
 use Carbon\Carbon;
@@ -29,16 +28,21 @@ class ThesisNotificationService
             ."Kami mohon maaf atas ketidaknyamanan ini. Perbaikan sedang dilakukan agar layanan dapat segera kembali normal.\n\n"
             ."Terima kasih atas pengertian dan kerja samanya.";
 
-        $log = WhatsAppMessageLog::create([
+        $log = WhatsAppMessageLog::updateOrCreate([
             'id_detail_presensi' => $detail->id_detail_presensi,
+        ], [
             'nomor_tujuan' => $phone ?: $santri->nomor_wa_wali,
             'pesan' => $message,
             'status' => $phone ? 'pending' : 'failed',
             'error_message' => $phone ? null : 'Nomor WhatsApp wali tidak valid.',
+            'message_id' => null,
+            'retry_count' => 0,
+            'next_retry_at' => null,
+            'sent_at' => null,
         ]);
 
         if ($phone) {
-            SendThesisWhatsAppJob::dispatch($log->id)->afterResponse();
+            $this->sendNow($log);
         }
 
         return $log;
@@ -47,7 +51,43 @@ class ThesisNotificationService
     public function retry(WhatsAppMessageLog $log): void
     {
         $log->update(['status' => 'pending', 'error_message' => null, 'next_retry_at' => null]);
-        SendThesisWhatsAppJob::dispatch($log->id)->afterResponse();
+        $this->sendNow($log);
+    }
+
+    private function sendNow(WhatsAppMessageLog $log): void
+    {
+        $bot = app(WhatsAppBotService::class);
+        if (!$bot->configured()) {
+            $log->update([
+                'status' => 'failed',
+                'error_message' => 'Konfigurasi WhatsApp Bot belum lengkap.',
+            ]);
+            return;
+        }
+
+        $log->update([
+            'status' => 'processing',
+            'error_message' => null,
+        ]);
+
+        $response = $bot->send($log->nomor_tujuan, $log->pesan);
+        if ($response['success'] ?? false) {
+            $log->update([
+                'status' => 'sent',
+                'message_id' => data_get($response, 'data.message_id'),
+                'sent_at' => now(),
+                'next_retry_at' => null,
+                'error_message' => null,
+            ]);
+            return;
+        }
+
+        $log->update([
+            'status' => 'retrying',
+            'retry_count' => $log->retry_count + 1,
+            'next_retry_at' => now()->addMinute(),
+            'error_message' => $response['message'] ?? 'WhatsApp Bot tidak merespons.',
+        ]);
     }
 
     private function normalize(?string $phone): ?string
