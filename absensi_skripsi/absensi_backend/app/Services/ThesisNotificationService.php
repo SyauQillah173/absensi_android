@@ -8,7 +8,7 @@ use Carbon\Carbon;
 
 class ThesisNotificationService
 {
-    public function queue(DetailPresensi $detail): ?WhatsAppMessageLog
+    public function queue(DetailPresensi $detail, ?string $mapel = null): ?WhatsAppMessageLog
     {
         if (!in_array($detail->status_presensi, ['Hadir', 'Sakit', 'Izin', 'Alpa'], true)) {
             return null;
@@ -18,15 +18,22 @@ class ThesisNotificationService
         $santri = $detail->santri;
         $phone = $this->normalize($santri->nomor_wa_wali);
         $tanggal = $this->formatTanggal($detail->presensi?->tanggal);
-        $status = $detail->status_presensi === 'Hadir' ? 'Masuk' : $detail->status_presensi;
+        $status = $detail->status_presensi;
         $nisn = $santri->nisn ?: '-';
+        $kelas = $detail->presensi?->kelas?->nama_kelas ?: '-';
+        $mapel = trim((string) $mapel);
+        $mapel = $mapel !== '' ? $mapel : ($detail->presensi?->mapel ?: '-');
+        $keterangan = trim((string) $detail->keterangan);
+        $keteranganLine = $status === 'Hadir' || $keterangan === ''
+            ? ''
+            : "\nKeterangan: {$keterangan}";
         $message = "[Madrasah Diniyah]\n"
             ."Yth. Wali dari {$santri->nama_santri} ({$nisn})\n"
-            ."Pada hari ini ({$tanggal}) Ananda {$status}.\n\n"
-            ."Yth. Bapak/Ibu Wali Murid,\n"
-            ."Beberapa hari ini terjadi kendala pada nomor telepon sekolah sehingga notifikasi absensi siswa belum dapat terkirim.\n\n"
-            ."Kami mohon maaf atas ketidaknyamanan ini. Perbaikan sedang dilakukan agar layanan dapat segera kembali normal.\n\n"
-            ."Terima kasih atas pengertian dan kerja samanya.";
+            ."Status kehadiran Ananda pada hari ini ({$tanggal}) adalah\n"
+            ."{$status}{$keteranganLine}\n\n"
+            ."Kelas: {$kelas}\n"
+            ."Mata Pelajaran: {$mapel}\n\n"
+            ."Terimakasih.";
 
         $log = WhatsAppMessageLog::updateOrCreate([
             'id_detail_presensi' => $detail->id_detail_presensi,

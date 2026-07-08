@@ -28,6 +28,7 @@ Route::middleware('api.auth')->group(function (): void {
 
     Route::middleware('role:admin,guru')->group(function (): void {
         Route::get('kelas', [ThesisMasterController::class, 'kelasIndex']);
+        Route::get('mata-pelajaran', [ThesisMasterController::class, 'mapelIndex']);
         Route::get('santri', [ThesisMasterController::class, 'santriIndex']);
 
         Route::get('presensi', [ThesisPresensiController::class, 'index']);
@@ -48,6 +49,10 @@ Route::middleware('api.auth')->group(function (): void {
         Route::post('kelas', [ThesisMasterController::class, 'kelasStore']);
         Route::put('kelas/{kelas}', [ThesisMasterController::class, 'kelasUpdate']);
         Route::delete('kelas/{kelas}', [ThesisMasterController::class, 'kelasDestroy']);
+
+        Route::post('mata-pelajaran', [ThesisMasterController::class, 'mapelStore']);
+        Route::put('mata-pelajaran/{mataPelajaran}', [ThesisMasterController::class, 'mapelUpdate']);
+        Route::delete('mata-pelajaran/{mataPelajaran}', [ThesisMasterController::class, 'mapelDestroy']);
 
         Route::post('santri', [ThesisMasterController::class, 'santriStore']);
         Route::put('santri/{santri}', [ThesisMasterController::class, 'santriUpdate']);

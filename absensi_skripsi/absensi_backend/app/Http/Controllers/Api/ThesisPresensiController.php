@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\DetailPresensi;
 use App\Models\Kelas;
+use App\Models\MataPelajaran;
 use App\Models\Presensi;
 use App\Models\Santri;
 use App\Services\ThesisNotificationService;
@@ -83,6 +84,13 @@ class ThesisPresensiController extends Controller
 
         $presensi = DB::transaction(function () use ($request, $data, $kelas, $operationId, $detailRows) {
             $query = Presensi::where('id_kelas', $kelas->id_kelas)
+                ->where(function ($builder) use ($data) {
+                    if (!empty($data['mapel_id'])) {
+                        $builder->where('mapel_id', $data['mapel_id']);
+                    } else {
+                        $builder->whereNull('mapel_id');
+                    }
+                })
                 ->whereDate('tanggal', $data['tanggal'])
                 ->where('waktu_mulai', $data['waktu_mulai']);
             $presensi = $query->lockForUpdate()->first();
@@ -95,6 +103,8 @@ class ThesisPresensiController extends Controller
             $values = [
                 'id_guru' => $kelas->id_guru,
                 'id_kelas' => $kelas->id_kelas,
+                'mapel_id' => $data['mapel_id'] ?? null,
+                'mapel' => $this->mapelName($data),
                 'tanggal' => $data['tanggal'],
                 'waktu_mulai' => $data['waktu_mulai'],
                 'waktu_selesai' => $data['waktu_selesai'] ?? null,
@@ -130,9 +140,10 @@ class ThesisPresensiController extends Controller
             return $presensi->load('kelas', 'detail.santri');
         });
 
+        $mapel = $presensi->mapel ?: $this->mapelName($data);
         foreach ($presensi->detail as $detail) {
             try {
-                $notification->queue($detail);
+                $notification->queue($detail, $mapel);
             } catch (\Throwable $error) {
                 Log::warning('Gagal membuat notifikasi WhatsApp presensi skripsi', [
                     'id_detail_presensi' => $detail->id_detail_presensi,
@@ -248,10 +259,14 @@ class ThesisPresensiController extends Controller
         return $request->validate([
             'operation_id' => 'nullable|uuid',
             'id_kelas' => 'required|integer|exists:kelas,id_kelas',
+            'mapel_id' => 'nullable|integer|exists:mata_pelajaran,id',
             'tanggal' => 'required|date',
             'waktu_mulai' => 'required|date_format:H:i:s',
             'waktu_selesai' => 'nullable|date_format:H:i:s|after:waktu_mulai',
             'catatan' => 'nullable|string|max:1000',
+            'mapel' => 'nullable|string|max:100',
+            'mata_pelajaran' => 'nullable|string|max:100',
+            'nama_mapel' => 'nullable|string|max:100',
             'allow_update' => 'nullable|boolean',
             'detail' => 'required|array|min:1',
             'detail.*.id_santri' => 'required|integer|exists:santri,id_santri',
@@ -268,5 +283,14 @@ class ThesisPresensiController extends Controller
         }
 
         return $query->firstOrFail();
+    }
+
+    private function mapelName(array $data): ?string
+    {
+        if (!empty($data['mapel_id'])) {
+            return MataPelajaran::query()->whereKey($data['mapel_id'])->value('nama');
+        }
+
+        return $data['mapel'] ?? $data['mata_pelajaran'] ?? $data['nama_mapel'] ?? null;
     }
 }

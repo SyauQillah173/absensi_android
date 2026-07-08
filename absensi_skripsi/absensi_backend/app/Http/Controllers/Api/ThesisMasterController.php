@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Guru;
 use App\Models\Kelas;
+use App\Models\MataPelajaran;
 use App\Models\Santri;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -26,6 +27,10 @@ class ThesisMasterController extends Controller
                     ? Guru::with('user:id,username,role')->orderBy('nama_guru')->get()
                     : Guru::where('id_user', $request->user()->id)->get(),
                 'kelas' => $kelas,
+                'mata_pelajaran' => MataPelajaran::query()
+                    ->where('status', 'Aktif')
+                    ->orderBy('nama')
+                    ->get(['id', 'nama', 'kode', 'status']),
                 'santri' => Santri::whereIn('id_kelas', $kelasIds)->orderBy('nama_santri')->get(),
                 'server_time' => now()->toIso8601String(),
             ],
@@ -169,6 +174,51 @@ class ThesisMasterController extends Controller
         }
 
         return response()->json(['success' => true, 'data' => $query->whereIn('id_kelas', $allowed)->get()]);
+    }
+
+    public function mapelIndex()
+    {
+        return response()->json([
+            'success' => true,
+            'data' => MataPelajaran::query()
+                ->orderByRaw("CASE WHEN status = 'Aktif' THEN 0 ELSE 1 END")
+                ->orderBy('nama')
+                ->get(['id', 'nama', 'kode', 'status']),
+        ]);
+    }
+
+    public function mapelStore(Request $request)
+    {
+        $data = $request->validate([
+            'nama' => 'required|string|max:120|unique:mata_pelajaran,nama',
+            'kode' => 'nullable|string|max:20',
+            'status' => 'nullable|in:Aktif,Nonaktif',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => MataPelajaran::query()->create($data + ['status' => 'Aktif']),
+        ], 201);
+    }
+
+    public function mapelUpdate(Request $request, MataPelajaran $mataPelajaran)
+    {
+        $data = $request->validate([
+            'nama' => ['sometimes', 'required', 'string', 'max:120', Rule::unique('mata_pelajaran', 'nama')->ignore($mataPelajaran->id)],
+            'kode' => 'nullable|string|max:20',
+            'status' => 'sometimes|in:Aktif,Nonaktif',
+        ]);
+
+        $mataPelajaran->update($data);
+
+        return response()->json(['success' => true, 'data' => $mataPelajaran->fresh()]);
+    }
+
+    public function mapelDestroy(MataPelajaran $mataPelajaran)
+    {
+        $mataPelajaran->update(['status' => 'Nonaktif']);
+
+        return response()->json(['success' => true, 'message' => 'Mata pelajaran dinonaktifkan.']);
     }
 
     public function santriStore(Request $request)

@@ -25,10 +25,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     'Lainnya',
   ];
   List<Map<String, dynamic>> _classes = [];
+  List<Map<String, dynamic>> _mapels = [];
   List<Map<String, dynamic>> _students = [];
   final Map<int, String> _status = {};
   final Map<int, TextEditingController> _notes = {};
   int? _classId;
+  int? _mapelId;
   DateTime _date = DateTime.now();
   TimeOfDay _time = TimeOfDay.now();
   bool _loading = true;
@@ -45,6 +47,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Future<void> _loadClasses() async {
     _classes = await ThesisDatabase.instance.classes();
+    _mapels = await ThesisDatabase.instance.mapels();
     if (widget.editLocalId != null) {
       final attendance = await ThesisDatabase.instance.attendance(
         widget.editLocalId!,
@@ -54,6 +57,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             attendance['local_id']?.toString() ?? widget.editLocalId;
         _syncStatus = attendance['sync_status']?.toString() ?? 'pending';
         _classId = (attendance['id_kelas'] as num).toInt();
+        _mapelId = (attendance['mapel_id'] as num?)?.toInt();
         _date = DateTime.parse(attendance['tanggal'].toString());
         _time = _parseTime(attendance['waktu_mulai'].toString());
         final detail = (attendance['detail'] as List? ?? const [])
@@ -61,10 +65,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             .toList();
         await _loadStudents(existingDetails: detail);
       }
-    } else if (_classes.isNotEmpty) {
+    } else if (_classes.isNotEmpty && _mapels.isNotEmpty) {
       _classId = (_classes.first['id_kelas'] as num).toInt();
+      _mapelId = (_mapels.first['id'] as num).toInt();
       await _loadStudents();
       await _loadExistingForCurrentScope();
+    }
+    if (_mapelId == null && _mapels.isNotEmpty) {
+      _mapelId = (_mapels.first['id'] as num).toInt();
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -74,10 +82,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   String get _timeText =>
       '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}:00';
 
+  String get _selectedMapelName {
+    final match = _mapels.where(
+      (row) => (row['id'] as num).toInt() == _mapelId,
+    );
+    return match.isEmpty ? '-' : match.first['nama'].toString();
+  }
+
   Future<void> _loadExistingForCurrentScope() async {
-    if (_classId == null) return;
+    if (_classId == null || _mapelId == null) return;
     final existing = await ThesisDatabase.instance.attendanceByScope(
       classId: _classId!,
+      mapelId: _mapelId!,
       date: _dateText,
       startTime: _timeText,
     );
@@ -90,6 +106,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
     _activeLocalId = existing['local_id']?.toString();
     _syncStatus = existing['sync_status']?.toString() ?? 'pending';
+    _mapelId = (existing['mapel_id'] as num?)?.toInt() ?? _mapelId;
     _date = DateTime.parse(existing['tanggal'].toString());
     _time = _parseTime(existing['waktu_mulai'].toString());
     final detail = (existing['detail'] as List? ?? const [])
@@ -145,7 +162,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Future<void> _save() async {
-    if (_classId == null || _students.isEmpty) return;
+    if (_classId == null || _mapelId == null || _students.isEmpty) return;
     setState(() => _saving = true);
     try {
       final details = _students.map((student) {
@@ -163,16 +180,20 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         await ThesisDatabase.instance.updateAttendance(
           localId: _activeLocalId!,
           classId: _classId!,
+          mapelId: _mapelId!,
           date: date,
           startTime: time,
+          mapel: _selectedMapelName,
           details: details,
         );
         _syncStatus = 'pending';
       } else {
         _activeLocalId = await ThesisDatabase.instance.saveAttendance(
           classId: _classId!,
+          mapelId: _mapelId!,
           date: date,
           startTime: time,
+          mapel: _selectedMapelName,
           details: details,
         );
         _syncStatus = 'pending';
@@ -249,6 +270,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (_classes.isEmpty) {
       return const Center(child: Text('Belum ada kelas yang ditugaskan.'));
     }
+    if (_mapels.isEmpty) {
+      return const Center(child: Text('Belum ada mata pelajaran aktif.'));
+    }
 
     return Column(
       children: [
@@ -312,6 +336,29 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             ],
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: DropdownButtonFormField<int>(
+            initialValue: _mapelId,
+            decoration: const InputDecoration(
+              labelText: 'Mata Pelajaran',
+              border: OutlineInputBorder(),
+            ),
+            items: _mapels
+                .map(
+                  (row) => DropdownMenuItem<int>(
+                    value: (row['id'] as num).toInt(),
+                    child: Text(row['nama'].toString()),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) async {
+              _mapelId = value;
+              await _loadExistingForCurrentScope();
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(

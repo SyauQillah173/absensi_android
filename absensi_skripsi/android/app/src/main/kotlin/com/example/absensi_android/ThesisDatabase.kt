@@ -14,6 +14,7 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -28,6 +29,7 @@ import io.flutter.plugin.common.MethodChannel
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import org.json.JSONArray
 import org.json.JSONObject
+import androidx.sqlite.db.SupportSQLiteDatabase
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
@@ -69,6 +71,14 @@ data class SantriEntity(
     val status_aktif: Boolean,
 )
 
+@Entity(tableName = "mata_pelajaran")
+data class MataPelajaranEntity(
+    @PrimaryKey val id: Long,
+    val nama: String,
+    val kode: String?,
+    val status: String,
+)
+
 @Entity(tableName = "presensi")
 data class PresensiEntity(
     @PrimaryKey val local_id: String,
@@ -76,6 +86,8 @@ data class PresensiEntity(
     val operation_id: String,
     val id_guru: Long?,
     val id_kelas: Long,
+    val mapel_id: Long?,
+    val mapel: String?,
     val tanggal: String,
     val waktu_mulai: String,
     val waktu_selesai: String?,
@@ -114,6 +126,8 @@ data class HistoryRow(
     val id_presensi: Long?,
     val id_kelas: Long,
     val nama_kelas: String,
+    val mapel_id: Long?,
+    val mapel: String?,
     val tanggal: String,
     val waktu_mulai: String,
     val catatan: String?,
@@ -143,6 +157,9 @@ interface ThesisDao {
     @Query("DELETE FROM santri")
     fun clearSantri()
 
+    @Query("DELETE FROM mata_pelajaran")
+    fun clearMapel()
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertGuru(rows: List<GuruEntity>)
 
@@ -151,6 +168,9 @@ interface ThesisDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertSantri(rows: List<SantriEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertMapel(rows: List<MataPelajaranEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertPresensi(row: PresensiEntity)
@@ -172,6 +192,9 @@ interface ThesisDao {
 
     @Query("SELECT * FROM santri WHERE status_aktif = 1 ORDER BY nama_santri")
     fun allStudents(): List<SantriEntity>
+
+    @Query("SELECT * FROM mata_pelajaran WHERE status = 'Aktif' ORDER BY nama")
+    fun mapels(): List<MataPelajaranEntity>
 
     @Query("SELECT MIN(id_guru) FROM guru")
     fun minGuruId(): Long?
@@ -226,17 +249,17 @@ interface ThesisDao {
 
     @Query(
         """SELECT * FROM presensi
-        WHERE id_kelas=:classId AND tanggal=:date AND waktu_mulai=:startTime
+        WHERE id_kelas=:classId AND mapel_id=:mapelId AND tanggal=:date AND waktu_mulai=:startTime
         ORDER BY updated_at DESC LIMIT 1""",
     )
-    fun presensiByScope(classId: Long, date: String, startTime: String): PresensiEntity?
+    fun presensiByScope(classId: Long, mapelId: Long, date: String, startTime: String): PresensiEntity?
 
     @Query(
         """SELECT * FROM presensi
-        WHERE id_kelas=:classId AND tanggal=:date
+        WHERE id_kelas=:classId AND mapel_id=:mapelId AND tanggal=:date
         ORDER BY updated_at DESC LIMIT 1""",
     )
-    fun presensiByClassDate(classId: Long, date: String): PresensiEntity?
+    fun presensiByClassDate(classId: Long, mapelId: Long, date: String): PresensiEntity?
 
     @Query(
         """SELECT d.id_santri, s.nisn, s.nama_santri, d.status_presensi, d.keterangan
@@ -246,7 +269,7 @@ interface ThesisDao {
     fun attendanceDetails(localId: String): List<DetailRow>
 
     @Query(
-        """SELECT p.local_id, p.id_presensi, p.id_kelas, k.nama_kelas, p.tanggal, p.waktu_mulai, p.catatan, p.sync_status,
+        """SELECT p.local_id, p.id_presensi, p.id_kelas, k.nama_kelas, p.mapel_id, p.mapel, p.tanggal, p.waktu_mulai, p.catatan, p.sync_status,
         SUM(CASE WHEN d.status_presensi='Hadir' THEN 1 ELSE 0 END) hadir,
         SUM(CASE WHEN d.status_presensi='Sakit' THEN 1 ELSE 0 END) sakit,
         SUM(CASE WHEN d.status_presensi='Izin' THEN 1 ELSE 0 END) izin,
@@ -263,11 +286,12 @@ interface ThesisDao {
         GuruEntity::class,
         KelasEntity::class,
         SantriEntity::class,
+        MataPelajaranEntity::class,
         PresensiEntity::class,
         DetailPresensiEntity::class,
         OutboxEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class ThesisRoomDatabase : RoomDatabase() {
@@ -286,8 +310,20 @@ abstract class ThesisRoomDatabase : RoomDatabase() {
                     context.applicationContext,
                     ThesisRoomDatabase::class.java,
                     context.getDatabasePath("presensi_skripsi_room_encrypted.db").absolutePath,
-                ).openHelperFactory(factory).build().also { instance = it }
+                ).openHelperFactory(factory)
+                    .addMigrations(MIGRATION_1_2)
+                    .build().also { instance = it }
             }
+
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS mata_pelajaran (id INTEGER NOT NULL, nama TEXT NOT NULL, kode TEXT, status TEXT NOT NULL, PRIMARY KEY(id))",
+                )
+                database.execSQL("ALTER TABLE presensi ADD COLUMN mapel_id INTEGER")
+                database.execSQL("ALTER TABLE presensi ADD COLUMN mapel TEXT")
+            }
+        }
     }
 }
 
@@ -311,6 +347,7 @@ class ThesisRoomBridge(
                             }
                             "replaceBootstrap" -> replaceBootstrap(call.arguments as Map<*, *>)
                             "classes" -> db.dao().classes().map(::kelasMap)
+                            "mapels" -> db.dao().mapels().map(::mapelMap)
                             "gurus" -> db.dao().gurus().map(::guruMap)
                             "students" -> db.dao().students((call.argument<Number>("classId")!!).toLong()).map(::santriMap)
                             "allStudents" -> allStudents()
@@ -368,13 +405,24 @@ class ThesisRoomBridge(
                 bool(row, "status_aktif"),
             )
         } ?: emptyList()
+        val mapels = (data["mata_pelajaran"] as? List<*>)?.map {
+            val row = it as Map<*, *>
+            MataPelajaranEntity(
+                long(row, "id"),
+                text(row, "nama"),
+                nullableText(row, "kode"),
+                text(row, "status").ifBlank { "Aktif" },
+            )
+        } ?: emptyList()
         db.runInTransaction {
             db.dao().clearSantri()
             db.dao().clearKelas()
             db.dao().clearGuru()
+            db.dao().clearMapel()
             db.dao().insertGuru(gurus)
             db.dao().insertKelas(classes)
             db.dao().insertSantri(students)
+            db.dao().insertMapel(mapels)
         }
         return true
     }
@@ -383,9 +431,10 @@ class ThesisRoomBridge(
         val operationId = text(args, "operationId")
         val existing = db.dao().presensiByScope(
             long(args, "classId"),
+            long(args, "mapelId"),
             text(args, "date"),
             text(args, "startTime"),
-        ) ?: db.dao().presensiByClassDate(long(args, "classId"), text(args, "date"))
+        ) ?: db.dao().presensiByClassDate(long(args, "classId"), long(args, "mapelId"), text(args, "date"))
         if (existing != null) {
             val updateArgs = args.toMutableMap()
             updateArgs["localId"] = existing.local_id
@@ -405,6 +454,8 @@ class ThesisRoomBridge(
         val payload = JSONObject().apply {
             put("operation_id", operationId)
             put("id_kelas", long(args, "classId"))
+            put("mapel_id", long(args, "mapelId"))
+            put("mapel", nullableText(args, "mapel"))
             put("tanggal", text(args, "date"))
             put("waktu_mulai", text(args, "startTime"))
             put("catatan", args["note"])
@@ -415,6 +466,7 @@ class ThesisRoomBridge(
             db.dao().insertPresensi(
                 PresensiEntity(
                     operationId, null, operationId, null, long(args, "classId"),
+                    long(args, "mapelId"), nullableText(args, "mapel"),
                     text(args, "date"), text(args, "startTime"), null,
                     nullableText(args, "note"), "pending", null, text(args, "updatedAt"),
                 ),
@@ -438,9 +490,10 @@ class ThesisRoomBridge(
     private fun attendanceByScope(args: Map<*, *>): Map<String, Any?>? {
         val row = db.dao().presensiByScope(
             long(args, "classId"),
+            long(args, "mapelId"),
             text(args, "date"),
             text(args, "startTime"),
-        ) ?: db.dao().presensiByClassDate(long(args, "classId"), text(args, "date")) ?: return null
+        ) ?: db.dao().presensiByClassDate(long(args, "classId"), long(args, "mapelId"), text(args, "date")) ?: return null
         return attendance(row.local_id)
     }
 
@@ -462,6 +515,8 @@ class ThesisRoomBridge(
         val payload = JSONObject().apply {
             put("operation_id", operationId)
             put("id_kelas", long(args, "classId"))
+            put("mapel_id", long(args, "mapelId"))
+            put("mapel", nullableText(args, "mapel"))
             put("tanggal", text(args, "date"))
             put("waktu_mulai", text(args, "startTime"))
             put("catatan", args["note"])
@@ -475,6 +530,7 @@ class ThesisRoomBridge(
             db.dao().insertPresensi(
                 PresensiEntity(
                     localId, existing.id_presensi, operationId, existing.id_guru, long(args, "classId"),
+                    long(args, "mapelId"), nullableText(args, "mapel"),
                     text(args, "date"), text(args, "startTime"), null,
                     nullableText(args, "note"), "pending", null, text(args, "updatedAt"),
                 ),
@@ -736,9 +792,13 @@ private fun santriMap(row: SantriEntity): Map<String, Any?> = mapOf(
     "nomor_wa_wali" to row.nomor_wa_wali, "status_aktif" to row.status_aktif,
 )
 
+private fun mapelMap(row: MataPelajaranEntity): Map<String, Any?> = mapOf(
+    "id" to row.id, "nama" to row.nama, "kode" to row.kode, "status" to row.status,
+)
+
 private fun presensiMap(row: PresensiEntity): Map<String, Any?> = mapOf(
     "local_id" to row.local_id, "id_presensi" to row.id_presensi, "operation_id" to row.operation_id,
-    "id_guru" to row.id_guru, "id_kelas" to row.id_kelas, "tanggal" to row.tanggal,
+    "id_guru" to row.id_guru, "id_kelas" to row.id_kelas, "mapel_id" to row.mapel_id, "mapel" to row.mapel, "tanggal" to row.tanggal,
     "waktu_mulai" to row.waktu_mulai, "waktu_selesai" to row.waktu_selesai,
     "catatan" to row.catatan, "sync_status" to row.sync_status, "sync_message" to row.sync_message,
 )
@@ -750,7 +810,7 @@ private fun detailMap(row: DetailRow): Map<String, Any?> = mapOf(
 
 private fun historyMap(row: HistoryRow): Map<String, Any?> = mapOf(
     "local_id" to row.local_id, "id_presensi" to row.id_presensi, "id_kelas" to row.id_kelas,
-    "nama_kelas" to row.nama_kelas, "tanggal" to row.tanggal,
+    "nama_kelas" to row.nama_kelas, "mapel_id" to row.mapel_id, "mapel" to row.mapel, "tanggal" to row.tanggal,
     "waktu_mulai" to row.waktu_mulai, "catatan" to row.catatan, "sync_status" to row.sync_status,
     "hadir" to row.hadir, "sakit" to row.sakit, "izin" to row.izin, "alpa" to row.alpa,
 )

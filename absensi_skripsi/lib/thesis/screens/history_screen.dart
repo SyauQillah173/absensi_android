@@ -73,7 +73,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               final status = row['sync_status'].toString();
               return Card(
                 child: ListTile(
-                  title: Text(row['nama_kelas'].toString()),
+                  title: Text('${row['nama_kelas']} - ${row['mapel'] ?? '-'}'),
                   subtitle: Text(
                     '${row['tanggal']} ${row['waktu_mulai']}\n'
                     'Hadir ${row['hadir']}  Sakit ${row['sakit']}  Izin ${row['izin']}  Alpa ${row['alpa']}',
