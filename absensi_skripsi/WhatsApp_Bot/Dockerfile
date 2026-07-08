@@ -7,6 +7,7 @@ ENV XDG_CACHE_HOME=/tmp/.chromium
 
 USER root
 WORKDIR /app
+RUN mkdir -p /data
 
 COPY package*.json ./
 RUN npm ci --omit=dev \

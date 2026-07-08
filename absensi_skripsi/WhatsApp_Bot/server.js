@@ -3,17 +3,19 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const { startApi } = require('./api');
 const fs = require('fs');
 const path = require('path');
+const { resolveDataDir, warnIfEphemeral } = require('./storage');
 
 if (!process.env.BOT_SECRET) {
     console.error('BOT_SECRET belum diisi. Tambahkan BOT_SECRET pada Railway Variables lalu redeploy.');
     process.exit(1);
 }
 
-const dataDir = process.env.BOT_DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH || __dirname;
+const dataDir = resolveDataDir();
 const sessionsDir = path.join(dataDir, 'sessions');
 if (!fs.existsSync(sessionsDir)) {
     fs.mkdirSync(sessionsDir, { recursive: true });
 }
+warnIfEphemeral(dataDir);
 const browserPath = resolveBrowserPath();
 console.log(`Data bot tersimpan di: ${dataDir}`);
 console.log(`Browser Chrome: ${browserPath || 'default puppeteer'}`);

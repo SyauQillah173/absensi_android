@@ -2,8 +2,9 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
+const { resolveDataDir } = require('./storage');
 
-const DATA_DIR = process.env.BOT_DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH || __dirname;
+const DATA_DIR = resolveDataDir();
 const LOG_DIR = path.join(DATA_DIR, 'logs');
 const LOG_FILE = path.join(LOG_DIR, 'pesan.log');
 const MAX_RETRY = 3;
@@ -104,6 +105,15 @@ function startApi(sessionManager) {
 
     app.use(express.json({ limit: '1mb' }));
     app.use(express.urlencoded({ extended: true }));
+    app.use((err, req, res, next) => {
+        if (err instanceof SyntaxError && 'body' in err) {
+            return res.status(400).json({
+                sukses: false,
+                pesan: 'Format JSON tidak valid. Pastikan body request memakai JSON yang benar.',
+            });
+        }
+        next(err);
+    });
     app.use('/public', express.static(path.join(__dirname, 'public')));
 
     const limiter = rateLimit({ windowMs: 60000, max: 100, message: { sukses: false, pesan: 'Too many requests' } });

@@ -90,6 +90,8 @@ Volume dipakai agar sesi login WhatsApp tidak hilang ketika service restart.
 /data
 ```
 
+Wajib untuk demo sidang: pastikan mount path benar-benar `/data`. Jika tidak, sesi WhatsApp bisa hilang ketika Railway restart atau redeploy, sehingga QR harus discan ulang.
+
 Railway otomatis menyediakan environment:
 
 ```text
