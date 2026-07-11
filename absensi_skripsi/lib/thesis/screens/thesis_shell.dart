@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../services/thesis_database.dart';
+import '../services/thesis_logger.dart';
 import '../services/thesis_session.dart';
 import '../services/thesis_sync.dart';
 import 'attendance_screen.dart';
 import 'history_screen.dart';
 import 'login_screen.dart';
 import 'master_data_screen.dart';
+import 'testing_log_screen.dart';
 
 class ThesisShell extends StatefulWidget {
   const ThesisShell({super.key});
@@ -27,6 +29,7 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
   String? _syncError;
   Timer? _timer;
   bool _syncing = false;
+  String? _lastStatusLog;
 
   @override
   void initState() {
@@ -45,6 +48,17 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
     _syncingCount = (status['syncing'] as num? ?? 0).toInt();
     _syncError = status['last_error']?.toString();
     if (mounted) setState(() {});
+    final statusLog =
+        'pending=$_pending;failed=$_failed;syncing=$_syncingCount;error=${_syncError ?? '-'}';
+    if (_lastStatusLog != statusLog) {
+      _lastStatusLog = statusLog;
+      ThesisLogger.unawaitedInfo(
+        'Beranda memantau status sinkronisasi',
+        message:
+            'Offline-first aktif. Pending $_pending, gagal $_failed, proses $_syncingCount.',
+        category: 'beranda',
+      );
+    }
   }
 
   Future<void> _tick() async {
@@ -57,8 +71,21 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
   Future<void> _sync({bool notify = false}) async {
     if (_syncing) return;
     _syncing = true;
+    ThesisLogger.unawaitedInfo(
+      notify
+          ? 'Sinkronisasi manual dijalankan'
+          : 'Sinkronisasi otomatis dijalankan',
+      message: 'Aplikasi mencoba mengirim data pending ke server.',
+      category: 'sync',
+    );
     try {
       final result = await ThesisSync.syncPending();
+      ThesisLogger.unawaitedInfo(
+        'Hasil sinkronisasi diterima aplikasi',
+        message:
+            'Synced ${result['synced'] ?? 0}, failed ${result['failed'] ?? 0}, pending ${result['pending'] ?? 0}.',
+        category: 'sync',
+      );
       if (!mounted || !notify) return;
       final synced = (result['synced'] as num? ?? 0).toInt();
       final failed = (result['failed'] as num? ?? 0).toInt();
@@ -111,6 +138,7 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
       AttendanceScreen(onSaved: _load),
       HistoryScreen(onChanged: _load),
       if (admin) const MasterDataScreen(),
+      if (admin) const TestingLogScreen(),
     ];
     final destinations = <NavigationDestination>[
       const NavigationDestination(
@@ -134,6 +162,12 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
           selectedIcon: Icon(Icons.school),
           label: 'Buku Induk',
         ),
+      if (admin)
+        const NavigationDestination(
+          icon: Icon(Icons.receipt_long_outlined),
+          selectedIcon: Icon(Icons.receipt_long),
+          label: 'Log',
+        ),
     ];
 
     return Scaffold(
@@ -153,6 +187,11 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
             tooltip: 'Akun',
             onSelected: (value) async {
               if (value != 'logout') return;
+              ThesisLogger.unawaitedInfo(
+                'Pengguna keluar',
+                message: 'Sesi aplikasi diakhiri dari menu akun.',
+                category: 'akun',
+              );
               await ThesisSession.logout();
               if (context.mounted) {
                 Navigator.of(context).pushAndRemoveUntil(

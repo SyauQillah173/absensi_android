@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/thesis_api.dart';
+import '../services/thesis_logger.dart';
 import '../services/thesis_session.dart';
 import '../services/thesis_sync.dart';
 import 'thesis_shell.dart';
@@ -28,6 +29,11 @@ class _LoginScreenState extends State<LoginScreen> {
       _loading = true;
       _error = null;
     });
+    ThesisLogger.unawaitedInfo(
+      'Login online dicoba',
+      message: 'Username ${_username.text.trim()} mencoba masuk ke server.',
+      category: 'login',
+    );
     try {
       final result = await ThesisApi.login(
         _username.text.trim(),
@@ -41,6 +47,12 @@ class _LoginScreenState extends State<LoginScreen> {
         user: Map<String, dynamic>.from(result['data'] as Map),
       );
       await ThesisSync.refreshBootstrap();
+      ThesisLogger.unawaitedInfo(
+        'Login online berhasil',
+        message:
+            'Data sesi dan token tersimpan untuk penggunaan online/offline.',
+        category: 'login',
+      );
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const ThesisShell()),
@@ -48,16 +60,31 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (error) {
+      ThesisLogger.unawaitedInfo(
+        'Login online gagal',
+        message: error.toString(),
+        category: 'login',
+      );
       final offline = await ThesisSession.loginOffline(
         _username.text.trim(),
         _password.text,
       );
       if (offline && mounted) {
+        ThesisLogger.unawaitedInfo(
+          'Login offline berhasil',
+          message: 'Akun ditemukan pada cache perangkat.',
+          category: 'offline-first',
+        );
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const ThesisShell()),
           (_) => false,
         );
       } else if (mounted) {
+        ThesisLogger.unawaitedInfo(
+          'Login offline gagal',
+          message: 'Akun belum tersedia pada cache perangkat.',
+          category: 'offline-first',
+        );
         setState(
           () => _error = error is ThesisApiException
               ? error.message

@@ -121,6 +121,16 @@ data class OutboxEntity(
     val created_at: String,
 )
 
+@Entity(tableName = "app_logs")
+data class AppLogEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val category: String,
+    val title: String,
+    val message: String?,
+    val status: String,
+    val created_at: String,
+)
+
 data class HistoryRow(
     val local_id: String,
     val id_presensi: Long?,
@@ -181,6 +191,9 @@ interface ThesisDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertOutbox(row: OutboxEntity)
 
+    @Insert
+    fun insertLog(row: AppLogEntity)
+
     @Query("SELECT * FROM guru WHERE status_aktif = 1 ORDER BY nama_guru")
     fun gurus(): List<GuruEntity>
 
@@ -216,6 +229,12 @@ interface ThesisDao {
 
     @Query("SELECT * FROM sync_outbox WHERE status IN ('pending','failed','syncing') ORDER BY created_at")
     fun pending(): List<OutboxEntity>
+
+    @Query("SELECT * FROM app_logs ORDER BY id DESC LIMIT :limit")
+    fun appLogs(limit: Int): List<AppLogEntity>
+
+    @Query("DELETE FROM app_logs")
+    fun clearLogs()
 
     @Query("SELECT COUNT(*) FROM sync_outbox WHERE status != 'completed'")
     fun pendingCount(): Int
@@ -290,8 +309,9 @@ interface ThesisDao {
         PresensiEntity::class,
         DetailPresensiEntity::class,
         OutboxEntity::class,
+        AppLogEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class ThesisRoomDatabase : RoomDatabase() {
@@ -311,7 +331,7 @@ abstract class ThesisRoomDatabase : RoomDatabase() {
                     ThesisRoomDatabase::class.java,
                     context.getDatabasePath("presensi_skripsi_room_encrypted.db").absolutePath,
                 ).openHelperFactory(factory)
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build().also { instance = it }
             }
 
@@ -322,6 +342,14 @@ abstract class ThesisRoomDatabase : RoomDatabase() {
                 )
                 database.execSQL("ALTER TABLE presensi ADD COLUMN mapel_id INTEGER")
                 database.execSQL("ALTER TABLE presensi ADD COLUMN mapel TEXT")
+            }
+        }
+
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS app_logs (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, category TEXT NOT NULL, title TEXT NOT NULL, message TEXT, status TEXT NOT NULL, created_at TEXT NOT NULL)",
+                )
             }
         }
     }
@@ -358,6 +386,13 @@ class ThesisRoomBridge(
                             "deleteAttendance" -> deleteAttendance(call.arguments as Map<*, *>)
                             "saveMaster" -> saveMaster(call.arguments as Map<*, *>)
                             "deleteMaster" -> deleteMaster(call.arguments as Map<*, *>)
+                            "addLog" -> addLog(call.arguments as Map<*, *>)
+                            "appLogs" -> db.dao().appLogs(call.argument<Number>("limit")?.toInt() ?: 200).map(::appLogMap)
+                            "clearLogs" -> {
+                                db.dao().clearLogs()
+                                addSystemLog("Log Pengujian", "Log pengujian dibersihkan oleh admin.", "log", "success")
+                                true
+                            }
                             "pendingCount" -> db.dao().pendingCount()
                             "syncStatus" -> syncStatus()
                             "history" -> db.dao().history().map(::historyMap)
@@ -424,6 +459,12 @@ class ThesisRoomBridge(
             db.dao().insertSantri(students)
             db.dao().insertMapel(mapels)
         }
+        addSystemLog(
+            "Data master diperbarui",
+            "Bootstrap server diterima: ${gurus.size} guru, ${classes.size} kelas, ${students.size} santri, ${mapels.size} mata pelajaran.",
+            "sync",
+            "success",
+        )
         return true
     }
 
@@ -476,6 +517,12 @@ class ThesisRoomBridge(
                 OutboxEntity(operationId, "presensi", "POST", "/presensi", payload.toString(), "pending", 0, null, text(args, "updatedAt")),
             )
         }
+        addSystemLog(
+            "Presensi disimpan lokal",
+            "Offline-first: presensi ${text(args, "date")} ${text(args, "startTime")} disimpan lokal dan masuk antrean sinkronisasi.",
+            "presensi",
+            "pending",
+        )
         scheduleOneOff()
         return operationId
     }
@@ -541,6 +588,12 @@ class ThesisRoomBridge(
                 OutboxEntity(operationId, "presensi", method, endpoint, payload.toString(), "pending", 0, null, text(args, "updatedAt")),
             )
         }
+        addSystemLog(
+            "Presensi diperbarui lokal",
+            "Perubahan presensi disimpan lokal dan masuk antrean update server.",
+            "presensi",
+            "pending",
+        )
         scheduleOneOff()
         return operationId
     }
@@ -570,6 +623,12 @@ class ThesisRoomBridge(
                 )
             }
         }
+        addSystemLog(
+            "Presensi dibatalkan",
+            if (existing.id_presensi != null) "Pembatalan presensi masuk antrean sinkronisasi server." else "Presensi lokal yang belum masuk server dihapus.",
+            "presensi",
+            "pending",
+        )
         if (existing.id_presensi != null) scheduleOneOff()
         return true
     }
@@ -639,6 +698,12 @@ class ThesisRoomBridge(
                 OutboxEntity(operationId, entity, method, endpoint, payload.toString(), "pending", 0, null, updatedAt),
             )
         }
+        addSystemLog(
+            "Data master disimpan lokal",
+            "Perubahan data $entity disimpan lokal dan masuk antrean sinkronisasi.",
+            "master",
+            "pending",
+        )
         scheduleOneOff()
 
         return mapOf(idKey(entity) to id, "operation_id" to operationId, "sync_status" to "pending")
@@ -659,8 +724,34 @@ class ThesisRoomBridge(
                 OutboxEntity(operationId, entity, "DELETE", "/$entity/$id", "{}", "pending", 0, null, updatedAt),
             )
         }
+        addSystemLog(
+            "Data master dinonaktifkan",
+            "Data $entity masuk antrean hapus/nonaktif ke server.",
+            "master",
+            "pending",
+        )
         scheduleOneOff()
         return true
+    }
+
+    private fun addLog(args: Map<*, *>): Boolean {
+        addSystemLog(
+            text(args, "title"),
+            nullableText(args, "message"),
+            nullableText(args, "category") ?: "aplikasi",
+            nullableText(args, "status") ?: "info",
+        )
+        return true
+    }
+
+    private fun addSystemLog(title: String, message: String?, category: String, status: String) {
+        db.dao().insertLog(AppLogEntity(
+            category = category,
+            title = title,
+            message = message,
+            status = status,
+            created_at = currentTimestamp(),
+        ))
     }
 
     private fun nextLocalId(entity: String): Long {
@@ -692,6 +783,12 @@ class ThesisRoomBridge(
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
             .build()
         WorkManager.getInstance(context).enqueue(request)
+        addSystemLog(
+            "WorkManager dijadwalkan",
+            "Sinkronisasi satu kali dibuat dengan syarat jaringan terhubung.",
+            "workmanager",
+            "info",
+        )
     }
 
     private fun schedulePeriodic() {
@@ -702,6 +799,12 @@ class ThesisRoomBridge(
             "thesis-periodic-sync",
             ExistingPeriodicWorkPolicy.KEEP,
             request,
+        )
+        addSystemLog(
+            "WorkManager periodik aktif",
+            "Pengecekan sinkronisasi otomatis berjalan setiap 15 menit saat jaringan tersedia.",
+            "workmanager",
+            "info",
         )
     }
 }
@@ -718,13 +821,21 @@ object ThesisSyncRunner {
         val dao = ThesisRoomDatabase.get(context).dao()
         val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
         val session = prefs.getString("flutter.thesis_session", null)
-            ?: return mapOf("online" to true, "synced" to 0, "pending" to dao.pendingCount())
+            ?: run {
+                insertSystemLog(dao, "Sinkronisasi dilewati", "Sesi login belum tersedia.", "sync", "info")
+                return mapOf("online" to true, "synced" to 0, "pending" to dao.pendingCount())
+            }
         val token = JSONObject(session).optString("token")
-        if (token.isBlank()) return mapOf("online" to true, "synced" to 0, "pending" to dao.pendingCount())
+        if (token.isBlank()) {
+            insertSystemLog(dao, "Sinkronisasi dilewati", "Token login kosong atau tidak valid.", "sync", "info")
+            return mapOf("online" to true, "synced" to 0, "pending" to dao.pendingCount())
+        }
 
         var synced = 0
         var failed = 0
-        for (item in dao.pending()) {
+        val pendingItems = dao.pending()
+        insertSystemLog(dao, "Sinkronisasi dimulai", "Menyiapkan ${pendingItems.size} data antrean untuk dikirim ke server.", "sync", "info")
+        for (item in pendingItems) {
             try {
                 dao.updateOutbox(item.operation_id, "syncing", null, 0)
                 if (item.entity_type == "presensi") {
@@ -745,6 +856,15 @@ object ThesisSyncRunner {
                 if (item.entity_type == "presensi") {
                     val serverId = JSONObject(response).optJSONObject("data")?.optLong("id_presensi")
                     dao.updatePresensi(item.operation_id, "completed", null, serverId)
+                    insertSystemLog(
+                        dao,
+                        "Presensi masuk server",
+                        "Online-first aktif: presensi diterima server dan notifikasi WhatsApp diproses backend.",
+                        "whatsapp",
+                        "success",
+                    )
+                } else {
+                    insertSystemLog(dao, "Sinkronisasi data berhasil", "${item.entity_type} berhasil dikirim ke server.", "sync", "success")
                 }
                 dao.deleteOutbox(item.operation_id)
                 synced += 1
@@ -754,8 +874,16 @@ object ThesisSyncRunner {
                 if (item.entity_type == "presensi") {
                     dao.updatePresensi(item.operation_id, "failed", error.message, null)
                 }
+                insertSystemLog(dao, "Sinkronisasi gagal", error.message ?: "Server belum menerima data.", "sync", "failed")
             }
         }
+        insertSystemLog(
+            dao,
+            "Sinkronisasi selesai",
+            "Berhasil $synced data, gagal $failed data, sisa pending ${dao.pendingCount()} data.",
+            "sync",
+            if (failed > 0) "failed" else "success",
+        )
         return mapOf("online" to true, "synced" to synced, "failed" to failed, "pending" to dao.pendingCount())
     }
 }
@@ -763,6 +891,13 @@ object ThesisSyncRunner {
 class ThesisSyncWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
     override fun doWork(): Result {
         if (!ThesisSyncRunner.hasInternet(applicationContext)) {
+            insertSystemLog(
+                ThesisRoomDatabase.get(applicationContext).dao(),
+                "Internet belum tersedia",
+                "WorkManager menunda sinkronisasi sampai jaringan aktif.",
+                "offline-first",
+                "pending",
+            )
             return Result.retry()
         }
         return try {
@@ -814,6 +949,28 @@ private fun historyMap(row: HistoryRow): Map<String, Any?> = mapOf(
     "waktu_mulai" to row.waktu_mulai, "catatan" to row.catatan, "sync_status" to row.sync_status,
     "hadir" to row.hadir, "sakit" to row.sakit, "izin" to row.izin, "alpa" to row.alpa,
 )
+
+private fun appLogMap(row: AppLogEntity): Map<String, Any?> = mapOf(
+    "id" to row.id,
+    "category" to row.category,
+    "title" to row.title,
+    "message" to row.message,
+    "status" to row.status,
+    "created_at" to row.created_at,
+)
+
+private fun insertSystemLog(dao: ThesisDao, title: String, message: String?, category: String, status: String) {
+    dao.insertLog(AppLogEntity(
+        category = category,
+        title = title,
+        message = message,
+        status = status,
+        created_at = currentTimestamp(),
+    ))
+}
+
+private fun currentTimestamp(): String =
+    java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())
 
 private fun text(row: Map<*, *>, key: String) = row[key]?.toString() ?: ""
 private fun nullableText(row: Map<*, *>, key: String) = row[key]?.toString()?.takeIf { it.isNotBlank() }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../services/thesis_database.dart';
+import '../services/thesis_logger.dart';
 import '../services/thesis_sync.dart';
 
 class AttendanceScreen extends StatefulWidget {
@@ -187,6 +188,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           details: details,
         );
         _syncStatus = 'pending';
+        ThesisLogger.unawaitedInfo(
+          'Edit presensi disimpan',
+          message:
+              'Kelas $_classId, mata pelajaran $_selectedMapelName, tanggal $date. Data masuk antrean update server.',
+          category: 'presensi',
+        );
       } else {
         _activeLocalId = await ThesisDatabase.instance.saveAttendance(
           classId: _classId!,
@@ -197,11 +204,23 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           details: details,
         );
         _syncStatus = 'pending';
+        ThesisLogger.unawaitedInfo(
+          'Presensi baru disimpan',
+          message:
+              'Kelas $_classId, mata pelajaran $_selectedMapelName, tanggal $date. Data disimpan lokal sebelum dikirim server.',
+          category: 'presensi',
+        );
       }
       if (mounted) setState(() {});
       widget.onSaved();
       unawaited(
         ThesisSync.syncPending().then((_) async {
+          ThesisLogger.unawaitedInfo(
+            'Sinkronisasi setelah presensi dijalankan',
+            message:
+                'Aplikasi mencoba mengirim data presensi ke server dan memicu notifikasi WhatsApp.',
+            category: 'whatsapp',
+          );
           await _loadExistingForCurrentScope();
           widget.onSaved();
         }),
@@ -249,6 +268,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     setState(() => _saving = true);
     try {
       await ThesisDatabase.instance.deleteAttendance(localId);
+      ThesisLogger.unawaitedInfo(
+        'Pembatalan presensi disimpan',
+        message:
+            'Data pembatalan masuk antrean sinkronisasi jika sebelumnya sudah tersimpan di server.',
+        category: 'presensi',
+      );
       _activeLocalId = null;
       _syncStatus = 'new';
       await _loadStudents();

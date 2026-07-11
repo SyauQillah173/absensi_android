@@ -147,6 +147,27 @@ class ThesisDatabase {
     return Map<String, dynamic>.from(result ?? const {});
   }
 
+  Future<void> addLog({
+    required String title,
+    String? message,
+    String category = 'aplikasi',
+    String status = 'info',
+  }) async {
+    await _channel.invokeMethod<bool>('addLog', {
+      'title': title,
+      'message': message,
+      'category': category,
+      'status': status,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> appLogs({int limit = 200}) =>
+      _list('appLogs', {'limit': limit});
+
+  Future<void> clearLogs() async {
+    await _channel.invokeMethod<bool>('clearLogs');
+  }
+
   Future<List<Map<String, dynamic>>> history() => _list('history');
 
   Future<void> requestSync() async {

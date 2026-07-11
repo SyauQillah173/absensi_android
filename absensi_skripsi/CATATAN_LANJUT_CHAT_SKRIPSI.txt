@@ -1,0 +1,269 @@
+CATATAN LANJUT CHAT SKRIPSI - ABSENSI MADRASAH DINIYAH
+=======================================================
+
+File ini dibuat sebagai catatan handoff agar chat/assistant berikutnya langsung
+paham konteks skripsi dan project tanpa membaca seluruh chat lama.
+
+
+LOKASI PROJECT
+==============
+Workspace utama:
+C:\Users\Nobita\absensi_android
+
+Project khusus skripsi:
+C:\Users\Nobita\absensi_android\absensi_skripsi
+
+Catatan penting:
+- Fokus hanya project `absensi_skripsi`.
+- Jangan sentuh project real/operasional kecuali user minta eksplisit.
+- Project skripsi disesuaikan dengan BAB 1 sampai BAB 3, bukan sebaliknya.
+
+
+KONTEKS SKRIPSI
+===============
+Judul kerja:
+Pengembangan Sistem Presensi Madrasah Diniyah Berbasis Android dengan
+Arsitektur Offline-First dan Notifikasi WhatsApp
+(Studi Kasus Pondok Pesantren Qomaruddin)
+
+Konsep aplikasi:
+- Aplikasi Android Flutter.
+- Backend Laravel REST API.
+- Database PostgreSQL/Neon khusus skripsi.
+- Database lokal Android menggunakan Room Database terenkripsi.
+- Sinkronisasi offline-first dengan antrean/outbox lokal.
+- WorkManager digunakan untuk mencoba sinkronisasi otomatis saat internet tersedia.
+- Aktor utama: Admin dan Guru.
+- Fokus sistem: presensi santri Madrasah Diniyah, bukan pembayaran atau fitur real lain.
+
+
+FITUR YANG SUDAH DISESUAIKAN
+============================
+1. Login admin/guru.
+2. Buku Induk / master data:
+   - Guru
+   - Kelas
+   - Santri
+   - Mata pelajaran
+3. Presensi:
+   - Pilih kelas
+   - Pilih mata pelajaran
+   - Pilih tanggal dan waktu
+   - Status Hadir, Sakit, Izin, Alpa
+   - Keterangan untuk Sakit/Izin/Alpa
+4. Edit presensi.
+5. Cancel/batalkan presensi.
+6. Riwayat presensi.
+7. Sinkronisasi offline-first:
+   - pending
+   - syncing
+   - completed
+   - failed
+8. Notifikasi WhatsApp:
+   - terkirim setelah presensi masuk server
+   - memuat nama santri, NISN, tanggal, status, kelas, mata pelajaran
+   - jika status Sakit/Izin/Alpa dan ada keterangan, keterangan ikut terkirim
+
+
+WHATSAPP BOT
+============
+Bot WA Railway:
+https://absensiandroid-production.up.railway.app
+
+Backend Vercel:
+https://absensi-android-skripsi.vercel.app/api
+
+Environment penting:
+- Railway bot punya `BOT_SECRET`.
+- Vercel backend harus punya `WHATSAPP_BOT_SECRET` yang sama persis.
+- Vercel backend harus punya:
+  WHATSAPP_BOT_URL=https://absensiandroid-production.up.railway.app
+  WHATSAPP_BOT_TIMEOUT=20
+
+Status terakhir:
+- Bot pernah berhasil mengirim notifikasi.
+- Setelah redeploy Railway, bot bisa kembali `menunggu_qr`, jadi user perlu scan QR lagi.
+- Jika notifikasi tidak masuk, cek dulu:
+  1. Bot Railway `/status`
+  2. Apakah status bot `aktif`
+  3. Apakah secret Vercel sama dengan Railway
+  4. Log bot `/log?n=10`
+
+Template pesan WA terbaru:
+
+[Madrasah Diniyah]
+Yth. Wali dari Nama Santri (NISN)
+Status kehadiran Ananda pada hari ini (Hari, Tanggal Bulan Tahun) adalah
+Status Kehadiran
+
+Kelas: Nama Kelas
+Mata Pelajaran: Nama Mata Pelajaran
+
+Terimakasih.
+
+Jika ada keterangan:
+Status Kehadiran
+Keterangan: isi keterangan
+
+
+DATA NOMOR DEMO
+===============
+Untuk demo skripsi, nomor wali santri diarahkan ke dua nomor:
+- 08155936131
+- 0881026496046
+
+Catatan:
+- Jangan tampilkan secret bot di jawaban akhir kecuali user benar-benar perlu.
+- Nomor ini dipakai untuk demo sidang sementara.
+
+
+KONDISI DATABASE / MIGRASI
+==========================
+Migration penting:
+- 2026_07_07_000001_rebuild_database_for_thesis.php
+- 2026_07_07_000002_keep_only_thesis_tables.php
+- 2026_07_08_000003_set_demo_whatsapp_numbers_for_thesis.php
+- 2026_07_08_000004_add_mapel_to_thesis_presensi.php
+
+Migration 000004 menambahkan:
+- tabel `mata_pelajaran`
+- kolom `mapel_id` pada `presensi`
+- kolom `mapel` pada `presensi`
+- seed mapel awal:
+  - Matematika
+  - Bahasa Indonesia
+  - Fiqih
+  - Aqidah Akhlak
+  - Al-Qur'an Hadits
+  - Sejarah Kebudayaan Islam
+  - Bahasa Arab
+
+Migration sudah pernah berhasil dijalankan ke database produksi/Neon.
+
+
+APK TERBARU
+===========
+APK release terakhir dibuat di:
+C:\Users\Nobita\absensi_android\absensi_skripsi\build\app\outputs\flutter-apk\app-release.apk
+
+Ukuran terakhir sekitar 68 MB.
+
+Catatan:
+- Setelah install APK baru, lakukan login dan refresh/sync agar data mata pelajaran masuk ke Room lokal.
+- Jika mapel tidak muncul, cek endpoint `/sync/bootstrap` dan proses replaceBootstrap di Room.
+
+
+COMMIT TERAKHIR YANG PENTING
+============================
+Branch: main
+
+Commit penting:
+- 7e115ff Alihkan localhost bot WA ke Railway
+- 4f1a4cd Tambahkan mapel pada presensi skripsi
+- 173d876 Amankan migrasi mapel PostgreSQL
+
+Catatan:
+- File `CATATAN_BAB_4_DAN_5.md` dan beberapa TXT panduan bersifat catatan lokal untuk skripsi.
+- Jika user minta git, cek dulu `git status`.
+
+
+BAB IV YANG SUDAH DIBUAT
+========================
+File draft utama:
+C:\Users\Nobita\absensi_android\absensi_skripsi\CATATAN_BAB_4_DAN_5.md
+
+Isi yang sudah ada:
+- BAB IV
+- 4.1 Gambaran Umum Implementasi Sistem
+- 4.2 Implementasi Database
+- 4.3 Implementasi Antarmuka Aplikasi
+- 4.4 Implementasi Proses Presensi dan Sinkronisasi
+- 4.5 Implementasi Notifikasi WhatsApp
+- 4.6 Pengujian Sistem
+- placeholder lanjut 4.7 Hasil Implementasi Sistem
+
+User ingin mengerjakan pelan-pelan per subbab.
+Jangan langsung tulis semua BAB 4-5 panjang sekaligus.
+Tanyakan/lanjutkan sesuai subbab yang user minta.
+
+
+CATATAN GOOGLE FORM / UJI PENGGUNA
+==================================
+File panduan:
+C:\Users\Nobita\absensi_android\absensi_skripsi\PANDUAN_UJI_PENGGUNA_GFORM.txt
+
+Isi file:
+- Judul Google Form
+- Deskripsi
+- Pertanyaan identitas responden
+- Pertanyaan skala 1-5
+- Kritik dan saran
+- Screenshot yang perlu diambil
+- Narasi BAB IV pengujian pengguna
+- Format tabel hasil
+
+Catatan etika:
+- Jangan bantu memalsukan hasil pengujian pengguna sebagai data real.
+- Boleh bantu buat instrumen, contoh format, narasi, dan simulasi yang diberi label contoh.
+
+
+SCREENSHOT YANG DISARANKAN UNTUK BAB IV
+=======================================
+Untuk BAB 4 implementasi:
+1. Login aplikasi
+2. Beranda
+3. Buku Induk / data santri
+4. Data kelas
+5. Data mata pelajaran
+6. Halaman presensi: pilih kelas + pilih mata pelajaran
+7. Input status santri
+8. Keterangan Sakit/Izin/Alpa
+9. Riwayat presensi
+10. Status sinkronisasi completed
+11. Pesan WhatsApp terkirim
+12. Dashboard/status bot Railway aktif
+13. Google Form pengujian pengguna
+14. Ringkasan respons Google Form
+
+
+LANJUTAN YANG PALING MUNGKIN
+============================
+Jika user bilang "lanjut", lanjutkan dari:
+## 4.7 Hasil Implementasi Sistem
+
+Saran isi 4.7:
+- Jelaskan hasil akhir aplikasi setelah implementasi.
+- Sebut sistem berhasil menyediakan login, master data, mapel, presensi, edit, sinkronisasi, WA.
+- Jelaskan hasil uji secara ringkas.
+- Jangan terlalu panjang.
+
+Setelah 4.7, kemungkinan lanjut:
+## 4.8 Pembahasan
+atau langsung BAB V:
+## 5.1 Kesimpulan
+## 5.2 Saran
+
+
+GAYA JAWABAN UNTUK USER
+=======================
+User suka dipanggil "bang".
+Gunakan bahasa Indonesia santai tapi tetap membantu.
+Jangan terlalu panjang kecuali user minta.
+Untuk skripsi, user ingin:
+- "pelan-pelan"
+- "per subbab"
+- "tinggal copas ke Word"
+- panduan screenshot dan caption
+
+Saat membuat narasi skripsi:
+- Jangan terlalu panjang.
+- Hindari penjelasan yang bertele-tele.
+- Buat dalam bentuk paragraf akademik sederhana.
+- Beri catatan screenshot setelah subbab.
+
+
+STATUS TERAKHIR CHAT INI
+========================
+User meminta dibuatkan catatan agar chat sebelah paham karena chat ini sudah terlalu panjang.
+File ini adalah catatan handoff tersebut.
+
