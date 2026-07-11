@@ -8,9 +8,9 @@ use Carbon\Carbon;
 
 class ThesisNotificationService
 {
-    public function queue(DetailPresensi $detail, ?string $mapel = null): ?WhatsAppMessageLog
+    public function queue(DetailPresensi $detail): ?WhatsAppMessageLog
     {
-        if (!in_array($detail->status_presensi, ['Hadir', 'Sakit', 'Izin', 'Alpa'], true)) {
+        if (!in_array($detail->status_presensi, ['Sakit', 'Izin', 'Alpa'], true)) {
             return null;
         }
 
@@ -21,10 +21,8 @@ class ThesisNotificationService
         $status = $detail->status_presensi;
         $nisn = $santri->nisn ?: '-';
         $kelas = $detail->presensi?->kelas?->nama_kelas ?: '-';
-        $mapel = trim((string) $mapel);
-        $mapel = $mapel !== '' ? $mapel : ($detail->presensi?->mapel ?: '-');
         $keterangan = trim((string) $detail->keterangan);
-        $keteranganLine = $status === 'Hadir' || $keterangan === ''
+        $keteranganLine = $keterangan === ''
             ? ''
             : "\nKeterangan: {$keterangan}";
         $message = "[Madrasah Diniyah]\n"
@@ -32,7 +30,7 @@ class ThesisNotificationService
             ."Status kehadiran Ananda pada hari ini ({$tanggal}) adalah\n"
             ."{$status}{$keteranganLine}\n\n"
             ."Kelas: {$kelas}\n"
-            ."Mata Pelajaran: {$mapel}\n\n"
+            ."\n"
             ."Terimakasih.";
 
         $log = WhatsAppMessageLog::updateOrCreate([

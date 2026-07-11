@@ -16,8 +16,6 @@ class ThesisDatabase {
 
   Future<List<Map<String, dynamic>>> classes() => _list('classes');
 
-  Future<List<Map<String, dynamic>>> mapels() => _list('mapels');
-
   Future<List<Map<String, dynamic>>> gurus() => _list('gurus');
 
   Future<List<Map<String, dynamic>>> allStudents() => _list('allStudents');
@@ -27,11 +25,9 @@ class ThesisDatabase {
 
   Future<String> saveAttendance({
     required int classId,
-    required int mapelId,
     required String date,
     required String startTime,
     required List<Map<String, dynamic>> details,
-    String? mapel,
     String? note,
   }) async {
     const uuid = Uuid();
@@ -39,10 +35,8 @@ class ThesisDatabase {
     return await _channel.invokeMethod<String>('saveAttendance', {
           'operationId': operationId,
           'classId': classId,
-          'mapelId': mapelId,
           'date': date,
           'startTime': startTime,
-          'mapel': mapel,
           'details': details,
           'note': note,
           'updatedAt': DateTime.now().toIso8601String(),
@@ -60,18 +54,12 @@ class ThesisDatabase {
 
   Future<Map<String, dynamic>?> attendanceByScope({
     required int classId,
-    required int mapelId,
     required String date,
     required String startTime,
   }) async {
     final result = await _channel.invokeMapMethod<dynamic, dynamic>(
       'attendanceByScope',
-      {
-        'classId': classId,
-        'mapelId': mapelId,
-        'date': date,
-        'startTime': startTime,
-      },
+      {'classId': classId, 'date': date, 'startTime': startTime},
     );
     return result == null ? null : Map<String, dynamic>.from(result);
   }
@@ -79,11 +67,9 @@ class ThesisDatabase {
   Future<String> updateAttendance({
     required String localId,
     required int classId,
-    required int mapelId,
     required String date,
     required String startTime,
     required List<Map<String, dynamic>> details,
-    String? mapel,
     String? note,
   }) async {
     const uuid = Uuid();
@@ -92,10 +78,8 @@ class ThesisDatabase {
           'localId': localId,
           'operationId': operationId,
           'classId': classId,
-          'mapelId': mapelId,
           'date': date,
           'startTime': startTime,
-          'mapel': mapel,
           'details': details,
           'note': note,
           'updatedAt': DateTime.now().toIso8601String(),

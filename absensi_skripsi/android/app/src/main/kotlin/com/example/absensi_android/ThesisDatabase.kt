@@ -268,17 +268,17 @@ interface ThesisDao {
 
     @Query(
         """SELECT * FROM presensi
-        WHERE id_kelas=:classId AND mapel_id=:mapelId AND tanggal=:date AND waktu_mulai=:startTime
+        WHERE id_kelas=:classId AND tanggal=:date AND waktu_mulai=:startTime
         ORDER BY updated_at DESC LIMIT 1""",
     )
-    fun presensiByScope(classId: Long, mapelId: Long, date: String, startTime: String): PresensiEntity?
+    fun presensiByScope(classId: Long, date: String, startTime: String): PresensiEntity?
 
     @Query(
         """SELECT * FROM presensi
-        WHERE id_kelas=:classId AND mapel_id=:mapelId AND tanggal=:date
+        WHERE id_kelas=:classId AND tanggal=:date
         ORDER BY updated_at DESC LIMIT 1""",
     )
-    fun presensiByClassDate(classId: Long, mapelId: Long, date: String): PresensiEntity?
+    fun presensiByClassDate(classId: Long, date: String): PresensiEntity?
 
     @Query(
         """SELECT d.id_santri, s.nisn, s.nama_santri, d.status_presensi, d.keterangan
@@ -440,15 +440,6 @@ class ThesisRoomBridge(
                 bool(row, "status_aktif"),
             )
         } ?: emptyList()
-        val mapels = (data["mata_pelajaran"] as? List<*>)?.map {
-            val row = it as Map<*, *>
-            MataPelajaranEntity(
-                long(row, "id"),
-                text(row, "nama"),
-                nullableText(row, "kode"),
-                text(row, "status").ifBlank { "Aktif" },
-            )
-        } ?: emptyList()
         db.runInTransaction {
             db.dao().clearSantri()
             db.dao().clearKelas()
@@ -457,11 +448,10 @@ class ThesisRoomBridge(
             db.dao().insertGuru(gurus)
             db.dao().insertKelas(classes)
             db.dao().insertSantri(students)
-            db.dao().insertMapel(mapels)
         }
         addSystemLog(
             "Data master diperbarui",
-            "Bootstrap server diterima: ${gurus.size} guru, ${classes.size} kelas, ${students.size} santri, ${mapels.size} mata pelajaran.",
+            "Bootstrap server diterima: ${gurus.size} guru, ${classes.size} kelas, ${students.size} santri.",
             "sync",
             "success",
         )
@@ -472,10 +462,9 @@ class ThesisRoomBridge(
         val operationId = text(args, "operationId")
         val existing = db.dao().presensiByScope(
             long(args, "classId"),
-            long(args, "mapelId"),
             text(args, "date"),
             text(args, "startTime"),
-        ) ?: db.dao().presensiByClassDate(long(args, "classId"), long(args, "mapelId"), text(args, "date"))
+        ) ?: db.dao().presensiByClassDate(long(args, "classId"), text(args, "date"))
         if (existing != null) {
             val updateArgs = args.toMutableMap()
             updateArgs["localId"] = existing.local_id
@@ -495,8 +484,6 @@ class ThesisRoomBridge(
         val payload = JSONObject().apply {
             put("operation_id", operationId)
             put("id_kelas", long(args, "classId"))
-            put("mapel_id", long(args, "mapelId"))
-            put("mapel", nullableText(args, "mapel"))
             put("tanggal", text(args, "date"))
             put("waktu_mulai", text(args, "startTime"))
             put("catatan", args["note"])
@@ -507,7 +494,7 @@ class ThesisRoomBridge(
             db.dao().insertPresensi(
                 PresensiEntity(
                     operationId, null, operationId, null, long(args, "classId"),
-                    long(args, "mapelId"), nullableText(args, "mapel"),
+                    null, null,
                     text(args, "date"), text(args, "startTime"), null,
                     nullableText(args, "note"), "pending", null, text(args, "updatedAt"),
                 ),
@@ -537,10 +524,9 @@ class ThesisRoomBridge(
     private fun attendanceByScope(args: Map<*, *>): Map<String, Any?>? {
         val row = db.dao().presensiByScope(
             long(args, "classId"),
-            long(args, "mapelId"),
             text(args, "date"),
             text(args, "startTime"),
-        ) ?: db.dao().presensiByClassDate(long(args, "classId"), long(args, "mapelId"), text(args, "date")) ?: return null
+        ) ?: db.dao().presensiByClassDate(long(args, "classId"), text(args, "date")) ?: return null
         return attendance(row.local_id)
     }
 
@@ -562,8 +548,6 @@ class ThesisRoomBridge(
         val payload = JSONObject().apply {
             put("operation_id", operationId)
             put("id_kelas", long(args, "classId"))
-            put("mapel_id", long(args, "mapelId"))
-            put("mapel", nullableText(args, "mapel"))
             put("tanggal", text(args, "date"))
             put("waktu_mulai", text(args, "startTime"))
             put("catatan", args["note"])
@@ -577,7 +561,7 @@ class ThesisRoomBridge(
             db.dao().insertPresensi(
                 PresensiEntity(
                     localId, existing.id_presensi, operationId, existing.id_guru, long(args, "classId"),
-                    long(args, "mapelId"), nullableText(args, "mapel"),
+                    null, null,
                     text(args, "date"), text(args, "startTime"), null,
                     nullableText(args, "note"), "pending", null, text(args, "updatedAt"),
                 ),
