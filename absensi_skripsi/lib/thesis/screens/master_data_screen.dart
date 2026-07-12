@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:excel/excel.dart';
@@ -67,7 +68,7 @@ class _MasterDataScreenState extends State<MasterDataScreen>
     if (confirmed != true) return;
     try {
       await ThesisDatabase.instance.deleteMaster(entity: entity, id: id);
-      await ThesisSync.syncPending();
+      _syncMasterInBackground();
       await _load();
       _message('Perubahan disimpan lokal dan akan disinkronkan otomatis.');
     } catch (error) {
@@ -80,6 +81,17 @@ class _MasterDataScreenState extends State<MasterDataScreen>
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _syncMasterInBackground() {
+    unawaited(
+      ThesisSync.syncPending()
+          .then((_) => ThesisSync.refreshBootstrap())
+          .then((_) async {
+            if (mounted) await _load();
+          })
+          .catchError((_) {}),
+    );
   }
 
   @override
@@ -139,6 +151,13 @@ class _MasterDataScreenState extends State<MasterDataScreen>
           tooltip: 'Template Excel',
           onPressed: _shareStudentTemplate,
           child: const Icon(Icons.description_outlined),
+        ),
+        const SizedBox(height: 8),
+        FloatingActionButton.small(
+          heroTag: 'export-santri',
+          tooltip: 'Export data santri',
+          onPressed: _shareStudentExport,
+          child: const Icon(Icons.download_outlined),
         ),
         const SizedBox(height: 8),
         FloatingActionButton.extended(
@@ -282,7 +301,7 @@ class _MasterDataScreenState extends State<MasterDataScreen>
                       'status_aktif': true,
                     },
                   );
-                  await ThesisSync.syncPending();
+                  _syncMasterInBackground();
                   if (context.mounted) Navigator.pop(context, true);
                 } catch (error) {
                   _message(error.toString());
@@ -335,7 +354,7 @@ class _MasterDataScreenState extends State<MasterDataScreen>
             'status_aktif': true,
           },
         );
-        await ThesisSync.syncPending();
+        _syncMasterInBackground();
         return {'success': true};
       },
     );
@@ -420,7 +439,7 @@ class _MasterDataScreenState extends State<MasterDataScreen>
                       'status_aktif': true,
                     },
                   );
-                  await ThesisSync.syncPending();
+                  _syncMasterInBackground();
                   if (context.mounted) Navigator.pop(context, true);
                 } catch (error) {
                   _message(error.toString());
@@ -473,6 +492,49 @@ class _MasterDataScreenState extends State<MasterDataScreen>
     final file = File('${directory.path}/template_import_santri.xlsx');
     await file.writeAsBytes(bytes, flush: true);
     await Share.shareXFiles([XFile(file.path)], text: 'Template import santri');
+  }
+
+  Future<void> _shareStudentExport() async {
+    if (_students.isEmpty) {
+      _message('Belum ada data santri untuk diexport.');
+      return;
+    }
+
+    final excel = Excel.createExcel();
+    final sheet = excel['Santri'];
+    excel.setDefaultSheet('Santri');
+    sheet.appendRow([
+      TextCellValue('nisn'),
+      TextCellValue('nama_santri'),
+      TextCellValue('nama_kelas'),
+      TextCellValue('jenis_kelamin'),
+      TextCellValue('nama_wali'),
+      TextCellValue('nomor_wa_wali'),
+      TextCellValue('alamat'),
+      TextCellValue('tgl_lahir'),
+    ]);
+    for (final student in _students) {
+      sheet.appendRow([
+        TextCellValue(student['nisn']?.toString() ?? ''),
+        TextCellValue(student['nama_santri']?.toString() ?? ''),
+        TextCellValue(student['nama_kelas']?.toString() ?? ''),
+        TextCellValue(student['jenis_kelamin']?.toString() ?? ''),
+        TextCellValue(student['nama_wali']?.toString() ?? ''),
+        TextCellValue(student['nomor_wa_wali']?.toString() ?? ''),
+        TextCellValue(student['alamat']?.toString() ?? ''),
+        TextCellValue(student['tgl_lahir']?.toString() ?? ''),
+      ]);
+    }
+
+    final bytes = excel.encode();
+    if (bytes == null) {
+      _message('Export Excel gagal dibuat.');
+      return;
+    }
+    final directory = await getTemporaryDirectory();
+    final file = File('${directory.path}/export_data_santri.xlsx');
+    await file.writeAsBytes(bytes, flush: true);
+    await Share.shareXFiles([XFile(file.path)], text: 'Export data santri');
   }
 
   Future<void> _importStudentsFromExcel() async {
@@ -575,8 +637,8 @@ class _MasterDataScreenState extends State<MasterDataScreen>
         imported += 1;
       }
 
-      await ThesisSync.syncPending();
       await _load();
+      _syncMasterInBackground();
       final note = skipped.isEmpty ? '' : ' ${skipped.take(3).join(' ')}';
       _message(
         '$imported santri berhasil diproses.${skipped.isEmpty ? '' : ' ${skipped.length} baris dilewati.'}$note',
