@@ -12,7 +12,9 @@ const RETRY_DELAY_MS = 60000;
 const BULK_DELAY_MIN = 3000;
 const BULK_DELAY_MAX = 7000;
 const DAILY_QUOTA_PER_SESSION = 200; // Kuota 200 per bot
-const SEND_TIMEOUT_MS = parseInt(process.env.SEND_TIMEOUT_MS || '45000', 10);
+const SEND_TIMEOUT_MS = parseInt(process.env.SEND_TIMEOUT_MS || '15000', 10);
+const ASYNC_SEND = process.env.ASYNC_SEND !== 'false';
+const SKIP_NUMBER_REGISTRATION_CHECK = process.env.SKIP_NUMBER_REGISTRATION_CHECK !== 'false';
 const ENABLE_TYPING_SIMULATION = process.env.ENABLE_TYPING_SIMULATION === 'true';
 const TYPING_DURATION_MIN = 800;
 const TYPING_DURATION_MAX = 1500;
@@ -122,6 +124,9 @@ function enqueueRetry(nomor, pesan) {
 
 async function resolveChatId(client, nomor) {
     const chatId = formatNomor(nomor);
+    if (SKIP_NUMBER_REGISTRATION_CHECK) {
+        return chatId;
+    }
     const registered = await withTimeout(
         client.isRegisteredUser(chatId),
         SEND_TIMEOUT_MS,
@@ -133,6 +138,11 @@ async function resolveChatId(client, nomor) {
         throw error;
     }
     return chatId;
+}
+
+async function sendWithState(state, nomor, pesan) {
+    const chatId = await resolveChatId(state.client, nomor);
+    await simulateTypingAndSend(state.client, chatId, pesan.trim());
 }
 
 async function simulateTypingAndSend(client, chatId, message) {
@@ -322,22 +332,37 @@ function startApi(sessionManager) {
         }
 
         stats.total++;
+        const processSend = async () => {
+            try {
+                await sendWithState(state, validasi.nomor, pesan);
+                stats.berhasil++;
+                writeLog('BERHASIL', validasi.nomor, pesan, botId);
+            } catch (err) {
+                stats.gagal++;
+                writeLog('GAGAL', validasi.nomor, err.message, botId);
+                state.lastError = err.message;
+                if (isBrowserTimeout(err)) {
+                    sessionManager.restartSession(botId, err.message).catch(console.error);
+                }
+                if (!err.permanent && !isPermanentSendError(err)) {
+                    enqueueRetry(validasi.nomor, pesan);
+                }
+            }
+        };
+
+        if (ASYNC_SEND) {
+            writeLog('QUEUED', validasi.nomor, pesan, botId);
+            res.json({ sukses: true, pesan: 'Masuk antrean pengiriman', data: { via: botId, queued: true } });
+            setImmediate(() => processSend().catch((err) => {
+                writeLog('GAGAL', validasi.nomor, err.message || String(err), botId);
+            }));
+            return;
+        }
+
         try {
-            const chatId = await resolveChatId(state.client, validasi.nomor);
-            await simulateTypingAndSend(state.client, chatId, pesan.trim());
-            stats.berhasil++;
-            writeLog('BERHASIL', validasi.nomor, pesan, botId);
+            await processSend();
             res.json({ sukses: true, pesan: 'Terkirim', data: { via: botId } });
         } catch (err) {
-            stats.gagal++;
-            writeLog('GAGAL', validasi.nomor, err.message, botId);
-            state.lastError = err.message;
-            if (isBrowserTimeout(err)) {
-                sessionManager.restartSession(botId, err.message).catch(console.error);
-            }
-            if (!err.permanent && !isPermanentSendError(err)) {
-                enqueueRetry(validasi.nomor, pesan);
-            }
             res.status(err.permanent || isPermanentSendError(err) ? 422 : 500).json({ sukses: false, pesan: err.message });
         }
     });
@@ -370,8 +395,7 @@ function startApi(sessionManager) {
 
             stats.total++;
             try {
-                const chatId = await resolveChatId(bot.state.client, validasi.nomor);
-                await simulateTypingAndSend(bot.state.client, chatId, pesan.trim());
+                await sendWithState(bot.state, validasi.nomor, pesan);
                 stats.berhasil++;
                 writeLog('BERHASIL', validasi.nomor, pesan, bot.id);
                 hasil.push({ nomor: validasi.nomor, sukses: true, via: bot.id });
@@ -410,8 +434,7 @@ function startApi(sessionManager) {
         const item = retryQueue[0];
         item.attempts++;
         try {
-            const chatId = await resolveChatId(bot.state.client, item.nomor);
-            await simulateTypingAndSend(bot.state.client, chatId, item.pesan);
+            await sendWithState(bot.state, item.nomor, item.pesan);
             writeLog('RETRY_BERHASIL', item.nomor, item.pesan, bot.id);
             retryQueue.shift();
             getStats(bot.id).berhasil++;
