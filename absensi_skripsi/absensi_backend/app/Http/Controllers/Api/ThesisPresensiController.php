@@ -119,7 +119,9 @@ class ThesisPresensiController extends Controller
 
             foreach ($detailRows as $row) {
                 $existingDetail = $existingDetails->get($row['id_santri']);
-                $shouldNotify = !$existingDetail || $this->detailChanged($existingDetail, $row);
+                $shouldNotify = !empty($data['notify_all'])
+                    || !$existingDetail
+                    || $this->detailChanged($existingDetail, $row);
                 $detail = DetailPresensi::updateOrCreate(
                     ['id_presensi' => $presensi->id_presensi, 'id_santri' => $row['id_santri']],
                     $row + ['sync_flag' => true]
@@ -280,6 +282,7 @@ class ThesisPresensiController extends Controller
             'waktu_selesai' => 'nullable|date_format:H:i:s|after:waktu_mulai',
             'catatan' => 'nullable|string|max:1000',
             'allow_update' => 'nullable|boolean',
+            'notify_all' => 'nullable|boolean',
             'detail' => 'required|array|min:1',
             'detail.*.id_santri' => 'required|integer|exists:santri,id_santri',
             'detail.*.status_presensi' => 'required|in:Hadir,Sakit,Izin,Alpa',

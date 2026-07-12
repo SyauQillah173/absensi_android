@@ -11,10 +11,6 @@ class ThesisNotificationService
 {
     public function queue(DetailPresensi $detail): ?WhatsAppMessageLog
     {
-        if (!in_array($detail->status_presensi, ['Sakit', 'Izin', 'Alpa'], true)) {
-            return null;
-        }
-
         $detail->loadMissing('santri', 'presensi.kelas');
         $santri = $detail->santri;
         $phone = $this->normalize($santri->nomor_wa_wali);

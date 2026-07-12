@@ -495,6 +495,7 @@ class ThesisRoomBridge(
             put("waktu_mulai", text(args, "startTime"))
             put("catatan", args["note"])
             put("allow_update", true)
+            put("notify_all", true)
             put("detail", payloadDetails)
         }
         db.runInTransaction {
@@ -559,6 +560,7 @@ class ThesisRoomBridge(
             put("waktu_mulai", text(args, "startTime"))
             put("catatan", args["note"])
             put("allow_update", true)
+            put("notify_all", false)
             put("detail", payloadDetails)
         }
         val endpoint = if (existing.id_presensi != null) "/presensi/${existing.id_presensi}" else "/presensi"
