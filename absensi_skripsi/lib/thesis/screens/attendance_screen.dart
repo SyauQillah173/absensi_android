@@ -26,10 +26,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     'Lainnya',
   ];
   List<Map<String, dynamic>> _classes = [];
+  List<Map<String, dynamic>> _mapels = [];
   List<Map<String, dynamic>> _students = [];
   final Map<int, String> _status = {};
   final Map<int, TextEditingController> _notes = {};
   int? _classId;
+  int? _mapelId;
   DateTime _date = DateTime.now();
   TimeOfDay _time = TimeOfDay.now();
   bool _loading = true;
@@ -46,6 +48,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Future<void> _loadClasses() async {
     _classes = await ThesisDatabase.instance.classes();
+    _mapels = await ThesisDatabase.instance.mapels();
+    if (_mapels.isNotEmpty) {
+      _mapelId = (_mapels.first['id'] as num).toInt();
+    }
     if (widget.editLocalId != null) {
       final attendance = await ThesisDatabase.instance.attendance(
         widget.editLocalId!,
@@ -55,6 +61,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             attendance['local_id']?.toString() ?? widget.editLocalId;
         _syncStatus = attendance['sync_status']?.toString() ?? 'pending';
         _classId = (attendance['id_kelas'] as num).toInt();
+        _mapelId = (attendance['mapel_id'] as num?)?.toInt() ?? _mapelId;
         _date = DateTime.parse(attendance['tanggal'].toString());
         _time = _parseTime(attendance['waktu_mulai'].toString());
         final detail = (attendance['detail'] as List? ?? const [])
@@ -76,9 +83,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}:00';
 
   Future<void> _loadExistingForCurrentScope() async {
-    if (_classId == null) return;
+    if (_classId == null || _mapelId == null) return;
     final existing = await ThesisDatabase.instance.attendanceByScope(
       classId: _classId!,
+      mapelId: _mapelId!,
       date: _dateText,
       startTime: _timeText,
     );
@@ -92,6 +100,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     _activeLocalId = existing['local_id']?.toString();
     _syncStatus = existing['sync_status']?.toString() ?? 'pending';
     _date = DateTime.parse(existing['tanggal'].toString());
+    _mapelId = (existing['mapel_id'] as num?)?.toInt() ?? _mapelId;
     _time = _parseTime(existing['waktu_mulai'].toString());
     final detail = (existing['detail'] as List? ?? const [])
         .map((row) => Map<String, dynamic>.from(row as Map))
@@ -146,7 +155,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Future<void> _save() async {
-    if (_classId == null || _students.isEmpty) return;
+    if (_classId == null || _mapelId == null || _students.isEmpty) return;
     setState(() => _saving = true);
     try {
       final details = _students.map((student) {
@@ -160,14 +169,22 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       }).toList();
       final time = _timeText;
       final date = _dateText;
+      final selectedMapel = _mapels.where(
+        (row) => (row['id'] as num).toInt() == _mapelId,
+      );
+      final mapelName = selectedMapel.isEmpty
+          ? null
+          : selectedMapel.first['nama'].toString();
       late final String operationId;
       if (_editing) {
         operationId = await ThesisDatabase.instance.updateAttendance(
           localId: _activeLocalId!,
           classId: _classId!,
+          mapelId: _mapelId!,
           date: date,
           startTime: time,
           details: details,
+          mapel: mapelName,
         );
         _syncStatus = 'pending';
         ThesisLogger.unawaitedInfo(
@@ -179,9 +196,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       } else {
         operationId = await ThesisDatabase.instance.saveAttendance(
           classId: _classId!,
+          mapelId: _mapelId!,
           date: date,
           startTime: time,
           details: details,
+          mapel: mapelName,
         );
         _activeLocalId = operationId;
         _syncStatus = 'pending';
@@ -295,68 +314,100 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_classes.isEmpty) {
-      return const Center(child: Text('Belum ada kelas yang ditugaskan.'));
+    if (_classes.isEmpty || _mapels.isEmpty) {
+      return Center(
+        child: Text(
+          _classes.isEmpty
+              ? 'Belum ada kelas yang ditugaskan.'
+              : 'Belum ada mata pelajaran aktif.',
+        ),
+      );
     }
 
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Row(
+          child: Column(
             children: [
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  initialValue: _classId,
-                  decoration: const InputDecoration(
-                    labelText: 'Kelas',
-                    border: OutlineInputBorder(),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      initialValue: _classId,
+                      decoration: const InputDecoration(
+                        labelText: 'Kelas',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _classes
+                          .map(
+                            (row) => DropdownMenuItem<int>(
+                              value: (row['id_kelas'] as num).toInt(),
+                              child: Text(row['nama_kelas'].toString()),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) async {
+                        _classId = value;
+                        await _loadExistingForCurrentScope();
+                      },
+                    ),
                   ),
-                  items: _classes
-                      .map(
-                        (row) => DropdownMenuItem<int>(
-                          value: (row['id_kelas'] as num).toInt(),
-                          child: Text(row['nama_kelas'].toString()),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    tooltip: 'Pilih tanggal',
+                    onPressed: () async {
+                      final value = await showDatePicker(
+                        context: context,
+                        initialDate: _date,
+                        firstDate: DateTime.now().subtract(
+                          const Duration(days: 7),
                         ),
-                      )
-                      .toList(),
-                  onChanged: (value) async {
-                    _classId = value;
-                    await _loadExistingForCurrentScope();
-                  },
+                        lastDate: DateTime.now(),
+                      );
+                      if (value != null) {
+                        setState(() => _date = value);
+                        await _loadExistingForCurrentScope();
+                      }
+                    },
+                    icon: const Icon(Icons.calendar_today),
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton.filledTonal(
+                    tooltip: 'Pilih waktu',
+                    onPressed: () async {
+                      final value = await showTimePicker(
+                        context: context,
+                        initialTime: _time,
+                      );
+                      if (value != null) {
+                        setState(() => _time = value);
+                        await _loadExistingForCurrentScope();
+                      }
+                    },
+                    icon: const Icon(Icons.schedule),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<int>(
+                initialValue: _mapelId,
+                decoration: const InputDecoration(
+                  labelText: 'Mata Pelajaran',
+                  border: OutlineInputBorder(),
                 ),
-              ),
-              const SizedBox(width: 8),
-              IconButton.filledTonal(
-                tooltip: 'Pilih tanggal',
-                onPressed: () async {
-                  final value = await showDatePicker(
-                    context: context,
-                    initialDate: _date,
-                    firstDate: DateTime.now().subtract(const Duration(days: 7)),
-                    lastDate: DateTime.now(),
-                  );
-                  if (value != null) {
-                    setState(() => _date = value);
-                    await _loadExistingForCurrentScope();
-                  }
+                items: _mapels
+                    .map(
+                      (row) => DropdownMenuItem<int>(
+                        value: (row['id'] as num).toInt(),
+                        child: Text(row['nama'].toString()),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) async {
+                  _mapelId = value;
+                  await _loadExistingForCurrentScope();
                 },
-                icon: const Icon(Icons.calendar_today),
-              ),
-              const SizedBox(width: 6),
-              IconButton.filledTonal(
-                tooltip: 'Pilih waktu',
-                onPressed: () async {
-                  final value = await showTimePicker(
-                    context: context,
-                    initialTime: _time,
-                  );
-                  if (value != null) {
-                    setState(() => _time = value);
-                    await _loadExistingForCurrentScope();
-                  }
-                },
-                icon: const Icon(Icons.schedule),
               ),
             ],
           ),

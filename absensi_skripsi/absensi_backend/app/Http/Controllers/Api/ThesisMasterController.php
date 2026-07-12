@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Guru;
 use App\Models\Kelas;
+use App\Models\MataPelajaran;
 use App\Models\Santri;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -26,6 +27,7 @@ class ThesisMasterController extends Controller
                     ? Guru::with('user:id,username,role')->orderBy('nama_guru')->get()
                     : Guru::where('id_user', $request->user()->id)->get(),
                 'kelas' => $kelas,
+                'mapel' => MataPelajaran::where('status', 'Aktif')->orderBy('nama')->get(),
                 'santri' => Santri::whereIn('id_kelas', $kelasIds)->orderBy('nama_santri')->get(),
                 'server_time' => now()->toIso8601String(),
             ],
@@ -158,6 +160,51 @@ class ThesisMasterController extends Controller
         $kelas->delete();
 
         return response()->json(['success' => true, 'message' => 'Kelas dihapus.']);
+    }
+
+    public function mapelIndex()
+    {
+        return response()->json([
+            'success' => true,
+            'data' => MataPelajaran::where('status', 'Aktif')->orderBy('nama')->get(),
+        ]);
+    }
+
+    public function mapelStore(Request $request)
+    {
+        $data = $request->validate([
+            'nama' => 'required|string|max:120|unique:mata_pelajaran,nama',
+            'kode' => 'nullable|string|max:20',
+            'status' => 'nullable|string|max:20',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => MataPelajaran::create($data + ['status' => 'Aktif']),
+        ], 201);
+    }
+
+    public function mapelUpdate(Request $request, MataPelajaran $mapel)
+    {
+        $data = $request->validate([
+            'nama' => ['sometimes', 'required', 'string', 'max:120', Rule::unique('mata_pelajaran', 'nama')->ignore($mapel->id)],
+            'kode' => 'nullable|string|max:20',
+            'status' => 'nullable|string|max:20',
+        ]);
+        $mapel->update($data);
+
+        return response()->json(['success' => true, 'data' => $mapel->fresh()]);
+    }
+
+    public function mapelDestroy(MataPelajaran $mapel)
+    {
+        if (DB::table('presensi')->where('mapel_id', $mapel->id)->exists()) {
+            $mapel->update(['status' => 'Nonaktif']);
+            return response()->json(['success' => true, 'message' => 'Mata pelajaran dinonaktifkan karena sudah memiliki presensi.']);
+        }
+        $mapel->delete();
+
+        return response()->json(['success' => true, 'message' => 'Mata pelajaran dihapus.']);
     }
 
     public function santriIndex(Request $request)

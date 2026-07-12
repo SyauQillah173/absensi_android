@@ -22,19 +22,21 @@ class _MasterDataScreenState extends State<MasterDataScreen>
   late final TabController _tabs;
   List<Map<String, dynamic>> _gurus = [];
   List<Map<String, dynamic>> _classes = [];
+  List<Map<String, dynamic>> _mapels = [];
   List<Map<String, dynamic>> _students = [];
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 3, vsync: this);
+    _tabs = TabController(length: 4, vsync: this);
     _load();
   }
 
   Future<void> _load() async {
     _gurus = await ThesisDatabase.instance.gurus();
     _classes = await ThesisDatabase.instance.classes();
+    _mapels = await ThesisDatabase.instance.mapels();
     _students = await ThesisDatabase.instance.allStudents();
     if (mounted) setState(() => _loading = false);
   }
@@ -103,6 +105,7 @@ class _MasterDataScreenState extends State<MasterDataScreen>
           tabs: const [
             Tab(text: 'Santri'),
             Tab(text: 'Kelas'),
+            Tab(text: 'Mapel'),
             Tab(text: 'Guru'),
           ],
         ),
@@ -111,7 +114,12 @@ class _MasterDataScreenState extends State<MasterDataScreen>
               ? const Center(child: CircularProgressIndicator())
               : TabBarView(
                   controller: _tabs,
-                  children: [_studentList(), _classList(), _guruList()],
+                  children: [
+                    _studentList(),
+                    _classList(),
+                    _mapelList(),
+                    _guruList(),
+                  ],
                 ),
         ),
       ],
@@ -208,6 +216,34 @@ class _MasterDataScreenState extends State<MasterDataScreen>
       tooltip: 'Tambah kelas',
       onPressed: () => _classDialog(null),
       child: const Icon(Icons.add_home_work_outlined),
+    ),
+  );
+
+  Widget _mapelList() => Scaffold(
+    body: ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+      itemCount: _mapels.length,
+      separatorBuilder: (_, index) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        final row = _mapels[index];
+        return ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const CircleAvatar(child: Icon(Icons.menu_book_outlined)),
+          title: Text(row['nama'].toString()),
+          subtitle: Text('${row['kode'] ?? '-'} - ${row['status']}'),
+          onTap: () => _mapelDialog(row),
+          trailing: IconButton(
+            tooltip: 'Hapus atau nonaktifkan',
+            onPressed: () => _delete('mapel', row['id'] as int),
+            icon: const Icon(Icons.delete_outline),
+          ),
+        );
+      },
+    ),
+    floatingActionButton: FloatingActionButton(
+      tooltip: 'Tambah mata pelajaran',
+      onPressed: () => _mapelDialog(null),
+      child: const Icon(Icons.playlist_add_outlined),
     ),
   );
 
@@ -361,6 +397,31 @@ class _MasterDataScreenState extends State<MasterDataScreen>
     for (final item in [name, username, password, nip, phone, address]) {
       item.dispose();
     }
+    if (saved) await _load();
+  }
+
+  Future<void> _mapelDialog(Map<String, dynamic>? row) async {
+    final name = TextEditingController(text: row?['nama']?.toString());
+    final code = TextEditingController(text: row?['kode']?.toString());
+    final saved = await _formDialog(
+      title: row == null ? 'Tambah Mata Pelajaran' : 'Edit Mata Pelajaran',
+      fields: [_field(name, 'Nama mata pelajaran'), _field(code, 'Kode')],
+      save: () async {
+        await ThesisDatabase.instance.saveMaster(
+          entity: 'mapel',
+          data: {
+            if (row != null) 'id': row['id'],
+            'nama': name.text.trim(),
+            'kode': code.text.trim().isEmpty ? null : code.text.trim(),
+            'status': 'Aktif',
+          },
+        );
+        _syncMasterInBackground();
+        return {'success': true};
+      },
+    );
+    name.dispose();
+    code.dispose();
     if (saved) await _load();
   }
 

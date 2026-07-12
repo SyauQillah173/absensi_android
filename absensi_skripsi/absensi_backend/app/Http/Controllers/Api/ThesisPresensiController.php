@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\DetailPresensi;
 use App\Models\Kelas;
+use App\Models\MataPelajaran;
 use App\Models\Presensi;
 use App\Models\Santri;
 use App\Services\ThesisNotificationService;
@@ -59,6 +60,7 @@ class ThesisPresensiController extends Controller
     private function persistPresensi(Request $request, ThesisNotificationService $notification, array $data): Presensi
     {
         $kelas = $this->authorizedClass($request, (int) $data['id_kelas']);
+        $mapel = MataPelajaran::where('id', $data['mapel_id'])->where('status', 'Aktif')->firstOrFail();
         $operationId = $data['operation_id'] ?? (string) Str::uuid();
 
         if ($existing = Presensi::where('operation_id', $operationId)->with('detail')->first()) {
@@ -85,8 +87,9 @@ class ThesisPresensiController extends Controller
         });
         $notificationDetailIds = [];
 
-        $presensi = DB::transaction(function () use ($request, $data, $kelas, $operationId, $detailRows, &$notificationDetailIds) {
+        $presensi = DB::transaction(function () use ($request, $data, $kelas, $mapel, $operationId, $detailRows, &$notificationDetailIds) {
             $query = Presensi::where('id_kelas', $kelas->id_kelas)
+                ->where('mapel_id', $mapel->id)
                 ->whereDate('tanggal', $data['tanggal'])
                 ->where('waktu_mulai', $data['waktu_mulai']);
             $presensi = $query->lockForUpdate()->first();
@@ -99,6 +102,8 @@ class ThesisPresensiController extends Controller
             $values = [
                 'id_guru' => $kelas->id_guru,
                 'id_kelas' => $kelas->id_kelas,
+                'mapel_id' => $mapel->id,
+                'mapel' => $mapel->nama,
                 'tanggal' => $data['tanggal'],
                 'waktu_mulai' => $data['waktu_mulai'],
                 'waktu_selesai' => $data['waktu_selesai'] ?? null,
@@ -143,7 +148,7 @@ class ThesisPresensiController extends Controller
                 ]
             );
 
-            return $presensi->load('kelas', 'detail.santri');
+            return $presensi->load('kelas', 'mapelRef', 'detail.santri');
         });
 
         foreach ($presensi->detail->whereIn('id_detail_presensi', $notificationDetailIds) as $detail) {
@@ -195,7 +200,7 @@ class ThesisPresensiController extends Controller
     {
         abort_unless($request->user()->role === 'admin', 403);
 
-        $lines = ['Tanggal,Waktu,Kelas,Santri,NISN,Status,Keterangan'];
+        $lines = ['Tanggal,Waktu,Kelas,Mata Pelajaran,Santri,NISN,Status,Keterangan'];
         foreach ($this->filtered($request)->get() as $presensi) {
             foreach ($presensi->detail as $detail) {
                 $lines[] = implode(',', array_map(
@@ -204,6 +209,7 @@ class ThesisPresensiController extends Controller
                         $presensi->tanggal,
                         $presensi->waktu_mulai,
                         $presensi->kelas?->nama_kelas,
+                        $presensi->mapelRef?->nama ?? $presensi->mapel,
                         $detail->santri?->nama_santri,
                         $detail->santri?->nisn,
                         $detail->status_presensi,
@@ -245,7 +251,7 @@ class ThesisPresensiController extends Controller
             }
         }
 
-        $query = Presensi::with(['kelas:id_kelas,nama_kelas,id_guru', 'guru:id_guru,nama_guru', 'detail.santri:id_santri,nama_santri,nisn']);
+        $query = Presensi::with(['kelas:id_kelas,nama_kelas,id_guru', 'guru:id_guru,nama_guru', 'mapelRef:id,nama,kode', 'detail.santri:id_santri,nama_santri,nisn']);
         if ($request->user()->role === 'guru') {
             $query->where('id_guru', $request->user()->guru?->id_guru ?? 0);
         }
@@ -277,6 +283,8 @@ class ThesisPresensiController extends Controller
         return $request->validate([
             'operation_id' => 'nullable|uuid',
             'id_kelas' => 'required|integer|exists:kelas,id_kelas',
+            'mapel_id' => 'required|integer|exists:mata_pelajaran,id',
+            'mapel' => 'nullable|string|max:120',
             'tanggal' => 'required|date',
             'waktu_mulai' => 'required|date_format:H:i:s',
             'waktu_selesai' => 'nullable|date_format:H:i:s|after:waktu_mulai',

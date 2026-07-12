@@ -25,6 +25,11 @@ class Presensi extends Model
         return $this->belongsTo(Kelas::class, 'id_kelas');
     }
 
+    public function mapelRef()
+    {
+        return $this->belongsTo(MataPelajaran::class, 'mapel_id');
+    }
+
     public function detail()
     {
         return $this->hasMany(DetailPresensi::class, 'id_presensi');

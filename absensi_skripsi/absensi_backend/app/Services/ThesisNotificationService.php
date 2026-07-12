@@ -11,13 +11,14 @@ class ThesisNotificationService
 {
     public function queue(DetailPresensi $detail): ?WhatsAppMessageLog
     {
-        $detail->loadMissing('santri', 'presensi.kelas');
+        $detail->loadMissing('santri', 'presensi.kelas', 'presensi.mapelRef');
         $santri = $detail->santri;
         $phone = $this->normalize($santri->nomor_wa_wali);
         $tanggal = $this->formatTanggal($detail->presensi?->tanggal);
         $status = $detail->status_presensi;
         $nisn = $santri->nisn ?: '-';
         $kelas = $detail->presensi?->kelas?->nama_kelas ?: '-';
+        $mapel = $detail->presensi?->mapelRef?->nama ?: ($detail->presensi?->mapel ?: '-');
         $keterangan = trim((string) $detail->keterangan);
         $keteranganLine = $keterangan === ''
             ? ''
@@ -27,6 +28,7 @@ class ThesisNotificationService
             ."Status kehadiran Ananda pada hari ini ({$tanggal}) adalah\n"
             ."{$status}{$keteranganLine}\n\n"
             ."Kelas: {$kelas}\n"
+            ."Mata Pelajaran: {$mapel}\n"
             ."\n"
             ."Terimakasih.";
 
