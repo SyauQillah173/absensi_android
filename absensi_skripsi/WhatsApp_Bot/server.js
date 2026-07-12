@@ -43,6 +43,10 @@ function errorDetail(err) {
     return { message: String(err) };
 }
 
+function isAuthTimeout(message) {
+    return String(message || '').toLowerCase().includes('auth timeout');
+}
+
 // User Agent Rotation untuk Anti-Ban
 const userAgents = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
@@ -105,7 +109,7 @@ class SessionManager {
                 ]
             },
             userAgent: userAgents[Math.floor(Math.random() * userAgents.length)],
-            authTimeoutMs: parseInt(process.env.WA_AUTH_TIMEOUT_MS || '120000', 10),
+            authTimeoutMs: parseInt(process.env.WA_AUTH_TIMEOUT_MS || '600000', 10),
             restartOnAuthFail: true
         });
 
@@ -171,6 +175,12 @@ class SessionManager {
             state.status = 'error';
             state.lastError = message;
             this.cleanupBrowserRuntimeFiles(state);
+            if (isAuthTimeout(message)) {
+                state.lastError = 'QR WhatsApp belum discan atau WhatsApp Web terlalu lama memuat. Sesi akan dibuat ulang otomatis.';
+                this.restartSession(clientId, state.lastError).catch((restartError) => {
+                    console.error(`Gagal restart setelah auth timeout ${clientId}:`, describeError(restartError));
+                });
+            }
         }
     }
 
