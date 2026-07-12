@@ -262,10 +262,13 @@ interface ThesisDao {
     fun latestSyncError(): String?
 
     @Query("UPDATE sync_outbox SET status=:status, last_error=:error, retry_count=retry_count+:retry WHERE operation_id=:id")
-    fun updateOutbox(id: String, status: String, error: String?, retry: Int)
+    fun updateOutbox(id: String, status: String, error: String?, retry: Int): Int
 
     @Query("UPDATE presensi SET sync_status=:status, sync_message=:message, id_presensi=COALESCE(:serverId, id_presensi) WHERE operation_id=:id")
     fun updatePresensi(id: String, status: String, message: String?, serverId: Long?)
+
+    @Query("UPDATE presensi SET sync_status=:status, sync_message=:message WHERE operation_id=:id AND sync_status != 'completed'")
+    fun updatePresensiIfNotCompleted(id: String, status: String, message: String?)
 
     @Query("DELETE FROM sync_outbox WHERE operation_id=:id")
     fun deleteOutbox(id: String)
@@ -904,11 +907,12 @@ object ThesisSyncRunner {
             "sync",
             "info",
         )
-        for (item in pendingItems) {
+        for (queuedItem in pendingItems) {
+            val item = dao.pendingByOperation(queuedItem.operation_id) ?: continue
             try {
-                dao.updateOutbox(item.operation_id, "syncing", null, 0)
+                if (dao.updateOutbox(item.operation_id, "syncing", null, 0) == 0) continue
                 if (item.entity_type == "presensi") {
-                    dao.updatePresensi(item.operation_id, "syncing", null, null)
+                    dao.updatePresensiIfNotCompleted(item.operation_id, "syncing", null)
                 }
                 val connection = URL("https://absensi-android-skripsi.vercel.app/api${item.endpoint}").openConnection() as HttpURLConnection
                 connection.requestMethod = item.method
@@ -943,6 +947,7 @@ object ThesisSyncRunner {
                 dao.deleteOutbox(item.operation_id)
                 synced += 1
             } catch (error: Throwable) {
+                if (dao.pendingByOperation(item.operation_id) == null) continue
                 val transient = isTransientSyncError(error)
                 if (transient) {
                     deferred += 1
@@ -952,7 +957,7 @@ object ThesisSyncRunner {
                 val nextStatus = if (transient) "pending" else "failed"
                 dao.updateOutbox(item.operation_id, nextStatus, error.message, 1)
                 if (item.entity_type == "presensi") {
-                    dao.updatePresensi(item.operation_id, nextStatus, error.message, null)
+                    dao.updatePresensiIfNotCompleted(item.operation_id, nextStatus, error.message)
                 }
                 insertSystemLog(
                     dao,
