@@ -846,7 +846,7 @@ object ThesisSyncRunner {
                 val connection = URL("https://absensi-android-skripsi.vercel.app/api${item.endpoint}").openConnection() as HttpURLConnection
                 connection.requestMethod = item.method
                 connection.connectTimeout = 15000
-                connection.readTimeout = 20000
+                connection.readTimeout = 45000
                 connection.doOutput = true
                 connection.setRequestProperty("Accept", "application/json")
                 connection.setRequestProperty("Authorization", "Bearer $token")
@@ -872,11 +872,19 @@ object ThesisSyncRunner {
                 synced += 1
             } catch (error: Throwable) {
                 failed += 1
-                dao.updateOutbox(item.operation_id, "failed", error.message, 1)
+                val transient = isTransientSyncError(error)
+                val nextStatus = if (transient) "pending" else "failed"
+                dao.updateOutbox(item.operation_id, nextStatus, error.message, 1)
                 if (item.entity_type == "presensi") {
-                    dao.updatePresensi(item.operation_id, "failed", error.message, null)
+                    dao.updatePresensi(item.operation_id, nextStatus, error.message, null)
                 }
-                insertSystemLog(dao, "Sinkronisasi gagal", error.message ?: "Server belum menerima data.", "sync", "failed")
+                insertSystemLog(
+                    dao,
+                    if (transient) "Sinkronisasi tertunda" else "Sinkronisasi gagal",
+                    error.message ?: "Server belum menerima data.",
+                    "sync",
+                    if (transient) "pending" else "failed",
+                )
             }
         }
         insertSystemLog(
@@ -887,6 +895,17 @@ object ThesisSyncRunner {
             if (failed > 0) "failed" else "success",
         )
         return mapOf("online" to true, "synced" to synced, "failed" to failed, "pending" to dao.pendingCount())
+    }
+
+    private fun isTransientSyncError(error: Throwable): Boolean {
+        val text = (error.message ?: error.toString()).lowercase()
+        return text.contains("timeout")
+            || text.contains("timed out")
+            || text.contains("connection reset")
+            || text.contains("failed to connect")
+            || text.contains("unable to resolve host")
+            || text.contains("network")
+            || text.contains("unexpected end")
     }
 }
 

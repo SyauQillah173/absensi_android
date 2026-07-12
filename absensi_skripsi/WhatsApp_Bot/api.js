@@ -104,10 +104,35 @@ function isBrowserTimeout(err) {
         || text.includes('melewati batas waktu');
 }
 
+function isPermanentSendError(err) {
+    const text = String(err?.message || err || '').toLowerCase();
+    return text.includes('no lid')
+        || text.includes('not registered')
+        || text.includes('tidak terdaftar')
+        || text.includes('invalid wid')
+        || text.includes('invalid number')
+        || text.includes('nomor tidak valid');
+}
+
 function enqueueRetry(nomor, pesan) {
     const existing = retryQueue.find((item) => item.nomor === nomor && item.pesan === pesan);
     if (existing) return;
     retryQueue.push({ nomor, pesan, attempts: 0 });
+}
+
+async function resolveChatId(client, nomor) {
+    const chatId = formatNomor(nomor);
+    const registered = await withTimeout(
+        client.isRegisteredUser(chatId),
+        SEND_TIMEOUT_MS,
+        'Memvalidasi nomor WhatsApp'
+    );
+    if (!registered) {
+        const error = new Error('Nomor tidak terdaftar WhatsApp');
+        error.permanent = true;
+        throw error;
+    }
+    return chatId;
 }
 
 async function simulateTypingAndSend(client, chatId, message) {
@@ -298,7 +323,8 @@ function startApi(sessionManager) {
 
         stats.total++;
         try {
-            await simulateTypingAndSend(state.client, formatNomor(validasi.nomor), pesan.trim());
+            const chatId = await resolveChatId(state.client, validasi.nomor);
+            await simulateTypingAndSend(state.client, chatId, pesan.trim());
             stats.berhasil++;
             writeLog('BERHASIL', validasi.nomor, pesan, botId);
             res.json({ sukses: true, pesan: 'Terkirim', data: { via: botId } });
@@ -309,8 +335,10 @@ function startApi(sessionManager) {
             if (isBrowserTimeout(err)) {
                 sessionManager.restartSession(botId, err.message).catch(console.error);
             }
-            enqueueRetry(validasi.nomor, pesan);
-            res.status(500).json({ sukses: false, pesan: err.message });
+            if (!err.permanent && !isPermanentSendError(err)) {
+                enqueueRetry(validasi.nomor, pesan);
+            }
+            res.status(err.permanent || isPermanentSendError(err) ? 422 : 500).json({ sukses: false, pesan: err.message });
         }
     });
 
@@ -342,7 +370,8 @@ function startApi(sessionManager) {
 
             stats.total++;
             try {
-                await simulateTypingAndSend(bot.state.client, formatNomor(validasi.nomor), pesan.trim());
+                const chatId = await resolveChatId(bot.state.client, validasi.nomor);
+                await simulateTypingAndSend(bot.state.client, chatId, pesan.trim());
                 stats.berhasil++;
                 writeLog('BERHASIL', validasi.nomor, pesan, bot.id);
                 hasil.push({ nomor: validasi.nomor, sukses: true, via: bot.id });
@@ -381,7 +410,8 @@ function startApi(sessionManager) {
         const item = retryQueue[0];
         item.attempts++;
         try {
-            await simulateTypingAndSend(bot.state.client, formatNomor(item.nomor), item.pesan);
+            const chatId = await resolveChatId(bot.state.client, item.nomor);
+            await simulateTypingAndSend(bot.state.client, chatId, item.pesan);
             writeLog('RETRY_BERHASIL', item.nomor, item.pesan, bot.id);
             retryQueue.shift();
             getStats(bot.id).berhasil++;
@@ -391,7 +421,7 @@ function startApi(sessionManager) {
             if (isBrowserTimeout(err)) {
                 sessionManager.restartSession(bot.id, err.message).catch(console.error);
             }
-            if (item.attempts >= MAX_RETRY) retryQueue.shift();
+            if (item.attempts >= MAX_RETRY || err.permanent || isPermanentSendError(err)) retryQueue.shift();
         }
     }, RETRY_DELAY_MS);
     retryInterval.unref?.();
