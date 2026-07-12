@@ -74,14 +74,18 @@ class ThesisPresensiController extends Controller
         $submitted = collect($data['detail'])->keyBy('id_santri');
         $detailRows = $activeStudents->map(function ($studentId) use ($submitted) {
             $row = $submitted->get($studentId, []);
+            $status = $row['status_presensi'] ?? 'Hadir';
             return [
                 'id_santri' => $studentId,
-                'status_presensi' => $row['status_presensi'] ?? 'Hadir',
-                'keterangan' => $row['keterangan'] ?? null,
+                'status_presensi' => $status,
+                'keterangan' => $status === 'Hadir'
+                    ? null
+                    : $this->normalizeKeterangan($row['keterangan'] ?? null),
             ];
         });
+        $notificationDetailIds = [];
 
-        $presensi = DB::transaction(function () use ($request, $data, $kelas, $operationId, $detailRows) {
+        $presensi = DB::transaction(function () use ($request, $data, $kelas, $operationId, $detailRows, &$notificationDetailIds) {
             $query = Presensi::where('id_kelas', $kelas->id_kelas)
                 ->whereDate('tanggal', $data['tanggal'])
                 ->where('waktu_mulai', $data['waktu_mulai']);
@@ -103,16 +107,26 @@ class ThesisPresensiController extends Controller
                 'operation_id' => $operationId,
             ];
             if ($presensi) {
+                $existingDetails = $presensi->detail()
+                    ->lockForUpdate()
+                    ->get()
+                    ->keyBy('id_santri');
                 $presensi->update($values);
             } else {
                 $presensi = Presensi::create($values);
+                $existingDetails = collect();
             }
 
             foreach ($detailRows as $row) {
-                DetailPresensi::updateOrCreate(
+                $existingDetail = $existingDetails->get($row['id_santri']);
+                $shouldNotify = !$existingDetail || $this->detailChanged($existingDetail, $row);
+                $detail = DetailPresensi::updateOrCreate(
                     ['id_presensi' => $presensi->id_presensi, 'id_santri' => $row['id_santri']],
                     $row + ['sync_flag' => true]
                 );
+                if ($shouldNotify) {
+                    $notificationDetailIds[] = $detail->id_detail_presensi;
+                }
             }
             DB::table('sync_operations')->updateOrInsert(
                 ['operation_id' => $operationId],
@@ -130,7 +144,7 @@ class ThesisPresensiController extends Controller
             return $presensi->load('kelas', 'detail.santri');
         });
 
-        foreach ($presensi->detail as $detail) {
+        foreach ($presensi->detail->whereIn('id_detail_presensi', $notificationDetailIds) as $detail) {
             try {
                 $notification->queue($detail);
             } catch (\Throwable $error) {
@@ -142,6 +156,19 @@ class ThesisPresensiController extends Controller
         }
 
         return $presensi;
+    }
+
+    private function detailChanged(DetailPresensi $existing, array $row): bool
+    {
+        return $existing->status_presensi !== $row['status_presensi']
+            || $this->normalizeKeterangan($existing->keterangan) !== $this->normalizeKeterangan($row['keterangan'] ?? null);
+    }
+
+    private function normalizeKeterangan(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        return $value === '' ? null : $value;
     }
 
     public function rekap(Request $request)
