@@ -28,6 +28,8 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
   int _syncingCount = 0;
   String? _syncError;
   Timer? _timer;
+  bool _online = false;
+  bool _checkingConnection = true;
   bool _syncing = false;
   String? _lastStatusLog;
 
@@ -47,15 +49,20 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
     _failed = (status['failed'] as num? ?? 0).toInt();
     _syncingCount = (status['syncing'] as num? ?? 0).toInt();
     _syncError = status['last_error']?.toString();
+    _online = await ThesisDatabase.instance.hasInternet().timeout(
+      const Duration(seconds: 4),
+      onTimeout: () => false,
+    );
+    _checkingConnection = false;
     if (mounted) setState(() {});
     final statusLog =
-        'pending=$_pending;failed=$_failed;syncing=$_syncingCount;error=${_syncError ?? '-'}';
+        'online=$_online;pending=$_pending;failed=$_failed;syncing=$_syncingCount;error=${_syncError ?? '-'}';
     if (_lastStatusLog != statusLog) {
       _lastStatusLog = statusLog;
       ThesisLogger.unawaitedInfo(
         'Beranda memantau status sinkronisasi',
         message:
-            'Offline-first aktif. Pending $_pending, gagal $_failed, proses $_syncingCount.',
+            'Mode koneksi ${_online ? 'online' : 'offline'}. Pending $_pending, gagal $_failed, proses $_syncingCount.',
         category: 'beranda',
       );
     }
@@ -133,6 +140,8 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
         failed: _failed,
         syncing: _syncing || _syncingCount > 0,
         syncError: _syncError,
+        online: _online,
+        checkingConnection: _checkingConnection,
         onSync: () => _sync(notify: true),
       ),
       AttendanceScreen(onSaved: _load),
@@ -223,6 +232,8 @@ class _Home extends StatelessWidget {
   final int failed;
   final bool syncing;
   final String? syncError;
+  final bool online;
+  final bool checkingConnection;
   final VoidCallback onSync;
 
   const _Home({
@@ -232,6 +243,8 @@ class _Home extends StatelessWidget {
     required this.failed,
     required this.syncing,
     required this.syncError,
+    required this.online,
+    required this.checkingConnection,
     required this.onSync,
   });
 
@@ -249,6 +262,8 @@ class _Home extends StatelessWidget {
         const SizedBox(height: 4),
         Text(role == 'admin' ? 'Admin/Operator' : 'Guru/Ustadz'),
         const SizedBox(height: 20),
+        _ConnectionStatusCard(online: online, checking: checkingConnection),
+        const SizedBox(height: 12),
         Card(
           child: ListTile(
             leading: Icon(
@@ -294,6 +309,52 @@ class _Home extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ConnectionStatusCard extends StatelessWidget {
+  final bool online;
+  final bool checking;
+
+  const _ConnectionStatusCard({required this.online, required this.checking});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = checking
+        ? Colors.blueGrey
+        : online
+        ? Colors.green
+        : Colors.orange.shade800;
+    final icon = checking
+        ? Icons.wifi_find_outlined
+        : online
+        ? Icons.wifi
+        : Icons.wifi_off;
+
+    return Card(
+      child: ListTile(
+        leading: Icon(icon, color: color),
+        title: Text(
+          checking
+              ? 'Memeriksa koneksi aplikasi'
+              : online
+              ? 'Aplikasi Online'
+              : 'Aplikasi Offline',
+        ),
+        subtitle: Text(
+          checking
+              ? 'Aplikasi sedang mengecek koneksi internet dan server.'
+              : online
+              ? 'Internet terdeteksi. Data dapat langsung dikirim ke server.'
+              : 'Internet belum terdeteksi. Data tetap disimpan lokal.',
+        ),
+        trailing: Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+      ),
     );
   }
 }
