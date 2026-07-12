@@ -11,7 +11,8 @@ import '../services/thesis_database.dart';
 import '../services/thesis_sync.dart';
 
 class MasterDataScreen extends StatefulWidget {
-  const MasterDataScreen({super.key});
+  final VoidCallback? onChanged;
+  const MasterDataScreen({super.key, this.onChanged});
 
   @override
   State<MasterDataScreen> createState() => _MasterDataScreenState();
@@ -47,6 +48,10 @@ class _MasterDataScreenState extends State<MasterDataScreen>
     await _load();
   }
 
+  void _notifyChanged() {
+    widget.onChanged?.call();
+  }
+
   Future<void> _delete(String entity, int id) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -72,6 +77,7 @@ class _MasterDataScreenState extends State<MasterDataScreen>
       await ThesisDatabase.instance.deleteMaster(entity: entity, id: id);
       _syncMasterInBackground();
       await _load();
+      _notifyChanged();
       _message('Perubahan disimpan lokal dan akan disinkronkan otomatis.');
     } catch (error) {
       _message(error.toString());
@@ -351,7 +357,10 @@ class _MasterDataScreenState extends State<MasterDataScreen>
     );
     name.dispose();
     level.dispose();
-    if (saved == true) await _load();
+    if (saved == true) {
+      await _load();
+      _notifyChanged();
+    }
   }
 
   Future<void> _guruDialog(Map<String, dynamic>? row) async {
@@ -397,7 +406,10 @@ class _MasterDataScreenState extends State<MasterDataScreen>
     for (final item in [name, username, password, nip, phone, address]) {
       item.dispose();
     }
-    if (saved) await _load();
+    if (saved) {
+      await _load();
+      _notifyChanged();
+    }
   }
 
   Future<void> _mapelDialog(Map<String, dynamic>? row) async {
@@ -422,7 +434,10 @@ class _MasterDataScreenState extends State<MasterDataScreen>
     );
     name.dispose();
     code.dispose();
-    if (saved) await _load();
+    if (saved) {
+      await _load();
+      _notifyChanged();
+    }
   }
 
   Future<void> _studentDialog(Map<String, dynamic>? row) async {
@@ -515,35 +530,218 @@ class _MasterDataScreenState extends State<MasterDataScreen>
     for (final item in [nisn, name, guardian, phone, address]) {
       item.dispose();
     }
-    if (saved == true) await _load();
+    if (saved == true) {
+      await _load();
+      _notifyChanged();
+    }
   }
 
   Future<void> _shareStudentTemplate() async {
     final excel = Excel.createExcel();
+    excel.delete('Sheet1');
     final sheet = excel['Santri'];
+    final master = excel['Master Kelas'];
+    final guide = excel['Panduan'];
     excel.setDefaultSheet('Santri');
+
+    final titleStyle = CellStyle(
+      bold: true,
+      fontColorHex: ExcelColor.white,
+      backgroundColorHex: ExcelColor.fromHexString('FF0F766E'),
+      horizontalAlign: HorizontalAlign.Center,
+    );
+    final headerStyle = CellStyle(
+      bold: true,
+      fontColorHex: ExcelColor.white,
+      backgroundColorHex: ExcelColor.fromHexString('FF14B8A6'),
+      horizontalAlign: HorizontalAlign.Center,
+    );
+    final inputStyle = CellStyle(
+      backgroundColorHex: ExcelColor.fromHexString('FFEFFDFB'),
+    );
+    final checkStyle = CellStyle(
+      bold: true,
+      backgroundColorHex: ExcelColor.fromHexString('FFFFF7ED'),
+      horizontalAlign: HorizontalAlign.Center,
+    );
+    final masterHeaderStyle = CellStyle(
+      bold: true,
+      fontColorHex: ExcelColor.white,
+      backgroundColorHex: ExcelColor.fromHexString('FF334155'),
+    );
+
+    excel.merge(
+      'Santri',
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
+      CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: 0),
+      customValue: TextCellValue('TEMPLATE IMPORT DATA SANTRI'),
+    );
+    sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0))
+            .cellStyle =
+        titleStyle;
     sheet.appendRow([
-      TextCellValue('nisn'),
-      TextCellValue('nama_santri'),
-      TextCellValue('nama_kelas'),
-      TextCellValue('jenis_kelamin'),
-      TextCellValue('nama_wali'),
-      TextCellValue('nomor_wa_wali'),
-      TextCellValue('alamat'),
-      TextCellValue('tgl_lahir'),
+      TextCellValue(
+        'Isi data mulai baris 4. Nama kelas wajib sama persis dengan sheet Master Kelas. Jangan ubah nama kolom.',
+      ),
     ]);
+    sheet.appendRow([]);
+    final headers = [
+      'nisn',
+      'nama_santri',
+      'nama_kelas',
+      'jenis_kelamin',
+      'nama_wali',
+      'nomor_wa_wali',
+      'alamat',
+      'tgl_lahir',
+      'cek_nisn',
+      'cek_kelas',
+      'catatan',
+    ];
+    sheet.appendRow(headers.map(TextCellValue.new).toList());
+    for (var column = 0; column < headers.length; column += 1) {
+      sheet
+              .cell(
+                CellIndex.indexByColumnRow(columnIndex: column, rowIndex: 3),
+              )
+              .cellStyle =
+          headerStyle;
+    }
+
+    final exampleClass = _classes.isEmpty
+        ? 'Kelas Pengujian A'
+        : _classes.first['nama_kelas'].toString();
     sheet.appendRow([
       TextCellValue('1234567890'),
       TextCellValue('Ahmad Fulan'),
-      TextCellValue(
-        _classes.isEmpty ? 'Kelas 1' : _classes.first['nama_kelas'].toString(),
-      ),
+      TextCellValue(exampleClass),
       TextCellValue('L'),
       TextCellValue('Bapak Ahmad'),
       TextCellValue('081234567890'),
       TextCellValue('Gresik'),
       TextCellValue('2012-01-31'),
+      FormulaCellValue(
+        '=IF(A5="","",IF(COUNTIF(\$A:\$A,A5)>1,"DUPLIKAT","OK"))',
+      ),
+      FormulaCellValue(
+        '=IF(C5="","",IF(COUNTIF(\'Master Kelas\'!\$B:\$B,C5)>0,"OK","KELAS TIDAK ADA"))',
+      ),
+      TextCellValue('Contoh, boleh dihapus'),
     ]);
+    for (var row = 4; row < 104; row += 1) {
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: row))
+          .value = FormulaCellValue(
+        '=IF(A${row + 1}="","",IF(COUNTIF(\$A:\$A,A${row + 1})>1,"DUPLIKAT","OK"))',
+      );
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: row))
+          .value = FormulaCellValue(
+        '=IF(C${row + 1}="","",IF(COUNTIF(\'Master Kelas\'!\$B:\$B,C${row + 1})>0,"OK","KELAS TIDAK ADA"))',
+      );
+    }
+    for (var column = 0; column < 8; column += 1) {
+      for (var row = 4; row < 104; row += 1) {
+        sheet
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: column,
+                    rowIndex: row,
+                  ),
+                )
+                .cellStyle =
+            inputStyle;
+      }
+    }
+    for (var column = 8; column < headers.length; column += 1) {
+      for (var row = 4; row < 104; row += 1) {
+        sheet
+                .cell(
+                  CellIndex.indexByColumnRow(
+                    columnIndex: column,
+                    rowIndex: row,
+                  ),
+                )
+                .cellStyle =
+            checkStyle;
+      }
+    }
+    final widths = [
+      18.0,
+      28.0,
+      28.0,
+      15.0,
+      24.0,
+      20.0,
+      24.0,
+      16.0,
+      14.0,
+      20.0,
+      28.0,
+    ];
+    for (var column = 0; column < widths.length; column += 1) {
+      sheet.setColumnWidth(column, widths[column]);
+    }
+
+    master.appendRow([
+      TextCellValue('id_kelas'),
+      TextCellValue('nama_kelas'),
+      TextCellValue('guru'),
+      TextCellValue('tingkat'),
+      TextCellValue('status'),
+    ]);
+    for (var column = 0; column < 5; column += 1) {
+      master
+              .cell(
+                CellIndex.indexByColumnRow(columnIndex: column, rowIndex: 0),
+              )
+              .cellStyle =
+          masterHeaderStyle;
+      master.setColumnWidth(column, [12.0, 30.0, 28.0, 12.0, 14.0][column]);
+    }
+    for (final row in _classes) {
+      master.appendRow([
+        IntCellValue((row['id_kelas'] as num).toInt()),
+        TextCellValue(row['nama_kelas']?.toString() ?? ''),
+        TextCellValue(row['nama_guru']?.toString() ?? ''),
+        IntCellValue((row['tingkat'] as num?)?.toInt() ?? 1),
+        TextCellValue((row['status_aktif'] == false) ? 'Nonaktif' : 'Aktif'),
+      ]);
+    }
+
+    guide.setColumnWidth(0, 28);
+    guide.setColumnWidth(1, 82);
+    guide.appendRow([TextCellValue('Bagian'), TextCellValue('Keterangan')]);
+    guide.appendRow([
+      TextCellValue('NISN'),
+      TextCellValue(
+        'Wajib unik. Jika NISN sudah ada di aplikasi, data santri tersebut akan diperbarui. Jika NISN dobel dalam file, baris kedua dilewati.',
+      ),
+    ]);
+    guide.appendRow([
+      TextCellValue('Nama kelas'),
+      TextCellValue(
+        'Salin dari sheet Master Kelas agar tidak typo. Kolom cek_kelas akan menampilkan OK jika kelas valid.',
+      ),
+    ]);
+    guide.appendRow([
+      TextCellValue('Jenis kelamin'),
+      TextCellValue('Isi L untuk laki-laki atau P untuk perempuan.'),
+    ]);
+    guide.appendRow([
+      TextCellValue('Tanggal lahir'),
+      TextCellValue('Gunakan format yyyy-mm-dd, contoh 2012-01-31.'),
+    ]);
+    for (var column = 0; column < 2; column += 1) {
+      guide
+              .cell(
+                CellIndex.indexByColumnRow(columnIndex: column, rowIndex: 0),
+              )
+              .cellStyle =
+          masterHeaderStyle;
+    }
+
     final bytes = excel.encode();
     if (bytes == null) {
       _message('Template Excel gagal dibuat.');
@@ -615,15 +813,39 @@ class _MasterDataScreenState extends State<MasterDataScreen>
       final picked = result.files.single;
       final bytes = picked.bytes ?? await File(picked.path!).readAsBytes();
       final workbook = Excel.decodeBytes(bytes);
-      final sheets = workbook.tables.values
-          .where((sheet) => sheet.maxRows > 0)
+      final sheets = workbook.tables.entries
+          .where(
+            (entry) =>
+                entry.value.maxRows > 0 &&
+                ![
+                  'masterkelas',
+                  'panduan',
+                ].contains(_normalizeHeader(entry.key)),
+          )
+          .map((entry) => entry.value)
           .toList();
       if (sheets.isEmpty) {
         _message('File Excel kosong.');
         return;
       }
-      final sheet = sheets.first;
-      final headerRow = sheet.rows.first;
+      final sheet = workbook.tables['Santri'] ?? sheets.first;
+      var headerIndex = -1;
+      for (var rowIndex = 0; rowIndex < sheet.rows.length; rowIndex += 1) {
+        final normalized = sheet.rows[rowIndex]
+            .map((cell) => _normalizeHeader(_cellText(cell)))
+            .toSet();
+        if (normalized.contains('nisn') &&
+            (normalized.contains('namasantri') ||
+                normalized.contains('nama'))) {
+          headerIndex = rowIndex;
+          break;
+        }
+      }
+      if (headerIndex < 0) {
+        _message('Header Excel tidak ditemukan. Gunakan template resmi.');
+        return;
+      }
+      final headerRow = sheet.rows[headerIndex];
       final headers = <String, int>{};
       for (var index = 0; index < headerRow.length; index += 1) {
         final key = _normalizeHeader(_cellText(headerRow[index]));
@@ -643,7 +865,12 @@ class _MasterDataScreenState extends State<MasterDataScreen>
 
       var imported = 0;
       final skipped = <String>[];
-      for (var rowIndex = 1; rowIndex < sheet.rows.length; rowIndex += 1) {
+      final seenNisn = <String>{};
+      for (
+        var rowIndex = headerIndex + 1;
+        rowIndex < sheet.rows.length;
+        rowIndex += 1
+      ) {
         final row = sheet.rows[rowIndex];
         if (row.every((cell) => _cellText(cell).isEmpty)) continue;
 
@@ -658,16 +885,32 @@ class _MasterDataScreenState extends State<MasterDataScreen>
           'whatsapp',
           'nohpwali',
         ]);
+        if ([
+          nisn,
+          name,
+          className,
+          classIdText,
+          guardian,
+          phone,
+        ].every((value) => value.isEmpty)) {
+          continue;
+        }
         if ([nisn, name, guardian, phone].any((value) => value.isEmpty)) {
           skipped.add(
             'Baris ${rowIndex + 1}: NISN, nama, wali, atau nomor WA kosong.',
           );
           continue;
         }
+        if (!seenNisn.add(nisn)) {
+          skipped.add(
+            'Baris ${rowIndex + 1}: NISN $nisn duplikat di file Excel.',
+          );
+          continue;
+        }
 
         final parsedClassId = int.tryParse(classIdText);
         final classRow = parsedClassId == null
-            ? classesByName[className.toLowerCase()]
+            ? classesByName[className.trim().toLowerCase()]
             : classesById[parsedClassId];
         if (classRow == null) {
           skipped.add('Baris ${rowIndex + 1}: kelas tidak ditemukan.');
@@ -699,6 +942,7 @@ class _MasterDataScreenState extends State<MasterDataScreen>
       }
 
       await _load();
+      _notifyChanged();
       _syncMasterInBackground();
       final note = skipped.isEmpty ? '' : ' ${skipped.take(3).join(' ')}';
       _message(

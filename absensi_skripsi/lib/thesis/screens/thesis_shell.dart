@@ -26,6 +26,7 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
   int _pending = 0;
   int _failed = 0;
   int _syncingCount = 0;
+  int _attendanceVersion = 0;
   String? _syncError;
   Timer? _timer;
   bool _online = false;
@@ -115,6 +116,11 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
     }
   }
 
+  void _masterChanged() {
+    setState(() => _attendanceVersion += 1);
+    unawaited(_load());
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -144,9 +150,12 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
         checkingConnection: _checkingConnection,
         onSync: () => _sync(notify: true),
       ),
-      AttendanceScreen(onSaved: _load),
+      AttendanceScreen(
+        key: ValueKey('attendance-$_attendanceVersion'),
+        onSaved: _load,
+      ),
       HistoryScreen(onChanged: _load),
-      if (admin) const MasterDataScreen(),
+      if (admin) MasterDataScreen(onChanged: _masterChanged),
       if (admin) const TestingLogScreen(),
     ];
     final destinations = <NavigationDestination>[
