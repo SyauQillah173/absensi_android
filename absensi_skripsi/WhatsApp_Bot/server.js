@@ -21,6 +21,28 @@ console.log(`Data bot tersimpan di: ${dataDir}`);
 console.log(`Browser Chrome: ${browserPath || 'default puppeteer'}`);
 console.log(`Cache Puppeteer: ${process.env.PUPPETEER_CACHE_DIR || path.join(process.env.HOME || '/root', '.cache', 'puppeteer')}`);
 
+function describeError(err) {
+    if (!err) return 'Unknown error';
+    if (typeof err === 'string') return err;
+    if (err.message) return err.message;
+    try {
+        return JSON.stringify(err);
+    } catch (e) {
+        return String(err);
+    }
+}
+
+function errorDetail(err) {
+    if (!err) return { message: 'Unknown error' };
+    if (err instanceof Error) {
+        return { name: err.name, message: err.message, stack: err.stack };
+    }
+    if (typeof err === 'object') {
+        return err;
+    }
+    return { message: String(err) };
+}
+
 // User Agent Rotation untuk Anti-Ban
 const userAgents = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
@@ -53,6 +75,7 @@ class SessionManager {
             lastError: null
         };
         this.sessions.set(clientId, state);
+        this.cleanupBrowserRuntimeFiles(state);
 
         const client = new Client({
             authStrategy: legacyAuth
@@ -63,6 +86,7 @@ class SessionManager {
                 headless: true,
                 dumpio: true,
                 protocolTimeout: parseInt(process.env.PUPPETEER_PROTOCOL_TIMEOUT || '300000', 10),
+                timeout: parseInt(process.env.PUPPETEER_TIMEOUT || '120000', 10),
                 args: [
                     '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
                     '--disable-accelerated-2d-canvas', '--no-first-run', '--disable-gpu',
@@ -75,10 +99,13 @@ class SessionManager {
                     '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding',
                     '--disable-component-update', '--disable-default-apps',
                     '--disable-translate', '--metrics-recording-only',
-                    '--no-default-browser-check', '--mute-audio'
+                    '--no-default-browser-check', '--mute-audio',
+                    '--password-store=basic', '--use-mock-keychain',
+                    '--remote-debugging-port=0'
                 ]
             },
             userAgent: userAgents[Math.floor(Math.random() * userAgents.length)],
+            authTimeoutMs: parseInt(process.env.WA_AUTH_TIMEOUT_MS || '120000', 10),
             restartOnAuthFail: true
         });
 
@@ -107,7 +134,7 @@ class SessionManager {
         client.on('auth_failure', (msg) => {
             state.qr = null;
             state.status = 'error';
-            state.lastError = String(msg || 'Autentikasi WhatsApp gagal');
+            state.lastError = describeError(msg || 'Autentikasi WhatsApp gagal');
             console.error(`❌ [${clientId}] Autentikasi gagal:`, msg);
         });
 
@@ -138,10 +165,12 @@ class SessionManager {
         try {
             await client.initialize();
         } catch (err) {
+            const message = describeError(err);
             this.logError(clientId, 'Gagal inisialisasi', err);
-            console.error(`❌ [${clientId}] Gagal inisialisasi:`, err.message);
+            console.error(`❌ [${clientId}] Gagal inisialisasi:`, message);
             state.status = 'error';
-            state.lastError = err.message || String(err);
+            state.lastError = message;
+            this.cleanupBrowserRuntimeFiles(state);
         }
     }
 
@@ -183,7 +212,7 @@ class SessionManager {
 
         setTimeout(() => {
             this.createSession(clientId, { legacyAuth: state.legacyAuth }).catch((err) => {
-                console.error(`❌ [${clientId}] Gagal membuat sesi scan ulang:`, err.message);
+                console.error(`❌ [${clientId}] Gagal membuat sesi scan ulang:`, describeError(err));
             });
         }, 1000);
     }
@@ -206,7 +235,7 @@ class SessionManager {
         this.sessions.delete(clientId);
         setTimeout(() => {
             this.createSession(clientId, { legacyAuth }).catch((err) => {
-                console.error(`Gagal restart sesi ${clientId}:`, err.message);
+                console.error(`Gagal restart sesi ${clientId}:`, describeError(err));
             });
         }, 1500);
     }
@@ -219,6 +248,29 @@ class SessionManager {
         for (const target of targets) {
             if (fs.existsSync(target)) {
                 fs.rmSync(target, { recursive: true, force: true });
+            }
+        }
+    }
+
+    cleanupBrowserRuntimeFiles(state) {
+        const sessionRoot = path.join(sessionsDir, state.authDirName);
+        const targets = [
+            'SingletonLock',
+            'SingletonSocket',
+            'SingletonCookie',
+            'DevToolsActivePort',
+            'chrome_debug.log',
+            path.join('Default', 'LOCK'),
+        ];
+
+        for (const relativeTarget of targets) {
+            const target = path.join(sessionRoot, relativeTarget);
+            try {
+                if (fs.existsSync(target)) {
+                    fs.rmSync(target, { recursive: true, force: true });
+                }
+            } catch (error) {
+                console.warn(`Tidak bisa membersihkan file runtime ${target}: ${describeError(error)}`);
             }
         }
     }
@@ -241,9 +293,10 @@ class SessionManager {
         state.reconnectTimer = setTimeout(async () => {
             try {
                 try { await state.client.destroy(); } catch (e) {}
+                this.cleanupBrowserRuntimeFiles(state);
                 await state.client.initialize();
             } catch (err) {
-                state.lastError = err.message || String(err);
+                state.lastError = describeError(err);
                 if (state.reconnectAttempt < 10) {
                     this.attemptReconnect(clientId);
                 } else {
@@ -255,9 +308,7 @@ class SessionManager {
     }
 
     logError(clientId, label, err) {
-        const detail = err instanceof Error
-            ? { name: err.name, message: err.message, stack: err.stack }
-            : err;
+        const detail = errorDetail(err);
         console.error(`ERROR_DETAIL [${clientId}] ${label}:`, JSON.stringify(detail, null, 2));
     }
 
@@ -285,6 +336,8 @@ const sessionManager = new SessionManager();
 function resolveBrowserPath() {
     const candidates = [
         process.env.PUPPETEER_EXECUTABLE_PATH,
+        process.env.CHROME_BIN,
+        process.env.CHROMIUM_PATH,
         '/usr/bin/google-chrome-stable',
         '/usr/bin/google-chrome',
         '/usr/bin/chromium',
@@ -315,7 +368,7 @@ sessionManager.loadExistingSessions().then(() => {
         console.log(`Membuat sesi default: ${defaultSessionId}`);
         setTimeout(() => {
             sessionManager.createSession(defaultSessionId).catch((err) => {
-                console.error(`Gagal membuat sesi default ${defaultSessionId}:`, err.message);
+                console.error(`Gagal membuat sesi default ${defaultSessionId}:`, describeError(err));
             });
         }, 1000);
     }
@@ -332,7 +385,7 @@ process.on('SIGINT', async () => {
 });
 
 process.on('uncaughtException', (err) => {
-    console.error('🔥 [UNCAUGHT]', err.message);
+    console.error('🔥 [UNCAUGHT]', describeError(err));
 });
 process.on('unhandledRejection', (err) => {
     console.error('🔥 [UNHANDLED]', err);
