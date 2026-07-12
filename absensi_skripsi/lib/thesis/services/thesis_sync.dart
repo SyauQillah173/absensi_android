@@ -52,6 +52,21 @@ class ThesisSync {
       return const {'pending': 0, 'synced': 0, 'failed': 0};
     }
     await ThesisDatabase.instance.requestSync();
+    if (!await ThesisDatabase.instance.hasInternet()) {
+      ThesisLogger.unawaitedInfo(
+        'Sinkronisasi menunggu internet',
+        message:
+            'Data tetap tersimpan lokal dan akan otomatis dikirim saat jaringan valid tersedia.',
+        category: 'offline-first',
+      );
+      final status = await ThesisDatabase.instance.syncStatus();
+      return <String, dynamic>{
+        ...status,
+        'online': false,
+        'synced': 0,
+        'failed': status['failed'] ?? 0,
+      };
+    }
     try {
       final result = await ThesisDatabase.instance.syncNow();
       ThesisLogger.unawaitedInfo(
@@ -85,8 +100,7 @@ class ThesisSync {
       );
       ThesisLogger.unawaitedInfo(
         'Data master berhasil diperbarui',
-        message:
-            'Aplikasi menerima data guru, kelas, santri, dan mata pelajaran dari server.',
+        message: 'Aplikasi menerima data guru, kelas, dan santri dari server.',
         category: 'sync',
       );
     } catch (_) {

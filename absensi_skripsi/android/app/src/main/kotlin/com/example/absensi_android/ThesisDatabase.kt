@@ -17,6 +17,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
@@ -404,6 +405,7 @@ class ThesisRoomBridge(
                                 scheduleOneOff()
                                 ThesisSyncRunner.sync(context)
                             }
+                            "hasInternet" -> ThesisSyncRunner.hasInternet(context)
                             else -> null
                         }
                         main.post { result.success(value) }
@@ -766,7 +768,11 @@ class ThesisRoomBridge(
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
             .build()
-        WorkManager.getInstance(context).enqueue(request)
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            "thesis-immediate-sync",
+            ExistingWorkPolicy.REPLACE,
+            request,
+        )
         addSystemLog(
             "WorkManager dijadwalkan",
             "Sinkronisasi satu kali dibuat dengan syarat jaringan terhubung.",
@@ -798,11 +804,23 @@ object ThesisSyncRunner {
         val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = manager.activeNetwork ?: return false
         val capabilities = manager.getNetworkCapabilities(network) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 
     fun sync(context: Context): Map<String, Any> {
         val dao = ThesisRoomDatabase.get(context).dao()
+        if (!hasInternet(context)) {
+            insertSystemLog(
+                dao,
+                "Sinkronisasi menunggu internet",
+                "Jaringan belum valid. Data tetap pending dan akan dikirim otomatis saat online.",
+                "offline-first",
+                "pending",
+            )
+            return mapOf("online" to false, "synced" to 0, "failed" to 0, "pending" to dao.pendingCount())
+        }
+
         val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
         val session = prefs.getString("flutter.thesis_session", null)
             ?: run {

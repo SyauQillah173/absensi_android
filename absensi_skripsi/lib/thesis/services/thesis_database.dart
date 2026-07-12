@@ -163,6 +163,10 @@ class ThesisDatabase {
     return Map<String, dynamic>.from(result ?? const {});
   }
 
+  Future<bool> hasInternet() async {
+    return await _channel.invokeMethod<bool>('hasInternet') ?? false;
+  }
+
   Future<List<Map<String, dynamic>>> _list(
     String method, [
     Map<String, dynamic>? arguments,

@@ -192,25 +192,46 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       }
       if (mounted) setState(() {});
       widget.onSaved();
-      unawaited(
-        ThesisSync.syncPending().then((_) async {
-          ThesisLogger.unawaitedInfo(
-            'Sinkronisasi setelah presensi dijalankan',
-            message:
-                'Aplikasi mencoba mengirim data presensi ke server dan memicu notifikasi WhatsApp.',
-            category: 'whatsapp',
-          );
-          await _loadExistingForCurrentScope();
-          widget.onSaved();
-        }),
+      final syncResult = await ThesisSync.syncPending().timeout(
+        const Duration(seconds: 25),
+        onTimeout: () async {
+          await ThesisDatabase.instance.requestSync();
+          final status = await ThesisDatabase.instance.syncStatus();
+          return <String, dynamic>{
+            ...status,
+            'online': true,
+            'timeout': true,
+            'synced': 0,
+          };
+        },
       );
+      ThesisLogger.unawaitedInfo(
+        'Sinkronisasi setelah presensi dijalankan',
+        message:
+            'Synced ${syncResult['synced'] ?? 0}, failed ${syncResult['failed'] ?? 0}, pending ${syncResult['pending'] ?? 0}.',
+        category: 'whatsapp',
+      );
+      await _loadExistingForCurrentScope();
+      widget.onSaved();
       if (mounted) {
+        final online = syncResult['online'] != false;
+        final synced = (syncResult['synced'] as num? ?? 0).toInt();
+        final failed = (syncResult['failed'] as num? ?? 0).toInt();
+        final timeout = syncResult['timeout'] == true;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              _editing
-                  ? 'Perubahan presensi tersimpan. Jika internet aktif, database server ikut diperbarui.'
-                  : 'Presensi tersimpan. Jika internet aktif, sinkronisasi dikirim sekarang.',
+              timeout
+                  ? 'Presensi tersimpan. Sinkronisasi masih diproses otomatis.'
+                  : !online
+                  ? 'Presensi tersimpan offline. Akan otomatis dikirim saat internet tersedia.'
+                  : synced > 0
+                  ? 'Presensi langsung tersinkronisasi ke server.'
+                  : failed > 0
+                  ? 'Presensi tersimpan, tetapi server belum menerima. Aplikasi akan mencoba ulang otomatis.'
+                  : _editing
+                  ? 'Perubahan presensi tersimpan.'
+                  : 'Presensi tersimpan.',
             ),
           ),
         );
