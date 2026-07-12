@@ -231,6 +231,9 @@ interface ThesisDao {
     @Query("SELECT * FROM sync_outbox WHERE status IN ('pending','failed','syncing') ORDER BY created_at")
     fun pending(): List<OutboxEntity>
 
+    @Query("SELECT * FROM sync_outbox WHERE operation_id = :id AND status IN ('pending','failed','syncing') LIMIT 1")
+    fun pendingByOperation(id: String): OutboxEntity?
+
     @Query("SELECT * FROM app_logs ORDER BY id DESC LIMIT :limit")
     fun appLogs(limit: Int): List<AppLogEntity>
 
@@ -403,7 +406,9 @@ class ThesisRoomBridge(
                             }
                             "syncNow" -> {
                                 scheduleOneOff()
-                                ThesisSyncRunner.sync(context)
+                                val args = call.arguments as? Map<*, *>
+                                val operationId = args?.get("operationId")?.toString()?.takeIf { it.isNotBlank() }
+                                ThesisSyncRunner.sync(context, operationId)
                             }
                             "hasInternet" -> ThesisSyncRunner.hasInternet(context)
                             else -> null
@@ -808,7 +813,7 @@ object ThesisSyncRunner {
             capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 
-    fun sync(context: Context): Map<String, Any> {
+    fun sync(context: Context, operationId: String? = null): Map<String, Any> {
         val dao = ThesisRoomDatabase.get(context).dao()
         if (!hasInternet(context)) {
             insertSystemLog(
@@ -835,8 +840,20 @@ object ThesisSyncRunner {
 
         var synced = 0
         var failed = 0
-        val pendingItems = dao.pending()
-        insertSystemLog(dao, "Sinkronisasi dimulai", "Menyiapkan ${pendingItems.size} data antrean untuk dikirim ke server.", "sync", "info")
+        val pendingItems = operationId
+            ?.let { dao.pendingByOperation(it)?.let(::listOf) ?: emptyList() }
+            ?: dao.pending()
+        insertSystemLog(
+            dao,
+            "Sinkronisasi dimulai",
+            if (operationId == null) {
+                "Menyiapkan ${pendingItems.size} data antrean untuk dikirim ke server."
+            } else {
+                "Menyiapkan presensi aktif untuk langsung dikirim ke server."
+            },
+            "sync",
+            "info",
+        )
         for (item in pendingItems) {
             try {
                 dao.updateOutbox(item.operation_id, "syncing", null, 0)

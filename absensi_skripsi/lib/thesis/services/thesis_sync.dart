@@ -91,6 +91,44 @@ class ThesisSync {
     }
   }
 
+  static Future<Map<String, dynamic>> syncOperation(String operationId) async {
+    if (!await ThesisSession.hasValidSession()) {
+      return const {'pending': 0, 'synced': 0, 'failed': 0};
+    }
+    await ThesisDatabase.instance.requestSync();
+    if (!await ThesisDatabase.instance.hasInternet()) {
+      final status = await ThesisDatabase.instance.syncStatus();
+      return <String, dynamic>{
+        ...status,
+        'online': false,
+        'synced': 0,
+        'failed': status['failed'] ?? 0,
+      };
+    }
+    try {
+      final result = await ThesisDatabase.instance.syncNow(
+        operationId: operationId,
+      );
+      ThesisLogger.unawaitedInfo(
+        'Sinkronisasi presensi aktif selesai',
+        message:
+            'Operasi $operationId synced ${result['synced'] ?? 0}, pending ${result['pending'] ?? 0}.',
+        category: 'online-first',
+      );
+      if ((result['synced'] as num? ?? 0) > 0) {
+        unawaited(refreshBootstrap());
+      }
+      return result;
+    } catch (_) {
+      ThesisLogger.unawaitedInfo(
+        'Sinkronisasi presensi aktif tertunda',
+        message: 'Data tetap masuk antrean dan akan dicoba ulang otomatis.',
+        category: 'offline-first',
+      );
+      return ThesisDatabase.instance.syncStatus();
+    }
+  }
+
   static Future<void> refreshBootstrap() async {
     if (!await ThesisSession.hasValidSession()) return;
     try {

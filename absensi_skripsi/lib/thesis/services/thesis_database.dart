@@ -158,8 +158,11 @@ class ThesisDatabase {
     await _channel.invokeMethod<bool>('requestSync');
   }
 
-  Future<Map<String, dynamic>> syncNow() async {
-    final result = await _channel.invokeMapMethod<dynamic, dynamic>('syncNow');
+  Future<Map<String, dynamic>> syncNow({String? operationId}) async {
+    final result = await _channel.invokeMapMethod<dynamic, dynamic>(
+      'syncNow',
+      operationId == null ? null : {'operationId': operationId},
+    );
     return Map<String, dynamic>.from(result ?? const {});
   }
 

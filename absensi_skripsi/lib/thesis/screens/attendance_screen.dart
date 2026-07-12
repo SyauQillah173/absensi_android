@@ -160,8 +160,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       }).toList();
       final time = _timeText;
       final date = _dateText;
+      late final String operationId;
       if (_editing) {
-        await ThesisDatabase.instance.updateAttendance(
+        operationId = await ThesisDatabase.instance.updateAttendance(
           localId: _activeLocalId!,
           classId: _classId!,
           date: date,
@@ -176,12 +177,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           category: 'presensi',
         );
       } else {
-        _activeLocalId = await ThesisDatabase.instance.saveAttendance(
+        operationId = await ThesisDatabase.instance.saveAttendance(
           classId: _classId!,
           date: date,
           startTime: time,
           details: details,
         );
+        _activeLocalId = operationId;
         _syncStatus = 'pending';
         ThesisLogger.unawaitedInfo(
           'Presensi baru disimpan',
@@ -192,8 +194,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       }
       if (mounted) setState(() {});
       widget.onSaved();
-      final syncResult = await ThesisSync.syncPending().timeout(
-        const Duration(seconds: 25),
+      final syncResult = await ThesisSync.syncOperation(operationId).timeout(
+        const Duration(seconds: 15),
         onTimeout: () async {
           await ThesisDatabase.instance.requestSync();
           final status = await ThesisDatabase.instance.syncStatus();
@@ -205,6 +207,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           };
         },
       );
+      unawaited(ThesisSync.syncPending().then((_) => widget.onSaved()));
       ThesisLogger.unawaitedInfo(
         'Sinkronisasi setelah presensi dijalankan',
         message:
