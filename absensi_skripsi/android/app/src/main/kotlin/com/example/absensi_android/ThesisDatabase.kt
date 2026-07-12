@@ -258,7 +258,7 @@ interface ThesisDao {
     @Query("SELECT COUNT(*) FROM sync_outbox WHERE status = 'syncing'")
     fun syncingCount(): Int
 
-    @Query("SELECT last_error FROM sync_outbox WHERE last_error IS NOT NULL ORDER BY created_at DESC LIMIT 1")
+    @Query("SELECT last_error FROM sync_outbox WHERE status = 'failed' AND last_error IS NOT NULL ORDER BY created_at DESC LIMIT 1")
     fun latestSyncError(): String?
 
     @Query("UPDATE sync_outbox SET status=:status, last_error=:error, retry_count=retry_count+:retry WHERE operation_id=:id")
@@ -889,6 +889,7 @@ object ThesisSyncRunner {
 
         var synced = 0
         var failed = 0
+        var deferred = 0
         val pendingItems = operationId
             ?.let { dao.pendingByOperation(it)?.let(::listOf) ?: emptyList() }
             ?: dao.pending()
@@ -920,7 +921,12 @@ object ThesisSyncRunner {
                 connection.outputStream.use { it.write(item.payload.toByteArray()) }
                 val stream = if (connection.responseCode in 200..299) connection.inputStream else connection.errorStream
                 val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                if (connection.responseCode !in 200..299) throw IllegalStateException(JSONObject(response).optString("message", "Sinkronisasi ditolak server."))
+                if (connection.responseCode !in 200..299) {
+                    val message = runCatching {
+                        JSONObject(response).optString("message")
+                    }.getOrNull()?.takeIf { it.isNotBlank() } ?: "Sinkronisasi ditolak server."
+                    throw IllegalStateException("HTTP ${connection.responseCode}: $message")
+                }
                 if (item.entity_type == "presensi") {
                     val serverId = JSONObject(response).optJSONObject("data")?.optLong("id_presensi")
                     dao.updatePresensi(item.operation_id, "completed", null, serverId)
@@ -937,8 +943,12 @@ object ThesisSyncRunner {
                 dao.deleteOutbox(item.operation_id)
                 synced += 1
             } catch (error: Throwable) {
-                failed += 1
                 val transient = isTransientSyncError(error)
+                if (transient) {
+                    deferred += 1
+                } else {
+                    failed += 1
+                }
                 val nextStatus = if (transient) "pending" else "failed"
                 dao.updateOutbox(item.operation_id, nextStatus, error.message, 1)
                 if (item.entity_type == "presensi") {
@@ -956,17 +966,19 @@ object ThesisSyncRunner {
         insertSystemLog(
             dao,
             "Sinkronisasi selesai",
-            "Berhasil $synced data, gagal $failed data, sisa pending ${dao.pendingCount()} data.",
+            "Berhasil $synced data, tertunda $deferred data, gagal $failed data, sisa pending ${dao.pendingCount()} data.",
             "sync",
             if (failed > 0) "failed" else "success",
         )
-        return mapOf("online" to true, "synced" to synced, "failed" to failed, "pending" to dao.pendingCount())
+        return mapOf("online" to true, "synced" to synced, "deferred" to deferred, "failed" to failed, "pending" to dao.pendingCount())
     }
 
     private fun isTransientSyncError(error: Throwable): Boolean {
         val text = (error.message ?: error.toString()).lowercase()
         return text.contains("timeout")
             || text.contains("timed out")
+            || text.contains("http 5")
+            || text.contains("server")
             || text.contains("connection reset")
             || text.contains("failed to connect")
             || text.contains("unable to resolve host")

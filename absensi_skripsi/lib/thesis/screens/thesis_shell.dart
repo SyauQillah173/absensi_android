@@ -269,12 +269,12 @@ class _Home extends StatelessWidget {
             leading: Icon(
               pending == 0
                   ? Icons.cloud_done_outlined
-                  : failed > 0
+                  : failed > 0 && !syncing
                   ? Icons.error_outline
                   : Icons.cloud_upload_outlined,
               color: pending == 0
                   ? Colors.green
-                  : failed > 0
+                  : failed > 0 && !syncing
                   ? Colors.red
                   : Colors.orange.shade800,
             ),
@@ -290,10 +290,12 @@ class _Home extends StatelessWidget {
             subtitle: Text(
               pending == 0
                   ? 'Data lokal dan server sudah sama.'
+                  : syncing
+                  ? 'Data sedang dikirim ke server. Mohon tunggu sebentar.'
                   : failed > 0 && syncError != null
                   ? syncError!
-                  : syncing
-                  ? 'App sedang mencoba mengirim ke server.'
+                  : online
+                  ? 'Internet aktif. Data akan dikirim otomatis ke server.'
                   : 'Akan dikirim otomatis ketika internet tersedia.',
             ),
             trailing: IconButton(

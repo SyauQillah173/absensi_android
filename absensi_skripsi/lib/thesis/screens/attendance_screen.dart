@@ -214,7 +214,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       if (mounted) setState(() {});
       widget.onSaved();
       final syncResult = await ThesisSync.syncOperation(operationId).timeout(
-        const Duration(seconds: 15),
+        const Duration(seconds: 30),
         onTimeout: () async {
           await ThesisDatabase.instance.requestSync();
           final status = await ThesisDatabase.instance.syncStatus();
