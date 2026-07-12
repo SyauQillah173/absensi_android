@@ -227,7 +227,12 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
       body: IndexedStack(index: _index, children: pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (value) => setState(() => _index = value),
+        onDestinationSelected: (value) {
+          setState(() {
+            _index = value;
+            if (value == 1) _attendanceVersion += 1;
+          });
+        },
         destinations: destinations,
       ),
     );

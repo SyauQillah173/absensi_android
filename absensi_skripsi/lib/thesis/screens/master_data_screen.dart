@@ -554,10 +554,21 @@ class _MasterDataScreenState extends State<MasterDataScreen>
       bold: true,
       fontColorHex: ExcelColor.white,
       backgroundColorHex: ExcelColor.fromHexString('FF14B8A6'),
-      horizontalAlign: HorizontalAlign.Center,
+      horizontalAlign: HorizontalAlign.Left,
     );
     final inputStyle = CellStyle(
       backgroundColorHex: ExcelColor.fromHexString('FFEFFDFB'),
+      horizontalAlign: HorizontalAlign.Left,
+    );
+    final textInputStyle = CellStyle(
+      backgroundColorHex: ExcelColor.fromHexString('FFEFFDFB'),
+      horizontalAlign: HorizontalAlign.Left,
+      numberFormat: NumFormat.standard_49,
+    );
+    final dateInputStyle = CellStyle(
+      backgroundColorHex: ExcelColor.fromHexString('FFEFFDFB'),
+      horizontalAlign: HorizontalAlign.Left,
+      numberFormat: NumFormat.custom(formatCode: 'yyyy-mm-dd'),
     );
     final checkStyle = CellStyle(
       bold: true,
@@ -582,9 +593,21 @@ class _MasterDataScreenState extends State<MasterDataScreen>
         titleStyle;
     sheet.appendRow([
       TextCellValue(
-        'Isi data mulai baris 4. Nama kelas wajib sama persis dengan sheet Master Kelas. Jangan ubah nama kolom.',
+        'Isi data mulai baris 5. Nama kelas wajib sama persis dengan sheet Master Kelas. Kolom NISN dan nomor WA sudah diformat teks agar angka tidak berubah.',
       ),
     ]);
+    excel.merge(
+      'Santri',
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1),
+      CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: 1),
+    );
+    sheet
+        .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1))
+        .cellStyle = CellStyle(
+      backgroundColorHex: ExcelColor.fromHexString('FFE0F2FE'),
+      horizontalAlign: HorizontalAlign.Left,
+      textWrapping: TextWrapping.WrapText,
+    );
     sheet.appendRow([]);
     final headers = [
       'nisn',
@@ -643,6 +666,11 @@ class _MasterDataScreenState extends State<MasterDataScreen>
     }
     for (var column = 0; column < 8; column += 1) {
       for (var row = 4; row < 104; row += 1) {
+        final style = switch (column) {
+          0 || 5 => textInputStyle,
+          7 => dateInputStyle,
+          _ => inputStyle,
+        };
         sheet
                 .cell(
                   CellIndex.indexByColumnRow(
@@ -651,7 +679,7 @@ class _MasterDataScreenState extends State<MasterDataScreen>
                   ),
                 )
                 .cellStyle =
-            inputStyle;
+            style;
       }
     }
     for (var column = 8; column < headers.length; column += 1) {
@@ -728,6 +756,12 @@ class _MasterDataScreenState extends State<MasterDataScreen>
     guide.appendRow([
       TextCellValue('Jenis kelamin'),
       TextCellValue('Isi L untuk laki-laki atau P untuk perempuan.'),
+    ]);
+    guide.appendRow([
+      TextCellValue('Nomor WhatsApp'),
+      TextCellValue(
+        'Kolom nomor WA diformat sebagai teks agar angka 0 di depan tidak hilang. Contoh: 081234567890.',
+      ),
     ]);
     guide.appendRow([
       TextCellValue('Tanggal lahir'),

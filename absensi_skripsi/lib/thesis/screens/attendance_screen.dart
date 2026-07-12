@@ -49,7 +49,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Future<void> _loadClasses() async {
     _classes = await ThesisDatabase.instance.classes();
     _mapels = await ThesisDatabase.instance.mapels();
-    if (_mapels.isNotEmpty) {
+    if (_mapelId != null &&
+        !_mapels.any((row) => (row['id'] as num).toInt() == _mapelId)) {
+      _mapelId = null;
+      _activeLocalId = null;
+      _syncStatus = 'new';
+    }
+    if (_classId != null &&
+        !_classes.any((row) => (row['id_kelas'] as num).toInt() == _classId)) {
+      _classId = null;
+      _activeLocalId = null;
+      _syncStatus = 'new';
+    }
+    if (_mapelId == null && _mapels.isNotEmpty) {
       _mapelId = (_mapels.first['id'] as num).toInt();
     }
     if (widget.editLocalId != null) {
@@ -75,6 +87,34 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       await _loadExistingForCurrentScope();
     }
     if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _refreshMasterOptions() async {
+    final previousClassId = _classId;
+    final previousMapelId = _mapelId;
+    _classes = await ThesisDatabase.instance.classes();
+    _mapels = await ThesisDatabase.instance.mapels();
+    final classStillAvailable = _classes.any(
+      (row) => (row['id_kelas'] as num).toInt() == previousClassId,
+    );
+    final mapelStillAvailable = _mapels.any(
+      (row) => (row['id'] as num).toInt() == previousMapelId,
+    );
+    _classId = classStillAvailable
+        ? previousClassId
+        : (_classes.isEmpty
+              ? null
+              : (_classes.first['id_kelas'] as num).toInt());
+    _mapelId = mapelStillAvailable
+        ? previousMapelId
+        : (_mapels.isEmpty ? null : (_mapels.first['id'] as num).toInt());
+    if (_classId != previousClassId || _mapelId != previousMapelId) {
+      _activeLocalId = null;
+      _syncStatus = 'new';
+      await _loadStudents();
+      await _loadExistingForCurrentScope();
+    }
+    if (mounted) setState(() {});
   }
 
   String get _dateText => DateFormat('yyyy-MM-dd').format(_date);
@@ -335,6 +375,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   Expanded(
                     child: DropdownButtonFormField<int>(
                       initialValue: _classId,
+                      onTap: () => unawaited(_refreshMasterOptions()),
                       decoration: const InputDecoration(
                         labelText: 'Kelas',
                         border: OutlineInputBorder(),
@@ -392,6 +433,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               const SizedBox(height: 8),
               DropdownButtonFormField<int>(
                 initialValue: _mapelId,
+                onTap: () => unawaited(_refreshMasterOptions()),
                 decoration: const InputDecoration(
                   labelText: 'Mata Pelajaran',
                   border: OutlineInputBorder(),
