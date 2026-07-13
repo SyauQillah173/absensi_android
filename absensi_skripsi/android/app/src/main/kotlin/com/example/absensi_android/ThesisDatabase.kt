@@ -237,6 +237,30 @@ interface ThesisDao {
     @Query("UPDATE mata_pelajaran SET status = 'Nonaktif' WHERE id = :id")
     fun deactivateMapel(id: Long)
 
+    @Query("DELETE FROM guru WHERE id_guru = :id")
+    fun deleteGuruLocal(id: Long)
+
+    @Query("DELETE FROM kelas WHERE id_kelas = :id")
+    fun deleteKelasLocal(id: Long)
+
+    @Query("DELETE FROM santri WHERE id_santri = :id")
+    fun deleteSantriLocal(id: Long)
+
+    @Query("DELETE FROM mata_pelajaran WHERE id = :id")
+    fun deleteMapelLocal(id: Long)
+
+    @Query("UPDATE guru SET id_guru = :serverId WHERE id_guru = :localId")
+    fun replaceGuruLocalId(localId: Long, serverId: Long)
+
+    @Query("UPDATE kelas SET id_kelas = :serverId WHERE id_kelas = :localId")
+    fun replaceKelasLocalId(localId: Long, serverId: Long)
+
+    @Query("UPDATE santri SET id_santri = :serverId WHERE id_santri = :localId")
+    fun replaceSantriLocalId(localId: Long, serverId: Long)
+
+    @Query("UPDATE mata_pelajaran SET id = :serverId WHERE id = :localId")
+    fun replaceMapelLocalId(localId: Long, serverId: Long)
+
     @Query("SELECT * FROM sync_outbox WHERE status IN ('pending','failed','syncing') ORDER BY created_at")
     fun pending(): List<OutboxEntity>
 
@@ -272,6 +296,9 @@ interface ThesisDao {
 
     @Query("DELETE FROM sync_outbox WHERE operation_id=:id")
     fun deleteOutbox(id: String)
+
+    @Query("DELETE FROM sync_outbox WHERE entity_type = :entity AND method = 'POST' AND payload LIKE '%' || :needle || '%'")
+    fun deleteLocalCreateOutbox(entity: String, needle: String)
 
     @Query("DELETE FROM detail_presensi WHERE presensi_local_id=:localId")
     fun deleteDetails(localId: String)
@@ -686,6 +713,7 @@ class ThesisRoomBridge(
             for ((key, value) in data) {
                 if (key != null && value != null) put(key.toString(), value)
             }
+            if (existingId == null) put(idKey(entity), id)
         }
 
         db.runInTransaction {
@@ -754,24 +782,33 @@ class ThesisRoomBridge(
         val id = long(args, "id")
         val operationId = text(args, "operationId")
         val updatedAt = text(args, "updatedAt")
+        val localOnly = id < 0
         db.runInTransaction {
             when (entity) {
-                "guru" -> db.dao().deactivateGuru(id)
-                "kelas" -> db.dao().deactivateKelas(id)
-                "santri" -> db.dao().deactivateSantri(id)
-                "mapel" -> db.dao().deactivateMapel(id)
+                "guru" -> if (localOnly) db.dao().deleteGuruLocal(id) else db.dao().deactivateGuru(id)
+                "kelas" -> if (localOnly) db.dao().deleteKelasLocal(id) else db.dao().deactivateKelas(id)
+                "santri" -> if (localOnly) db.dao().deleteSantriLocal(id) else db.dao().deactivateSantri(id)
+                "mapel" -> if (localOnly) db.dao().deleteMapelLocal(id) else db.dao().deactivateMapel(id)
             }
-            db.dao().insertOutbox(
-                OutboxEntity(operationId, entity, "DELETE", "/$entity/$id", "{}", "pending", 0, null, updatedAt),
-            )
+            if (localOnly) {
+                db.dao().deleteLocalCreateOutbox(entity, "\"${idKey(entity)}\":$id")
+            } else {
+                db.dao().insertOutbox(
+                    OutboxEntity(operationId, entity, "DELETE", "/$entity/$id", "{}", "pending", 0, null, updatedAt),
+                )
+            }
         }
         addSystemLog(
-            "Data master dinonaktifkan",
-            "Data $entity masuk antrean hapus/nonaktif ke server.",
+            if (localOnly) "Data master lokal dihapus" else "Data master dinonaktifkan",
+            if (localOnly) {
+                "Data $entity masih lokal sehingga dihapus dari perangkat tanpa dikirim ke server."
+            } else {
+                "Data $entity masuk antrean hapus/nonaktif ke server."
+            },
             "master",
-            "pending",
+            if (localOnly) "success" else "pending",
         )
-        scheduleOneOff()
+        if (!localOnly) scheduleOneOff()
         return true
     }
 
@@ -910,6 +947,18 @@ object ThesisSyncRunner {
         for (queuedItem in pendingItems) {
             val item = dao.pendingByOperation(queuedItem.operation_id) ?: continue
             try {
+                if (isLocalOnlyDelete(item)) {
+                    dao.deleteOutbox(item.operation_id)
+                    synced += 1
+                    insertSystemLog(
+                        dao,
+                        "Sinkronisasi master lokal dibersihkan",
+                        "${item.entity_type} lokal belum memiliki id server, antrean hapus dibatalkan.",
+                        "master",
+                        "success",
+                    )
+                    continue
+                }
                 if (dao.updateOutbox(item.operation_id, "syncing", null, 0) == 0) continue
                 if (item.entity_type == "presensi") {
                     dao.updatePresensiIfNotCompleted(item.operation_id, "syncing", null)
@@ -942,6 +991,7 @@ object ThesisSyncRunner {
                         "success",
                     )
                 } else {
+                    reconcileMasterLocalId(dao, item, response)
                     insertSystemLog(dao, "Sinkronisasi data berhasil", "${item.entity_type} berhasil dikirim ke server.", "sync", "success")
                 }
                 dao.deleteOutbox(item.operation_id)
@@ -976,6 +1026,36 @@ object ThesisSyncRunner {
             if (failed > 0) "failed" else "success",
         )
         return mapOf("online" to true, "synced" to synced, "deferred" to deferred, "failed" to failed, "pending" to dao.pendingCount())
+    }
+
+    private fun isLocalOnlyDelete(item: OutboxEntity): Boolean =
+        item.method.equals("DELETE", ignoreCase = true) &&
+            item.endpoint.substringAfterLast('/').toLongOrNull()?.let { it < 0 } == true
+
+    private fun reconcileMasterLocalId(dao: ThesisDao, item: OutboxEntity, response: String) {
+        if (!item.method.equals("POST", ignoreCase = true)) return
+        val payload = runCatching { JSONObject(item.payload) }.getOrNull() ?: return
+        val localId = payload.optLong(masterIdKey(item.entity_type), 0)
+        if (localId >= 0) return
+
+        val data = runCatching { JSONObject(response).optJSONObject("data") }.getOrNull() ?: return
+        val serverId = data.optLong(masterIdKey(item.entity_type), 0)
+        if (serverId <= 0) return
+
+        when (item.entity_type) {
+            "guru" -> dao.replaceGuruLocalId(localId, serverId)
+            "kelas" -> dao.replaceKelasLocalId(localId, serverId)
+            "santri" -> dao.replaceSantriLocalId(localId, serverId)
+            "mapel" -> dao.replaceMapelLocalId(localId, serverId)
+        }
+    }
+
+    private fun masterIdKey(entity: String): String = when (entity) {
+        "guru" -> "id_guru"
+        "kelas" -> "id_kelas"
+        "santri" -> "id_santri"
+        "mapel" -> "id"
+        else -> "id"
     }
 
     private fun isTransientSyncError(error: Throwable): Boolean {
