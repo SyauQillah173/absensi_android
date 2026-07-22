@@ -392,6 +392,10 @@ class _EditUserScreenState extends State<EditUserScreen> {
                                   value: 'guru',
                                   child: Text('Guru'),
                                 ),
+                                DropdownMenuItem(
+                                  value: 'kepala_sekolah',
+                                  child: Text('Kepala Sekolah'),
+                                ),
                               ],
                               onChanged: (value) => setState(() {
                                 _role = value ?? _role;

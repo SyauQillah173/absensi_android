@@ -122,7 +122,7 @@ class _DataAdminScreenState extends State<DataAdminScreen>
     return List<Map<String, dynamic>>.from(data ?? const [])
         .where((user) {
           final role = _val(user, 'role', '').trim().toLowerCase();
-          return role == 'admin' || role == 'guru';
+          return role == 'admin' || role == 'guru' || role == 'kepala_sekolah';
         })
         .map((user) {
           final row = Map<String, dynamic>.from(user);
@@ -767,6 +767,8 @@ class _DataAdminScreenState extends State<DataAdminScreen>
         return const Color(0xFFE65100);
       case 'guru':
         return const Color(0xFF138F81);
+      case 'kepala_sekolah':
+        return const Color(0xFF2E86DE);
       case 'wali':
         return const Color(0xFF6C3483);
       default:
@@ -780,6 +782,8 @@ class _DataAdminScreenState extends State<DataAdminScreen>
         return 'Admin';
       case 'guru':
         return 'Guru';
+      case 'kepala_sekolah':
+        return 'Kepala Sekolah';
       case 'wali':
         return 'Orang Tua';
       default:
