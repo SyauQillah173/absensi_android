@@ -25,6 +25,16 @@ class DatabaseSeeder extends Seeder
             'status_aktif' => true,
         ]);
 
+        $this->upsertUser('kepsek', 'kepala_sekolah', [
+            'name' => 'Kepala Sekolah',
+            'email' => 'kepsek@skripsi.local',
+            'password' => Hash::make($password),
+            'password_hash' => Hash::make($password),
+            'role' => 'kepala_sekolah',
+            'status' => 'Aktif',
+            'status_aktif' => true,
+        ]);
+
         $guruUser = $this->upsertUser('guru', 'guru', [
             'name' => 'Ustadz Ahmad',
             'email' => 'guru@skripsi.local',
