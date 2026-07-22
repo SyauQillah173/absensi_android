@@ -137,6 +137,8 @@ data class HistoryRow(
     val id_presensi: Long?,
     val id_kelas: Long,
     val nama_kelas: String,
+    val id_guru: Long?,
+    val nama_guru: String?,
     val mapel_id: Long?,
     val mapel: String?,
     val tanggal: String,
@@ -332,12 +334,13 @@ interface ThesisDao {
     fun attendanceDetails(localId: String): List<DetailRow>
 
     @Query(
-        """SELECT p.local_id, p.id_presensi, p.id_kelas, k.nama_kelas, p.mapel_id, p.mapel, p.tanggal, p.waktu_mulai, p.catatan, p.sync_status,
+        """SELECT p.local_id, p.id_presensi, p.id_kelas, k.nama_kelas, p.id_guru, g.nama_guru, p.mapel_id, p.mapel, p.tanggal, p.waktu_mulai, p.catatan, p.sync_status,
         SUM(CASE WHEN d.status_presensi='Hadir' THEN 1 ELSE 0 END) hadir,
         SUM(CASE WHEN d.status_presensi='Sakit' THEN 1 ELSE 0 END) sakit,
         SUM(CASE WHEN d.status_presensi='Izin' THEN 1 ELSE 0 END) izin,
         SUM(CASE WHEN d.status_presensi='Alpa' THEN 1 ELSE 0 END) alpa
         FROM presensi p JOIN kelas k ON k.id_kelas=p.id_kelas
+        LEFT JOIN guru g ON g.id_guru=p.id_guru
         JOIN detail_presensi d ON d.presensi_local_id=p.local_id
         GROUP BY p.local_id ORDER BY p.tanggal DESC, p.waktu_mulai DESC""",
     )
@@ -1129,7 +1132,8 @@ private fun detailMap(row: DetailRow): Map<String, Any?> = mapOf(
 
 private fun historyMap(row: HistoryRow): Map<String, Any?> = mapOf(
     "local_id" to row.local_id, "id_presensi" to row.id_presensi, "id_kelas" to row.id_kelas,
-    "nama_kelas" to row.nama_kelas, "mapel_id" to row.mapel_id, "mapel" to row.mapel, "tanggal" to row.tanggal,
+    "nama_kelas" to row.nama_kelas, "id_guru" to row.id_guru, "nama_guru" to row.nama_guru, 
+    "mapel_id" to row.mapel_id, "mapel" to row.mapel, "tanggal" to row.tanggal,
     "waktu_mulai" to row.waktu_mulai, "catatan" to row.catatan, "sync_status" to row.sync_status,
     "hadir" to row.hadir, "sakit" to row.sakit, "izin" to row.izin, "alpa" to row.alpa,
 )

@@ -138,6 +138,7 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final admin = _role == 'admin';
+    final canInput = _role == 'admin' || _role == 'guru';
     final pages = <Widget>[
       _Home(
         name: _name,
@@ -150,11 +151,12 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
         checkingConnection: _checkingConnection,
         onSync: () => _sync(notify: true),
       ),
-      AttendanceScreen(
-        key: ValueKey('attendance-$_attendanceVersion'),
-        onSaved: _load,
-      ),
-      HistoryScreen(onChanged: _load),
+      if (canInput)
+        AttendanceScreen(
+          key: ValueKey('attendance-$_attendanceVersion'),
+          onSaved: _load,
+        ),
+      HistoryScreen(onChanged: _load, role: _role),
       if (admin) MasterDataScreen(onChanged: _masterChanged),
       if (admin) const TestingLogScreen(),
     ];
@@ -164,11 +166,12 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
         selectedIcon: Icon(Icons.dashboard),
         label: 'Beranda',
       ),
-      const NavigationDestination(
-        icon: Icon(Icons.fact_check_outlined),
-        selectedIcon: Icon(Icons.fact_check),
-        label: 'Presensi',
-      ),
+      if (canInput)
+        const NavigationDestination(
+          icon: Icon(Icons.fact_check_outlined),
+          selectedIcon: Icon(Icons.fact_check),
+          label: 'Presensi',
+        ),
       const NavigationDestination(
         icon: Icon(Icons.history),
         selectedIcon: Icon(Icons.history_toggle_off),
@@ -230,7 +233,7 @@ class _ThesisShellState extends State<ThesisShell> with WidgetsBindingObserver {
         onDestinationSelected: (value) {
           setState(() {
             _index = value;
-            if (value == 1) _attendanceVersion += 1;
+            if (canInput && value == 1) _attendanceVersion += 1;
           });
         },
         destinations: destinations,
@@ -274,7 +277,7 @@ class _Home extends StatelessWidget {
           ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 4),
-        Text(role == 'admin' ? 'Admin/Operator' : 'Guru/Ustadz'),
+        Text(role == 'admin' ? 'Admin/Operator' : role == 'kepala_sekolah' ? 'Kepala Sekolah' : 'Guru/Ustadz'),
         const SizedBox(height: 20),
         _ConnectionStatusCard(online: online, checking: checkingConnection),
         const SizedBox(height: 12),

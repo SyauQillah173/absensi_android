@@ -7,7 +7,8 @@ import 'attendance_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
   final VoidCallback onChanged;
-  const HistoryScreen({super.key, required this.onChanged});
+  final String role;
+  const HistoryScreen({super.key, required this.onChanged, this.role = ''});
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -71,10 +72,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
             itemBuilder: (context, index) {
               final row = rows[index];
               final status = row['sync_status'].toString();
+              final mapel = row['mapel']?.toString() ?? 'Tanpa Mapel';
+              final guru = row['nama_guru']?.toString() ?? '-';
+              final isKepsek = widget.role == 'kepala_sekolah';
+              
               return Card(
                 child: ListTile(
-                  title: Text(row['nama_kelas'].toString()),
+                  title: Text('${row['nama_kelas']} - $mapel'),
                   subtitle: Text(
+                    'Guru: $guru\n'
                     '${row['tanggal']} ${row['waktu_mulai']}\n'
                     'Hadir ${row['hadir']}  Sakit ${row['sakit']}  Izin ${row['izin']}  Alpa ${row['alpa']}',
                   ),
@@ -97,14 +103,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               : Colors.orange.shade800,
                         ),
                       ),
-                      IconButton(
-                        tooltip: 'Edit presensi',
-                        onPressed: () => _edit(row),
-                        icon: const Icon(Icons.edit),
-                      ),
+                      if (!isKepsek)
+                        IconButton(
+                          tooltip: 'Edit presensi',
+                          onPressed: () => _edit(row),
+                          icon: const Icon(Icons.edit),
+                        ),
                     ],
                   ),
-                  onTap: () => _edit(row),
+                  onTap: isKepsek ? null : () => _edit(row),
                 ),
               );
             },

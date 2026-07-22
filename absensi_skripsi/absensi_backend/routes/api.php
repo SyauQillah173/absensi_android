@@ -26,15 +26,18 @@ Route::middleware('api.auth')->group(function (): void {
     Route::get('sync/bootstrap', [ThesisMasterController::class, 'bootstrap']);
     Route::post('sync/batch', [ThesisPresensiController::class, 'syncBatch']);
 
-    Route::middleware('role:admin,guru')->group(function (): void {
+    Route::middleware('role:admin,guru,kepala_sekolah')->group(function (): void {
         Route::get('kelas', [ThesisMasterController::class, 'kelasIndex']);
         Route::get('mapel', [ThesisMasterController::class, 'mapelIndex']);
         Route::get('santri', [ThesisMasterController::class, 'santriIndex']);
 
         Route::get('presensi', [ThesisPresensiController::class, 'index']);
         Route::get('presensi/riwayat', [ThesisPresensiController::class, 'index']);
-        Route::get('presensi/rekap/export', [ThesisPresensiController::class, 'export']);
         Route::get('presensi/rekap', [ThesisPresensiController::class, 'rekap']);
+    });
+
+    Route::middleware('role:admin,guru')->group(function (): void {
+        Route::get('presensi/rekap/export', [ThesisPresensiController::class, 'export']);
         Route::post('presensi', [ThesisPresensiController::class, 'store']);
         Route::put('presensi/{presensi}', [ThesisPresensiController::class, 'store']);
         Route::delete('presensi/{presensi}', [ThesisPresensiController::class, 'destroy']);
