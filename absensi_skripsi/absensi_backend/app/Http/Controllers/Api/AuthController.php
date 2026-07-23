@@ -21,7 +21,7 @@ class AuthController extends Controller
         ]);
         $username = trim($validated['username'] ?? $validated['identifier']);
         $user = User::query()
-            ->whereIn('role', ['admin', 'guru'])
+            ->whereIn('role', ['admin', 'guru', 'kepala_sekolah'])
             ->where(fn ($query) => $query->where('username', $username)->orWhere('email', $username))
             ->first();
 
