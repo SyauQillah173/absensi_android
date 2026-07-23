@@ -96,6 +96,7 @@ data class PresensiEntity(
     val sync_status: String,
     val sync_message: String?,
     val updated_at: String,
+    val nama_pengisi: String?,
 )
 
 @Entity(
@@ -144,6 +145,7 @@ data class HistoryRow(
     val tanggal: String,
     val waktu_mulai: String,
     val catatan: String?,
+    val nama_pengisi: String?,
     val sync_status: String,
     val hadir: Int,
     val sakit: Int,
@@ -334,7 +336,7 @@ interface ThesisDao {
     fun attendanceDetails(localId: String): List<DetailRow>
 
     @Query(
-        """SELECT p.local_id, p.id_presensi, p.id_kelas, k.nama_kelas, p.id_guru, g.nama_guru, p.mapel_id, p.mapel, p.tanggal, p.waktu_mulai, p.catatan, p.sync_status,
+        """SELECT p.local_id, p.id_presensi, p.id_kelas, k.nama_kelas, p.id_guru, COALESCE(p.nama_pengisi, g.nama_guru, '') AS nama_guru, p.mapel_id, p.mapel, p.tanggal, p.waktu_mulai, p.catatan, p.nama_pengisi, p.sync_status,
         SUM(CASE WHEN d.status_presensi='Hadir' THEN 1 ELSE 0 END) hadir,
         SUM(CASE WHEN d.status_presensi='Sakit' THEN 1 ELSE 0 END) sakit,
         SUM(CASE WHEN d.status_presensi='Izin' THEN 1 ELSE 0 END) izin,
@@ -358,7 +360,7 @@ interface ThesisDao {
         OutboxEntity::class,
         AppLogEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class ThesisRoomDatabase : RoomDatabase() {
@@ -378,7 +380,7 @@ abstract class ThesisRoomDatabase : RoomDatabase() {
                     ThesisRoomDatabase::class.java,
                     context.getDatabasePath("presensi_skripsi_room_encrypted.db").absolutePath,
                 ).openHelperFactory(factory)
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build().also { instance = it }
             }
 
@@ -397,6 +399,12 @@ abstract class ThesisRoomDatabase : RoomDatabase() {
                 database.execSQL(
                     "CREATE TABLE IF NOT EXISTS app_logs (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, category TEXT NOT NULL, title TEXT NOT NULL, message TEXT, status TEXT NOT NULL, created_at TEXT NOT NULL)",
                 )
+            }
+        }
+
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE presensi ADD COLUMN nama_pengisi TEXT")
             }
         }
     }
@@ -555,6 +563,7 @@ class ThesisRoomBridge(
             put("tanggal", text(args, "date"))
             put("waktu_mulai", text(args, "startTime"))
             put("catatan", args["note"])
+            put("nama_pengisi", args["namaPengisi"])
             put("allow_update", true)
             put("notify_all", true)
             put("detail", payloadDetails)
@@ -565,7 +574,7 @@ class ThesisRoomBridge(
                     operationId, null, operationId, null, long(args, "classId"),
                     long(args, "mapelId"), nullableText(args, "mapel") ?: db.dao().mapel(long(args, "mapelId"))?.nama,
                     text(args, "date"), text(args, "startTime"), null,
-                    nullableText(args, "note"), "pending", null, text(args, "updatedAt"),
+                    nullableText(args, "note"), nullableText(args, "namaPengisi"), "pending", null, text(args, "updatedAt")
                 ),
             )
             db.dao().insertDetails(entities)
@@ -628,6 +637,7 @@ class ThesisRoomBridge(
             put("tanggal", text(args, "date"))
             put("waktu_mulai", text(args, "startTime"))
             put("catatan", args["note"])
+            put("nama_pengisi", args["namaPengisi"] ?: existing.nama_pengisi)
             put("allow_update", true)
             put("notify_all", false)
             put("detail", payloadDetails)
@@ -641,7 +651,7 @@ class ThesisRoomBridge(
                     localId, existing.id_presensi, operationId, existing.id_guru, long(args, "classId"),
                     long(args, "mapelId"), nullableText(args, "mapel") ?: db.dao().mapel(long(args, "mapelId"))?.nama,
                     text(args, "date"), text(args, "startTime"), null,
-                    nullableText(args, "note"), "pending", null, text(args, "updatedAt"),
+                    nullableText(args, "note"), nullableText(args, "namaPengisi") ?: existing.nama_pengisi, "pending", null, text(args, "updatedAt")
                 ),
             )
             db.dao().deleteDetails(localId)

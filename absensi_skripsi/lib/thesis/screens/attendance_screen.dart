@@ -215,6 +215,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final mapelName = selectedMapel.isEmpty
           ? null
           : selectedMapel.first['nama'].toString();
+      final pengisi = await ThesisSession.name();
       late final String operationId;
       if (_editing) {
         operationId = await ThesisDatabase.instance.updateAttendance(
@@ -225,6 +226,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           startTime: time,
           details: details,
           mapel: mapelName,
+          namaPengisi: pengisi,
         );
         _syncStatus = 'pending';
         ThesisLogger.unawaitedInfo(
@@ -241,6 +243,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           startTime: time,
           details: details,
           mapel: mapelName,
+          namaPengisi: pengisi,
         );
         _activeLocalId = operationId;
         _syncStatus = 'pending';

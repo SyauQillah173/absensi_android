@@ -8,7 +8,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../services/thesis_database.dart';
+import '../services/thesis_session.dart';
 import '../services/thesis_sync.dart';
+import '../../screens/buku_induk/data_admin_screen.dart';
 
 class MasterDataScreen extends StatefulWidget {
   final VoidCallback? onChanged;
@@ -26,11 +28,12 @@ class _MasterDataScreenState extends State<MasterDataScreen>
   List<Map<String, dynamic>> _mapels = [];
   List<Map<String, dynamic>> _students = [];
   bool _loading = true;
+  String _role = '';
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 4, vsync: this);
+    _tabs = TabController(length: 5, vsync: this);
     _load();
   }
 
@@ -39,6 +42,7 @@ class _MasterDataScreenState extends State<MasterDataScreen>
     _classes = await ThesisDatabase.instance.classes();
     _mapels = await ThesisDatabase.instance.mapels();
     _students = await ThesisDatabase.instance.allStudents();
+    _role = await ThesisSession.role();
     if (mounted) setState(() => _loading = false);
   }
 
@@ -113,6 +117,7 @@ class _MasterDataScreenState extends State<MasterDataScreen>
             Tab(text: 'Kelas'),
             Tab(text: 'Mapel'),
             Tab(text: 'Guru'),
+            Tab(text: 'Admin'),
           ],
         ),
         Expanded(
@@ -125,6 +130,7 @@ class _MasterDataScreenState extends State<MasterDataScreen>
                     _classList(),
                     _mapelList(),
                     _guruList(),
+                    DataAdminScreen(readOnly: _role != 'admin'),
                   ],
                 ),
         ),

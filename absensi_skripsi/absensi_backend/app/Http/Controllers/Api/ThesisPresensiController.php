@@ -110,6 +110,7 @@ class ThesisPresensiController extends Controller
                 'catatan' => $data['catatan'] ?? null,
                 'sync_flag' => true,
                 'operation_id' => $operationId,
+                'nama_pengisi' => $data['nama_pengisi'] ?? null,
             ];
             if ($presensi) {
                 $existingDetails = $presensi->detail()

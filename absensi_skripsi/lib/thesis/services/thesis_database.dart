@@ -33,6 +33,7 @@ class ThesisDatabase {
     required List<Map<String, dynamic>> details,
     String? mapel,
     String? note,
+    String? namaPengisi,
   }) async {
     const uuid = Uuid();
     final operationId = uuid.v4();
@@ -45,6 +46,7 @@ class ThesisDatabase {
           'startTime': startTime,
           'details': details,
           'note': note,
+          'namaPengisi': namaPengisi,
           'updatedAt': DateTime.now().toIso8601String(),
         }) ??
         operationId;
@@ -85,6 +87,7 @@ class ThesisDatabase {
     required List<Map<String, dynamic>> details,
     String? mapel,
     String? note,
+    String? namaPengisi,
   }) async {
     const uuid = Uuid();
     final operationId = uuid.v4();
@@ -98,6 +101,7 @@ class ThesisDatabase {
           'startTime': startTime,
           'details': details,
           'note': note,
+          'namaPengisi': namaPengisi,
           'updatedAt': DateTime.now().toIso8601String(),
         }) ??
         operationId;
