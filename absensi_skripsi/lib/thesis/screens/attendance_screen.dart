@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../services/thesis_database.dart';
 import '../services/thesis_logger.dart';
+import '../services/thesis_session.dart';
 import '../services/thesis_sync.dart';
 
 class AttendanceScreen extends StatefulWidget {
