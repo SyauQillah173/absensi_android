@@ -574,7 +574,7 @@ class ThesisRoomBridge(
                     operationId, null, operationId, null, long(args, "classId"),
                     long(args, "mapelId"), nullableText(args, "mapel") ?: db.dao().mapel(long(args, "mapelId"))?.nama,
                     text(args, "date"), text(args, "startTime"), null,
-                    nullableText(args, "note"), nullableText(args, "namaPengisi"), "pending", null, text(args, "updatedAt")
+                    nullableText(args, "note"), "pending", null, text(args, "updatedAt"), nullableText(args, "namaPengisi")
                 ),
             )
             db.dao().insertDetails(entities)
@@ -651,7 +651,7 @@ class ThesisRoomBridge(
                     localId, existing.id_presensi, operationId, existing.id_guru, long(args, "classId"),
                     long(args, "mapelId"), nullableText(args, "mapel") ?: db.dao().mapel(long(args, "mapelId"))?.nama,
                     text(args, "date"), text(args, "startTime"), null,
-                    nullableText(args, "note"), nullableText(args, "namaPengisi") ?: existing.nama_pengisi, "pending", null, text(args, "updatedAt")
+                    nullableText(args, "note"), "pending", null, text(args, "updatedAt"), nullableText(args, "namaPengisi") ?: existing.nama_pengisi
                 ),
             )
             db.dao().deleteDetails(localId)
