@@ -296,6 +296,7 @@ class ThesisPresensiController extends Controller
             'detail.*.id_santri' => 'required|integer|exists:santri,id_santri',
             'detail.*.status_presensi' => 'required|in:Hadir,Sakit,Izin,Alpa',
             'detail.*.keterangan' => 'nullable|string|max:500',
+            'nama_pengisi' => 'nullable|string|max:255',
         ]);
     }
 
