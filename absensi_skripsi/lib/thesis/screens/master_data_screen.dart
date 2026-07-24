@@ -10,7 +10,7 @@ import 'package:share_plus/share_plus.dart';
 import '../services/thesis_database.dart';
 import '../services/thesis_session.dart';
 import '../services/thesis_sync.dart';
-import '../../screens/buku_induk/data_admin_screen.dart';
+import '../services/thesis_api.dart';
 
 class MasterDataScreen extends StatefulWidget {
   final VoidCallback? onChanged;
@@ -130,7 +130,10 @@ class _MasterDataScreenState extends State<MasterDataScreen>
                     _classList(),
                     _mapelList(),
                     _guruList(),
-                    DataAdminScreen(readOnly: _role != 'admin'),
+                    if (_role == 'superadmin' || _role == 'admin')
+                      _userList()
+                    else
+                      const Center(child: Text('Akses ditolak.')),
                   ],
                 ),
         ),
@@ -286,6 +289,186 @@ class _MasterDataScreenState extends State<MasterDataScreen>
       child: const Icon(Icons.person_add_alt),
     ),
   );
+
+  Widget _userList() => Scaffold(
+    body: FutureBuilder<Map<String, dynamic>>(
+      future: ThesisApi.get('/users'),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Gagal memuat user.\\nPastikan koneksi internet aktif.',
+              textAlign: TextAlign.center,
+            ),
+          );
+        }
+        final users = (snapshot.data?['data'] as List<dynamic>?) ?? [];
+        if (users.isEmpty) {
+          return const Center(child: Text('Belum ada data user.'));
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+          itemCount: users.length,
+          separatorBuilder: (context, index) => const Divider(height: 1),
+          itemBuilder: (context, index) {
+            final row = users[index];
+            return ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const CircleAvatar(child: Icon(Icons.admin_panel_settings_outlined)),
+              title: Text(row['name']?.toString() ?? '-'),
+              subtitle: Text('${row['username']} - Role: ${row['role']}'),
+              onTap: () => _userDialog(row),
+              trailing: IconButton(
+                tooltip: 'Hapus',
+                onPressed: () => _deleteUser((row['id'] as num).toInt()),
+                icon: const Icon(Icons.delete_outline),
+              ),
+            );
+          },
+        );
+      },
+    ),
+    floatingActionButton: FloatingActionButton(
+      tooltip: 'Tambah User Login',
+      onPressed: () => _userDialog(null),
+      child: const Icon(Icons.person_add_alt_1),
+    ),
+  );
+
+  Future<void> _deleteUser(int id) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus User?'),
+        content: const Text('Tindakan ini tidak dapat dibatalkan.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _loading = true);
+    try {
+      final res = await ThesisApi.send('DELETE', '/users/$id', {});
+      if (res['success'] != true) throw res['message'] ?? 'Gagal menghapus user.';
+      _message('User berhasil dihapus.');
+    } catch (e) {
+      _message(e.toString());
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _userDialog(Map<dynamic, dynamic>? row) async {
+    final name = TextEditingController(text: row?['name']?.toString());
+    final username = TextEditingController(text: row?['username']?.toString());
+    final password = TextEditingController();
+    String role = row?['role']?.toString() ?? 'guru';
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(row == null ? 'Tambah User' : 'Edit User'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: name,
+                  decoration: const InputDecoration(labelText: 'Nama Lengkap'),
+                ),
+                TextField(
+                  controller: username,
+                  decoration: const InputDecoration(labelText: 'Username'),
+                ),
+                TextField(
+                  controller: password,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: row == null ? 'Password' : 'Password Baru (Opsional)',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: role,
+                  decoration: const InputDecoration(labelText: 'Role Akses'),
+                  items: const [
+                    DropdownMenuItem(value: 'superadmin', child: Text('Superadmin')),
+                    DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                    DropdownMenuItem(value: 'kepala_sekolah', child: Text('Kepala Sekolah')),
+                    DropdownMenuItem(value: 'guru', child: Text('Guru')),
+                  ],
+                  onChanged: (val) => setDialogState(() => role = val!),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (name.text.isEmpty || username.text.isEmpty) {
+                  _message('Nama dan Username wajib diisi.');
+                  return;
+                }
+                if (row == null && password.text.isEmpty) {
+                  _message('Password wajib diisi untuk user baru.');
+                  return;
+                }
+                Navigator.pop(context, true);
+              },
+              child: const Text('Simpan'),
+            ),
+          ],
+        ),
+      ),
+    );
+    
+    if (saved != true) {
+      name.dispose();
+      username.dispose();
+      password.dispose();
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      final data = {
+        'name': name.text.trim(),
+        'username': username.text.trim(),
+        'role': role,
+        if (password.text.isNotEmpty) 'password': password.text,
+      };
+      
+      final res = row == null 
+          ? await ThesisApi.send('POST', '/users', data)
+          : await ThesisApi.send('PUT', '/users/${row['id']}', data);
+          
+      if (res['success'] != true) throw res['message'] ?? 'Gagal menyimpan user.';
+      _message('Data user berhasil disimpan.');
+    } catch (e) {
+      _message(e.toString());
+    } finally {
+      name.dispose();
+      username.dispose();
+      password.dispose();
+      setState(() => _loading = false);
+    }
+  }
 
   Future<void> _classDialog(Map<String, dynamic>? row) async {
     if (_gurus.isEmpty) {

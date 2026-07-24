@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ThesisMasterController;
 use App\Http\Controllers\Api\ThesisNotificationController;
 use App\Http\Controllers\Api\ThesisPresensiController;
+use App\Http\Controllers\Api\ThesisUserController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('health', fn () => response()->json([
@@ -48,6 +49,11 @@ Route::middleware('api.auth')->group(function (): void {
         Route::post('guru', [ThesisMasterController::class, 'guruStore']);
         Route::put('guru/{guru}', [ThesisMasterController::class, 'guruUpdate']);
         Route::delete('guru/{guru}', [ThesisMasterController::class, 'guruDestroy']);
+
+        Route::get('users', [ThesisUserController::class, 'index']);
+        Route::post('users', [ThesisUserController::class, 'store']);
+        Route::put('users/{user}', [ThesisUserController::class, 'update']);
+        Route::delete('users/{user}', [ThesisUserController::class, 'destroy']);
 
         Route::post('kelas', [ThesisMasterController::class, 'kelasStore']);
         Route::put('kelas/{kelas}', [ThesisMasterController::class, 'kelasUpdate']);
