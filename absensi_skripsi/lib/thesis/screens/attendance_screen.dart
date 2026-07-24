@@ -19,13 +19,23 @@ class AttendanceScreen extends StatefulWidget {
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
   final _statuses = const ['Hadir', 'Sakit', 'Izin', 'Alpa'];
-  final _noteTemplates = const [
-    'Sakit di rumah',
-    'Pergi pulang kampung',
-    'Tidak ada kabar (pergi tanpa izin)',
-    'Keluarga ada acara',
-    'Lainnya',
-  ];
+  List<String> _getTemplates(String status) {
+    if (status == 'Sakit') {
+      return ['Sakit di rumah', 'Sakit rawat inap', 'Sakit panas', 'Lainnya'];
+    }
+    if (status == 'Izin') {
+      return [
+        'Pergi pulang kampung',
+        'Keluarga ada acara',
+        'Keperluan mendesak',
+        'Lainnya',
+      ];
+    }
+    if (status == 'Alpa') {
+      return ['Tidak ada kabar', 'Pergi tanpa izin', 'Lainnya'];
+    }
+    return ['Lainnya'];
+  }
   List<Map<String, dynamic>> _classes = [];
   List<Map<String, dynamic>> _mapels = [];
   List<Map<String, dynamic>> _students = [];
@@ -523,7 +533,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           border: OutlineInputBorder(),
                           isDense: true,
                         ),
-                        items: _noteTemplates
+                        items: _getTemplates(status)
                             .map(
                               (item) => DropdownMenuItem(
                                 value: item,
