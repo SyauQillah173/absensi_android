@@ -47,7 +47,6 @@ void main() {
 
       await SessionService.saveLoginSession(
         account!,
-        preserveExistingToken: true,
       );
       expect(await SessionService.getAuthToken(), 'token-skripsi');
     },

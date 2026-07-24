@@ -25,3 +25,5 @@ plugins {
 }
 
 include(":app")
+
+rootProject.name = "absensi_skripsi_android"
