@@ -29,11 +29,13 @@ class _MasterDataScreenState extends State<MasterDataScreen>
   List<Map<String, dynamic>> _students = [];
   bool _loading = true;
   String _role = '';
+  Future<Map<String, dynamic>>? _usersFuture;
 
   @override
   void initState() {
     super.initState();
     _tabs = TabController(length: 5, vsync: this);
+    _usersFuture = ThesisApi.get('/users');
     _load();
   }
 
@@ -49,6 +51,9 @@ class _MasterDataScreenState extends State<MasterDataScreen>
   Future<void> _refresh() async {
     setState(() => _loading = true);
     await ThesisSync.refreshBootstrap();
+    if (_role == 'superadmin' || _role == 'admin') {
+      _usersFuture = ThesisApi.get('/users');
+    }
     await _load();
   }
 
@@ -292,7 +297,7 @@ class _MasterDataScreenState extends State<MasterDataScreen>
 
   Widget _userList() => Scaffold(
     body: FutureBuilder<Map<String, dynamic>>(
-      future: ThesisApi.get('/users'),
+      future: _usersFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -362,6 +367,9 @@ class _MasterDataScreenState extends State<MasterDataScreen>
       final res = await ThesisApi.send('DELETE', '/users/$id', {});
       if (res['success'] != true) throw res['message'] ?? 'Gagal menghapus user.';
       _message('User berhasil dihapus.');
+      setState(() {
+        _usersFuture = ThesisApi.get('/users');
+      });
     } catch (e) {
       _message(e.toString());
     } finally {
@@ -401,13 +409,12 @@ class _MasterDataScreenState extends State<MasterDataScreen>
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  initialValue: role,
+                  initialValue: role == 'guru' ? 'admin' : role,
                   decoration: const InputDecoration(labelText: 'Role Akses'),
                   items: const [
                     DropdownMenuItem(value: 'superadmin', child: Text('Superadmin')),
                     DropdownMenuItem(value: 'admin', child: Text('Admin')),
                     DropdownMenuItem(value: 'kepala_sekolah', child: Text('Kepala Sekolah')),
-                    DropdownMenuItem(value: 'guru', child: Text('Guru')),
                   ],
                   onChanged: (val) => setDialogState(() => role = val!),
                 ),
@@ -460,6 +467,9 @@ class _MasterDataScreenState extends State<MasterDataScreen>
           
       if (res['success'] != true) throw res['message'] ?? 'Gagal menyimpan user.';
       _message('Data user berhasil disimpan.');
+      setState(() {
+        _usersFuture = ThesisApi.get('/users');
+      });
     } catch (e) {
       _message(e.toString());
     } finally {
