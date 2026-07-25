@@ -40,8 +40,10 @@ Route::get('health', fn () => response()->json([
     'message' => 'API aktif',
     'timestamp' => now()->toIso8601String(),
 ]));
-Route::post('login', [AuthController::class, 'login']);
-Route::post('change-password', [AuthController::class, 'changePassword']);
+Route::middleware('throttle:6,1')->group(function () {
+    Route::post('login', [AuthController::class, 'login']);
+    Route::post('change-password', [AuthController::class, 'changePassword']);
+});
 
 Route::middleware('api.auth')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
@@ -51,7 +53,7 @@ Route::middleware('api.auth')->group(function () {
     Route::get('academic-periods/active', [AcademicPeriodController::class, 'active']);
     Route::get('profile', [UserProfileController::class, 'show']);
     Route::put('profile', [UserProfileController::class, 'update']);
-    Route::post('profile/foto', [UserProfileController::class, 'uploadFoto']);
+    Route::post('profile/foto', [UserProfileController::class, 'uploadFoto'])->middleware('throttle:15,1');
     Route::delete('profile/foto', [UserProfileController::class, 'deleteFoto']);
     Route::get('notifications', [NotificationController::class, 'index']);
     Route::patch('notifications/{notification}/read', [NotificationController::class, 'markRead']);
@@ -95,7 +97,7 @@ Route::middleware('api.auth')->group(function () {
 
         Route::get('absensi', [AbsensiController::class, 'index'])->middleware('permission:absensi,view');
         Route::post('absensi', [AbsensiController::class, 'store'])->middleware('permission:absensi,create');
-        Route::post('absensi/bulk', [AbsensiController::class, 'storeBulk'])->middleware('permission:absensi,create');
+        Route::post('absensi/bulk', [AbsensiController::class, 'storeBulk'])->middleware(['permission:absensi,create', 'throttle:30,1']);
         Route::get('absensi/rekap', [AbsensiController::class, 'rekap'])->middleware('permission:absensi,view');
         Route::put('absensi/{absensi}', [AbsensiController::class, 'update'])->middleware('permission:absensi,update');
         Route::delete('absensi/{absensi}', [AbsensiController::class, 'destroy'])->middleware('permission:absensi,cancel');
@@ -106,7 +108,7 @@ Route::middleware('api.auth')->group(function () {
         Route::get('absensi-sholat/types', [AbsensiSholatController::class, 'types'])->middleware('permission:absensi,view');
         Route::get('absensi-sholat/context', [AbsensiSholatController::class, 'context'])->middleware('permission:absensi,view');
         Route::get('absensi-sholat/rekap', [AbsensiSholatController::class, 'rekap'])->middleware('permission:absensi,view');
-        Route::post('absensi-sholat/bulk', [AbsensiSholatController::class, 'storeBulk'])->middleware('permission:absensi,create');
+        Route::post('absensi-sholat/bulk', [AbsensiSholatController::class, 'storeBulk'])->middleware(['permission:absensi,create', 'throttle:30,1']);
         Route::post('absensi-sholat/cancel', [AbsensiSholatController::class, 'cancel'])->middleware('permission:absensi,cancel');
 
         Route::get('absensi-ngaji/sessions', [AbsensiNgajiController::class, 'sessions'])->middleware('permission:absensi,view');
@@ -114,7 +116,7 @@ Route::middleware('api.auth')->group(function () {
         Route::get('absensi-ngaji/schedules', [AbsensiNgajiController::class, 'schedules'])->middleware('permission:absensi,view');
         Route::get('absensi-ngaji/context', [AbsensiNgajiController::class, 'context'])->middleware('permission:absensi,view');
         Route::get('absensi-ngaji/rekap', [AbsensiNgajiController::class, 'rekap'])->middleware('permission:absensi,view');
-        Route::post('absensi-ngaji/bulk', [AbsensiNgajiController::class, 'storeBulk'])->middleware('permission:absensi,create');
+        Route::post('absensi-ngaji/bulk', [AbsensiNgajiController::class, 'storeBulk'])->middleware(['permission:absensi,create', 'throttle:30,1']);
         Route::post('absensi-ngaji/cancel', [AbsensiNgajiController::class, 'cancel'])->middleware('permission:absensi,cancel');
 
         Route::get('kelompok-belajar', [KelompokBelajarController::class, 'index'])->middleware('permission:ruang_sifir,view');
@@ -123,7 +125,7 @@ Route::middleware('api.auth')->group(function () {
 
         Route::get('nilai', [NilaiController::class, 'index'])->middleware('permission:nilai,view');
         Route::post('nilai', [NilaiController::class, 'store'])->middleware('permission:nilai,create');
-        Route::post('nilai/bulk', [NilaiController::class, 'storeBulk'])->middleware('permission:nilai,create');
+        Route::post('nilai/bulk', [NilaiController::class, 'storeBulk'])->middleware(['permission:nilai,create', 'throttle:30,1']);
         Route::get('nilai/rekap', [NilaiController::class, 'rekap'])->middleware('permission:nilai,view');
         Route::get('nilai/{nilai}', [NilaiController::class, 'show'])->middleware('permission:nilai,view');
         Route::put('nilai/{nilai}', [NilaiController::class, 'update'])->middleware('permission:nilai,update');
@@ -164,11 +166,11 @@ Route::middleware('api.auth')->group(function () {
         Route::put('settings/permissions', [PermissionController::class, 'update'])->middleware('permission:hak_akses,update');
 
         Route::get('whatsapp/status', [WhatsAppController::class, 'status'])->middleware('permission:whatsapp_bot,view');
-        Route::post('whatsapp/connect', [WhatsAppController::class, 'connect'])->middleware('permission:whatsapp_bot,create');
+        Route::post('whatsapp/connect', [WhatsAppController::class, 'connect'])->middleware(['permission:whatsapp_bot,create', 'throttle:20,1']);
         Route::get('whatsapp/qr', [WhatsAppController::class, 'qr'])->middleware('permission:whatsapp_bot,view');
-        Route::post('whatsapp/reconnect', [WhatsAppController::class, 'reconnect'])->middleware('permission:whatsapp_bot,update');
+        Route::post('whatsapp/reconnect', [WhatsAppController::class, 'reconnect'])->middleware(['permission:whatsapp_bot,update', 'throttle:20,1']);
         Route::post('whatsapp/logout', [WhatsAppController::class, 'logout'])->middleware('permission:whatsapp_bot,delete');
-        Route::post('whatsapp/send', [WhatsAppController::class, 'send'])->middleware('permission:whatsapp_bot,create');
+        Route::post('whatsapp/send', [WhatsAppController::class, 'send'])->middleware(['permission:whatsapp_bot,create', 'throttle:20,1']);
         Route::get('whatsapp/messages', [WhatsAppController::class, 'messages'])->middleware('permission:whatsapp_bot,view');
         Route::post('whatsapp/messages/{message}/retry', [WhatsAppController::class, 'retry'])->middleware('permission:whatsapp_bot,approve');
         Route::get('whatsapp/templates', [WhatsAppController::class, 'templates'])->middleware('permission:whatsapp_bot,view');
@@ -255,13 +257,13 @@ Route::middleware('api.auth')->group(function () {
 
         Route::get('document-settings', [DocumentSettingController::class, 'show']);
         Route::put('document-settings', [DocumentSettingController::class, 'update']);
-        Route::post('document-settings/signature', [DocumentSettingController::class, 'uploadSignature']);
-        Route::post('document-settings/logo', [DocumentSettingController::class, 'uploadLogo']);
+        Route::post('document-settings/signature', [DocumentSettingController::class, 'uploadSignature'])->middleware('throttle:15,1');
+        Route::post('document-settings/logo', [DocumentSettingController::class, 'uploadLogo'])->middleware('throttle:15,1');
 
         Route::get('users', [UserManagementController::class, 'index']);
         Route::post('users', [UserManagementController::class, 'store']);
-        Route::post('users/import', [UserManagementController::class, 'import']);
-        Route::post('users/import-guru', [UserManagementController::class, 'importGuru']);
+        Route::post('users/import', [UserManagementController::class, 'import'])->middleware('throttle:15,1');
+        Route::post('users/import-guru', [UserManagementController::class, 'importGuru'])->middleware('throttle:15,1');
         Route::post('users/{user}/reset-password', [UserManagementController::class, 'resetPassword']);
         Route::put('users/{user}', [UserManagementController::class, 'update']);
         Route::delete('users/{user}', [UserManagementController::class, 'destroy']);
@@ -279,6 +281,6 @@ Route::middleware('api.auth')->group(function () {
         Route::put('payment-period-types/{paymentPeriodType}', [PaymentPeriodTypeController::class, 'update'])->middleware('permission:keuangan,update');
         Route::delete('payment-period-types/{paymentPeriodType}', [PaymentPeriodTypeController::class, 'destroy'])->middleware('permission:keuangan,delete');
 
-        Route::post('upload', [SiswaController::class, 'uploadFile']);
+        Route::post('upload', [SiswaController::class, 'uploadFile'])->middleware('throttle:15,1');
     });
 });

@@ -47,7 +47,7 @@ class KegiatanController extends Controller
             'judul' => 'required|string|max:255',
             'deskripsi' => 'nullable|string',
             'fotos' => 'required|array|min:1',
-            'fotos.*' => 'image|max:5120',
+            'fotos.*' => 'image|mimes:jpg,jpeg,png,webp|max:5120', // strictly safe image formats (no SVG)
             'captions' => 'nullable|array',
         ]);
 

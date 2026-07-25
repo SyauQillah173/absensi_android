@@ -15,6 +15,10 @@ class ApiAccessToken extends Model
         'expires_at',
     ];
 
+    protected $hidden = [
+        'token_hash',
+    ];
+
     protected function casts(): array
     {
         return [

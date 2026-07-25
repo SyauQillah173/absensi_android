@@ -61,7 +61,7 @@ class MateriController extends Controller
             'mapel_id' => 'required|exists:mata_pelajaran,id',
             'judul' => 'required|string|max:255',
             'deskripsi' => 'nullable|string',
-            'file' => 'required|file|max:10240',
+            'file' => 'required|file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,jpeg,png,webp|max:10240', // max 10MB, strictly safe learning files
             'file_type' => 'nullable|in:foto,dokumen',
         ]);
 

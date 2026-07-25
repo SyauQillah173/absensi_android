@@ -521,11 +521,11 @@ class SiswaController extends Controller
         ]);
     }
 
-    // Upload dokumen akta atau foto santri
+    // Upload dokumen akta atau foto santri (Shielded against RCE / webshell upload)
     public function uploadFile(Request $request)
     {
         $request->validate([
-            'file' => 'required|file|max:5120', // max 5MB
+            'file' => 'required|file|mimes:pdf,jpg,jpeg,png,webp|max:5120', // max 5MB, strict whitelisted extensions
             'type' => 'required|in:dokumen_akta,foto_santri,foto_profil',
         ]);
 

@@ -86,7 +86,7 @@ class UserProfileController extends Controller
     public function uploadFoto(Request $request)
     {
         $request->validate([
-            'foto' => 'required|image|max:2048', // max 2MB
+            'foto' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048', // max 2MB, strict image format
         ]);
 
         $user = $request->user();

@@ -11,24 +11,36 @@ class ForceCorsHeaders
     public function handle(Request $request, Closure $next): Response
     {
         if ($request->isMethod('OPTIONS')) {
-            return $this->applyCorsHeaders(response('', 204), $request);
+            return $this->applySecurityAndCorsHeaders(response('', 204), $request);
         }
 
         /** @var Response $response */
         $response = $next($request);
 
-        return $this->applyCorsHeaders($response, $request);
+        return $this->applySecurityAndCorsHeaders($response, $request);
     }
 
-    private function applyCorsHeaders(Response $response, Request $request): Response
+    private function applySecurityAndCorsHeaders(Response $response, Request $request): Response
     {
         $origin = $request->headers->get('Origin') ?: '*';
 
+        // 1. CORS Headers
         $response->headers->set('Access-Control-Allow-Origin', $origin);
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-        $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+        $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, X-CSRF-TOKEN');
         $response->headers->set('Access-Control-Max-Age', '86400');
         $response->headers->set('Vary', 'Origin');
+
+        // 2. OWASP Standard HTTP Security Headers (Protection Shield)
+        $response->headers->set('X-Content-Type-Options', 'nosniff');
+        $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
+        $response->headers->set('X-XSS-Protection', '1; mode=block');
+        $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
+        $response->headers->set('Content-Security-Policy', "frame-ancestors 'self'");
+        
+        if ($request->isSecure()) {
+            $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+        }
 
         return $response;
     }
