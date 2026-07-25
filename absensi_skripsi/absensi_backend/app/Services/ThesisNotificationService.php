@@ -46,7 +46,9 @@ class ThesisNotificationService
         ]);
 
         if ($phone) {
-            SendThesisWhatsAppJob::dispatchAfterResponse($log->id);
+            if (config('queue.default') !== 'sync' || config('services.whatsapp_bot.dispatch_when_sync_queue')) {
+                SendThesisWhatsAppJob::dispatch($log->id);
+            }
         }
 
         return $log;
@@ -55,7 +57,9 @@ class ThesisNotificationService
     public function retry(WhatsAppMessageLog $log): void
     {
         $log->update(['status' => 'pending', 'error_message' => null, 'next_retry_at' => null]);
-        SendThesisWhatsAppJob::dispatchAfterResponse($log->id);
+        if (config('queue.default') !== 'sync' || config('services.whatsapp_bot.dispatch_when_sync_queue')) {
+            SendThesisWhatsAppJob::dispatch($log->id);
+        }
     }
 
     private function normalize(?string $phone): ?string
