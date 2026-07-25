@@ -34,13 +34,8 @@ return new class extends Migration
             });
 
             DB::statement('ALTER TABLE presensi DROP CONSTRAINT IF EXISTS presensi_sesi_unique');
-
-            $exists = DB::select("SELECT 1 FROM pg_constraint WHERE conname = 'presensi_sesi_mapel_unique'");
-            if (empty($exists)) {
-                Schema::table('presensi', function (Blueprint $table): void {
-                    $table->unique(['id_kelas', 'mapel_id', 'tanggal', 'waktu_mulai'], 'presensi_sesi_mapel_unique');
-                });
-            }
+            DB::statement('DROP INDEX IF EXISTS presensi_sesi_unique');
+            DB::statement('CREATE UNIQUE INDEX IF NOT EXISTS presensi_sesi_mapel_unique ON presensi (id_kelas, mapel_id, tanggal, waktu_mulai)');
         }
 
         $now = now();

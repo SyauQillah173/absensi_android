@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -15,16 +16,12 @@ return new class extends Migration
         }
 
         DB::statement('ALTER TABLE presensi DROP CONSTRAINT IF EXISTS presensi_sesi_mapel_unique');
+        DB::statement('DROP INDEX IF EXISTS presensi_sesi_mapel_unique');
         DB::statement('ALTER TABLE presensi DROP CONSTRAINT IF EXISTS presensi_mapel_id_foreign');
         DB::statement('ALTER TABLE presensi DROP COLUMN IF EXISTS mapel_id');
         DB::statement('ALTER TABLE presensi DROP COLUMN IF EXISTS mapel');
 
-        $exists = DB::select("SELECT 1 FROM pg_constraint WHERE conname = 'presensi_sesi_unique'");
-        if (empty($exists)) {
-            Schema::table('presensi', function (Blueprint $table): void {
-                $table->unique(['id_kelas', 'tanggal', 'waktu_mulai'], 'presensi_sesi_unique');
-            });
-        }
+        DB::statement('CREATE UNIQUE INDEX IF NOT EXISTS presensi_sesi_unique ON presensi (id_kelas, tanggal, waktu_mulai)');
     }
 
     public function down(): void
