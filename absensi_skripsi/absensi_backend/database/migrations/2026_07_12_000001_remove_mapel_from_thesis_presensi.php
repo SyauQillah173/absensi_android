@@ -21,7 +21,10 @@ return new class extends Migration
         DB::statement('ALTER TABLE presensi DROP COLUMN IF EXISTS mapel_id');
         DB::statement('ALTER TABLE presensi DROP COLUMN IF EXISTS mapel');
 
-        DB::statement('CREATE UNIQUE INDEX IF NOT EXISTS presensi_sesi_unique ON presensi (id_kelas, tanggal, waktu_mulai)');
+        $idx = DB::select("SELECT 1 FROM pg_indexes WHERE indexname = 'presensi_sesi_unique'");
+        if (empty($idx)) {
+            DB::statement('CREATE UNIQUE INDEX presensi_sesi_unique ON presensi (id_kelas, tanggal, waktu_mulai)');
+        }
     }
 
     public function down(): void
