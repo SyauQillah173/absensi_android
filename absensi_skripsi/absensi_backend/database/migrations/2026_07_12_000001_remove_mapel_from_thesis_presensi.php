@@ -14,36 +14,16 @@ return new class extends Migration
             return;
         }
 
-        try {
-            Schema::table('presensi', function (Blueprint $table): void {
-                $table->dropUnique('presensi_sesi_mapel_unique');
-            });
-        } catch (\Throwable) {
-        }
+        DB::statement('ALTER TABLE presensi DROP CONSTRAINT IF EXISTS presensi_sesi_mapel_unique');
+        DB::statement('ALTER TABLE presensi DROP CONSTRAINT IF EXISTS presensi_mapel_id_foreign');
+        DB::statement('ALTER TABLE presensi DROP COLUMN IF EXISTS mapel_id');
+        DB::statement('ALTER TABLE presensi DROP COLUMN IF EXISTS mapel');
 
-        if (Schema::hasColumn('presensi', 'mapel_id')) {
-            try {
-                Schema::table('presensi', function (Blueprint $table): void {
-                    $table->dropConstrainedForeignId('mapel_id');
-                });
-            } catch (\Throwable) {
-                Schema::table('presensi', function (Blueprint $table): void {
-                    $table->dropColumn('mapel_id');
-                });
-            }
-        }
-
-        if (Schema::hasColumn('presensi', 'mapel')) {
-            Schema::table('presensi', function (Blueprint $table): void {
-                $table->dropColumn('mapel');
-            });
-        }
-
-        try {
+        $exists = DB::select("SELECT 1 FROM pg_constraint WHERE conname = 'presensi_sesi_unique'");
+        if (empty($exists)) {
             Schema::table('presensi', function (Blueprint $table): void {
                 $table->unique(['id_kelas', 'tanggal', 'waktu_mulai'], 'presensi_sesi_unique');
             });
-        } catch (\Throwable) {
         }
     }
 

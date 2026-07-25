@@ -33,18 +33,13 @@ return new class extends Migration
                 }
             });
 
-            try {
-                Schema::table('presensi', function (Blueprint $table): void {
-                    $table->dropUnique('presensi_sesi_unique');
-                });
-            } catch (\Throwable $error) {
-            }
+            DB::statement('ALTER TABLE presensi DROP CONSTRAINT IF EXISTS presensi_sesi_unique');
 
-            try {
+            $exists = DB::select("SELECT 1 FROM pg_constraint WHERE conname = 'presensi_sesi_mapel_unique'");
+            if (empty($exists)) {
                 Schema::table('presensi', function (Blueprint $table): void {
                     $table->unique(['id_kelas', 'mapel_id', 'tanggal', 'waktu_mulai'], 'presensi_sesi_mapel_unique');
                 });
-            } catch (\Throwable $error) {
             }
         }
 
