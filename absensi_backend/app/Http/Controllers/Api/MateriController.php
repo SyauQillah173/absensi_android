@@ -72,7 +72,7 @@ class MateriController extends Controller
                 'message' => 'Hanya admin atau guru aktif yang dapat mengupload materi.',
             ], 403);
         }
-        if ($request->filled('guru_id') && (int) $request->guru_id !== (int) $uploader->id) {
+        if ($uploader->role !== 'admin' && $request->filled('guru_id') && (int) $request->guru_id !== (int) $uploader->id) {
             throw ValidationException::withMessages([
                 'guru_id' => ['User upload materi tidak sesuai dengan sesi aktif.'],
             ]);
