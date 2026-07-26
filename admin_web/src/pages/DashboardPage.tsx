@@ -60,7 +60,7 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
     }
     try {
       const [dashboardResult, paymentResult] = await Promise.all([
-        api.dashboard(session?.id),
+        api.dashboard(),
         api.paymentToday().catch(() => ({ success: true, data: [] }))
       ]);
       setDashboard(dashboardResult);
@@ -84,14 +84,12 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
         void load(true);
       }
     };
-    const intervalId = window.setInterval(refreshVisibleDashboard, 20_000);
+    const intervalId = window.setInterval(refreshVisibleDashboard, 60_000);
     document.addEventListener('visibilitychange', refreshVisibleDashboard);
-    window.addEventListener('focus', refreshVisibleDashboard);
 
     return () => {
       window.clearInterval(intervalId);
       document.removeEventListener('visibilitychange', refreshVisibleDashboard);
-      window.removeEventListener('focus', refreshVisibleDashboard);
     };
   }, [load]);
 
@@ -152,7 +150,7 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
 
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
 
-      <div className="q-stat-grid grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="q-stat-grid grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard title="Total Santri" value={getNumber(statistik, 'total_siswa')} subtitle={`${getNumber(statistik, 'siswa_aktif')} siswa aktif`} icon={UsersRound} tone="teal" />
         {showAbsensi ? <StatCard title="Absensi Kelas Hari Ini" value={getNumber(absensi, 'total')} subtitle="Data Madin/Diniyah" icon={BookOpenCheck} tone="blue" /> : null}
         {showAbsensi ? <StatCard title="Absensi Ngaji" value={getNumber(ngaji, 'total')} subtitle={`${getNumber(ngaji, 'jadwal_sudah_diabsen')} jadwal diabsen`} icon={BookMarked} tone="teal" /> : null}
@@ -171,7 +169,7 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
       </div>
 
       {showAbsensi ? (
-        <div className="q-dashboard-summary-grid grid gap-5 xl:grid-cols-3">
+        <div className="q-dashboard-summary-grid grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           <AbsensiSummaryCard
             icon={<BookOpenCheck className="text-[#2E86DE]" size={20} />}
             title="Absensi Madin/Diniyah"
@@ -208,7 +206,7 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
         </div>
       ) : null}
 
-      <div className={`q-dashboard-bottom-grid grid items-start gap-5 ${showFinance ? 'xl:grid-cols-[minmax(0,1fr)_360px]' : ''}`}>
+      <div className={`q-dashboard-bottom-grid grid grid-cols-1 items-start gap-5 ${showFinance ? 'xl:grid-cols-[minmax(0,1fr)_360px]' : ''}`}>
         {showFinance ? (
         <section className="q-card q-transactions-card p-5">
           <div className="q-card-heading mb-4 flex items-center justify-between gap-4">

@@ -181,9 +181,8 @@ export function AdminLayout({
         void loadNotifications();
       }
     };
-    const intervalId = window.setInterval(refreshVisibleNotifications, 20_000);
+    const intervalId = window.setInterval(refreshVisibleNotifications, 60_000);
     document.addEventListener("visibilitychange", refreshVisibleNotifications);
-    window.addEventListener("focus", refreshVisibleNotifications);
 
     return () => {
       window.clearInterval(intervalId);
@@ -191,7 +190,6 @@ export function AdminLayout({
         "visibilitychange",
         refreshVisibleNotifications,
       );
-      window.removeEventListener("focus", refreshVisibleNotifications);
     };
   }, [loadNotifications]);
 

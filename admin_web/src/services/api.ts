@@ -317,8 +317,8 @@ export const api = {
   changePassword(data: { identifier: string; current_password: string; new_password: string; new_password_confirmation: string }) {
     return request<ApiRecord>('/change-password', { method: 'POST', body: JSON.stringify(data) });
   },
-  dashboard(userId?: number) {
-    return request<ApiRecord>('/dashboard', {}, userId ? { user_id: userId } : undefined);
+  dashboard() {
+    return request<ApiRecord>('/dashboard');
   },
   notifications() {
     return request<ApiRecord[]>('/notifications');
