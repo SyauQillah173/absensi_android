@@ -40,7 +40,7 @@ class MateriController extends Controller
             $query->where('guru_id', $request->guru_id);
         }
 
-        $materi = $query->get()->map(fn ($m) => $this->formatMateri($m));
+        $materi = $query->get()->map(fn (Materi $m) => $this->formatMateri($m));
 
         return response()->json(['success' => true, 'data' => $materi]);
     }
@@ -178,12 +178,15 @@ class MateriController extends Controller
             ->orderByDesc('tanggal')
             ->orderByDesc('id')
             ->get()
-            ->map(fn ($m) => $this->formatMateri($m));
+            ->map(fn (Materi $m) => $this->formatMateri($m));
 
         return response()->json(['success' => true, 'data' => $materi]);
     }
 
-    private function formatMateri(Materi $materi): array
+    /**
+     * @param  Materi|mixed  $materi
+     */
+    private function formatMateri($materi): array
     {
         $namaMapel = $materi->mataPelajaran->nama ?? $materi->mapel;
         $namaKelas = $materi->kelasRef->name ?? $materi->kelas;
