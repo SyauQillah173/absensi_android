@@ -28,6 +28,9 @@ class AuthController extends Controller
         $user = $this->findUserByIdentifier($request->identifier);
 
         if (!$user || !Hash::check($request->password, $user->password)) {
+            if (!$user) {
+                Hash::check('dummy_password_for_timing_protection', '$2y$10$abcdefghijklmnopqrstuv.dummyhashforprotection0000000000');
+            }
             return response()->json([
                 'success' => false,
                 'message' => 'Username/email/NIS atau password salah',
