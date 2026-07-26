@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { api, clearSession, readSession, type ApiRecord, type UserSession } from '../services/api';
 
 interface AuthContextValue {
@@ -16,6 +16,15 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<UserSession | null>(() => readSession());
+
+  useEffect(() => {
+    const handleExpired = () => {
+      clearSession();
+      setSession(null);
+    };
+    window.addEventListener('qomaruddin_auth_expired', handleExpired);
+    return () => window.removeEventListener('qomaruddin_auth_expired', handleExpired);
+  }, []);
 
   const login = useCallback(async (identifier: string, password: string) => {
     const nextSession = await api.login(identifier, password);

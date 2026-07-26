@@ -196,6 +196,10 @@ async function request<T>(
     );
   }
   const payload = (await response.json().catch(() => ({}))) as ApiResponse<T>;
+  if (response.status === 401) {
+    clearSession();
+    window.dispatchEvent(new Event('qomaruddin_auth_expired'));
+  }
   if (!response.ok || payload.success === false) {
     throw new Error(payload.message || `Request gagal (${response.status})`);
   }
