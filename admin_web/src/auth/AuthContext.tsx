@@ -8,7 +8,7 @@ interface AuthContextValue {
   isTreasurer: boolean;
   canView: (menuKey: string) => boolean;
   refreshProfile: () => Promise<UserSession | null>;
-  login: (identifier: string, password: string) => Promise<void>;
+  login: (identifier: string, password: string, captcha: string, captcha_key: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -26,8 +26,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('qomaruddin_auth_expired', handleExpired);
   }, []);
 
-  const login = useCallback(async (identifier: string, password: string) => {
-    const nextSession = await api.login(identifier, password);
+  const login = useCallback(async (identifier: string, password: string, captcha: string, captcha_key: string) => {
+    const nextSession = await api.login(identifier, password, captcha, captcha_key);
     setSession(nextSession);
   }, []);
 

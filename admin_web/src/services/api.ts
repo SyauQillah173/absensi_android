@@ -258,10 +258,13 @@ async function importRowsInBatches(path: string, rows: ApiRecord[]): Promise<Imp
 }
 
 export const api = {
-  async login(identifier: string, password: string): Promise<UserSession> {
+  getCaptcha() {
+    return request<{ img: string; key: string }>('/captcha');
+  },
+  async login(identifier: string, password: string, captcha: string, captcha_key: string): Promise<UserSession> {
     const payload = await request<ApiRecord>('/login', {
       method: 'POST',
-      body: JSON.stringify({ identifier, password, device_name: 'admin-web' })
+      body: JSON.stringify({ identifier, password, captcha, captcha_key, device_name: 'admin-web' })
     });
     const data = payload.data as ApiRecord;
     const token = String(payload.token ?? '');
