@@ -40,6 +40,7 @@ Route::get('health', fn () => response()->json([
     'message' => 'API aktif',
     'timestamp' => now()->toIso8601String(),
 ]));
+Route::get('captcha', fn () => app('captcha')->create('default', true));
 Route::middleware('throttle:6,1')->group(function () {
     Route::post('login', [AuthController::class, 'login']);
     Route::post('change-password', [AuthController::class, 'changePassword']);
