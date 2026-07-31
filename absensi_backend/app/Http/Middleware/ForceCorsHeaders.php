@@ -27,7 +27,8 @@ class ForceCorsHeaders
         $allowedOrigins = [
             'https://absensi-android.vercel.app',
             'http://localhost:5173',
-            'http://127.0.0.1:5173'
+            'http://127.0.0.1:5173',
+            'http://43.156.154.97:3000'
         ];
 
         // 1. CORS Headers (Strict Mode)
