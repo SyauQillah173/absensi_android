@@ -46,7 +46,7 @@ Route::middleware('throttle:6,1')->group(function () {
     Route::post('change-password', [AuthController::class, 'changePassword']);
 });
 
-Route::middleware('api.auth')->group(function () {
+Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
 
     // Shared authenticated endpoints.

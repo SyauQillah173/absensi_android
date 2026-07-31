@@ -22,10 +22,18 @@ class ForceCorsHeaders
 
     private function applySecurityAndCorsHeaders(Response $response, Request $request): Response
     {
-        $origin = $request->headers->get('Origin') ?: '*';
+        $origin = $request->headers->get('Origin');
+        
+        $allowedOrigins = [
+            'https://absensi-android.vercel.app',
+            'http://localhost:5173',
+            'http://127.0.0.1:5173'
+        ];
 
-        // 1. CORS Headers
-        $response->headers->set('Access-Control-Allow-Origin', $origin);
+        // 1. CORS Headers (Strict Mode)
+        if ($origin && in_array($origin, $allowedOrigins)) {
+            $response->headers->set('Access-Control-Allow-Origin', $origin);
+        }
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
         $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, X-CSRF-TOKEN');
         $response->headers->set('Access-Control-Max-Age', '86400');
@@ -38,7 +46,10 @@ class ForceCorsHeaders
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->headers->set('Content-Security-Policy', "frame-ancestors 'self'");
         
-        if ($request->isSecure()) {
+        // Sembunyikan versi PHP
+        header_remove('X-Powered-By');
+        
+        if ($request->isSecure() || app()->environment('production')) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
         }
 
