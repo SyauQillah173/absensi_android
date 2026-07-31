@@ -7,37 +7,21 @@ export function LoginPage() {
   const { login } = useAuth();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [captcha, setCaptcha] = useState('');
-  const [captchaImage, setCaptchaImage] = useState('');
-  const [captchaKey, setCaptchaKey] = useState('');
+
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const loadCaptcha = async () => {
-    try {
-      const res = await api.getCaptcha() as any;
-      setCaptchaImage(String(res.img || ''));
-      setCaptchaKey(String(res.key || ''));
-    } catch {
-      // Abaikan error jaringan saat muat captcha awal
-    }
-  };
 
-  useEffect(() => {
-    loadCaptcha();
-  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
     setIsSubmitting(true);
     try {
-      await login(identifier.trim(), password, captcha, captchaKey);
+      await login(identifier.trim(), password);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login gagal');
-      setCaptcha('');
-      loadCaptcha(); // Reload captcha on failure
     } finally {
       setIsSubmitting(false);
     }
@@ -114,39 +98,13 @@ export function LoginPage() {
               </div>
             </label>
 
-            <div className="rounded-2xl border border-gray-100 bg-[#F9FBFC] p-3 sm:p-4">
-              <span className="mb-2 block text-xs sm:text-sm font-bold text-[#636E72]">Verifikasi Keamanan</span>
-              <div className="flex flex-col sm:flex-row items-center gap-3">
-                <div className="flex w-full sm:w-auto items-center gap-2">
-                  <div 
-                    className="h-10 sm:h-12 w-[120px] shrink-0 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-black/5 [&>img]:h-full [&>img]:w-full [&>img]:object-cover"
-                    dangerouslySetInnerHTML={{ __html: captchaImage || '' }}
-                  />
-                  <button
-                    type="button"
-                    onClick={loadCaptcha}
-                    className="grid h-10 sm:h-12 w-10 sm:w-12 shrink-0 place-items-center rounded-xl bg-white text-[#636E72] shadow-sm ring-1 ring-black/5 transition-all hover:bg-gray-50 active:scale-95"
-                    aria-label="Refresh Captcha"
-                  >
-                    <RefreshCw size={18} />
-                  </button>
-                </div>
-                <input
-                  className="q-input w-full text-xs sm:text-sm font-bold tracking-widest transition-all focus:ring-2 focus:ring-[#138F81]/30"
-                  value={captcha}
-                  onChange={(event) => setCaptcha(event.target.value.toUpperCase())}
-                  placeholder="Ketik kode di atas"
-                  maxLength={5}
-                  required
-                />
-              </div>
-            </div>
+
 
             {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-xs sm:text-sm font-bold text-[#D63031]">{error}</div> : null}
 
             <button
               className="mt-2 min-h-11 sm:min-h-12 w-full rounded-xl sm:rounded-2xl bg-[#138F81] px-5 text-xs sm:text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/25 transition-all hover:bg-[#0f7569] hover:shadow-xl active:scale-[0.99] disabled:opacity-60"
-              disabled={isSubmitting || !captchaImage}
+              disabled={isSubmitting}
               type="submit"
             >
               {isSubmitting ? 'Memproses...' : 'Masuk Dashboard'}

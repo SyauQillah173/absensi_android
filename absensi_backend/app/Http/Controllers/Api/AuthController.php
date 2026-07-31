@@ -23,19 +23,7 @@ class AuthController extends Controller
         $request->validate([
             'identifier' => 'required|string',
             'password' => 'required|string',
-            'captcha' => 'required|string',
-            'captcha_key' => 'required|string',
-        ], [
-            'captcha.required' => 'Kode keamanan harus diisi.',
-            'captcha_key.required' => 'Key keamanan tidak ditemukan.',
         ]);
-
-        if (!captcha_api_check($request->captcha, $request->captcha_key, 'default')) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Kode verifikasi keamanan salah atau sudah kedaluwarsa. Silakan refresh gambar captcha.',
-            ], 422);
-        }
 
         $user = $this->findUserByIdentifier($request->identifier);
 
