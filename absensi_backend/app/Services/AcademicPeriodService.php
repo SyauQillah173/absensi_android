@@ -179,18 +179,48 @@ class AcademicPeriodService
                         'synced_at' => now(),
                         'updated_by_user_id' => $actorId,
                     ];
+                    // --- KODE BARU MULAI DARI SINI ---
+                    $currentSemesterCode = $semester?->code ?? $this->normalizeSemester($payload['semester'] ?? $academicYear->active_semester ?? self::SEMESTER_GANJIL);
 
+                    // 1. Cek apakah santri sudah masuk ke tahun ajaran baru (tanpa peduli semesternya)
                     $existing = SiswaTahunAjaran::query()
+                        ->where('siswa_id', $student->id)
+                        ->where('academic_year_id', $academicYear->id)
+                        ->first();
+
+                    // 2. Cek apakah santri punya riwayat di tahun-tahun sebelumnya (Bukan santri baru)
+                    $hasPreviousYear = SiswaTahunAjaran::query()
+                        ->where('siswa_id', $student->id)
+                        ->where('academic_year_id', '!=', $academicYear->id)
+                        ->exists();
+
+                    // 3. Jika belum disinkronisasi, dan ini Semester Ganjil, dan dia bukan santri baru, MAKA NAIK KELAS!
+                    if (!$existing && $currentSemesterCode === self::SEMESTER_GANJIL && $hasPreviousYear) {
+                        $student = $this->promoteStudent($student);
+
+                        if ($student->status === 'Lulus') {
+                            $summary['berhasil']++;
+                            continue; // Langsung skip ke santri berikutnya karena dia sudah lulus
+                        }
+
+                        // Perbarui data payload dengan kelas yang baru naik
+                        $payload['class_id'] = $student->class_id;
+                        $payload['kelas'] = $student->kelas;
+                    }
+
+                    // 4. Sinkronisasi Normal (Tahun dan Semester saat ini)
+                    $existingSemester = SiswaTahunAjaran::query()
                         ->where('siswa_id', $student->id)
                         ->where('academic_year_id', $academicYear->id)
                         ->where('semester_id', $semester?->id)
                         ->first();
 
-                    if ($existing) {
-                        $existing->update($payload);
+                    if ($existingSemester) {
+                        $existingSemester->update($payload);
                         $summary['sudah_ada']++;
                         continue;
                     }
+                    // --- KODE BARU SAMPAI SINI ---
 
                     SiswaTahunAjaran::query()->create([
                         'siswa_id' => $student->id,
@@ -304,5 +334,60 @@ class AcademicPeriodService
 
             return $this->activate($academicYear, $academicYear->active_semester ?: self::SEMESTER_GANJIL);
         });
+    }
+
+    // =========================================================================
+    // FITUR NAIK KELAS OTOMATIS
+    // =========================================================================
+    private function promoteStudent(Siswa $student): Siswa
+    {
+        $currentClass = $student->kelas;
+        if (!$currentClass)
+            return $student;
+
+        // 1. Peta Kenaikan Kelas Madin
+        $promotionMap = [
+            'Sifir Awal' => 'Sifir Tsani',
+            'Sifir Tsani' => 'Sifir Tsalis',
+            'Sifir Tsalis' => "Sifir Robi'",
+            'Sifir Robi\'' => 'Sifir Khomis',
+            'Sifir Khomis' => 'Sifir Sadis',
+            'Sifir Sadis' => 'Lulus',
+        ];
+
+        $newClass = null;
+        $isLulus = false;
+
+        // 2. Deteksi kelas santri dan cari kelas lanjutannya
+        foreach ($promotionMap as $old => $new) {
+            if (str_starts_with($currentClass, $old)) {
+                if ($new === 'Lulus') {
+                    $isLulus = true;
+                } else {
+                    $newClass = str_replace($old, $new, $currentClass);
+                }
+                break;
+            }
+        }
+
+        // 3. Eksekusi Kenaikan / Kelulusan
+        if ($isLulus) {
+            $student->status = 'Lulus';
+            $student->student_status_id = app(\App\Services\ReferenceResolver::class)->studentStatusId('Lulus');
+            $student->tahun_lulus = date('Y');
+            $student->save();
+        } elseif ($newClass) {
+            $student->kelas = $newClass;
+            $student->class_id = app(\App\Services\ReferenceResolver::class)->classId($newClass, false);
+            $student->save();
+
+            // Pindahkan juga data Kelompok Belajarnya (Pivot)
+            $kelompok = \App\Models\KelompokBelajar::where('nama', $newClass)->first();
+            if ($kelompok) {
+                $student->kelompokBelajar()->sync([$kelompok->id]);
+            }
+        }
+
+        return $student;
     }
 }
