@@ -204,6 +204,8 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::post('boarding/santri', [BoardingController::class, 'storeSantri'])->middleware('permission:absensi,update');
         Route::put('boarding/santri/{santri}', [BoardingController::class, 'updateSantri'])->middleware('permission:absensi,update');
         Route::delete('boarding/santri/{santri}', [BoardingController::class, 'destroySantri'])->middleware('permission:absensi,delete');
+        Route::get('boarding/santri/export', [BoardingController::class, 'exportSantri'])->middleware('permission:absensi,view');
+        Route::post('boarding/santri/import', [BoardingController::class, 'importSantri'])->middleware('permission:absensi,update');
         Route::post('absensi-sholat/types', [AbsensiSholatController::class, 'storeType'])->middleware('permission:absensi,create');
         Route::put('absensi-sholat/types/{type}', [AbsensiSholatController::class, 'updateType'])->middleware('permission:absensi,update');
         Route::delete('absensi-sholat/types/{type}', [AbsensiSholatController::class, 'destroyType'])->middleware('permission:absensi,delete');

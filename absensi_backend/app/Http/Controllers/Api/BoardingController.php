@@ -14,6 +14,9 @@ use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\SantriPondokExport;
+use App\Imports\SantriPondokImport;
 
 class BoardingController extends Controller
 {
@@ -601,6 +604,35 @@ class BoardingController extends Controller
         ]);
     }
 
+    public function exportSantri(Request $request)
+    {
+        app(AuditLogService::class)->record($request, 'boarding', 'export_santri');
+        return Excel::download(new SantriPondokExport, 'Data_Santri_Pondok_Qomaruddin.xlsx');
+    }
+
+    public function importSantri(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv|max:5120',
+        ]);
+
+        try {
+            Excel::import(new SantriPondokImport, $request->file('file'));
+            
+            app(AuditLogService::class)->record($request, 'boarding', 'import_santri', null, null, ['file' => $request->file('file')->getClientOriginalName()]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Data Santri Pondok berhasil diimport',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengimport data: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     private function assignmentPayload(SantriPondok $assignment): array
     {
         $student = $assignment->siswa;
@@ -610,13 +642,15 @@ class BoardingController extends Controller
         return [
             'id' => $assignment->id,
             'siswa_id' => $assignment->siswa_id,
-            'boarding_room_id' => $assignment->boarding_room_id,
-            'boarding_complex_id' => $assignment->boarding_complex_id,
+            'boarding_complex_id' => $complex?->id,
             'komplek' => $complex?->name,
+            'boarding_room_id' => $room?->id,
             'kamar' => $room?->name,
             'status' => $assignment->status,
-            'is_resident' => (bool) $assignment->is_resident,
-            'participates_prayer' => (bool) $assignment->participates_prayer,
+            'is_resident' => $assignment->is_resident,
+            'participates_prayer' => $assignment->participates_prayer,
+            'started_at' => $assignment->started_at?->format('Y-m-d'),
+            'ended_at' => $assignment->ended_at?->format('Y-m-d'),
             'notes' => $assignment->notes,
             'siswa' => $student ? $this->studentPayload($student, $assignment) : null,
         ];
