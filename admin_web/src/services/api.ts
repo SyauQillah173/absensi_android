@@ -492,6 +492,27 @@ export const api = {
   deleteBoardingSantri(id: number) {
     return request(`/boarding/santri/${id}`, { method: 'DELETE' });
   },
+  exportBoardingSantri() {
+    return fetch(`${DEFAULT_API_BASE}/boarding/santri/export`, {
+      headers: {
+        Authorization: `Bearer ${readSession()?.token ?? ''}`
+      }
+    }).then(res => {
+      if (!res.ok) throw new Error('Gagal mendownload data');
+      return res.blob();
+    });
+  },
+  importBoardingSantri(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    return fetch(`${DEFAULT_API_BASE}/boarding/santri/import`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${readSession()?.token ?? ''}`
+      },
+      body: formData
+    }).then(res => res.json()) as Promise<ApiResponse>;
+  },
   absensi(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>('/absensi', {}, params);
   },

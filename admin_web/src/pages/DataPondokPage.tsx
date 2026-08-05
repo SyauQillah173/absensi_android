@@ -1,4 +1,4 @@
-import { Building2, Check, DoorOpen, Pencil, Plus, RefreshCw, Save, Trash2, UserPlus, UsersRound, X } from 'lucide-react';
+import { Building2, Check, DoorOpen, Pencil, Plus, RefreshCw, Save, Trash2, UserPlus, UsersRound, X, Download, Upload } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { DataTable, type DataColumn } from '../components/DataTable';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -61,6 +61,7 @@ export function DataPondokPage() {
   const [complexModal, setComplexModal] = useState<ApiRecord | 'new' | null>(null);
   const [roomModal, setRoomModal] = useState<ApiRecord | 'new' | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
 
@@ -261,6 +262,22 @@ export function DataPondokPage() {
     }
   }
 
+  async function downloadExcel() {
+    try {
+      const blob = await api.exportBoardingSantri();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Data_Santri_Pondok_Qomaruddin.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError('Gagal mendownload file Excel');
+    }
+  }
+
   return (
     <div className="space-y-6">
       <section className="flex flex-wrap items-end justify-between gap-4">
@@ -310,10 +327,20 @@ export function DataPondokPage() {
             </button>
           ) : null}
           {activeTab === 'santri' ? (
-            <button className="flex min-h-12 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-bold text-white" onClick={() => setAssignOpen(true)} type="button">
-              <UserPlus size={18} />
-              Atur Santri
-            </button>
+            <>
+              <button className="flex min-h-12 items-center gap-2 rounded-2xl bg-[#F0F7F4] px-4 text-sm font-bold text-[#138F81]" onClick={() => void downloadExcel()} type="button">
+                <Download size={18} />
+                Export
+              </button>
+              <button className="flex min-h-12 items-center gap-2 rounded-2xl bg-[#FFF8E6] px-4 text-sm font-bold text-[#E67E22]" onClick={() => setImportOpen(true)} type="button">
+                <Upload size={18} />
+                Import
+              </button>
+              <button className="flex min-h-12 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-bold text-white" onClick={() => setAssignOpen(true)} type="button">
+                <UserPlus size={18} />
+                Atur Santri
+              </button>
+            </>
           ) : null}
         </div>
 
@@ -331,6 +358,7 @@ export function DataPondokPage() {
       {complexModal ? <ComplexForm initial={complexModal === 'new' ? null : complexModal} onClose={() => setComplexModal(null)} onSaved={() => void load()} /> : null}
       {roomModal ? <RoomForm complexes={complexes} initial={roomModal === 'new' ? null : roomModal} onClose={() => setRoomModal(null)} onSaved={() => void load()} /> : null}
       {assignOpen ? <AssignSantriForm complexes={complexes} students={students} santri={santri} onClose={() => setAssignOpen(false)} onSaved={() => void load()} /> : null}
+      {importOpen ? <ImportSantriForm onClose={() => setImportOpen(false)} onSaved={() => void load()} /> : null}
       {confirmState ? (
         <ConfirmDialog
           title={confirmState.title}
@@ -619,6 +647,69 @@ function AssignSantriForm({
           Ikut kegiatan sholat
           <input checked={participatesPrayer} onChange={(event) => setParticipatesPrayer(event.target.checked)} type="checkbox" />
         </label>
+      </form>
+    </ModalForm>
+  );
+}
+
+function ImportSantriForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!file) {
+      setError('Pilih file Excel terlebih dahulu.');
+      return;
+    }
+    setIsUploading(true);
+    setError('');
+    try {
+      const response = await api.importBoardingSantri(file);
+      if (response.success) {
+        onSaved();
+        onClose();
+      } else {
+        setError(response.message ?? 'Gagal mengimport data');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Terjadi kesalahan saat upload');
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
+  return (
+    <ModalForm
+      title="Import Data Santri Pondok"
+      onClose={onClose}
+      footer={
+        <button className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white disabled:opacity-60" disabled={isUploading || !file} form="import-santri-form" type="submit">
+          <Upload size={18} />
+          {isUploading ? 'Mengupload...' : 'Upload Data'}
+        </button>
+      }
+    >
+      <form className="space-y-4" id="import-santri-form" onSubmit={(event) => void submit(event)}>
+        {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
+        
+        <div className="rounded-2xl border-2 border-dashed border-[#B2BEC3] bg-[#F8F9FA] p-8 text-center">
+          <input
+            type="file"
+            accept=".xlsx, .xls, .csv"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            className="mb-4 block w-full text-sm text-[#636E72] file:mr-4 file:rounded-xl file:border-0 file:bg-[#E1EFF7] file:px-4 file:py-2 file:text-sm file:font-bold file:text-[#2E86DE] hover:file:bg-[#C9E2F1]"
+          />
+          <p className="text-xs text-[#636E72]">
+            Format yang didukung: .xlsx, .xls, .csv<br />
+            Ukuran maksimal: 5MB
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-[#E8F7F3] p-4 text-xs font-medium text-[#138F81]">
+          <strong>Tips:</strong> Anda bisa mengekspor data santri pondok terlebih dahulu, mengeditnya di Excel, lalu mengimpornya kembali di sini untuk melakukan update secara massal.
+        </div>
       </form>
     </ModalForm>
   );
