@@ -46,16 +46,38 @@ export function MasterReferensiPage() {
     });
   }, [rows, search, kategoriFilter]);
 
-  const columns: DataColumn[] = [
-    { key: 'kategori', label: 'Kategori', format: (val) => String(val) },
-    { key: 'nilai', label: 'Nilai Referensi', format: (val) => String(val) },
+  const columns: DataColumn<ApiRecord>[] = [
+    { key: 'kategori', header: 'Kategori', render: (row) => String(row.kategori) },
+    { key: 'nilai', header: 'Nilai Referensi', render: (row) => String(row.nilai) },
     {
       key: 'is_active',
-      label: 'Status',
-      format: (val) => (
-        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ${val ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-          {val ? 'Aktif' : 'Nonaktif'}
+      header: 'Status',
+      render: (row) => (
+        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ${row.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+          {row.is_active ? 'Aktif' : 'Nonaktif'}
         </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Aksi',
+      render: (row) => (
+        <div className="flex justify-end gap-2">
+          <button
+            className="rounded-xl bg-slate-100 p-2 text-[#636E72] hover:bg-slate-200 hover:text-[#2D3436] focus:ring focus:ring-slate-300"
+            onClick={() => setForm(row)}
+            title="Edit Referensi"
+          >
+            <Pencil size={18} />
+          </button>
+          <button
+            className="rounded-xl bg-rose-50 p-2 text-rose-600 hover:bg-rose-100 hover:text-rose-800 focus:ring focus:ring-rose-300"
+            onClick={() => setDeleteTarget(row)}
+            title="Hapus Referensi"
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
       ),
     },
   ];
@@ -149,31 +171,15 @@ export function MasterReferensiPage() {
       </section>
 
       <section className="q-table-container rounded-3xl bg-white p-4 shadow-sm md:p-6 lg:p-8">
-        <DataTable
-          columns={columns}
-          data={filtered}
-          isLoading={isLoading}
-          keyField="id"
-          actions={(row) => (
-            <div className="flex justify-end gap-2">
-              <button
-                className="rounded-xl bg-slate-100 p-2 text-[#636E72] hover:bg-slate-200 hover:text-[#2D3436] focus:ring focus:ring-slate-300"
-                onClick={() => setForm(row)}
-                title="Edit Referensi"
-              >
-                <Pencil size={18} />
-              </button>
-              <button
-                className="rounded-xl bg-rose-50 p-2 text-rose-600 hover:bg-rose-100 hover:text-rose-800 focus:ring focus:ring-rose-300"
-                onClick={() => setDeleteTarget(row)}
-                title="Hapus Referensi"
-              >
-                <Trash2 size={18} />
-              </button>
-            </div>
-          )}
-          emptyMessage="Tidak ada data referensi yang ditemukan."
-        />
+        {isLoading ? (
+          <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-bold text-[#636E72]">Memuat data...</div>
+        ) : (
+          <DataTable
+            columns={columns}
+            rows={filtered}
+            emptyText="Tidak ada data referensi yang ditemukan."
+          />
+        )}
       </section>
 
       {form ? (

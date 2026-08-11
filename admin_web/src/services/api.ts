@@ -408,7 +408,7 @@ export const api = {
   regionDistricts(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>('/regions/districts', {}, params);
   },
-  regionVillages(params?: { district_id?: string; q?: string; limit?: number }) {
+  regionVillages(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>('/regions/villages', {}, params);
   },
   masterReferensi(params?: { kategori?: string; search?: string; active?: boolean }) {
