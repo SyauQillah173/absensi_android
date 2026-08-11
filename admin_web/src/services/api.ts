@@ -408,8 +408,20 @@ export const api = {
   regionDistricts(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>('/regions/districts', {}, params);
   },
-  regionVillages(params?: Record<string, string | number | boolean>) {
+  regionVillages(params?: { district_id?: string; q?: string; limit?: number }) {
     return request<ApiRecord[]>('/regions/villages', {}, params);
+  },
+  masterReferensi(params?: { kategori?: string; search?: string; active?: boolean }) {
+    return request<ApiRecord[]>('/master-referensi', {}, params);
+  },
+  createMasterReferensi(data: ApiRecord) {
+    return request<ApiRecord>('/master-referensi', { method: 'POST', body: JSON.stringify(data) });
+  },
+  updateMasterReferensi(id: number, data: ApiRecord) {
+    return request<ApiRecord>(`/master-referensi/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+  deleteMasterReferensi(id: number) {
+    return request(`/master-referensi/${id}`, { method: 'DELETE' });
   },
   mataPelajaran(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>('/mata-pelajaran', {}, params);
@@ -493,7 +505,7 @@ export const api = {
     return request(`/boarding/santri/${id}`, { method: 'DELETE' });
   },
   exportBoardingSantri() {
-    return fetch(`${DEFAULT_API_BASE}/boarding/santri/export`, {
+    return fetch(`${apiBaseUrl()}/boarding/santri/export`, {
       headers: {
         Authorization: `Bearer ${readSession()?.token ?? ''}`
       }
@@ -505,7 +517,7 @@ export const api = {
   importBoardingSantri(file: File) {
     const formData = new FormData();
     formData.append('file', file);
-    return fetch(`${DEFAULT_API_BASE}/boarding/santri/import`, {
+    return fetch(`${apiBaseUrl()}/boarding/santri/import`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${readSession()?.token ?? ''}`

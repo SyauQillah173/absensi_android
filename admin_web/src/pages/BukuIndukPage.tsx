@@ -5,19 +5,28 @@ import { MasterDataPage } from './MasterDataPage';
 import { DataPondokPage } from './DataPondokPage';
 import { AcademicPage } from './AcademicPage';
 import { KelompokBelajarPage } from './KelompokBelajarPage';
+import { MasterReferensiPage } from './MasterReferensiPage';
 
-export type BukuIndukSection = 'ringkas' | 'siswa' | 'guru' | 'users' | 'login-admin' | 'login-guru' | 'login-wali' | 'akademik' | 'kelompok' | 'pondok';
+export type BukuIndukSection = 'ringkas' | 'siswa' | 'guru' | 'users' | 'referensi' | 'login-admin' | 'login-guru' | 'login-wali' | 'akademik' | 'kelompok' | 'pondok';
 
 const sections = [
   { id: 'siswa', label: 'Data Siswa/Santri' },
   { id: 'guru', label: 'Data Guru' },
   { id: 'users', label: 'User Login' },
+  { id: 'referensi', label: 'Data Referensi' },
   { id: 'akademik', label: 'Akademik' },
   { id: 'kelompok', label: 'Kelompok' },
   { id: 'pondok', label: 'Data Pondok' }
 ];
 
 const menuCards = [
+  {
+    id: 'referensi',
+    title: 'Data Referensi',
+    subtitle: 'Opsi Kabupaten, Desa, Negara, Tempat Lahir, dll.',
+    icon: BookOpen,
+    tone: 'text-[#E8590C] bg-[#FFF0E8]'
+  },
   {
     id: 'siswa',
     title: 'Data Siswa/Santri',
@@ -140,6 +149,7 @@ export function BukuIndukPage({ initialSection = 'ringkas', onSectionChange }: B
   if (section === 'pondok') return <>{backHeader}<DataPondokPage /></>;
   if (section === 'akademik') return <>{backHeader}<AcademicPage /></>;
   if (section === 'kelompok') return <>{backHeader}<KelompokBelajarPage /></>;
+  if (section === 'referensi') return <>{backHeader}<MasterReferensiPage /></>;
 
   return (
     <div className="space-y-6">

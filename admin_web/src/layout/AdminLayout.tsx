@@ -79,6 +79,7 @@ const allMenu: MenuItem[] = [
       { label: "Data Siswa/Santri", page: "master", masterSection: "siswa" },
       { label: "Data Guru", page: "master", masterSection: "guru" },
       { label: "User Login", page: "master", masterSection: "users" },
+      { label: "Data Referensi", page: "master", masterSection: "referensi" },
       { label: "Login Admin", page: "master", masterSection: "login-admin" },
       { label: "Login Guru", page: "master", masterSection: "login-guru" },
       { label: "Login Wali", page: "master", masterSection: "login-wali" },
