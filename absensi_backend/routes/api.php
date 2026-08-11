@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\MataPelajaranController;
 use App\Http\Controllers\Api\MateriController;
 use App\Http\Controllers\Api\NilaiController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\MasterReferensiController;
 use App\Http\Controllers\Api\PaymentBillController;
 use App\Http\Controllers\Api\PaymentMethodController;
 use App\Http\Controllers\Api\PaymentPeriodTypeController;
@@ -89,6 +90,11 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::get('classes', [ReferenceController::class, 'classes']);
         Route::get('school-origins', [ReferenceController::class, 'schoolOrigins']);
         Route::get('references/{table}', [ReferenceController::class, 'master']);
+        
+        Route::get('master-referensi', [MasterReferensiController::class, 'index']);
+        Route::post('master-referensi', [MasterReferensiController::class, 'store']);
+        Route::put('master-referensi/{referensi}', [MasterReferensiController::class, 'update']);
+        Route::delete('master-referensi/{referensi}', [MasterReferensiController::class, 'destroy']);
 
         Route::get('mata-pelajaran', [MataPelajaranController::class, 'index'])->middleware('permission:mata_pelajaran,view');
         Route::get('mata-pelajaran/{mataPelajaran}', [MataPelajaranController::class, 'show'])->middleware('permission:mata_pelajaran,view');
