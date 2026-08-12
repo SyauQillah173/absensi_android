@@ -17,7 +17,10 @@ export function MasterReferensiPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
-  const kategoriOptions = ['Tempat Lahir', 'Kabupaten', 'Desa', 'Negara', 'Kode Pos'];
+  const kategoriOptions = useMemo(() => {
+    const kats = new Set(['agama', 'pekerjaan', 'pendidikan', 'penghasilan', 'golongan_darah', 'status_keluarga', 'negara', ...rows.map(r => String(r.kategori))]);
+    return Array.from(kats).sort();
+  }, [rows]);
 
   async function load() {
     setIsLoading(true);
@@ -130,7 +133,7 @@ export function MasterReferensiPage() {
         <div className="flex flex-wrap gap-2">
           <button
             className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20"
-            onClick={() => setForm({ kategori: 'Tempat Lahir', nilai: '', is_active: true })}
+            onClick={() => setForm({ kategori: 'agama', nilai: '', is_active: true })}
             type="button"
           >
             <Plus size={17} /> Tambah Referensi
@@ -195,9 +198,17 @@ export function MasterReferensiPage() {
           <form id="referensi-form" className="grid gap-4" onSubmit={saveRecord}>
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-[#636E72]">Kategori</span>
-              <select className="q-input" value={String(form.kategori || '')} onChange={(e) => setForm({ ...form, kategori: e.target.value })} required>
-                {kategoriOptions.map(kat => <option key={kat} value={kat}>{kat}</option>)}
-              </select>
+              <input 
+                list="kategori-list"
+                className="q-input" 
+                value={String(form.kategori || '')} 
+                onChange={(e) => setForm({ ...form, kategori: e.target.value.toLowerCase() })} 
+                required 
+                placeholder="Pilih atau ketik kategori baru..."
+              />
+              <datalist id="kategori-list">
+                {kategoriOptions.map(kat => <option key={kat} value={kat} />)}
+              </datalist>
             </label>
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-[#636E72]">Nilai (Opsi Dropdown)</span>
