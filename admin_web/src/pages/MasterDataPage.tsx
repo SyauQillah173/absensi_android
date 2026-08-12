@@ -16,6 +16,7 @@ import {
   XCircle
 } from 'lucide-react';
 import { FormEvent, type ComponentType, useEffect, useMemo, useRef, useState } from 'react';
+import { ComplexSiswaForm } from '../components/ComplexSiswaForm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
 import { ModalForm } from '../components/ModalForm';
@@ -209,11 +210,6 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [siswaForm, setSiswaForm] = useState<SiswaFormState | null>(null);
   const [userForm, setUserForm] = useState<UserFormState | null>(null);
-  const [tempatLahirOptions, setTempatLahirOptions] = useState<ApiRecord[]>([]);
-  const [kabupatenOptions, setKabupatenOptions] = useState<ApiRecord[]>([]);
-  const [desaOptions, setDesaOptions] = useState<ApiRecord[]>([]);
-  const [negaraOptions, setNegaraOptions] = useState<ApiRecord[]>([]);
-  const [kodePosOptions, setKodePosOptions] = useState<ApiRecord[]>([]);
   const [detailTarget, setDetailTarget] = useState<ApiRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ApiRecord | null>(null);
   const [resetTarget, setResetTarget] = useState<ApiRecord | null>(null);
@@ -280,11 +276,6 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
         const result = await api.masterReferensi({ active: true });
         if (cancelled) return;
         const data = Array.isArray(result.data) ? result.data : [];
-        setTempatLahirOptions(data.filter((r) => r.kategori === 'Tempat Lahir'));
-        setKabupatenOptions(data.filter((r) => r.kategori === 'Kabupaten'));
-        setDesaOptions(data.filter((r) => r.kategori === 'Desa'));
-        setNegaraOptions(data.filter((r) => r.kategori === 'Negara'));
-        setKodePosOptions(data.filter((r) => r.kategori === 'Kode Pos'));
       } catch (err) {
         // error handling omitted for brevity
       }
@@ -382,49 +373,6 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Bulk status gagal diproses.');
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  async function saveSiswa(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!siswaForm || isSaving) return;
-    setIsSaving(true);
-    setError('');
-    try {
-      const payload = {
-        nama: siswaForm.nama.trim(),
-        nis: siswaForm.nis.trim(),
-        nisn: siswaForm.nisn.trim() || null,
-        jenis_kelamin: siswaForm.jenis_kelamin,
-        kelas: siswaForm.kelas.trim() || null,
-        nama_wali: siswaForm.nama_wali.trim() || null,
-        no_telepon_wali: siswaForm.no_telepon_wali.trim() || null,
-        tempat_lahir: siswaForm.tempat_lahir.trim() || null,
-        tanggal_lahir: siswaForm.tanggal_lahir || null,
-        alamat: siswaForm.alamat.trim() || null,
-        kewarganegaraan: siswaForm.kewarganegaraan.trim() || null,
-        provinsi: siswaForm.provinsi.trim() || null,
-        province_id: siswaForm.province_id ? Number(siswaForm.province_id) : null,
-        kota: siswaForm.kota.trim() || null,
-        city_id: siswaForm.city_id ? Number(siswaForm.city_id) : null,
-        kecamatan: siswaForm.kecamatan.trim() || null,
-        district_id: siswaForm.district_id ? Number(siswaForm.district_id) : null,
-        kelurahan: siswaForm.kelurahan.trim() || null,
-        village_id: siswaForm.village_id ? Number(siswaForm.village_id) : null,
-        kode_pos: siswaForm.kode_pos.trim() || null,
-        status: siswaForm.status,
-        tanggal_masuk: siswaForm.tanggal_masuk || null,
-        tahun_lulus: siswaForm.tahun_lulus || null
-      };
-      if (siswaForm.id) await api.updateSiswa(siswaForm.id, payload);
-      else await api.createSiswa(payload);
-      setSiswaForm(null);
-      setNotice('Data siswa/santri berhasil disimpan.');
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Data siswa/santri gagal disimpan.');
     } finally {
       setIsSaving(false);
     }
@@ -675,84 +623,15 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
         )}
       </section>
 
-      {siswaForm ? (
-        <ModalForm
-          title={siswaForm.id ? 'Edit Data Siswa/Santri' : 'Tambah Data Siswa/Santri'}
+      {isSiswaFormOpen ? (
+        <ComplexSiswaForm
+          initialData={siswaForm as ApiRecord}
           onClose={() => setSiswaForm(null)}
-          footer={
-            <button className="min-h-12 w-full rounded-2xl bg-[#138F81] text-sm font-extrabold text-white disabled:opacity-60" disabled={isSaving} form="siswa-form" type="submit">
-              {isSaving ? 'Menyimpan...' : 'Simpan Data Siswa/Santri'}
-            </button>
-          }
-        >
-          <form id="siswa-form" className="grid gap-4 md:grid-cols-2" onSubmit={saveSiswa}>
-            <Field label="Nama Lengkap" value={siswaForm.nama} onChange={(value) => setSiswaForm({ ...siswaForm, nama: value })} required />
-            <Field label="NIS" value={siswaForm.nis} onChange={(value) => setSiswaForm({ ...siswaForm, nis: value })} required />
-            <Field label="NISN" value={siswaForm.nisn} onChange={(value) => setSiswaForm({ ...siswaForm, nisn: value })} />
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[#636E72]">Jenis Kelamin</span>
-              <select className="q-input" value={siswaForm.jenis_kelamin} onChange={(event) => setSiswaForm({ ...siswaForm, jenis_kelamin: event.target.value })}>
-                <option value="L">Laki-laki</option>
-                <option value="P">Perempuan</option>
-              </select>
-            </label>
-            <Field label="Kelas/Kelompok" value={siswaForm.kelas} onChange={(value) => setSiswaForm({ ...siswaForm, kelas: value })} />
-            <Field label="Nama Wali" value={siswaForm.nama_wali} onChange={(value) => setSiswaForm({ ...siswaForm, nama_wali: value })} />
-            <Field label="Kontak Wali" value={siswaForm.no_telepon_wali} onChange={(value) => setSiswaForm({ ...siswaForm, no_telepon_wali: value })} />
-            <Field
-              label="Tempat Lahir"
-              value={siswaForm.tempat_lahir}
-              onChange={(value) => setSiswaForm({ ...siswaForm, tempat_lahir: value })}
-              datalistId="tempat-lahir-options"
-              datalistOptions={tempatLahirOptions.map((item) => text(item.nilai))}
-            />
-            <Field label="Tanggal Lahir" type="date" value={siswaForm.tanggal_lahir} onChange={(value) => setSiswaForm({ ...siswaForm, tanggal_lahir: value })} />
-            <Field label="Tanggal Masuk" type="date" value={siswaForm.tanggal_masuk} onChange={(value) => setSiswaForm({ ...siswaForm, tanggal_masuk: value })} />
-            <Field label="Tahun Lulus" value={siswaForm.tahun_lulus} onChange={(value) => setSiswaForm({ ...siswaForm, tahun_lulus: value })} />
-            <Field
-              label="Kewarganegaraan"
-              value={siswaForm.kewarganegaraan}
-              onChange={(value) => setSiswaForm({ ...siswaForm, kewarganegaraan: value })}
-              datalistId="negara-options"
-              datalistOptions={negaraOptions.map((item) => text(item.nilai))}
-            />
-            <Field label="Provinsi" value={siswaForm.provinsi} onChange={(value) => setSiswaForm({ ...siswaForm, provinsi: value, province_id: '' })} />
-            <Field
-              label="Kota/Kabupaten"
-              value={siswaForm.kota}
-              onChange={(value) => setSiswaForm({ ...siswaForm, kota: value, city_id: '' })}
-              datalistId="kabupaten-options"
-              datalistOptions={kabupatenOptions.map((item) => text(item.nilai))}
-            />
-            <Field label="Kecamatan" value={siswaForm.kecamatan} onChange={(value) => setSiswaForm({ ...siswaForm, kecamatan: value, district_id: '' })} />
-            <Field
-              label="Kelurahan/Desa"
-              value={siswaForm.kelurahan}
-              onChange={(value) => setSiswaForm({ ...siswaForm, kelurahan: value, village_id: '' })}
-              datalistId="desa-options"
-              datalistOptions={desaOptions.map((item) => text(item.nilai))}
-            />
-            <Field
-              label="Kode Pos"
-              value={siswaForm.kode_pos}
-              onChange={(value) => setSiswaForm({ ...siswaForm, kode_pos: value })}
-              datalistId="kodepos-options"
-              datalistOptions={kodePosOptions.map((item) => text(item.nilai))}
-            />
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[#636E72]">Status</span>
-              <select className="q-input" value={siswaForm.status} onChange={(event) => setSiswaForm({ ...siswaForm, status: event.target.value as SiswaStatus })}>
-                <option value="Aktif">Aktif</option>
-                <option value="Nonaktif">Nonaktif</option>
-                <option value="Lulus">Lulus</option>
-              </select>
-            </label>
-            <label className="block md:col-span-2">
-              <span className="mb-2 block text-sm font-bold text-[#636E72]">Alamat</span>
-              <textarea className="q-input min-h-24" value={siswaForm.alamat} onChange={(event) => setSiswaForm({ ...siswaForm, alamat: event.target.value })} />
-            </label>
-          </form>
-        </ModalForm>
+          onSave={() => {
+            setSiswaForm(null);
+            void load();
+          }}
+        />
       ) : null}
 
       {userForm ? (
