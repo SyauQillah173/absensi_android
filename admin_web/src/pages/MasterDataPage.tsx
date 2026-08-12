@@ -260,30 +260,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variant]);
 
-  useEffect(() => {
-    if (!siswaMode || !isSiswaFormOpen) {
-      setTempatLahirOptions([]);
-      setKabupatenOptions([]);
-      setDesaOptions([]);
-      setNegaraOptions([]);
-      setKodePosOptions([]);
-      return;
-    }
-    let cancelled = false;
 
-    async function fetchReferencies() {
-      try {
-        const result = await api.masterReferensi({ active: true });
-        if (cancelled) return;
-        const data = Array.isArray(result.data) ? result.data : [];
-      } catch (err) {
-        // error handling omitted for brevity
-      }
-    }
-
-    void fetchReferencies();
-    return () => { cancelled = true; };
-  }, [siswaMode, isSiswaFormOpen]);
 
   const filtered = useMemo(() => {
     const keyword = search.toLowerCase();
@@ -625,7 +602,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
 
       {isSiswaFormOpen ? (
         <ComplexSiswaForm
-          initialData={siswaForm as ApiRecord}
+          initialData={siswaForm as unknown as ApiRecord}
           onClose={() => setSiswaForm(null)}
           onSave={() => {
             setSiswaForm(null);

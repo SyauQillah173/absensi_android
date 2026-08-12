@@ -90,7 +90,7 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
       
       // Cascading logic
       if (name === 'province_id') {
-        const provName = provinces.find(p => String(p.id) === String(value))?.name || '';
+        const provName = String(provinces.find(p => String(p.id) === String(value))?.name || '');
         next.provinsi = provName;
         next.city_id = ''; next.kota = '';
         next.district_id = ''; next.kecamatan = '';
@@ -99,7 +99,7 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
         setDistricts([]); setVillages([]);
       }
       if (name === 'city_id') {
-        const cityName = cities.find(p => String(p.id) === String(value))?.name || '';
+        const cityName = String(cities.find(p => String(p.id) === String(value))?.name || '');
         next.kota = cityName;
         next.district_id = ''; next.kecamatan = '';
         next.village_id = ''; next.kelurahan = ''; next.kode_pos = '';
@@ -107,7 +107,7 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
         setVillages([]);
       }
       if (name === 'district_id') {
-        const distName = districts.find(p => String(p.id) === String(value))?.name || '';
+        const distName = String(districts.find(p => String(p.id) === String(value))?.name || '');
         next.kecamatan = distName;
         next.village_id = ''; next.kelurahan = ''; next.kode_pos = '';
         loadVillages(value);
@@ -242,7 +242,7 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Provinsi</span>
                       <select className="q-input" name="province_id" value={String(form.province_id || '')} onChange={handleChange}>
                         <option value="">Pilih Provinsi...</option>
-                        {provinces.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
+                        {provinces.map(p => <option key={String(p.id)} value={String(p.id)}>{String(p.name)}</option>)}
                       </select>
                     </label>
                     <div className="grid grid-cols-[2fr_1fr] gap-4">
@@ -250,7 +250,7 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
                         <span className="mb-2 block text-sm font-bold text-[#636E72]">Kota / Tempat Lahir</span>
                         <select className="q-input" name="city_id" value={String(form.city_id || '')} onChange={handleChange} disabled={!form.province_id}>
                           <option value="">Pilih Kabupaten...</option>
-                          {cities.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
+                          {cities.map(p => <option key={String(p.id)} value={String(p.id)}>{String(p.name)}</option>)}
                         </select>
                       </label>
                       <label className="block">
@@ -263,7 +263,7 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Kecamatan</span>
                       <select className="q-input" name="district_id" value={String(form.district_id || '')} onChange={handleChange} disabled={!form.city_id}>
                         <option value="">Pilih Kecamatan...</option>
-                        {districts.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
+                        {districts.map(p => <option key={String(p.id)} value={String(p.id)}>{String(p.name)}</option>)}
                       </select>
                     </label>
                     
@@ -272,7 +272,7 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
                         <span className="mb-2 block text-sm font-bold text-[#636E72]">Desa / Kelurahan</span>
                         <select className="q-input" name="village_id" value={String(form.village_id || '')} onChange={handleChange} disabled={!form.district_id}>
                           <option value="">Pilih Desa...</option>
-                          {villages.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
+                          {villages.map(p => <option key={String(p.id)} value={String(p.id)}>{String(p.name)}</option>)}
                         </select>
                       </label>
                       <label className="block">
@@ -361,8 +361,8 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
                     </div>
                   </div>
                   
-                  <datalist id="pendidikan-list">{getRef('pendidikan').map(r => <option key={r.id} value={String(r.nilai)} />)}</datalist>
-                  <datalist id="pekerjaan-list">{getRef('pekerjaan').map(r => <option key={r.id} value={String(r.nilai)} />)}</datalist>
+                  <datalist id="pendidikan-list">{getRef('pendidikan').map(r => <option key={String(r.id)} value={String(r.nilai)} />)}</datalist>
+                  <datalist id="pekerjaan-list">{getRef('pekerjaan').map(r => <option key={String(r.id)} value={String(r.nilai)} />)}</datalist>
                 </div>
 
                 {/* Section III */}
