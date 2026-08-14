@@ -37,17 +37,6 @@ interface MasterDataPageProps {
 }
 
 
-interface UserFormState {
-  id?: number;
-  name: string;
-  email: string;
-  no_hp: string;
-  role: string;
-  admin_type: string;
-  status: UserStatus;
-  kode_guru: string;
-  password: string;
-}
 
 const config = {
   siswa: {
@@ -135,20 +124,6 @@ function roleForVariant(variant: MasterVariant): string {
   return '';
 }
 
-function newUserForm(variant: MasterVariant, row?: ApiRecord): UserFormState {
-  const forcedRole = roleForVariant(variant);
-  return {
-    id: row?.id ? num(row.id) : undefined,
-    name: optionalText(row?.name),
-    email: optionalText(row?.email),
-    no_hp: optionalText(row?.no_hp),
-    role: forcedRole || optionalText(row?.role) || 'admin',
-    admin_type: optionalText(row?.admin_type) || (forcedRole === 'admin' ? 'utama' : ''),
-    status: text(row?.status, 'Aktif') === 'Nonaktif' ? 'Nonaktif' : 'Aktif',
-    kode_guru: optionalText(row?.kode_guru ?? row?.nis),
-    password: ''
-  };
-}
 
 export function MasterDataPage({ variant }: MasterDataPageProps) {
   const [rows, setRows] = useState<ApiRecord[]>([]);
@@ -156,7 +131,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
   const [statusFilter, setStatusFilter] = useState('Semua');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [siswaForm, setSiswaForm] = useState<ApiRecord | null>(null);
-  const [userForm, setUserForm] = useState<UserFormState | null>(null);
+  const [userForm, setUserForm] = useState<ApiRecord | null>(null);
   const [detailTarget, setDetailTarget] = useState<ApiRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ApiRecord | null>(null);
   const [resetTarget, setResetTarget] = useState<ApiRecord | null>(null);
@@ -225,7 +200,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
     onDetail: setDetailTarget,
     onEdit: (row) => {
       if (siswaMode) setSiswaForm(row);
-      else if (userMode) setUserForm(newUserForm(variant, row));
+      else if (userMode) setUserForm(row);
       else setDetailTarget(row);
     },
     onReset: (row) => setResetTarget(row),
@@ -454,7 +429,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
               className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20"
               onClick={() => {
                 if (siswaMode) setSiswaForm({});
-                else if (userMode) setUserForm(newUserForm(variant));
+                else if (userMode) setUserForm({});
               }}
               type="button"
             >
@@ -569,7 +544,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
             onDetail: () => setDetailTarget(row),
             onEdit: () => {
               if (siswaMode) setSiswaForm(row);
-              else if (userMode) setUserForm(newUserForm(variant, row));
+              else if (userMode) setUserForm(row);
             },
             onReset: () => setResetTarget(row),
             onDelete: () => setDeleteTarget(row),
