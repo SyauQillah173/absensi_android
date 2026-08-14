@@ -27,6 +27,8 @@ class Siswa extends Model
         'pekerjaan_ayah', 'father_occupation_id', 'penghasilan_ayah', 'father_income_id',
         'pekerjaan_ibu', 'mother_occupation_id', 'penghasilan_ibu', 'mother_income_id',
         'alamat_ayah', 'alamat_ibu', 'alamat_lengkap_ayah', 'alamat_lengkap_ibu',
+        'province_id_ayah', 'city_id_ayah', 'district_id_ayah', 'village_id_ayah', 'kode_pos_ayah',
+        'province_id_ibu', 'city_id_ibu', 'district_id_ibu', 'village_id_ibu', 'kode_pos_ibu',
         'no_ayah', 'no_whatsapp_ayah', 'no_ibu', 'no_whatsapp_ibu',
         'wali_whatsapp_number', 'notification_whatsapp_enabled', 'notification_app_enabled',
         'nama_wali_keluarga', 'pekerjaan_wali_keluarga', 'guardian_occupation_id',
