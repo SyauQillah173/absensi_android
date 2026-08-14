@@ -2,6 +2,7 @@ import { X, Save, User, Users, GraduationCap, FileText, CheckCircle2 } from 'luc
 import { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { api, type ApiRecord } from '../services/api';
+import SearchableSelect from './SearchableSelect';
 
 interface ComplexSiswaFormProps {
   initialData?: ApiRecord | null;
@@ -18,9 +19,19 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
   // Options state
   const [masterRefs, setMasterRefs] = useState<ApiRecord[]>([]);
   const [provinces, setProvinces] = useState<ApiRecord[]>([]);
+  
+  // Region States
   const [cities, setCities] = useState<ApiRecord[]>([]);
   const [districts, setDistricts] = useState<ApiRecord[]>([]);
   const [villages, setVillages] = useState<ApiRecord[]>([]);
+  
+  const [citiesAyah, setCitiesAyah] = useState<ApiRecord[]>([]);
+  const [districtsAyah, setDistrictsAyah] = useState<ApiRecord[]>([]);
+  const [villagesAyah, setVillagesAyah] = useState<ApiRecord[]>([]);
+  
+  const [citiesIbu, setCitiesIbu] = useState<ApiRecord[]>([]);
+  const [districtsIbu, setDistrictsIbu] = useState<ApiRecord[]>([]);
+  const [villagesIbu, setVillagesIbu] = useState<ApiRecord[]>([]);
   
   // Sections state
   const [activeTab, setActiveTab] = useState<'siswa' | 'ortu' | 'akademik' | 'lainnya'>('siswa');
@@ -37,9 +48,17 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
       setForm(parsed);
       
       // Load cascade dropdowns if editing
-      if (parsed.province_id) loadCities(parsed.province_id);
-      if (parsed.city_id) loadDistricts(parsed.city_id);
-      if (parsed.district_id) loadVillages(parsed.district_id);
+      if (parsed.province_id) loadCities(parsed.province_id, 'siswa');
+      if (parsed.city_id) loadDistricts(parsed.city_id, 'siswa');
+      if (parsed.district_id) loadVillages(parsed.district_id, 'siswa');
+      
+      if (parsed.province_id_ayah) loadCities(parsed.province_id_ayah, 'ayah');
+      if (parsed.city_id_ayah) loadDistricts(parsed.city_id_ayah, 'ayah');
+      if (parsed.district_id_ayah) loadVillages(parsed.district_id_ayah, 'ayah');
+      
+      if (parsed.province_id_ibu) loadCities(parsed.province_id_ibu, 'ibu');
+      if (parsed.city_id_ibu) loadDistricts(parsed.city_id_ibu, 'ibu');
+      if (parsed.district_id_ibu) loadVillages(parsed.district_id_ibu, 'ibu');
     } else {
       setForm({ jenis_kelamin: 'L', status: 'Aktif', kewarganegaraan: 'Indonesia' });
     }
@@ -49,66 +68,98 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
     api.regionProvinces().then(res => setProvinces(res.data || [])).catch(() => {});
   }, [initialData]);
 
-  const loadCities = async (provId: string | number) => {
-    if (!provId) return setCities([]);
+  const loadCities = async (provId: string | number, type: 'siswa'|'ayah'|'ibu' = 'siswa') => {
+    if (!provId) {
+      if(type==='siswa') setCities([]); if(type==='ayah') setCitiesAyah([]); if(type==='ibu') setCitiesIbu([]);
+      return;
+    }
     try {
       const res = await api.regionCities({ province_id: provId });
-      setCities(res.data || []);
+      if(type==='siswa') setCities(res.data || []); if(type==='ayah') setCitiesAyah(res.data || []); if(type==='ibu') setCitiesIbu(res.data || []);
     } catch {}
   };
 
-  const loadDistricts = async (cityId: string | number) => {
-    if (!cityId) return setDistricts([]);
+  const loadDistricts = async (cityId: string | number, type: 'siswa'|'ayah'|'ibu' = 'siswa') => {
+    if (!cityId) {
+      if(type==='siswa') setDistricts([]); if(type==='ayah') setDistrictsAyah([]); if(type==='ibu') setDistrictsIbu([]);
+      return;
+    }
     try {
       const res = await api.regionDistricts({ city_id: cityId });
-      setDistricts(res.data || []);
+      if(type==='siswa') setDistricts(res.data || []); if(type==='ayah') setDistrictsAyah(res.data || []); if(type==='ibu') setDistrictsIbu(res.data || []);
     } catch {}
   };
 
-  const loadVillages = async (districtId: string | number) => {
-    if (!districtId) return setVillages([]);
+  const loadVillages = async (districtId: string | number, type: 'siswa'|'ayah'|'ibu' = 'siswa') => {
+    if (!districtId) {
+      if(type==='siswa') setVillages([]); if(type==='ayah') setVillagesAyah([]); if(type==='ibu') setVillagesIbu([]);
+      return;
+    }
     try {
       const res = await api.regionVillages({ district_id: districtId });
-      setVillages(res.data || []);
+      if(type==='siswa') setVillages(res.data || []); if(type==='ayah') setVillagesAyah(res.data || []); if(type==='ibu') setVillagesIbu(res.data || []);
     } catch {}
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement> | { target: { name: string, value: any } }) => {
     const { name, value } = e.target;
     setForm(prev => {
       const next = { ...prev, [name]: value };
       
-      // Cascading logic
+      // Cascading logic SISWA
       if (name === 'province_id') {
-        const provName = String(provinces.find(p => String(p.id) === String(value))?.name || '');
-        next.provinsi = provName;
-        next.city_id = ''; next.kota = '';
-        next.district_id = ''; next.kecamatan = '';
-        next.village_id = ''; next.kelurahan = ''; next.kode_pos = '';
-        loadCities(value);
-        setDistricts([]); setVillages([]);
+        next.city_id = ''; next.district_id = ''; next.village_id = ''; next.kode_pos = '';
+        loadCities(value, 'siswa'); setDistricts([]); setVillages([]);
       }
       if (name === 'city_id') {
-        const cityName = String(cities.find(p => String(p.id) === String(value))?.name || '');
-        next.kota = cityName;
-        next.district_id = ''; next.kecamatan = '';
-        next.village_id = ''; next.kelurahan = ''; next.kode_pos = '';
-        loadDistricts(value);
-        setVillages([]);
+        next.district_id = ''; next.village_id = ''; next.kode_pos = '';
+        loadDistricts(value, 'siswa'); setVillages([]);
       }
       if (name === 'district_id') {
-        const distName = String(districts.find(p => String(p.id) === String(value))?.name || '');
-        next.kecamatan = distName;
-        next.village_id = ''; next.kelurahan = ''; next.kode_pos = '';
-        loadVillages(value);
+        next.village_id = ''; next.kode_pos = '';
+        loadVillages(value, 'siswa');
       }
       if (name === 'village_id') {
         const village = villages.find(p => String(p.id) === String(value));
-        if (village) {
-          next.kelurahan = String(village.name || '');
-          next.kode_pos = String(village.postal_code || next.kode_pos || '');
-        }
+        if (village) next.kode_pos = String(village.postal_code || next.kode_pos || '');
       }
+      
+      // Cascading logic AYAH
+      if (name === 'province_id_ayah') {
+        next.city_id_ayah = ''; next.district_id_ayah = ''; next.village_id_ayah = ''; next.kode_pos_ayah = '';
+        loadCities(value, 'ayah'); setDistrictsAyah([]); setVillagesAyah([]);
+      }
+      if (name === 'city_id_ayah') {
+        next.district_id_ayah = ''; next.village_id_ayah = ''; next.kode_pos_ayah = '';
+        loadDistricts(value, 'ayah'); setVillagesAyah([]);
+      }
+      if (name === 'district_id_ayah') {
+        next.village_id_ayah = ''; next.kode_pos_ayah = '';
+        loadVillages(value, 'ayah');
+      }
+      if (name === 'village_id_ayah') {
+        const village = villagesAyah.find(p => String(p.id) === String(value));
+        if (village) next.kode_pos_ayah = String(village.postal_code || next.kode_pos_ayah || '');
+      }
+
+      // Cascading logic IBU
+      if (name === 'province_id_ibu') {
+        next.city_id_ibu = ''; next.district_id_ibu = ''; next.village_id_ibu = ''; next.kode_pos_ibu = '';
+        loadCities(value, 'ibu'); setDistrictsIbu([]); setVillagesIbu([]);
+      }
+      if (name === 'city_id_ibu') {
+        next.district_id_ibu = ''; next.village_id_ibu = ''; next.kode_pos_ibu = '';
+        loadDistricts(value, 'ibu'); setVillagesIbu([]);
+      }
+      if (name === 'district_id_ibu') {
+        next.village_id_ibu = ''; next.kode_pos_ibu = '';
+        loadVillages(value, 'ibu');
+      }
+      if (name === 'village_id_ibu') {
+        const village = villagesIbu.find(p => String(p.id) === String(value));
+        if (village) next.kode_pos_ibu = String(village.postal_code || next.kode_pos_ibu || '');
+      }
+
       return next;
     });
   };
@@ -258,18 +309,26 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
 
                     <label className="block">
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Provinsi</span>
-                      <select className="q-input" name="province_id" value={String(form.province_id || '')} onChange={handleChange}>
-                        <option value="">Pilih Provinsi...</option>
-                        {provinces.map(p => <option key={String(p.id)} value={String(p.id)}>{String(p.name)}</option>)}
-                      </select>
+                      <SearchableSelect 
+                        name="province_id" 
+                        value={form.province_id || ''} 
+                        onChange={(v) => handleChange({ target: { name: 'province_id', value: v } })}
+                        options={provinces.map(p => ({ value: p.id as string, label: p.name as string }))} 
+                        placeholder="Pilih Provinsi..." 
+                        disabled={readOnly}
+                      />
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-[2fr_1fr] gap-4">
                       <label className="block">
                         <span className="mb-2 block text-sm font-bold text-[#636E72]">Kota / Tempat Lahir</span>
-                        <select className="q-input" name="city_id" value={String(form.city_id || '')} onChange={handleChange} disabled={!form.province_id}>
-                          <option value="">Pilih Kabupaten...</option>
-                          {cities.map(p => <option key={String(p.id)} value={String(p.id)}>{String(p.name)}</option>)}
-                        </select>
+                        <SearchableSelect 
+                          name="city_id" 
+                          value={form.city_id || ''} 
+                          onChange={(v) => handleChange({ target: { name: 'city_id', value: v } })}
+                          options={cities.map(p => ({ value: p.id as string, label: p.name as string }))} 
+                          placeholder="Pilih Kabupaten..." 
+                          disabled={readOnly || !form.province_id}
+                        />
                       </label>
                       <label className="block">
                         <span className="mb-2 block text-sm font-bold text-[#636E72]">Tgl Lahir</span>
@@ -279,19 +338,27 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                     
                     <label className="block">
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Kecamatan</span>
-                      <select className="q-input" name="district_id" value={String(form.district_id || '')} onChange={handleChange} disabled={!form.city_id}>
-                        <option value="">Pilih Kecamatan...</option>
-                        {districts.map(p => <option key={String(p.id)} value={String(p.id)}>{String(p.name)}</option>)}
-                      </select>
+                      <SearchableSelect 
+                        name="district_id" 
+                        value={form.district_id || ''} 
+                        onChange={(v) => handleChange({ target: { name: 'district_id', value: v } })}
+                        options={districts.map(p => ({ value: p.id as string, label: p.name as string }))} 
+                        placeholder="Pilih Kecamatan..." 
+                        disabled={readOnly || !form.city_id}
+                      />
                     </label>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-[2fr_1fr] gap-4">
                       <label className="block">
                         <span className="mb-2 block text-sm font-bold text-[#636E72]">Desa / Kelurahan</span>
-                        <select className="q-input" name="village_id" value={String(form.village_id || '')} onChange={handleChange} disabled={!form.district_id}>
-                          <option value="">Pilih Desa...</option>
-                          {villages.map(p => <option key={String(p.id)} value={String(p.id)}>{String(p.name)}</option>)}
-                        </select>
+                        <SearchableSelect 
+                          name="village_id" 
+                          value={form.village_id || ''} 
+                          onChange={(v) => handleChange({ target: { name: 'village_id', value: v } })}
+                          options={villages.map(p => ({ value: p.id as string, label: p.name as string }))} 
+                          placeholder="Pilih Desa..." 
+                          disabled={readOnly || !form.district_id}
+                        />
                       </label>
                       <label className="block">
                         <span className="mb-2 block text-sm font-bold text-[#138F81]">Kode Pos</span>
@@ -384,7 +451,60 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                           <input list="penghasilan-list" className="q-input" name="penghasilan_ayah" value={String(form.penghasilan_ayah || '')} onChange={handleChange} />
                         </label>
                       </div>
-                      <label className="block">
+                      
+                      <div className="mt-4 pt-4 border-t border-slate-200">
+                        <h5 className="text-xs font-extrabold text-[#2D3436] mb-3">Alamat Ayah</h5>
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-bold text-[#636E72]">Provinsi</span>
+                            <SearchableSelect 
+                              value={form.province_id_ayah || ''} 
+                              onChange={(v) => handleChange({ target: { name: 'province_id_ayah', value: v } })}
+                              options={provinces.map(p => ({ value: p.id as string, label: p.name as string }))} 
+                              placeholder="Pilih..." disabled={readOnly}
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-bold text-[#636E72]">Kabupaten/Kota</span>
+                            <SearchableSelect 
+                              value={form.city_id_ayah || ''} 
+                              onChange={(v) => handleChange({ target: { name: 'city_id_ayah', value: v } })}
+                              options={citiesAyah.map(p => ({ value: p.id as string, label: p.name as string }))} 
+                              placeholder="Pilih..." disabled={readOnly || !form.province_id_ayah}
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-bold text-[#636E72]">Kecamatan</span>
+                            <SearchableSelect 
+                              value={form.district_id_ayah || ''} 
+                              onChange={(v) => handleChange({ target: { name: 'district_id_ayah', value: v } })}
+                              options={districtsAyah.map(p => ({ value: p.id as string, label: p.name as string }))} 
+                              placeholder="Pilih..." disabled={readOnly || !form.city_id_ayah}
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-bold text-[#636E72]">Desa/Kelurahan</span>
+                            <SearchableSelect 
+                              value={form.village_id_ayah || ''} 
+                              onChange={(v) => handleChange({ target: { name: 'village_id_ayah', value: v } })}
+                              options={villagesAyah.map(p => ({ value: p.id as string, label: p.name as string }))} 
+                              placeholder="Pilih..." disabled={readOnly || !form.district_id_ayah}
+                            />
+                          </label>
+                        </div>
+                        <div className="grid grid-cols-[1fr_100px] gap-3">
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-bold text-[#636E72]">Jalan/Detail</span>
+                            <input className="q-input text-xs py-2" name="alamat_ayah" value={String(form.alamat_ayah || '')} onChange={handleChange} placeholder="Jl. Raya..." />
+                          </label>
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-bold text-[#636E72]">Kode Pos</span>
+                            <input className="q-input text-xs py-2" name="kode_pos_ayah" value={String(form.kode_pos_ayah || '')} onChange={handleChange} placeholder="00000" />
+                          </label>
+                        </div>
+                      </div>
+
+                      <label className="block mt-4">
                         <span className="mb-2 block text-xs font-bold text-[#636E72]">No WhatsApp Ayah</span>
                         <input className="q-input" name="no_whatsapp_ayah" value={String(form.no_whatsapp_ayah || '')} onChange={handleChange} />
                       </label>
@@ -425,7 +545,60 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                           <input list="penghasilan-list" className="q-input" name="penghasilan_ibu" value={String(form.penghasilan_ibu || '')} onChange={handleChange} />
                         </label>
                       </div>
-                      <label className="block">
+
+                      <div className="mt-4 pt-4 border-t border-slate-200">
+                        <h5 className="text-xs font-extrabold text-[#2D3436] mb-3">Alamat Ibu</h5>
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-bold text-[#636E72]">Provinsi</span>
+                            <SearchableSelect 
+                              value={form.province_id_ibu || ''} 
+                              onChange={(v) => handleChange({ target: { name: 'province_id_ibu', value: v } })}
+                              options={provinces.map(p => ({ value: p.id as string, label: p.name as string }))} 
+                              placeholder="Pilih..." disabled={readOnly}
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-bold text-[#636E72]">Kabupaten/Kota</span>
+                            <SearchableSelect 
+                              value={form.city_id_ibu || ''} 
+                              onChange={(v) => handleChange({ target: { name: 'city_id_ibu', value: v } })}
+                              options={citiesIbu.map(p => ({ value: p.id as string, label: p.name as string }))} 
+                              placeholder="Pilih..." disabled={readOnly || !form.province_id_ibu}
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-bold text-[#636E72]">Kecamatan</span>
+                            <SearchableSelect 
+                              value={form.district_id_ibu || ''} 
+                              onChange={(v) => handleChange({ target: { name: 'district_id_ibu', value: v } })}
+                              options={districtsIbu.map(p => ({ value: p.id as string, label: p.name as string }))} 
+                              placeholder="Pilih..." disabled={readOnly || !form.city_id_ibu}
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-bold text-[#636E72]">Desa/Kelurahan</span>
+                            <SearchableSelect 
+                              value={form.village_id_ibu || ''} 
+                              onChange={(v) => handleChange({ target: { name: 'village_id_ibu', value: v } })}
+                              options={villagesIbu.map(p => ({ value: p.id as string, label: p.name as string }))} 
+                              placeholder="Pilih..." disabled={readOnly || !form.district_id_ibu}
+                            />
+                          </label>
+                        </div>
+                        <div className="grid grid-cols-[1fr_100px] gap-3">
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-bold text-[#636E72]">Jalan/Detail</span>
+                            <input className="q-input text-xs py-2" name="alamat_ibu" value={String(form.alamat_ibu || '')} onChange={handleChange} placeholder="Jl. Raya..." />
+                          </label>
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-bold text-[#636E72]">Kode Pos</span>
+                            <input className="q-input text-xs py-2" name="kode_pos_ibu" value={String(form.kode_pos_ibu || '')} onChange={handleChange} placeholder="00000" />
+                          </label>
+                        </div>
+                      </div>
+
+                      <label className="block mt-4">
                         <span className="mb-2 block text-xs font-bold text-[#636E72]">No WhatsApp Ibu</span>
                         <input className="q-input" name="no_whatsapp_ibu" value={String(form.no_whatsapp_ibu || '')} onChange={handleChange} />
                       </label>
