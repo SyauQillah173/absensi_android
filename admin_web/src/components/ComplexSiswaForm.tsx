@@ -14,6 +14,7 @@ interface ComplexSiswaFormProps {
 export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSave }: ComplexSiswaFormProps) {
   const [form, setForm] = useState<Record<string, string | number>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState('');
   
   // Options state
@@ -177,10 +178,16 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
       } else {
         await api.createSiswa(payload);
       }
-      onSave();
+      
+      // Show success animation
+      setIsSuccess(true);
+      setTimeout(() => {
+        setIsSuccess(false);
+        onSave();
+      }, 2000);
+      
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal menyimpan data siswa.');
-    } finally {
       setIsSaving(false);
     }
   };
@@ -198,12 +205,23 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
               </h2>
               <p className="text-sm font-semibold text-[#636E72] mt-1">Lengkapi data profil, orang tua, dan akademik secara detail.</p>
             </div>
-            <button className="grid h-10 w-10 place-items-center rounded-full bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors" onClick={onClose} type="button">
+            <button className="grid h-10 w-10 place-items-center rounded-full bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors" onClick={onClose} type="button" disabled={isSuccess}>
               <X size={20} />
             </button>
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col md:flex-row overflow-hidden">
+          {/* Success Overlay */}
+          {isSuccess && (
+            <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center rounded-3xl bg-white/90 backdrop-blur-sm transition-all duration-300">
+              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-green-100 text-green-500 shadow-xl shadow-green-500/20 mb-6 animate-[bounce_1s_ease-in-out_infinite]">
+                <CheckCircle2 size={56} strokeWidth={2.5} />
+              </div>
+              <h2 className="text-2xl font-extrabold text-[#2D3436] animate-[pulse_2s_ease-in-out_infinite]">Berhasil!</h2>
+              <p className="mt-2 text-base font-bold text-[#636E72]">{form.id ? 'Data berhasil diperbarui.' : 'Siswa baru berhasil ditambahkan.'}</p>
+            </div>
+          )}
+
+          <div className="flex min-h-0 flex-1 flex-col md:flex-row overflow-hidden relative">
             {/* Sidebar Tabs */}
             <div className="hidden w-64 shrink-0 flex-col gap-2 overflow-y-auto border-r border-slate-200 bg-slate-50 p-4 md:flex">
               <button type="button" onClick={() => setActiveTab('siswa')} className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'siswa' ? 'bg-[#138F81] text-white shadow-md' : 'text-[#636E72] hover:bg-white'}`}>
@@ -706,12 +724,12 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
           </div>
           
           <div className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
-            <button type="button" onClick={onClose} className="rounded-2xl bg-white px-6 py-3 text-sm font-bold text-[#636E72] shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 transition-colors">
+            <button type="button" onClick={onClose} disabled={isSaving || isSuccess} className="rounded-2xl bg-white px-6 py-3 text-sm font-bold text-[#636E72] shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50">
               {readOnly ? 'Tutup' : 'Batal'}
             </button>
             {!readOnly && (
-              <button type="submit" form="complex-siswa-form" disabled={isSaving} className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-8 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors disabled:opacity-70">
-                <CheckCircle2 size={18} />
+              <button type="submit" form="complex-siswa-form" disabled={isSaving || isSuccess} className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-8 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors disabled:opacity-70">
+                <CheckCircle2 size={18} className={isSaving ? 'animate-spin' : ''} />
                 {isSaving ? 'Menyimpan...' : 'Simpan Data Siswa/Santri'}
               </button>
             )}
