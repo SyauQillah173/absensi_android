@@ -34,32 +34,6 @@ interface MasterDataPageProps {
   variant: MasterVariant;
 }
 
-interface SiswaFormState {
-  id?: number;
-  nama: string;
-  nis: string;
-  nisn: string;
-  jenis_kelamin: string;
-  kelas: string;
-  nama_wali: string;
-  no_telepon_wali: string;
-  tempat_lahir: string;
-  tanggal_lahir: string;
-  alamat: string;
-  kewarganegaraan: string;
-  provinsi: string;
-  province_id: string;
-  kota: string;
-  city_id: string;
-  kecamatan: string;
-  district_id: string;
-  kelurahan: string;
-  village_id: string;
-  kode_pos: string;
-  status: SiswaStatus;
-  tanggal_masuk: string;
-  tahun_lulus: string;
-}
 
 interface UserFormState {
   id?: number;
@@ -159,35 +133,6 @@ function roleForVariant(variant: MasterVariant): string {
   return '';
 }
 
-function newSiswaForm(row?: ApiRecord): SiswaFormState {
-  return {
-    id: row?.id ? num(row.id) : undefined,
-    nama: optionalText(row?.nama),
-    nis: optionalText(row?.nis),
-    nisn: optionalText(row?.nisn),
-    jenis_kelamin: optionalText(row?.jenis_kelamin) || 'L',
-    kelas: optionalText(row?.kelas),
-    nama_wali: optionalText(row?.nama_wali ?? row?.wali_nama),
-    no_telepon_wali: optionalText(row?.no_telepon_wali ?? row?.wali_no_hp),
-    tempat_lahir: optionalText(row?.tempat_lahir),
-    tanggal_lahir: optionalText(row?.tanggal_lahir),
-    alamat: optionalText(row?.alamat),
-    kewarganegaraan: optionalText(row?.kewarganegaraan) || 'Indonesia',
-    provinsi: optionalText(row?.provinsi),
-    province_id: optionalText(row?.province_id),
-    kota: optionalText(row?.kota),
-    city_id: optionalText(row?.city_id),
-    kecamatan: optionalText(row?.kecamatan),
-    district_id: optionalText(row?.district_id),
-    kelurahan: optionalText(row?.kelurahan),
-    village_id: optionalText(row?.village_id),
-    kode_pos: optionalText(row?.kode_pos),
-    status: text(row?.status, 'Aktif') === 'Lulus' ? 'Lulus' : text(row?.status, 'Aktif') === 'Nonaktif' ? 'Nonaktif' : 'Aktif',
-    tanggal_masuk: optionalText(row?.tanggal_masuk),
-    tahun_lulus: optionalText(row?.tahun_lulus)
-  };
-}
-
 function newUserForm(variant: MasterVariant, row?: ApiRecord): UserFormState {
   const forcedRole = roleForVariant(variant);
   return {
@@ -208,7 +153,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('Semua');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [siswaForm, setSiswaForm] = useState<SiswaFormState | null>(null);
+  const [siswaForm, setSiswaForm] = useState<ApiRecord | null>(null);
   const [userForm, setUserForm] = useState<UserFormState | null>(null);
   const [detailTarget, setDetailTarget] = useState<ApiRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ApiRecord | null>(null);
@@ -277,7 +222,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
   const columns = useMemo(() => columnsFor(variant, {
     onDetail: setDetailTarget,
     onEdit: (row) => {
-      if (siswaMode) setSiswaForm(newSiswaForm(row));
+      if (siswaMode) setSiswaForm(row);
       else if (userMode) setUserForm(newUserForm(variant, row));
       else setDetailTarget(row);
     },
@@ -496,7 +441,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
             <button
               className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20"
               onClick={() => {
-                if (siswaMode) setSiswaForm(newSiswaForm());
+                if (siswaMode) setSiswaForm({});
                 else if (userMode) setUserForm(newUserForm(variant));
               }}
               type="button"
@@ -611,7 +556,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
             onSelect: () => toggleSelected(num(row.id)),
             onDetail: () => setDetailTarget(row),
             onEdit: () => {
-              if (siswaMode) setSiswaForm(newSiswaForm(row));
+              if (siswaMode) setSiswaForm(row);
               else if (userMode) setUserForm(newUserForm(variant, row));
             },
             onReset: () => setResetTarget(row),
