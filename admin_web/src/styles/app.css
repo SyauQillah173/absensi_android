@@ -286,16 +286,37 @@ button:disabled {
   border-color: rgba(225, 239, 247, 0.14);
 }
 
-.theme-dark .text-\[\#2D3436\] {
+.theme-dark .text-\[\#2D3436\],
+.theme-dark .text-slate-800,
+.theme-dark .text-slate-700 {
   color: #f7fbfc !important;
 }
 
-.theme-dark .text-\[\#636E72\] {
+.theme-dark .text-\[\#636E72\],
+.theme-dark .text-slate-500,
+.theme-dark .text-slate-400 {
   color: #b8cbd0 !important;
 }
 
 .theme-dark .bg-white {
   background: rgba(61, 91, 91, 0.9) !important;
+}
+
+.theme-dark .bg-slate-50,
+.theme-dark .bg-\[\#F8FDFD\] {
+  background: rgba(31, 58, 58, 0.92) !important;
+}
+
+.theme-dark .border-slate-200 {
+  border-color: rgba(225, 239, 247, 0.12) !important;
+}
+
+.theme-dark .border-slate-100 {
+  border-color: rgba(225, 239, 247, 0.08) !important;
+}
+
+.theme-dark .bg-\[\#138F81\]\/5 {
+  background: rgba(19, 143, 129, 0.15) !important;
 }
 
 .theme-dark .bg-\[\#FFFDF7\] {
