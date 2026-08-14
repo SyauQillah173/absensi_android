@@ -292,6 +292,10 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                         <input className="q-input" name="nama_ayah" value={String(form.nama_ayah || '')} onChange={handleChange} />
                       </label>
                       <label className="block">
+                        <span className="mb-2 block text-xs font-bold text-[#636E72]">NIK Ayah</span>
+                        <input className="q-input" name="nik_ayah" value={String(form.nik_ayah || '')} onChange={handleChange} />
+                      </label>
+                      <label className="block">
                         <span className="mb-2 block text-xs font-bold text-[#636E72]">Pendidikan Ayah</span>
                         <input list="pendidikan-list" className="q-input" name="pendidikan_ayah" value={String(form.pendidikan_ayah || '')} onChange={handleChange} />
                       </label>
@@ -311,6 +315,10 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                       <label className="block">
                         <span className="mb-2 block text-xs font-bold text-[#636E72]">Nama Ibu</span>
                         <input className="q-input" name="nama_ibu" value={String(form.nama_ibu || '')} onChange={handleChange} />
+                      </label>
+                      <label className="block">
+                        <span className="mb-2 block text-xs font-bold text-[#636E72]">NIK Ibu</span>
+                        <input className="q-input" name="nik_ibu" value={String(form.nik_ibu || '')} onChange={handleChange} />
                       </label>
                       <label className="block">
                         <span className="mb-2 block text-xs font-bold text-[#636E72]">Pendidikan Ibu</span>
