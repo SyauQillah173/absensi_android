@@ -16,6 +16,7 @@ import {
   XCircle
 } from 'lucide-react';
 import { FormEvent, type ComponentType, useEffect, useMemo, useRef, useState } from 'react';
+import { ComplexPondokForm } from '../components/ComplexPondokForm';
 import { ComplexSiswaForm } from '../components/ComplexSiswaForm';
 import { ComplexUserForm } from '../components/ComplexUserForm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -428,6 +429,15 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
         />
       );
     }
+
+    if (pondokMode) {
+      return (
+        <ComplexPondokForm
+          initialData={detailTarget}
+          onClose={() => setDetailTarget(null)}
+        />
+      );
+    }
   }
 
   return (
@@ -571,14 +581,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
         )}
       </section>
 
-
-
-      {userForm ? (
-        <ModalForm
-          title={userForm.id ? 'Edit Akun Login' : 'Tambah Akun Login'}
-          onClose={() => setUserForm(null)}
-      {detailTarget && !siswaMode && !userMode ? <DetailModal row={detailTarget} variant={variant} onClose={() => setDetailTarget(null)} /> : null}
-
+      {detailTarget && !siswaMode && !userMode && !pondokMode ? <DetailModal row={detailTarget} variant={variant} onClose={() => setDetailTarget(null)} /> : null}
       {deleteTarget ? (
         <ConfirmDialog
           title="Hapus Data?"
