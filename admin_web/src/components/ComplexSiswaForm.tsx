@@ -195,6 +195,10 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Nama Lengkap</span>
                       <input className="q-input" name="nama" value={String(form.nama || '')} onChange={handleChange} required />
                     </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Nama Panggilan</span>
+                      <input className="q-input" name="nama_panggilan" value={String(form.nama_panggilan || '')} onChange={handleChange} />
+                    </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <label className="block">
                         <span className="mb-2 block text-sm font-bold text-[#636E72]">NIS</span>
@@ -205,6 +209,20 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                         <input className="q-input" name="nisn" value={String(form.nisn || '')} onChange={handleChange} />
                       </label>
                     </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <label className="block">
+                        <span className="mb-2 block text-sm font-bold text-[#636E72]">NIK (Siswa)</span>
+                        <input className="q-input" name="nik" value={String(form.nik || '')} onChange={handleChange} />
+                      </label>
+                      <label className="block">
+                        <span className="mb-2 block text-sm font-bold text-[#636E72]">No KK</span>
+                        <input className="q-input" name="no_kk" value={String(form.no_kk || '')} onChange={handleChange} />
+                      </label>
+                    </div>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-bold text-[#636E72]">No Akta Kelahiran</span>
+                      <input className="q-input" name="no_akta" value={String(form.no_akta || '')} onChange={handleChange} />
+                    </label>
                     <label className="block">
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Jenis Kelamin</span>
                       <select className="q-input" name="jenis_kelamin" value={String(form.jenis_kelamin || 'L')} onChange={handleChange} required>
@@ -224,7 +242,18 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                     </div>
                     
                     <div className="col-span-full mt-4">
-                      <h4 className="text-sm font-extrabold text-[#2D3436] mb-4">Informasi Kelahiran & Alamat</h4>
+                      <h4 className="text-sm font-extrabold text-[#2D3436] mb-4">Kontak & Alamat</h4>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <label className="block">
+                        <span className="mb-2 block text-sm font-bold text-[#636E72]">No WhatsApp Siswa</span>
+                        <input className="q-input" name="no_whatsapp" value={String(form.no_whatsapp || '')} onChange={handleChange} />
+                      </label>
+                      <label className="block">
+                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Email Siswa</span>
+                        <input type="email" className="q-input" name="email_siswa" value={String(form.email_siswa || '')} onChange={handleChange} />
+                      </label>
                     </div>
 
                     <label className="block">
@@ -274,7 +303,43 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Jalan / Detail Alamat Lengkap</span>
                       <textarea className="q-input min-h-[80px]" name="alamat" value={String(form.alamat || '')} onChange={handleChange} placeholder="Dusun, RT/RW, Nama Jalan, Blok, dll" />
                     </label>
+
+                    <div className="col-span-full mt-4">
+                      <h4 className="text-sm font-extrabold text-[#2D3436] mb-4">Tempat Tinggal & Fisik</h4>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <label className="block">
+                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Tempat Tinggal</span>
+                        <input list="tempat-tinggal-list" className="q-input" name="tempat_tinggal" value={String(form.tempat_tinggal || '')} onChange={handleChange} />
+                      </label>
+                      <label className="block">
+                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Transportasi</span>
+                        <input list="transportasi-list" className="q-input" name="transportasi" value={String(form.transportasi || '')} onChange={handleChange} />
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <label className="block">
+                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Tinggi (cm)</span>
+                        <input type="number" className="q-input" name="tinggi_badan" value={String(form.tinggi_badan || '')} onChange={handleChange} />
+                      </label>
+                      <label className="block">
+                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Berat (kg)</span>
+                        <input type="number" className="q-input" name="berat_badan" value={String(form.berat_badan || '')} onChange={handleChange} />
+                      </label>
+                      <label className="block">
+                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Gol. Darah</span>
+                        <select className="q-input" name="golongan_darah" value={String(form.golongan_darah || '')} onChange={handleChange}>
+                          <option value="">-</option>
+                          {getRef('golongan_darah').map(r => <option key={String(r.id)} value={String(r.nilai)}>{String(r.nilai)}</option>)}
+                        </select>
+                      </label>
+                    </div>
                   </div>
+                  
+                  <datalist id="tempat-tinggal-list">{getRef('tempat_tinggal').map(r => <option key={String(r.id)} value={String(r.nilai)} />)}</datalist>
+                  <datalist id="transportasi-list">{getRef('transportasi').map(r => <option key={String(r.id)} value={String(r.nilai)} />)}</datalist>
                 </div>
 
                 {/* Section II */}
@@ -295,14 +360,30 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                         <span className="mb-2 block text-xs font-bold text-[#636E72]">NIK Ayah</span>
                         <input className="q-input" name="nik_ayah" value={String(form.nik_ayah || '')} onChange={handleChange} />
                       </label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-bold text-[#636E72]">Tempat Lahir</span>
+                          <input className="q-input" name="tempat_lahir_ayah" value={String(form.tempat_lahir_ayah || '')} onChange={handleChange} />
+                        </label>
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-bold text-[#636E72]">Tgl Lahir</span>
+                          <input type="date" className="q-input px-2" name="tanggal_lahir_ayah" value={String(form.tanggal_lahir_ayah || '')} onChange={handleChange} />
+                        </label>
+                      </div>
                       <label className="block">
                         <span className="mb-2 block text-xs font-bold text-[#636E72]">Pendidikan Ayah</span>
                         <input list="pendidikan-list" className="q-input" name="pendidikan_ayah" value={String(form.pendidikan_ayah || '')} onChange={handleChange} />
                       </label>
-                      <label className="block">
-                        <span className="mb-2 block text-xs font-bold text-[#636E72]">Pekerjaan Ayah</span>
-                        <input list="pekerjaan-list" className="q-input" name="pekerjaan_ayah" value={String(form.pekerjaan_ayah || '')} onChange={handleChange} />
-                      </label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-bold text-[#636E72]">Pekerjaan Ayah</span>
+                          <input list="pekerjaan-list" className="q-input" name="pekerjaan_ayah" value={String(form.pekerjaan_ayah || '')} onChange={handleChange} />
+                        </label>
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-bold text-[#636E72]">Penghasilan</span>
+                          <input list="penghasilan-list" className="q-input" name="penghasilan_ayah" value={String(form.penghasilan_ayah || '')} onChange={handleChange} />
+                        </label>
+                      </div>
                       <label className="block">
                         <span className="mb-2 block text-xs font-bold text-[#636E72]">No WhatsApp Ayah</span>
                         <input className="q-input" name="no_whatsapp_ayah" value={String(form.no_whatsapp_ayah || '')} onChange={handleChange} />
@@ -320,14 +401,30 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                         <span className="mb-2 block text-xs font-bold text-[#636E72]">NIK Ibu</span>
                         <input className="q-input" name="nik_ibu" value={String(form.nik_ibu || '')} onChange={handleChange} />
                       </label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-bold text-[#636E72]">Tempat Lahir</span>
+                          <input className="q-input" name="tempat_lahir_ibu" value={String(form.tempat_lahir_ibu || '')} onChange={handleChange} />
+                        </label>
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-bold text-[#636E72]">Tgl Lahir</span>
+                          <input type="date" className="q-input px-2" name="tanggal_lahir_ibu" value={String(form.tanggal_lahir_ibu || '')} onChange={handleChange} />
+                        </label>
+                      </div>
                       <label className="block">
                         <span className="mb-2 block text-xs font-bold text-[#636E72]">Pendidikan Ibu</span>
                         <input list="pendidikan-list" className="q-input" name="pendidikan_ibu" value={String(form.pendidikan_ibu || '')} onChange={handleChange} />
                       </label>
-                      <label className="block">
-                        <span className="mb-2 block text-xs font-bold text-[#636E72]">Pekerjaan Ibu</span>
-                        <input list="pekerjaan-list" className="q-input" name="pekerjaan_ibu" value={String(form.pekerjaan_ibu || '')} onChange={handleChange} />
-                      </label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-bold text-[#636E72]">Pekerjaan Ibu</span>
+                          <input list="pekerjaan-list" className="q-input" name="pekerjaan_ibu" value={String(form.pekerjaan_ibu || '')} onChange={handleChange} />
+                        </label>
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-bold text-[#636E72]">Penghasilan</span>
+                          <input list="penghasilan-list" className="q-input" name="penghasilan_ibu" value={String(form.penghasilan_ibu || '')} onChange={handleChange} />
+                        </label>
+                      </div>
                       <label className="block">
                         <span className="mb-2 block text-xs font-bold text-[#636E72]">No WhatsApp Ibu</span>
                         <input className="q-input" name="no_whatsapp_ibu" value={String(form.no_whatsapp_ibu || '')} onChange={handleChange} />
@@ -337,18 +434,24 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                     {/* WALI */}
                     <div className="space-y-4 rounded-3xl bg-[#138F81]/5 p-5 border border-[#138F81]/20 col-span-full shadow-sm">
                       <h4 className="text-base font-extrabold text-[#138F81]">Data Wali (Opsional)</h4>
-                      <div className="grid md:grid-cols-2 gap-4">
+                      <div className="grid md:grid-cols-3 gap-4">
                         <label className="block">
                           <span className="mb-2 block text-xs font-bold text-[#636E72]">Nama Wali</span>
                           <input className="q-input" name="nama_wali_keluarga" value={String(form.nama_wali_keluarga || '')} onChange={handleChange} />
                         </label>
                         <label className="block">
+                          <span className="mb-2 block text-xs font-bold text-[#636E72]">Hubungan Wali</span>
+                          <input list="hubungan-list" className="q-input" name="wali_sama_dengan" value={String(form.wali_sama_dengan || '')} onChange={handleChange} />
+                        </label>
+                        <label className="block">
                           <span className="mb-2 block text-xs font-bold text-[#636E72]">Pekerjaan Wali</span>
                           <input list="pekerjaan-list" className="q-input" name="pekerjaan_wali_keluarga" value={String(form.pekerjaan_wali_keluarga || '')} onChange={handleChange} />
                         </label>
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-4">
                         <label className="block">
-                          <span className="mb-2 block text-xs font-bold text-[#636E72]">No HP Wali (Utama)</span>
-                          <input className="q-input font-bold" name="no_telepon_wali" value={String(form.no_telepon_wali || '')} onChange={handleChange} />
+                          <span className="mb-2 block text-xs font-bold text-[#636E72]">No WhatsApp Wali</span>
+                          <input className="q-input" name="no_telepon_wali" value={String(form.no_telepon_wali || '')} onChange={handleChange} />
                         </label>
                         <label className="block">
                           <span className="mb-2 block text-xs font-bold text-[#636E72]">Alamat Wali</span>
@@ -358,8 +461,10 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                     </div>
                   </div>
                   
-                  <datalist id="pendidikan-list">{getRef('pendidikan').map(r => <option key={String(r.id)} value={String(r.nilai)} />)}</datalist>
+                  <datalist id="pendidikan-list">{getRef('pendidikan_terakhir').map(r => <option key={String(r.id)} value={String(r.nilai)} />)}</datalist>
                   <datalist id="pekerjaan-list">{getRef('pekerjaan').map(r => <option key={String(r.id)} value={String(r.nilai)} />)}</datalist>
+                  <datalist id="penghasilan-list">{getRef('rentang_penghasilan').map(r => <option key={String(r.id)} value={String(r.nilai)} />)}</datalist>
+                  <datalist id="hubungan-list">{getRef('hubungan_wali').map(r => <option key={String(r.id)} value={String(r.nilai)} />)}</datalist>
                 </div>
 
                 {/* Section III */}
@@ -370,7 +475,7 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                   <div className="grid gap-6 lg:grid-cols-2">
                     <label className="block">
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Dari Sekolah / Madrasah</span>
-                      <input className="q-input" name="asal_sekolah" value={String(form.asal_sekolah || '')} onChange={handleChange} />
+                      <input list="sekolah-list" className="q-input" name="asal_sekolah" value={String(form.asal_sekolah || '')} onChange={handleChange} />
                     </label>
                     <label className="block">
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Kewarganegaraan</span>
@@ -384,7 +489,18 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Diterima di Kelas</span>
                       <input className="q-input" name="kelas" value={String(form.kelas || '')} onChange={handleChange} />
                     </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Tahun Akademik Masuk</span>
+                      <input list="tahun-akademik-list" className="q-input" name="tahun_akademik_masuk" value={String(form.tahun_akademik_masuk || '')} onChange={handleChange} placeholder="Misal: 2026/2027" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Jenis Santri</span>
+                      <input list="jenis-santri-list" className="q-input" name="jenis_santri" value={String(form.jenis_santri || '')} onChange={handleChange} placeholder="Misal: Mukim / Non-Mukim" />
+                    </label>
                   </div>
+                  <datalist id="sekolah-list">{getRef('asal_sekolah').map(r => <option key={String(r.id)} value={String(r.nilai)} />)}</datalist>
+                  <datalist id="tahun-akademik-list">{getRef('tahun_akademik').map(r => <option key={String(r.id)} value={String(r.nilai)} />)}</datalist>
+                  <datalist id="jenis-santri-list">{getRef('jenis_santri').map(r => <option key={String(r.id)} value={String(r.nilai)} />)}</datalist>
                 </div>
 
                 {/* Section IV */}
