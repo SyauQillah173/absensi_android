@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { FormEvent, type ComponentType, useEffect, useMemo, useRef, useState } from 'react';
 import { ComplexSiswaForm } from '../components/ComplexSiswaForm';
+import { ComplexUserForm } from '../components/ComplexUserForm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
 import { ModalForm } from '../components/ModalForm';
@@ -300,33 +301,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
     }
   }
 
-  async function saveUser(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!userForm || isSaving) return;
-    setIsSaving(true);
-    setError('');
-    try {
-      const payload: ApiRecord = {
-        name: userForm.name.trim(),
-        email: userForm.email.trim(),
-        no_hp: userForm.no_hp.trim() || null,
-        role: userForm.role,
-        admin_type: userForm.role === 'admin' ? userForm.admin_type || 'utama' : null,
-        status: userForm.status,
-        kode_guru: userForm.role === 'guru' ? userForm.kode_guru.trim() || null : null
-      };
-      if (userForm.password.trim()) payload.password = userForm.password.trim();
-      if (userForm.id) await api.updateUser(userForm.id, payload);
-      else await api.createUser(payload);
-      setUserForm(null);
-      setNotice('Akun login berhasil disimpan.');
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Akun login gagal disimpan.');
-    } finally {
-      setIsSaving(false);
-    }
-  }
+
 
   async function deleteRecord() {
     if (!deleteTarget?.id || isSaving) return;
@@ -407,7 +382,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
   if (isSiswaFormOpen) {
     return (
       <ComplexSiswaForm
-        initialData={siswaForm as unknown as ApiRecord}
+        initialData={siswaForm}
         onClose={() => setSiswaForm(null)}
         onSave={() => {
           setSiswaForm(null);
@@ -417,15 +392,42 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
     );
   }
 
-  if (siswaMode && detailTarget) {
+  if (userForm) {
     return (
-      <ComplexSiswaForm
-        initialData={detailTarget}
-        readOnly={true}
-        onClose={() => setDetailTarget(null)}
-        onSave={() => {}}
+      <ComplexUserForm
+        initialData={userForm.id ? userForm : null}
+        forcedRole={roleForVariant(variant)}
+        onClose={() => setUserForm(null)}
+        onSave={() => {
+          setUserForm(null);
+          void load();
+        }}
       />
     );
+  }
+
+  if (detailTarget) {
+    if (siswaMode) {
+      return (
+        <ComplexSiswaForm
+          initialData={detailTarget}
+          readOnly={true}
+          onClose={() => setDetailTarget(null)}
+          onSave={() => {}}
+        />
+      );
+    }
+    
+    if (userMode) {
+      return (
+        <ComplexUserForm
+          initialData={detailTarget}
+          readOnly={true}
+          onClose={() => setDetailTarget(null)}
+          onSave={() => {}}
+        />
+      );
+    }
   }
 
   return (
@@ -575,52 +577,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
         <ModalForm
           title={userForm.id ? 'Edit Akun Login' : 'Tambah Akun Login'}
           onClose={() => setUserForm(null)}
-          footer={
-            <button className="min-h-12 w-full rounded-2xl bg-[#138F81] text-sm font-extrabold text-white disabled:opacity-60" disabled={isSaving} form="user-form" type="submit">
-              {isSaving ? 'Menyimpan...' : 'Simpan Akun'}
-            </button>
-          }
-        >
-          <form id="user-form" className="grid gap-4 md:grid-cols-2" onSubmit={saveUser}>
-            <Field label="Nama User" value={userForm.name} onChange={(value) => setUserForm({ ...userForm, name: value })} required />
-            <Field label="Email" type="email" value={userForm.email} onChange={(value) => setUserForm({ ...userForm, email: value })} required />
-            <Field label="No HP" value={userForm.no_hp} onChange={(value) => setUserForm({ ...userForm, no_hp: value })} />
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[#636E72]">Role</span>
-              <select className="q-input" value={userForm.role} onChange={(event) => setUserForm({ ...userForm, role: event.target.value })} disabled={Boolean(roleForVariant(variant))}>
-                <option value="admin">Admin</option>
-                <option value="guru">Guru</option>
-                <option value="wali">Wali</option>
-              </select>
-            </label>
-            {userForm.role === 'admin' ? (
-              <label className="block">
-                <span className="mb-2 block text-sm font-bold text-[#636E72]">Tipe Admin</span>
-                <select className="q-input" value={userForm.admin_type} onChange={(event) => setUserForm({ ...userForm, admin_type: event.target.value })}>
-                  <option value="utama">Admin Utama</option>
-                  <option value="bendahara">Bendahara</option>
-                  <option value="akademik">Akademik</option>
-                  <option value="pondok">Pondok</option>
-                  <option value="absensi">Absensi</option>
-                </select>
-              </label>
-            ) : null}
-            {userForm.role === 'guru' ? (
-              <Field label="Kode Guru" value={userForm.kode_guru} onChange={(value) => setUserForm({ ...userForm, kode_guru: value })} />
-            ) : null}
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[#636E72]">Status</span>
-              <select className="q-input" value={userForm.status} onChange={(event) => setUserForm({ ...userForm, status: event.target.value as UserStatus })}>
-                <option value="Aktif">Aktif</option>
-                <option value="Nonaktif">Nonaktif</option>
-              </select>
-            </label>
-            <Field label={userForm.id ? 'Password Baru (opsional)' : 'Password'} type="password" value={userForm.password} onChange={(value) => setUserForm({ ...userForm, password: value })} required={!userForm.id} />
-          </form>
-        </ModalForm>
-      ) : null}
-
-      {detailTarget ? <DetailModal row={detailTarget} variant={variant} onClose={() => setDetailTarget(null)} /> : null}
+      {detailTarget && !siswaMode && !userMode ? <DetailModal row={detailTarget} variant={variant} onClose={() => setDetailTarget(null)} /> : null}
 
       {deleteTarget ? (
         <ConfirmDialog
