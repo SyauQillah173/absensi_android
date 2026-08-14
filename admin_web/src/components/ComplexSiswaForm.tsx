@@ -5,11 +5,12 @@ import { api, type ApiRecord } from '../services/api';
 
 interface ComplexSiswaFormProps {
   initialData?: ApiRecord | null;
+  readOnly?: boolean;
   onClose: () => void;
   onSave: () => void;
 }
 
-export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaFormProps) {
+export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSave }: ComplexSiswaFormProps) {
   const [form, setForm] = useState<Record<string, string | number>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -142,7 +143,7 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
           <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
             <div>
               <h2 className="text-xl font-extrabold text-[#2D3436]">
-                {form.id ? 'Edit Data Siswa/Santri' : 'Tambah Data Siswa/Santri Baru'}
+                {readOnly ? 'Detail Data Siswa/Santri' : (form.id ? 'Edit Data Siswa/Santri' : 'Tambah Data Siswa/Santri Baru')}
               </h2>
               <p className="text-sm font-semibold text-[#636E72] mt-1">Lengkapi data profil, orang tua, dan akademik secara detail.</p>
             </div>
@@ -183,18 +184,18 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
               {error ? <div className="mb-6 rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031] border border-rose-100">{error}</div> : null}
               
               <form id="complex-siswa-form" onSubmit={handleSubmit} className="space-y-8 pb-10">
-                
-                {/* Section I */}
+                <fieldset disabled={readOnly} className="space-y-8">
+                  {/* Section I */}
                 <div className={activeTab === 'siswa' ? 'block' : 'hidden'}>
                   <h3 className="mb-6 flex items-center gap-2 text-lg font-extrabold text-[#138F81] pb-2 border-b border-[#138F81]/20">
                     <User size={20} /> I. Data Pribadi Siswa
                   </h3>
-                  <div className="grid gap-6 md:grid-cols-2">
+                  <div className="grid gap-6 lg:grid-cols-2">
                     <label className="block">
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Nama Lengkap</span>
                       <input className="q-input" name="nama" value={String(form.nama || '')} onChange={handleChange} required />
                     </label>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <label className="block">
                         <span className="mb-2 block text-sm font-bold text-[#636E72]">NIS</span>
                         <input className="q-input" name="nis" value={String(form.nis || '')} onChange={handleChange} required />
@@ -211,7 +212,7 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
                         <option value="P">Perempuan</option>
                       </select>
                     </label>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <label className="block">
                         <span className="mb-2 block text-sm font-bold text-[#636E72]">Anak Ke</span>
                         <input type="number" className="q-input" name="anak_ke" value={String(form.anak_ke || '')} onChange={handleChange} />
@@ -233,7 +234,7 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
                         {provinces.map(p => <option key={String(p.id)} value={String(p.id)}>{String(p.name)}</option>)}
                       </select>
                     </label>
-                    <div className="grid grid-cols-[2fr_1fr] gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-[2fr_1fr] gap-4">
                       <label className="block">
                         <span className="mb-2 block text-sm font-bold text-[#636E72]">Kota / Tempat Lahir</span>
                         <select className="q-input" name="city_id" value={String(form.city_id || '')} onChange={handleChange} disabled={!form.province_id}>
@@ -255,7 +256,7 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
                       </select>
                     </label>
                     
-                    <div className="grid grid-cols-[2fr_1fr] gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-[2fr_1fr] gap-4">
                       <label className="block">
                         <span className="mb-2 block text-sm font-bold text-[#636E72]">Desa / Kelurahan</span>
                         <select className="q-input" name="village_id" value={String(form.village_id || '')} onChange={handleChange} disabled={!form.district_id}>
@@ -282,7 +283,7 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
                     <Users size={20} /> II. Data Orang Tua & Wali
                   </h3>
                   
-                  <div className="grid gap-x-8 gap-y-6 md:grid-cols-2">
+                  <div className="grid gap-x-8 gap-y-6 lg:grid-cols-2">
                     {/* AYAH */}
                     <div className="space-y-4 rounded-3xl bg-slate-50 p-5 border border-slate-200 shadow-sm">
                       <h4 className="text-base font-extrabold text-[#2D3436]">Data Ayah</h4>
@@ -358,7 +359,7 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
                   <h3 className="mb-6 flex items-center gap-2 text-lg font-extrabold text-[#138F81] pb-2 border-b border-[#138F81]/20">
                     <GraduationCap size={20} /> III. Masuk Madrasah Ini
                   </h3>
-                  <div className="grid gap-6 md:grid-cols-2">
+                  <div className="grid gap-6 lg:grid-cols-2">
                     <label className="block">
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Dari Sekolah / Madrasah</span>
                       <input className="q-input" name="asal_sekolah" value={String(form.asal_sekolah || '')} onChange={handleChange} />
@@ -383,7 +384,7 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
                   <h3 className="mb-6 flex items-center gap-2 text-lg font-extrabold text-[#138F81] pb-2 border-b border-[#138F81]/20">
                     <FileText size={20} /> IV. Lain-lain
                   </h3>
-                  <div className="grid gap-6 md:grid-cols-2">
+                  <div className="grid gap-6 lg:grid-cols-2">
                     <label className="block">
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Status Saat Ini</span>
                       <select className="q-input font-bold" name="status" value={String(form.status || 'Aktif')} onChange={handleChange}>
@@ -402,19 +403,21 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
                     </label>
                   </div>
                 </div>
+                </fieldset>
               </form>
             </div>
           </div>
           
-          {/* Footer */}
           <div className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
             <button type="button" onClick={onClose} className="rounded-2xl bg-white px-6 py-3 text-sm font-bold text-[#636E72] shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 transition-colors">
-              Batal
+              {readOnly ? 'Tutup' : 'Batal'}
             </button>
-            <button type="submit" form="complex-siswa-form" disabled={isSaving} className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-8 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors disabled:opacity-70">
-              <CheckCircle2 size={18} />
-              {isSaving ? 'Menyimpan...' : 'Simpan Data Siswa/Santri'}
-            </button>
+            {!readOnly && (
+              <button type="submit" form="complex-siswa-form" disabled={isSaving} className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-8 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors disabled:opacity-70">
+                <CheckCircle2 size={18} />
+                {isSaving ? 'Menyimpan...' : 'Simpan Data Siswa/Santri'}
+              </button>
+            )}
           </div>
       </div>
     </div>

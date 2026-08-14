@@ -472,6 +472,17 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
     );
   }
 
+  if (siswaMode && detailTarget) {
+    return (
+      <ComplexSiswaForm
+        initialData={detailTarget}
+        readOnly={true}
+        onClose={() => setDetailTarget(null)}
+        onSave={() => {}}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <section className="q-page-heading flex flex-wrap items-end justify-between gap-4">
