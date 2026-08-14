@@ -25,12 +25,6 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
   const [activeTab, setActiveTab] = useState<'siswa' | 'ortu' | 'akademik' | 'lainnya'>('siswa');
 
   useEffect(() => {
-    // Disable body scroll
-    const previousBodyOverflow = document.body.style.overflow;
-    const previousHtmlOverflow = document.documentElement.style.overflow;
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-    
     // Initialize form data
     if (initialData) {
       const parsed: Record<string, string | number> = {};
@@ -52,11 +46,6 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
     // Load static dropdowns
     api.masterReferensi().then(res => setMasterRefs(res.data || [])).catch(() => {});
     api.regionProvinces().then(res => setProvinces(res.data || [])).catch(() => {});
-
-    return () => {
-      document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.overflow = previousHtmlOverflow;
-    };
   }, [initialData]);
 
   const loadCities = async (provId: string | number) => {
@@ -146,10 +135,9 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
 
   const getRef = (kategori: string) => masterRefs.filter(r => String(r.kategori).toLowerCase() === kategori.toLowerCase());
 
-  const modal = (
-    <div className="q-modal-backdrop fixed inset-0 z-50 overflow-hidden p-0 sm:p-6" role="dialog" aria-modal="true">
-      <div className="flex h-full w-full items-center justify-center">
-        <div className="q-panel flex h-full max-h-full w-full max-w-6xl flex-col overflow-hidden rounded-none sm:rounded-3xl shadow-2xl bg-white">
+  return (
+    <div className="w-full flex-1">
+      <div className="flex min-h-[calc(100vh-10rem)] w-full flex-col overflow-hidden bg-white shadow-sm ring-1 ring-slate-200 sm:rounded-3xl">
           {/* Header */}
           <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
             <div>
@@ -428,10 +416,7 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
               {isSaving ? 'Menyimpan...' : 'Simpan Data Siswa/Santri'}
             </button>
           </div>
-        </div>
       </div>
     </div>
   );
-
-  return createPortal(modal, document.body);
 }

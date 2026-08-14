@@ -459,6 +459,19 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
     }
   }
 
+  if (isSiswaFormOpen) {
+    return (
+      <ComplexSiswaForm
+        initialData={siswaForm as unknown as ApiRecord}
+        onClose={() => setSiswaForm(null)}
+        onSave={() => {
+          setSiswaForm(null);
+          void load();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <section className="q-page-heading flex flex-wrap items-end justify-between gap-4">
@@ -600,16 +613,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
         )}
       </section>
 
-      {isSiswaFormOpen ? (
-        <ComplexSiswaForm
-          initialData={siswaForm as unknown as ApiRecord}
-          onClose={() => setSiswaForm(null)}
-          onSave={() => {
-            setSiswaForm(null);
-            void load();
-          }}
-        />
-      ) : null}
+
 
       {userForm ? (
         <ModalForm
