@@ -294,8 +294,8 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                         </select>
                       </label>
                       <label className="block">
-                        <span className="mb-2 block text-sm font-bold text-[#138F81]">Kode Pos (Auto/Manual)</span>
-                        <input className="q-input border-[#138F81]/50 bg-[#138F81]/5 font-extrabold text-[#138F81]" name="kode_pos" value={String(form.kode_pos || '')} onChange={handleChange} placeholder="Ketik jika kosong..." />
+                        <span className="mb-2 block text-sm font-bold text-[#138F81]">Kode Pos</span>
+                        <input className="q-input border-[#138F81]/50 bg-white focus:bg-white text-slate-800" name="kode_pos" value={String(form.kode_pos || '')} onChange={handleChange} placeholder="Ketik disini..." />
                       </label>
                     </div>
 
