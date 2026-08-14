@@ -65,17 +65,18 @@ button:disabled {
 .q-input {
   width: 100%;
   min-height: 46px;
-  border: 1px solid transparent;
+  border: 1.5px solid #e2e8f0;
   border-radius: 16px;
-  background: #ffffff;
+  background: #f8fafc;
   padding: 0 16px;
   color: #2d3436;
   outline: none;
-  transition: border-color 160ms ease, box-shadow 160ms ease;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
 .q-input:focus {
   border-color: #138f81;
+  background: #ffffff;
   box-shadow: 0 0 0 4px rgba(19, 143, 129, 0.12);
 }
 
