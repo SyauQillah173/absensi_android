@@ -1,5 +1,4 @@
 import { Building2, X } from 'lucide-react';
-import { createPortal } from 'react-dom';
 import { type ApiRecord } from '../services/api';
 
 interface ComplexPondokFormProps {
@@ -25,12 +24,9 @@ export function ComplexPondokForm({ initialData, onClose }: ComplexPondokFormPro
   const nis = text(row.nis ?? record(row.siswa).nis);
   const kelas = text(row.kelas ?? record(row.siswa).kelas);
 
-  const modalContent = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      
-      <div className="relative flex max-h-[100vh] w-full max-w-4xl flex-col bg-transparent">
-        <div className="flex min-h-[calc(100vh-10rem)] w-full flex-col overflow-hidden bg-white shadow-sm ring-1 ring-slate-200 sm:rounded-3xl">
+  return (
+    <div className="w-full flex-1">
+      <div className="flex min-h-[calc(100vh-10rem)] w-full flex-col overflow-hidden bg-white shadow-sm ring-1 ring-slate-200 sm:rounded-3xl">
           
           <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
             <div>
@@ -97,8 +93,5 @@ export function ComplexPondokForm({ initialData, onClose }: ComplexPondokFormPro
 
         </div>
       </div>
-    </div>
   );
-
-  return createPortal(modalContent, document.body);
 }
