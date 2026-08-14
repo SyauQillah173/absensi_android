@@ -151,7 +151,7 @@ export function ComplexSiswaForm({ initialData, onClose, onSave }: ComplexSiswaF
             </button>
           </div>
 
-          <div className="flex min-h-0 flex-1 overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col md:flex-row overflow-hidden">
             {/* Sidebar Tabs */}
             <div className="hidden w-64 shrink-0 flex-col gap-2 overflow-y-auto border-r border-slate-200 bg-slate-50 p-4 md:flex">
               <button type="button" onClick={() => setActiveTab('siswa')} className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'siswa' ? 'bg-[#138F81] text-white shadow-md' : 'text-[#636E72] hover:bg-white'}`}>
