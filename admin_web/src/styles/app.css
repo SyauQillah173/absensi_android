@@ -201,12 +201,13 @@ button:disabled {
 }
 
 .q-segmented-scroll {
-  display: grid;
-  grid-template-columns: repeat(var(--tab-count), minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
 .q-segmented-scroll button {
+  flex: 1 1 auto;
   white-space: nowrap;
 }
 
