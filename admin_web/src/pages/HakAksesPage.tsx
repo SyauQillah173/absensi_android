@@ -29,7 +29,11 @@ const roleLabels: Record<string, string> = {
   admin_pondok: 'Pondok',
   admin_absensi: 'Absensi',
   admin_lainnya: 'Admin Lain',
-  guru: 'Guru',
+  guru: 'Guru Umum',
+  guru_madin: 'Guru Madin',
+  guru_ngaji: 'Guru Ngaji',
+  guru_sholat: 'Guru Sholat',
+  guru_asrama: 'Musyrif Asrama',
   wali: 'Wali'
 };
 

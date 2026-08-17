@@ -200,18 +200,31 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
                       </label>
                     </div>
 
-                    {isAdmin && (
-                      <label className="block">
-                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Tipe Administrator</span>
-                        <select className="q-input" name="admin_type" value={String(form.admin_type || 'utama')} onChange={handleChange} disabled={readOnly}>
-                          <option value="utama">Admin Utama (Semua Akses)</option>
-                          <option value="bendahara">Admin Bendahara (SPP)</option>
-                          <option value="pondok">Admin Pondok (Kamar & Santri)</option>
-                          <option value="absensi">Admin Absensi (Khusus Presensi)</option>
-                          <option value="akademik">Admin Akademik (Pelajaran & Nilai)</option>
-                        </select>
-                      </label>
-                    )}
+                      {(form.role === 'admin' || form.role === 'guru') && (
+                        <label className="block sm:col-span-2">
+                          <span className="mb-2 block text-sm font-bold text-[#636E72]">{form.role === 'admin' ? 'Tipe Admin' : 'Hak Akses Spesifik Guru'}</span>
+                          <select className="q-input" name="admin_type" value={String(form.admin_type || (form.role === 'admin' ? 'utama' : 'umum'))} onChange={handleChange} disabled={readOnly}>
+                            {form.role === 'admin' ? (
+                              <>
+                                <option value="utama">Admin Utama (Akses Penuh)</option>
+                                <option value="bendahara">Admin Bendahara (Keuangan)</option>
+                                <option value="akademik">Admin Akademik (Pelajaran & Nilai)</option>
+                                <option value="pondok">Admin Pondok (Asrama & Santri)</option>
+                                <option value="absensi">Admin Absensi (Rekap & Kehadiran)</option>
+                                <option value="lainnya">Lainnya / Terbatas</option>
+                              </>
+                            ) : (
+                              <>
+                                <option value="umum">Guru Umum (Sesuai Hak Akses Default)</option>
+                                <option value="madin">Guru Madin (Absensi Madin)</option>
+                                <option value="ngaji">Guru Ngaji Kitab (Absensi Ngaji)</option>
+                                <option value="sholat">Guru Pembina Sholat (Absensi Jama'ah)</option>
+                                <option value="asrama">Pembina Asrama / Musyrif</option>
+                              </>
+                            )}
+                          </select>
+                        </label>
+                      )}
 
                     {isGuru && (
                       <label className="block">
