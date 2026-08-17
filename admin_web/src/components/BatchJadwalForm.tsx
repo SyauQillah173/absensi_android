@@ -1,6 +1,5 @@
-import { Plus, Trash2, CheckCircle2, User, BookOpen, Clock, CalendarDays } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, User, BookOpen, Clock, CalendarDays, X } from 'lucide-react';
 import React, { FormEvent, useState, useMemo, memo } from 'react';
-import { ModalForm } from './ModalForm';
 import { api, type ApiRecord } from '../services/api';
 
 interface BatchJadwalRow {
@@ -164,57 +163,77 @@ export function BatchJadwalForm({ teachers, mapel, classes, days, onClose, onSuc
   }
 
   return (
-    <ModalForm
-      title="Setting Jadwal Guru (Batch)"
-      onClose={onClose}
-      footer={
-        <button className="min-h-12 w-full rounded-2xl bg-[#138F81] text-sm font-extrabold text-white disabled:opacity-60 flex items-center justify-center gap-2" disabled={isSaving} form="batch-jadwal-form" type="submit">
-          {isSaving ? <span className="animate-spin text-lg">⏳</span> : <CheckCircle2 size={18} />}
-          {isSaving ? 'Menyimpan...' : `Simpan ${rows.length} Jadwal`}
-        </button>
-      }
-    >
-      <form id="batch-jadwal-form" className="space-y-6" onSubmit={saveForm}>
-        {error && <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div>}
-
-        <section className="rounded-[24px] bg-slate-50/80 p-5 border border-slate-200/60 shadow-sm backdrop-blur-sm">
-          <label className="block max-w-md">
-            <span className="mb-2 flex items-center gap-2 text-sm font-bold text-[#636E72]"><User size={16} /> Pilih Guru Pengajar</span>
-            <select className="q-input !bg-white !py-3 !rounded-2xl !text-base shadow-sm focus:!ring-[#138F81]/20 focus:!border-[#138F81]" value={teacherId} onChange={(e) => setTeacherId(e.target.value)} required>
-              <option value="">Pilih guru pengajar...</option>
-              {teacherOptions}
-            </select>
-          </label>
-        </section>
-
-        <section>
-          <div className="mb-5 flex items-center justify-between border-b border-slate-100 pb-3">
-            <div>
-              <h3 className="text-base font-extrabold text-[#2D3436]">Daftar Jadwal Mengajar</h3>
-              <p className="text-xs font-semibold text-[#636E72] mt-0.5">Atur mata pelajaran, kelas, hari, dan waktu secara spesifik.</p>
-            </div>
-            <button type="button" onClick={addRow} className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#E8F7F3] px-4 text-sm font-bold text-[#138F81] shadow-sm transition-all hover:bg-[#138F81] hover:text-white hover:shadow-md">
-              <Plus size={16} /> Tambah Jadwal
-            </button>
+    <div className="w-full flex-1">
+      <div className="flex min-h-[calc(100vh-10rem)] w-full flex-col overflow-hidden bg-white shadow-sm ring-1 ring-slate-200 sm:rounded-3xl relative">
+        
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
+          <div>
+            <h2 className="text-xl font-extrabold text-[#2D3436]">Setting Jadwal Guru (Batch)</h2>
+            <p className="text-sm font-semibold text-[#636E72] mt-1">Atur mata pelajaran, kelas, hari, dan waktu mengajar guru dalam satu halaman.</p>
           </div>
+          <button className="grid h-10 w-10 place-items-center rounded-full bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors" onClick={onClose} type="button" disabled={isSaving}>
+            <X size={20} />
+          </button>
+        </div>
 
-          <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 q-scrollbar pb-4">
-            {rows.map((row, index) => (
-              <RowItem 
-                key={row.key}
-                row={row}
-                index={index}
-                mapelOptions={mapelOptions}
-                classOptions={classOptions}
-                days={days}
-                onUpdate={updateRow}
-                onRemove={removeRow}
-                canRemove={rows.length > 1}
-              />
-            ))}
+        {isSaving && (
+          <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center rounded-3xl bg-white/80 backdrop-blur-sm transition-all duration-300">
+            <span className="animate-spin text-4xl mb-4">⏳</span>
+            <h2 className="text-2xl font-extrabold text-[#2D3436] animate-pulse">Menyimpan Jadwal...</h2>
           </div>
-        </section>
-      </form>
-    </ModalForm>
+        )}
+
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-white q-scrollbar">
+          <form id="batch-jadwal-form" className="space-y-8 max-w-5xl mx-auto" onSubmit={saveForm}>
+            {error && <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div>}
+
+            <section className="rounded-[24px] bg-slate-50/80 p-5 border border-slate-200/60 shadow-sm backdrop-blur-sm">
+              <label className="block max-w-md">
+                <span className="mb-2 flex items-center gap-2 text-sm font-bold text-[#636E72]"><User size={16} /> Pilih Guru Pengajar</span>
+                <select className="q-input !bg-white !py-3 !rounded-2xl !text-base shadow-sm focus:!ring-[#138F81]/20 focus:!border-[#138F81]" value={teacherId} onChange={(e) => setTeacherId(e.target.value)} required>
+                  <option value="">Pilih guru pengajar...</option>
+                  {teacherOptions}
+                </select>
+              </label>
+            </section>
+
+            <section>
+              <div className="mb-5 flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="text-base font-extrabold text-[#2D3436]">Daftar Jadwal Mengajar</h3>
+                  <p className="text-xs font-semibold text-[#636E72] mt-0.5">Atur mata pelajaran, kelas, hari, dan waktu secara spesifik.</p>
+                </div>
+                <button type="button" onClick={addRow} className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#E8F7F3] px-4 text-sm font-bold text-[#138F81] shadow-sm transition-all hover:bg-[#138F81] hover:text-white hover:shadow-md">
+                  <Plus size={16} /> Tambah Jadwal
+                </button>
+              </div>
+
+              <div className="space-y-4 pb-4">
+                {rows.map((row, index) => (
+                  <RowItem 
+                    key={row.key}
+                    row={row}
+                    index={index}
+                    mapelOptions={mapelOptions}
+                    classOptions={classOptions}
+                    days={days}
+                    onUpdate={updateRow}
+                    onRemove={removeRow}
+                    canRemove={rows.length > 1}
+                  />
+                ))}
+              </div>
+            </section>
+          </form>
+        </div>
+
+        <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-6 py-4 flex justify-end">
+          <button className="min-h-12 w-full max-w-sm rounded-2xl bg-[#138F81] text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-60 disabled:hover:scale-100 flex items-center justify-center gap-2" disabled={isSaving} form="batch-jadwal-form" type="submit">
+            {isSaving ? <span className="animate-spin text-lg">⏳</span> : <CheckCircle2 size={18} />}
+            {isSaving ? 'Menyimpan...' : `Simpan ${rows.length} Jadwal`}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

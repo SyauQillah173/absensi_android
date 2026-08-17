@@ -189,6 +189,23 @@ export function JadwalPelajaranPage() {
     }
   }
 
+  if (showBatchForm) {
+    return (
+      <BatchJadwalForm
+        teachers={teachers}
+        mapel={mapel}
+        classes={classes}
+        days={days}
+        onClose={() => setShowBatchForm(false)}
+        onSuccess={() => {
+          setShowBatchForm(false);
+          setNotice('Semua jadwal batch berhasil disimpan.');
+          void load();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <section className="flex flex-wrap items-end justify-between gap-4">
@@ -320,21 +337,6 @@ export function JadwalPelajaranPage() {
           </form>
         </ModalForm>
       ) : null}
-
-      {showBatchForm && (
-        <BatchJadwalForm
-          teachers={teachers}
-          mapel={mapel}
-          classes={classes}
-          days={days}
-          onClose={() => setShowBatchForm(false)}
-          onSuccess={() => {
-            setShowBatchForm(false);
-            setNotice('Semua jadwal batch berhasil disimpan.');
-            void load();
-          }}
-        />
-      )}
 
       {deleteTarget ? (
         <ConfirmDialog
