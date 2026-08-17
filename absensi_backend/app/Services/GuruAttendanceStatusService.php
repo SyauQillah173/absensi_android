@@ -50,8 +50,18 @@ class GuruAttendanceStatusService
 
         if ($jadwal->jam_selesai) {
             $end = $this->scheduleTimeForToday((string) $jadwal->jam_selesai, $now);
+            
+            $user = request()->user();
+            if ($user && $user->role === 'admin') {
+                // Admin gets until midnight
+                $end = $end->copy()->endOfDay();
+            } else {
+                // Guru gets 1 hour grace period
+                $end = $end->addHour();
+            }
+
             if ($now->gt($end)) {
-                return $this->payload('locked', false, "Batas waktu absensi telah berakhir pada pukul {$jadwal->jam_selesai}.", $label);
+                return $this->payload('locked', false, "Batas waktu absensi telah berakhir pada pukul {$end->format('H:i')}.", $label);
             }
         }
 
