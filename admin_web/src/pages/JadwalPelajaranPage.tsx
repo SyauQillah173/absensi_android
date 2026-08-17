@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
 import { ModalForm } from '../components/ModalForm';
+import { BatchJadwalForm } from '../components/BatchJadwalForm';
 import { SearchInput } from '../components/SearchInput';
 import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
@@ -78,6 +79,7 @@ export function JadwalPelajaranPage() {
   const [dayFilter, setDayFilter] = useState('Semua');
   const [form, setForm] = useState<JadwalFormState | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ApiRecord | null>(null);
+  const [showBatchForm, setShowBatchForm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -199,6 +201,9 @@ export function JadwalPelajaranPage() {
           <button className={`q-refresh-button inline-flex min-h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#138F81] ${isLoading ? 'is-loading' : ''}`} onClick={() => void load()} type="button" disabled={isLoading}>
             <RefreshCw className="q-refresh-icon" size={17} /> {isLoading ? 'Memuat...' : 'Refresh'}
           </button>
+          <button className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-white border border-[#138F81] px-4 text-sm font-extrabold text-[#138F81]" onClick={() => setShowBatchForm(true)} type="button">
+            <UsersRound size={17} /> Setting Guru (Batch)
+          </button>
           <button className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20" onClick={() => setForm(newForm())} type="button">
             <Plus size={17} /> Tambah Jadwal
           </button>
@@ -315,6 +320,21 @@ export function JadwalPelajaranPage() {
           </form>
         </ModalForm>
       ) : null}
+
+      {showBatchForm && (
+        <BatchJadwalForm
+          teachers={teachers}
+          mapel={mapel}
+          classes={classes}
+          days={days}
+          onClose={() => setShowBatchForm(false)}
+          onSuccess={() => {
+            setShowBatchForm(false);
+            setNotice('Semua jadwal batch berhasil disimpan.');
+            void load();
+          }}
+        />
+      )}
 
       {deleteTarget ? (
         <ConfirmDialog
