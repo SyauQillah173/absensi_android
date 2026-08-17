@@ -319,11 +319,16 @@ class PermissionService
 
     private function effectiveRole(User $user): string
     {
-        if ($user->role !== 'admin') {
-            return $user->role;
+        if ($user->role === 'admin') {
+            return 'admin_' . ($user->admin_type ?: 'utama');
         }
 
-        return 'admin_' . ($user->admin_type ?: 'utama');
+        if ($user->role === 'guru') {
+            $type = $user->admin_type ?: 'umum';
+            return $type === 'umum' ? 'guru' : 'guru_' . $type;
+        }
+
+        return $user->role;
     }
 
     private function managedRoles(): array
@@ -336,6 +341,10 @@ class PermissionService
             'admin_absensi',
             'admin_lainnya',
             'guru',
+            'guru_madin',
+            'guru_ngaji',
+            'guru_sholat',
+            'guru_asrama',
             'wali',
         ];
     }

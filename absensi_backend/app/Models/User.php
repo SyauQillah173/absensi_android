@@ -124,6 +124,8 @@ class User extends Authenticatable
             $user->status = $resolver->nameById('user_statuses', $user->user_status_id) ?? $user->status;
             if ($user->role === 'admin') {
                 $user->admin_type = $user->admin_type ?: 'utama';
+            } elseif ($user->role === 'guru') {
+                $user->admin_type = $user->admin_type ?: 'umum';
             } else {
                 $user->admin_type = null;
             }
