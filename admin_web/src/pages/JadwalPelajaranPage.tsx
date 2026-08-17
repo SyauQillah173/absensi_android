@@ -218,10 +218,7 @@ export function JadwalPelajaranPage() {
           <button className={`q-refresh-button inline-flex min-h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#138F81] ${isLoading ? 'is-loading' : ''}`} onClick={() => void load()} type="button" disabled={isLoading}>
             <RefreshCw className="q-refresh-icon" size={17} /> {isLoading ? 'Memuat...' : 'Refresh'}
           </button>
-          <button className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-white border border-[#138F81] px-4 text-sm font-extrabold text-[#138F81]" onClick={() => setShowBatchForm(true)} type="button">
-            <UsersRound size={17} /> Setting Guru (Batch)
-          </button>
-          <button className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20" onClick={() => setForm(newForm())} type="button">
+          <button className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20" onClick={() => setShowBatchForm(true)} type="button">
             <Plus size={17} /> Tambah Jadwal
           </button>
         </div>

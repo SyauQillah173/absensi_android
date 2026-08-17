@@ -168,7 +168,7 @@ export function BatchJadwalForm({ teachers, mapel, classes, days, onClose, onSuc
         
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
           <div>
-            <h2 className="text-xl font-extrabold text-[#2D3436]">Setting Jadwal Guru (Batch)</h2>
+            <h2 className="text-xl font-extrabold text-[#2D3436]">Tambah Jadwal Pelajaran</h2>
             <p className="text-sm font-semibold text-[#636E72] mt-1">Atur mata pelajaran, kelas, hari, dan waktu mengajar guru dalam satu halaman.</p>
           </div>
           <button className="grid h-10 w-10 place-items-center rounded-full bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors" onClick={onClose} type="button" disabled={isSaving}>
