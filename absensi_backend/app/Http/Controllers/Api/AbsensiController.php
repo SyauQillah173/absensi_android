@@ -691,20 +691,11 @@ class AbsensiController extends Controller
                 return true;
             }
 
-            if ($absensi->actor_user_id) {
-                return (int) $absensi->actor_user_id === (int) $actor->id;
-            }
-
-            $allowedNames = array_filter([
-                $actor->name,
-                $this->formatActorLabel($actor),
-            ]);
-
-            return in_array($absensi->diinput_oleh, $allowedNames, true);
+            // Guru tidak boleh edit absen yang sudah tersimpan (terkunci setelah submit)
+            return false;
         }
 
-        return $fallbackRole === 'admin'
-            || ($fallbackName !== '' && $absensi->diinput_oleh === $fallbackName);
+        return $fallbackRole === 'admin';
     }
 
     private function actorMatchesDeclaration(User $actor, ?string $declaredRole, ?string $declaredName): bool
