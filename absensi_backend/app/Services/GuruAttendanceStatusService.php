@@ -48,6 +48,13 @@ class GuruAttendanceStatusService
             }
         }
 
+        if ($jadwal->jam_selesai) {
+            $end = $this->scheduleTimeForToday((string) $jadwal->jam_selesai, $now);
+            if ($now->gt($end)) {
+                return $this->payload('locked', false, "Batas waktu absensi telah berakhir pada pukul {$jadwal->jam_selesai}.", $label);
+            }
+        }
+
         return $this->payload('aktif', true, null, $label);
     }
 
