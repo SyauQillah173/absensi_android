@@ -89,10 +89,11 @@ const RowItem = memo(function RowItem({
         type="button" 
         onClick={() => onRemove(row.key)}
         disabled={!canRemove}
-        className="h-[42px] shrink-0 rounded-xl bg-rose-50 px-3.5 text-rose-500 transition-all hover:bg-rose-500 hover:text-white disabled:opacity-40 disabled:hover:bg-rose-50 disabled:hover:text-rose-500 shadow-sm"
+        className="flex h-[42px] w-full sm:w-auto items-center justify-center gap-2 shrink-0 rounded-xl bg-rose-50 px-3.5 text-rose-500 transition-all hover:bg-rose-500 hover:text-white disabled:opacity-40 disabled:hover:bg-rose-50 disabled:hover:text-rose-500 shadow-sm"
         title="Hapus Baris"
       >
         <Trash2 size={16} />
+        <span className="text-sm font-bold sm:hidden">Hapus Baris</span>
       </button>
     </div>
   );
