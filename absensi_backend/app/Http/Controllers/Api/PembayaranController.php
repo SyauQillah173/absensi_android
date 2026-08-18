@@ -104,14 +104,14 @@ class PembayaranController extends Controller
         $year = now()->year;
         $payments = Pembayaran::whereYear('tanggal', $year)
             ->where('status', 'Lunas')
-            ->selectRaw('MONTH(tanggal) as month, SUM(jumlah) as total')
+            ->selectRaw('EXTRACT(MONTH FROM tanggal) as month, SUM(jumlah) as total')
             ->groupBy('month')
             ->orderBy('month')
             ->get();
 
         // Get monthly expense for the current year
         $expenses = Pengeluaran::whereYear('tanggal', $year)
-            ->selectRaw('MONTH(tanggal) as month, SUM(jumlah) as total')
+            ->selectRaw('EXTRACT(MONTH FROM tanggal) as month, SUM(jumlah) as total')
             ->groupBy('month')
             ->orderBy('month')
             ->get();

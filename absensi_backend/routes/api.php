@@ -295,6 +295,7 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::delete('pengeluaran/{id}', [PengeluaranController::class, 'destroy'])->middleware('permission:keuangan,delete');
 
         Route::post('academic-years', [ReferenceController::class, 'storeAcademicYear']);
+        Route::get('payment-methods', [PaymentMethodController::class, 'index'])->middleware('permission:keuangan,view');
         Route::post('payment-methods', [PaymentMethodController::class, 'store'])->middleware('permission:keuangan,create');
         Route::put('payment-methods/{paymentMethod}', [PaymentMethodController::class, 'update'])->middleware('permission:keuangan,update');
         Route::delete('payment-methods/{paymentMethod}', [PaymentMethodController::class, 'destroy'])->middleware('permission:keuangan,delete');
