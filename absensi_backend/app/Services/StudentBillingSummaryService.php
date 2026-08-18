@@ -212,16 +212,9 @@ class StudentBillingSummaryService
     {
         $first = $items->first();
         $byMonth = $items->keyBy(fn (array $row) => (int) ($row['period_month'] ?? 0));
-        $monthOrder = collect($first['month_order'] ?? [])
-            ->mapWithKeys(fn ($row) => [(int) ($row['month'] ?? 0) => $row['label'] ?? null])
-            ->filter()
+        $monthOrder = collect(self::ACADEMIC_MONTHS)
+            ->filter(fn (string $label, int $month) => $byMonth->has($month))
             ->all();
-        if (empty($monthOrder)) {
-            $months = $this->monthsForSemester($first['semester'] ?? null);
-            $monthOrder = collect(self::ACADEMIC_MONTHS)
-                ->filter(fn (string $label, int $month) => $months === null || in_array($month, $months, true))
-                ->all();
-        }
 
         return [
             'payment_type_id' => $first['payment_type_id'] ?? null,
