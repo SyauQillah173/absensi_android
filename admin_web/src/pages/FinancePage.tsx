@@ -33,7 +33,7 @@ const monthLabels: Record<number, string> = {
 const tabs = [
   { id: 'today', label: 'Hari Ini' },
   { id: 'history', label: 'Riwayat' },
-  { id: 'student', label: 'Per Santri' },
+  { id: 'student', label: 'TAGIHAN' },
   { id: 'pengeluaran', label: 'Pengeluaran' },
   { id: 'types', label: 'Tipe Bayar' },
   { id: 'methods', label: 'Metode' },
@@ -141,6 +141,13 @@ export function FinancePage() {
   }, []);
 
   const totalToday = useMemo(() => today.reduce((sum, row) => sum + num(row.jumlah), 0), [today]);
+  const totalPengeluaranToday = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    return pengeluaran
+      .filter((row) => String(row.tanggal).startsWith(todayStr))
+      .reduce((sum, row) => sum + num(row.jumlah), 0);
+  }, [pengeluaran]);
+
   const activeMethods = paymentMethods.filter((method) => method.is_active !== false);
   const activePeriods = paymentPeriods.filter((period) => period.is_active !== false);
   const activeTypes = paymentTypes.filter((type) => String(type.status ?? 'Aktif') === 'Aktif');
@@ -237,9 +244,10 @@ export function FinancePage() {
 
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <StatCard title="Total Masuk Hari Ini" value={formatMoney(totalToday)} subtitle={`${today.length} transaksi hari ini`} icon={WalletCards} tone="orange" />
-        <StatCard title="Tipe Pembayaran Aktif" value={activeTypes.length} subtitle={`${paymentTypes.length} master tagihan`} icon={Landmark} tone="teal" />
+      <div className="grid gap-4 md:grid-cols-4">
+        <StatCard title="Total Masuk Hari Ini" value={formatMoney(totalToday)} subtitle={`${today.length} transaksi hari ini`} icon={WalletCards} tone="teal" />
+        <StatCard title="Total Keluar Hari Ini" value={formatMoney(totalPengeluaranToday)} subtitle={`Pengeluaran hari ini`} icon={WalletCards} tone="red" />
+        <StatCard title="Tipe Pembayaran Aktif" value={activeTypes.length} subtitle={`${paymentTypes.length} master tagihan`} icon={Landmark} tone="orange" />
         <StatCard title="Metode Aktif" value={activeMethods.length} subtitle={`${paymentMethods.length} metode tersimpan`} icon={CreditCard} tone="blue" />
       </div>
 
