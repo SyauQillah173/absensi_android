@@ -917,6 +917,7 @@ function PaymentTypeModal({
   const [billedMonths, setBilledMonths] = useState<Set<number>>(() => new Set(Array.isArray(row?.billed_months) ? row?.billed_months.map(Number) : [7,8,9,10,11,12,1,2,3,4,5,6]));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -936,11 +937,12 @@ function PaymentTypeModal({
       };
       if (row?.id) await api.updatePaymentType(num(row.id), payload);
       else await api.createPaymentType(payload);
-      alert('Tipe Pembayaran berhasil disimpan!');
-      await onSaved();
+      setSuccessMsg('Tipe Pembayaran berhasil disimpan!');
+      setTimeout(() => {
+        onSaved().catch(console.error);
+      }, 1000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Tipe pembayaran gagal disimpan');
-    } finally {
       setSaving(false);
     }
   }
@@ -997,6 +999,7 @@ function PaymentTypeModal({
           </div>
         </div>
         {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
+        {successMsg ? <div className="rounded-2xl bg-[#D0EAF0] px-4 py-3 text-sm font-bold text-[#138F81]">{successMsg}</div> : null}
         <StatusPicker value={status} onChange={setStatus} />
       </form>
     </ModalForm>
