@@ -209,10 +209,10 @@ export function FinancePage() {
           onSendWa={async () => {
             try {
               await api.notifyWaPayment(Number(successTransaction.id));
-              alert('Notifikasi WhatsApp berhasil dikirim!');
+              showToast('Notifikasi WhatsApp berhasil dikirim!', 'success');
               setSuccessTransaction(null);
             } catch (err) {
-              alert(err instanceof Error ? err.message : 'Gagal mengirim WA');
+              showToast(err instanceof Error ? err.message : 'Gagal mengirim WA', 'error');
             }
           }}
           onClose={() => setSuccessTransaction(null)}
@@ -232,9 +232,10 @@ export function FinancePage() {
               setIsLoading(true);
               await api.deletePaymentTransaction(confirmDelete.id, confirmDelete.type);
               setConfirmDelete(null);
+              showToast('Data berhasil dihapus', 'success');
               await load();
             } catch (err) {
-              alert('Gagal menghapus data');
+              showToast('Gagal menghapus data', 'error');
             } finally {
               setIsLoading(false);
             }
@@ -296,9 +297,9 @@ export function FinancePage() {
                 await api.deletePaymentTransaction(pembayaranId, 'legacy');
                 await load();
                 if (billingStudentId) await openBilling(billingStudentId);
-                alert(`Pembayaran ${name} berhasil dibatalkan`);
+                showToast(`Pembayaran ${name} berhasil dibatalkan`, 'success');
               } catch (err) {
-                alert(`Gagal membatalkan pembayaran: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                showToast(`Gagal membatalkan pembayaran: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
               } finally {
                 setIsLoading(false);
               }
