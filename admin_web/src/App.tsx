@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthContext';
+import { ExpensePrintPage } from './pages/ExpensePrintPage';
+import { ReceiptPrintPage } from './pages/ReceiptPrintPage';
 import { AdminLayout, type PageKey } from './layout/AdminLayout';
 import { AbsensiPage, type AbsensiNavigationTarget } from './pages/AbsensiPage';
 import { AccountPage } from './pages/AccountPage';
@@ -79,6 +81,18 @@ function AdminShell() {
 }
 
 export function App() {
+  const path = window.location.pathname;
+
+  if (path.startsWith('/finance/print/')) {
+    const id = path.split('/').pop();
+    if (id) return <ReceiptPrintPage id={id} />;
+  }
+
+  if (path.startsWith('/finance/print-expense/')) {
+    const id = path.split('/').pop();
+    if (id) return <ExpensePrintPage id={id} />;
+  }
+
   return (
     <AuthProvider>
       <AdminShell />

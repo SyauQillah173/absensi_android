@@ -1,4 +1,4 @@
-import { CalendarDays, Check, CreditCard, Landmark, Plus, RefreshCw, Save, Trash2, WalletCards, X } from 'lucide-react';
+import { CalendarDays, Check, CreditCard, Landmark, Plus, Printer, RefreshCw, Save, Trash2, WalletCards, X } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import { DataTable } from '../components/DataTable';
 import { ModalForm } from '../components/ModalForm';
 import { formatMoney, MoneyText } from '../components/MoneyText';
+import { PostPaymentActionModal } from '../components/PostPaymentActionModal';
 import { SearchInput } from '../components/SearchInput';
 import { SegmentedTabs } from '../components/SegmentedTabs';
 import { StatCard } from '../components/StatCard';
@@ -35,7 +36,8 @@ const tabs = [
   { id: 'pengeluaran', label: 'Pengeluaran' },
   { id: 'types', label: 'Tipe Bayar' },
   { id: 'methods', label: 'Metode' },
-  { id: 'periods', label: 'Periode' }
+  { id: 'periods', label: 'Periode' },
+  { id: 'settings', label: 'Pengaturan' }
 ];
 
 function num(value: unknown): number {
@@ -89,12 +91,14 @@ export function FinancePage() {
   const [billingSummary, setBillingSummary] = useState<ApiRecord | null>(null);
   const [chartData, setChartData] = useState<ApiRecord[]>([]);
   const [pengeluaran, setPengeluaran] = useState<ApiRecord[]>([]);
+  const [documentSettings, setDocumentSettings] = useState<ApiRecord | null>(null);
+  const [successTransaction, setSuccessTransaction] = useState<ApiRecord | null>(null);
 
   async function load() {
     setIsLoading(true);
     setError('');
     try {
-      const [todayResult, historyResult, typesResult, methodsResult, periodsResult, studentsResult, academicResult, chartResult, pengeluaranResult] = await Promise.all([
+      const [todayResult, historyResult, typesResult, methodsResult, periodsResult, studentsResult, academicResult, chartResult, pengeluaranResult, documentSettingsResult] = await Promise.all([
         api.paymentToday(),
         api.paymentAll(),
         api.paymentTypes(),
@@ -103,7 +107,8 @@ export function FinancePage() {
         api.siswa({ with_wali: 1, status: 'Aktif', for_payment: 1 }),
         api.academicPeriods(),
         api.paymentChart(),
-        api.pengeluaran()
+        api.pengeluaran(),
+        api.documentSettings()
       ]);
       setToday(Array.isArray(todayResult.data) ? todayResult.data : []);
       setHistory(Array.isArray(historyResult.data) ? historyResult.data : []);
@@ -114,6 +119,7 @@ export function FinancePage() {
       setAcademicPeriods(Array.isArray(academicResult.data) ? academicResult.data : []);
       setChartData(Array.isArray(chartResult.data) ? chartResult.data : []);
       setPengeluaran(Array.isArray(pengeluaranResult.data) ? pengeluaranResult.data : []);
+      setDocumentSettings(documentSettingsResult.data as ApiRecord);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Data keuangan gagal dimuat');
     } finally {
@@ -171,6 +177,24 @@ export function FinancePage() {
           </button>
         </div>
       </section>
+
+      {successTransaction ? (
+        <PostPaymentActionModal
+          transaction={successTransaction}
+          onPrint={() => {
+            window.open(`/finance/print/${successTransaction.id}`, '_blank');
+          }}
+          onSendWa={async () => {
+            try {
+              await api.notifyWaPayment(Number(successTransaction.id));
+              alert('Notifikasi WhatsApp sedang dikirim!');
+            } catch (err) {
+              alert(err instanceof Error ? err.message : 'Gagal mengirim WA');
+            }
+          }}
+          onClose={() => setSuccessTransaction(null)}
+        />
+      ) : null}
 
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
 
@@ -280,6 +304,9 @@ export function FinancePage() {
             }}
           />
         ) : null}
+        {!isLoading && activeTab === 'settings' ? (
+          <DocumentSettingsPanel settings={documentSettings} onSaved={load} />
+        ) : null}
       </section>
 
       {modal === 'payment' ? (
@@ -290,8 +317,9 @@ export function FinancePage() {
           paymentMethods={activeMethods}
           academicPeriods={academicPeriods}
           onClose={() => setModal(null)}
-          onSaved={async () => {
+          onSaved={async (trx) => {
             setModal(null);
+            if (trx) setSuccessTransaction(trx);
             await load();
             if (billingStudentId) await openBilling(billingStudentId);
           }}
@@ -585,7 +613,7 @@ function PaymentModal({
   paymentMethods: ApiRecord[];
   academicPeriods: ApiRecord[];
   onClose: () => void;
-  onSaved: () => Promise<void>;
+  onSaved: (transaction?: ApiRecord) => Promise<void>;
 }) {
   const [studentId, setStudentId] = useState(0);
   const [typeId, setTypeId] = useState(0);
@@ -639,8 +667,8 @@ function PaymentModal({
         payment_items,
         ...(password.trim() ? { payment_security_password: password.trim() } : {})
       };
-      await api.createPayment(payload);
-      await onSaved();
+      const res = await api.createPayment(payload);
+      await onSaved(res.data as ApiRecord);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Pembayaran gagal disimpan');
     } finally {
@@ -922,90 +950,60 @@ function StatusPicker({ value, onChange }: { value: string; onChange: (value: st
   );
 }
 
-function SaveButton({ saving, form, label }: { saving: boolean; form: string; label: string }) {
-  return (
-    <button className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#138F81] text-sm font-extrabold text-white disabled:opacity-60" disabled={saving} form={form} type="submit">
-      {saving ? <X size={18} /> : <Save size={18} />} {saving ? 'Menyimpan...' : label}
-    </button>
-  );
-}
-
-function PengeluaranPanel({ rows, onCreate, onEdit, onDelete }: { rows: ApiRecord[]; onCreate: () => void; onEdit: (row: ApiRecord) => void; onDelete: (row: ApiRecord) => void }) {
-  const columns = [
-    { key: 'tanggal', header: 'Tanggal', render: (row: ApiRecord) => new Date(String(row.tanggal)).toLocaleDateString('id-ID') },
-    { key: 'judul', header: 'Judul', render: (row: ApiRecord) => str(row.judul) },
-    { key: 'kategori', header: 'Kategori', render: (row: ApiRecord) => str(row.kategori) },
-    { key: 'jumlah', header: 'Nominal', render: (row: ApiRecord) => <MoneyText value={num(row.jumlah)} className="font-extrabold text-[#FF7675]" /> },
-    { key: 'keterangan', header: 'Keterangan', render: (row: ApiRecord) => str(row.keterangan) },
-    { key: 'penginput', header: 'Diinput Oleh', render: (row: ApiRecord) => str(record(row.penginput)?.name ?? '-') },
-    {
-      key: 'aksi',
-      header: 'Aksi',
-      render: (row: ApiRecord) => (
-        <div className="flex gap-2">
-          <button className="rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-bold text-[#2E86DE]" onClick={() => onEdit(row)} type="button">Edit</button>
-          <button className="rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-bold text-[#D63031]" onClick={() => void onDelete(row)} type="button"><Trash2 size={14} /></button>
-        </div>
-      )
-    }
-  ];
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <button className="flex min-h-10 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-bold text-white" onClick={onCreate} type="button">
-          <Plus size={16} /> Tambah Pengeluaran
-        </button>
-      </div>
-      <DataTable
-        columns={columns}
-        rows={rows}
-        emptyText="Belum ada data pengeluaran."
-      />
-    </div>
-  );
-}
-
-function PengeluaranModal({ row, onClose, onSaved }: { row: ApiRecord | null; onClose: () => void; onSaved: () => Promise<void> }) {
-  const [judul, setJudul] = useState(str(row?.judul, ''));
-  const [jumlah, setJumlah] = useState(String(row?.jumlah ?? '0'));
-  const [tanggal, setTanggal] = useState(str(row?.tanggal, new Date().toISOString().split('T')[0]));
-  const [kategori, setKategori] = useState(str(row?.kategori, ''));
-  const [keterangan, setKeterangan] = useState(str(row?.keterangan, ''));
+function DocumentSettingsPanel({ settings, onSaved }: { settings: ApiRecord | null; onSaved: () => Promise<void> }) {
+  const [receiptWidth, setReceiptWidth] = useState(String(settings?.receipt_width ?? '58mm'));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     setError('');
+    setSuccess('');
     try {
-      const payload = { judul, jumlah: num(jumlah), tanggal, kategori, keterangan };
-      if (row?.id) await api.updatePengeluaran(num(row.id), payload);
-      else await api.createPengeluaran(payload);
+      await api.updateDocumentSettings({ receipt_width: receiptWidth });
       await onSaved();
+      setSuccess('Pengaturan berhasil disimpan');
+      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Data pengeluaran gagal disimpan');
+      setError(err instanceof Error ? err.message : 'Gagal menyimpan pengaturan');
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <ModalForm title={row ? 'Edit Pengeluaran' : 'Tambah Pengeluaran'} onClose={onClose} footer={<SaveButton saving={saving} form="pengeluaran-form" label="Simpan" />}>
-      <form id="pengeluaran-form" className="space-y-4" onSubmit={submit}>
-        <TextField label="Tanggal" value={tanggal} onChange={setTanggal} required />
-        <TextField label="Judul/Keperluan" value={judul} onChange={setJudul} required />
-        <label className="block">
-          <span className="mb-2 block text-sm font-bold text-[#636E72]">Nominal (Rp)</span>
-          <input className="q-input" type="number" min="0" value={jumlah} onChange={(event) => setJumlah(event.target.value)} required />
-        </label>
-        <TextField label="Kategori" value={kategori} onChange={setKategori} />
-        <label className="block">
-          <span className="mb-2 block text-sm font-bold text-[#636E72]">Keterangan Tambahan</span>
-          <textarea className="q-input min-h-24" value={keterangan} onChange={(event) => setKeterangan(event.target.value)} />
-        </label>
-        {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
-      </form>
-    </ModalForm>
+    <div className="max-w-xl space-y-6">
+      <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
+        <h2 className="text-xl font-extrabold text-[#2D3436] mb-4">Pengaturan Cetak Struk</h2>
+        <form onSubmit={submit} className="space-y-4">
+          <label className="block">
+            <span className="mb-2 block text-sm font-bold text-[#636E72]">Ukuran Kertas Printer</span>
+            <select
+              className="q-input"
+              value={receiptWidth}
+              onChange={(e) => setReceiptWidth(e.target.value)}
+            >
+              <option value="58mm">58mm (Printer Thermal Kecil)</option>
+              <option value="80mm">80mm (Printer Thermal Besar)</option>
+              <option value="100%">100% (Sesuai Kertas / A4)</option>
+            </select>
+          </label>
+          
+          {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
+          {success ? <div className="rounded-2xl bg-[#EAF4FF] px-4 py-3 text-sm font-bold text-[#2E86DE]">{success}</div> : null}
+          
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#138F81] px-4 py-3 text-sm font-bold text-white hover:bg-[#0F7A6E] disabled:opacity-50"
+          >
+            {saving ? <RefreshCw className="animate-spin" size={18} /> : <Save size={18} />}
+            Simpan Pengaturan
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }

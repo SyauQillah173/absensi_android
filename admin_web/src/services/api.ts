@@ -687,6 +687,12 @@ export const api = {
   updatePermissionSettings(permissions: ApiRecord[]) {
     return request<ApiRecord>('/settings/permissions', { method: 'PUT', body: JSON.stringify({ permissions }) });
   },
+  documentSettings() {
+    return request<ApiRecord>('/document-settings');
+  },
+  updateDocumentSettings(data: ApiRecord) {
+    return request<ApiRecord>('/document-settings', { method: 'PUT', body: JSON.stringify(data) });
+  },
   references(table: string, params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>(`/references/${table}`, {}, params);
   },
@@ -701,6 +707,12 @@ export const api = {
   },
   createPayment(data: PaymentFormPayload) {
     return request<ApiRecord>('/pembayaran', { method: 'POST', body: JSON.stringify(data) });
+  },
+  getPaymentTransaction(id: number) {
+    return request<ApiRecord>(`/pembayaran/transaksi/${id}`);
+  },
+  notifyWaPayment(id: number) {
+    return request<ApiRecord>(`/pembayaran/transaksi/${id}/notify-wa`, { method: 'POST' });
   },
   rekapAbsensiSholat(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord>('/absensi-sholat/rekap', {}, params);
@@ -749,6 +761,9 @@ export const api = {
   },
   pengeluaran(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>('/pengeluaran', {}, params);
+  },
+  getPengeluaran(id: number) {
+    return request<ApiRecord>(`/pengeluaran/${id}`);
   },
   createPengeluaran(data: ApiRecord) {
     return request<ApiRecord>('/pengeluaran', { method: 'POST', body: JSON.stringify(data) });
