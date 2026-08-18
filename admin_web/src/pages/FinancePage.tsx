@@ -96,6 +96,13 @@ export function FinancePage() {
   const [successTransaction, setSuccessTransaction] = useState<ApiRecord | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: number; type: 'transaction' | 'legacy'; title: string } | null>(null);
 
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   async function load() {
     setIsLoading(true);
     setError('');
@@ -179,6 +186,12 @@ export function FinancePage() {
           </button>
         </div>
       </section>
+
+      {toast ? (
+        <div className={`fixed bottom-4 right-4 z-50 rounded-2xl px-6 py-3 text-sm font-bold text-white shadow-xl transition-all duration-300 ${toast.type === 'success' ? 'bg-[#138F81]' : 'bg-[#D63031]'}`}>
+          {toast.message}
+        </div>
+      ) : null}
 
       {successTransaction ? (
         <PostPaymentActionModal
@@ -378,7 +391,11 @@ export function FinancePage() {
           onSaved={async () => {
             setModal(null);
             setEditing(null);
+            showToast('Tipe Pembayaran berhasil disimpan!', 'success');
             await load();
+            if (billingStudentId) {
+              await openBilling(billingStudentId);
+            }
           }}
         />
       ) : null}
@@ -389,6 +406,7 @@ export function FinancePage() {
           onSaved={async () => {
             setModal(null);
             setEditing(null);
+            showToast('Metode Pembayaran berhasil disimpan!', 'success');
             await load();
           }}
         />
@@ -400,6 +418,7 @@ export function FinancePage() {
           onSaved={async () => {
             setModal(null);
             setEditing(null);
+            showToast('Periode Pembayaran berhasil disimpan!', 'success');
             await load();
           }}
         />
