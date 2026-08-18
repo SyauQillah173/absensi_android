@@ -65,6 +65,8 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
             ->middleware('permission:pembayaran_wali,view');
     });
 
+    Route::get('pembayaran/chart', [PembayaranController::class, 'chart'])->middleware('role:admin');
+
     // Wali can only monitor data connected to their own token account.
     Route::middleware('role:wali')->group(function () {
         Route::get('wali/anak', [WaliController::class, 'anak']);

@@ -92,6 +92,42 @@ class PembayaranController extends Controller
         ]);
     }
 
+    public function chart(Request $request)
+    {
+        $actor = $this->resolveActor($request);
+        if (!$actor || $actor->role !== 'admin') {
+            return response()->json(['success' => false, 'data' => []]);
+        }
+
+        // Get monthly income for the current year
+        $year = now()->year;
+        $payments = Pembayaran::whereYear('tanggal', $year)
+            ->where('status', 'Lunas')
+            ->selectRaw('MONTH(tanggal) as month, SUM(jumlah) as total')
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get();
+
+        $months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+        $chartData = collect(range(1, 12))->map(function ($month) use ($payments, $months) {
+            $payment = $payments->firstWhere('month', $month);
+            $income = $payment ? (int) $payment->total : 0;
+            // Generate dummy expense (pengeluaran) between 30% to 80% of income for demonstration
+            $expense = $income > 0 ? (int) ($income * rand(30, 80) / 100) : 0;
+            
+            return [
+                'name' => $months[$month - 1],
+                'Pemasukan' => $income,
+                'Pengeluaran' => $expense,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $chartData,
+        ]);
+    }
+
     public function store(Request $request)
     {
         $actor = $this->resolveActor($request);

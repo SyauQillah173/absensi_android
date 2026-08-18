@@ -130,6 +130,16 @@ class DashboardController extends Controller
                 'total_siswa' => Siswa::count(),
                 'siswa_aktif' => $this->activeStudentsQuery()->count(),
                 'total_mapel' => MataPelajaran::where('status', 'Aktif')->count(),
+                'siswa_per_gender' => Siswa::select('jenis_kelamin', DB::raw('count(*) as total'))
+                    ->groupBy('jenis_kelamin')
+                    ->get()
+                    ->map(fn ($row) => ['name' => $row->jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan', 'value' => $row->total]),
+                'siswa_per_kelas' => Siswa::select('kelas', DB::raw('count(*) as total'))
+                    ->whereNotNull('kelas')
+                    ->groupBy('kelas')
+                    ->orderBy('kelas')
+                    ->get()
+                    ->map(fn ($row) => ['name' => $row->kelas, 'value' => $row->total]),
             ],
         ];
     }
