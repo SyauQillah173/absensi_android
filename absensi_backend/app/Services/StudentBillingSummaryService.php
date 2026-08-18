@@ -163,6 +163,7 @@ class StudentBillingSummaryService
             'status_code' => $status,
             'display_status' => $displayStatus,
             'is_monthly' => $this->isMonthly($bill),
+            'pembayaran_id' => $payments->last()?->id,
         ];
     }
 
@@ -236,6 +237,7 @@ class StudentBillingSummaryService
                         'amount' => (int) ($row['amount'] ?? 0),
                         'remaining_amount' => (int) ($row['remaining_amount'] ?? 0),
                         'bill_id' => $row['id'] ?? null,
+                        'pembayaran_id' => $row['pembayaran_id'] ?? null,
                         'bill' => $row,
                     ];
                 })

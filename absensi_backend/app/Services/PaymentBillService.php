@@ -644,12 +644,24 @@ class PaymentBillService
             $cursor = $start->copy()->startOfMonth();
             $last = $end->copy()->startOfMonth();
             $periods = [];
+
+            $billedMonths = is_array($rule->paymentType?->billed_months) 
+                ? array_map('intval', $rule->paymentType->billed_months) 
+                : null;
+
             while ($cursor->lte($last)) {
+                $month = (int) $cursor->month;
+                
+                if ($billedMonths !== null && !in_array($month, $billedMonths, true)) {
+                    $cursor->addMonthNoOverflow();
+                    continue;
+                }
+
                 $dueDate = $this->dueDateForMonth($cursor, $rule->due_day);
                 $periods[] = [
                     'period_key' => $cursor->format('Y-m'),
                     'period_year' => (int) $cursor->year,
-                    'period_month' => (int) $cursor->month,
+                    'period_month' => $month,
                     'period_label' => $this->monthLabel($cursor),
                     'title' => trim($rule->name . ' ' . $this->monthLabel($cursor)),
                     'due_date' => $dueDate->toDateString(),
@@ -790,25 +802,21 @@ class PaymentBillService
     {
         $query = PaymentBill::query()
             ->where('payment_type_id', $paymentType->id)
-            ->where('status', 'Belum Lunas');
+            ->whereIn('status', ['Belum Lunas', 'Terlambat']);
 
         if (!$paymentType->is_billed_to_all) {
             $query->delete();
             return;
         }
 
-        if (is_array($paymentType->billed_months) && !empty($paymentType->billed_months)) {
-            PaymentBill::query()
-                ->where('payment_type_id', $paymentType->id)
-                ->where('status', 'Belum Lunas')
-                ->whereNotNull('period_month')
-                ->whereNotIn('period_month', array_map('intval', $paymentType->billed_months))
-                ->delete();
-        }
-
-        $academicYear = AcademicYear::query()->where('is_active', true)->first();
-        if ($academicYear) {
-            $this->generateBillsForAcademicPeriod($academicYear);
+        if (is_array($paymentType->billed_months)) {
+            if (empty($paymentType->billed_months)) {
+                $query->whereNotNull('period_month')->delete();
+            } else {
+                $query->whereNotNull('period_month')
+                    ->whereNotIn('period_month', array_map('intval', $paymentType->billed_months))
+                    ->delete();
+            }
         }
     }
 }
