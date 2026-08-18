@@ -145,6 +145,10 @@ class StudentBillingSummaryService
             ? 'Lunas'
             : ($paidAmount > 0 ? 'Kurang Bayar' : $status);
 
+        if (!$this->isMonthly($bill) && $displayStatus === 'Terlambat') {
+            $displayStatus = 'Belum Lunas';
+        }
+
         return [
             ...$formatted,
             'payment_type_name' => $bill->paymentType?->nama ?? $bill->title,

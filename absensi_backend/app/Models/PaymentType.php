@@ -17,10 +17,14 @@ class PaymentType extends Model
         'payment_period_type_id',
         'metode_pembayaran',
         'status',
+        'is_billed_to_all',
+        'billed_months',
     ];
 
     protected $casts = [
         'metode_pembayaran' => 'array',
+        'billed_months' => 'array',
+        'is_billed_to_all' => 'boolean',
     ];
 
     public function pembayaran()

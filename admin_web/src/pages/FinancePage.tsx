@@ -693,6 +693,7 @@ function PaymentModal({
   const [academicYearId, setAcademicYearId] = useState(num(academicPeriods.find((item) => item.is_active === true)?.id ?? academicPeriods[0]?.id));
   const [amount, setAmount] = useState('');
   const [password, setPassword] = useState('');
+  const [notes, setNotes] = useState('');
   const [selectedMonths, setSelectedMonths] = useState<Set<number>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -733,6 +734,7 @@ function PaymentModal({
         via: str(selectedMethod?.name, 'Tunai'),
         payment_method_id: methodId,
         jumlah: total,
+        keterangan: notes.trim() || undefined,
         tanggal: new Date().toISOString().slice(0, 10),
         status: 'Lunas',
         academic_year_id: academicYearId || undefined,
@@ -784,6 +786,15 @@ function PaymentModal({
             <input className="q-input" inputMode="numeric" value={amount} onChange={(event) => setAmount(event.target.value.replace(/\D/g, ''))} />
           </label>
         )}
+        <label className="block">
+          <span className="mb-2 block text-sm font-bold text-[#636E72]">Catatan (Opsional)</span>
+          <textarea
+            className="q-input min-h-[60px] resize-y"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Tulis keterangan tambahan, cth: Angsuran ke-1"
+          />
+        </label>
         <label className="block">
           <span className="mb-2 block text-sm font-bold text-[#636E72]">Password Admin jika diminta sistem</span>
           <input className="q-input" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Opsional" />
@@ -839,6 +850,8 @@ function PaymentTypeModal({
   const [periodId, setPeriodId] = useState(num(row?.payment_period_type_id ?? paymentPeriods[0]?.id));
   const [status, setStatus] = useState(str(row?.status, 'Aktif'));
   const [methods, setMethods] = useState<Set<string>>(() => new Set((Array.isArray(row?.metode_pembayaran) ? row?.metode_pembayaran : paymentMethods.map((item) => item.name)).map(String)));
+  const [isBilledToAll, setIsBilledToAll] = useState(row?.is_billed_to_all !== false);
+  const [billedMonths, setBilledMonths] = useState<Set<number>>(() => new Set(Array.isArray(row?.billed_months) ? row?.billed_months.map(Number) : [7,8,9,10,11,12,1,2,3,4,5,6]));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -854,7 +867,9 @@ function PaymentTypeModal({
         periode: str(period?.code ?? period?.name, 'umum'),
         payment_period_type_id: periodId,
         metode_pembayaran: Array.from(methods),
-        status
+        status,
+        is_billed_to_all: isBilledToAll,
+        billed_months: Array.from(billedMonths),
       };
       if (row?.id) await api.updatePaymentType(num(row.id), payload);
       else await api.createPaymentType(payload);
@@ -872,6 +887,34 @@ function PaymentTypeModal({
         <TextField label="Nama Tipe Pembayaran" value={name} onChange={setName} required />
         <TextField label="Nominal Default" value={amount} onChange={(value) => setAmount(value.replace(/\D/g, ''))} required />
         <SelectField label="Periode Pembayaran" value={periodId} onChange={setPeriodId} rows={paymentPeriods} labelOf={(item) => str(item.name)} />
+        
+        <div className="flex items-center gap-3 rounded-2xl bg-white p-4">
+          <input type="checkbox" id="is_billed_to_all" checked={isBilledToAll} onChange={(e) => setIsBilledToAll(e.target.checked)} className="h-5 w-5 rounded border-[#B2BEC3] text-[#138F81] focus:ring-[#138F81]" />
+          <label htmlFor="is_billed_to_all" className="text-sm font-extrabold text-[#2D3436]">Masukkan ke penagihan seluruh santri otomatis?</label>
+        </div>
+
+        {paymentPeriods.find((item) => num(item.id) === periodId)?.code === 'bulanan' ? (
+          <div className="rounded-3xl bg-white p-4">
+            <p className="mb-3 text-sm font-extrabold text-[#2D3436]">Bulan yang ditagihkan</p>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+              {[
+                { v: 7, l: 'Jul' }, { v: 8, l: 'Agu' }, { v: 9, l: 'Sep' }, { v: 10, l: 'Okt' }, { v: 11, l: 'Nov' }, { v: 12, l: 'Des' },
+                { v: 1, l: 'Jan' }, { v: 2, l: 'Feb' }, { v: 3, l: 'Mar' }, { v: 4, l: 'Apr' }, { v: 5, l: 'Mei' }, { v: 6, l: 'Jun' }
+              ].map((m) => {
+                const selected = billedMonths.has(m.v);
+                return (
+                  <button key={m.v} className={`rounded-xl py-2 text-xs font-bold ${selected ? 'bg-[#138F81] text-white' : 'bg-[#F2F4F6] text-[#636E72]'}`} onClick={() => setBilledMonths((current) => {
+                    const next = new Set(current);
+                    if (next.has(m.v)) next.delete(m.v);
+                    else next.add(m.v);
+                    return next;
+                  })} type="button">{m.l}</button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
         <div className="rounded-3xl bg-white p-4">
           <p className="mb-3 text-sm font-extrabold text-[#2D3436]">Metode Didukung</p>
           <div className="flex flex-wrap gap-2">

@@ -387,8 +387,16 @@ class PaymentBillService
             ->get();
 
         foreach ($paymentTypes as $paymentType) {
+            if (!$paymentType->is_billed_to_all) {
+                continue;
+            }
+
             $rule = $this->ensureRuleForPaymentType($paymentType);
             $months = array_keys($this->monthOrderForPaymentType($paymentType, $semester?->id));
+            if (is_array($paymentType->billed_months) && !empty($paymentType->billed_months)) {
+                $months = array_intersect($months, array_map('intval', $paymentType->billed_months));
+            }
+
             foreach ($students as $student) {
                 foreach ($months as $month) {
                     $periodYear = $this->academicPeriodYear((int) $academicYear->year_start, (int) $academicYear->year_end, $month);
@@ -774,6 +782,32 @@ class PaymentBillService
                     'message' => "Tagihan {$bill->title} jatuh tempo {$bill->due_date->format('Y-m-d')}.",
                 ]
             );
+        }
+    }
+
+    public function syncBillsForPaymentType(PaymentType $paymentType): void
+    {
+        $query = PaymentBill::query()
+            ->where('payment_type_id', $paymentType->id)
+            ->where('status', 'Belum Lunas');
+
+        if (!$paymentType->is_billed_to_all) {
+            $query->delete();
+            return;
+        }
+
+        if (is_array($paymentType->billed_months) && !empty($paymentType->billed_months)) {
+            PaymentBill::query()
+                ->where('payment_type_id', $paymentType->id)
+                ->where('status', 'Belum Lunas')
+                ->whereNotNull('period_month')
+                ->whereNotIn('period_month', array_map('intval', $paymentType->billed_months))
+                ->delete();
+        }
+
+        $academicYear = AcademicYear::query()->where('is_active', true)->first();
+        if ($academicYear) {
+            $this->generateBillsForAcademicPeriod($academicYear);
         }
     }
 }

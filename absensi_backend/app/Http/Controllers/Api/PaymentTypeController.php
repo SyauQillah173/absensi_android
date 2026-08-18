@@ -47,6 +47,7 @@ class PaymentTypeController extends Controller
             app(ActorResolver::class)->active($request)?->id,
             $ruleOptions
         );
+        app(PaymentBillService::class)->syncBillsForPaymentType($paymentType->fresh());
         app(AuditLogService::class)->record($request, 'payment_types', 'create', $paymentType, null, $paymentType->fresh(['billRules'])->toArray());
 
         return response()->json([
@@ -67,6 +68,7 @@ class PaymentTypeController extends Controller
             app(ActorResolver::class)->active($request)?->id,
             $ruleOptions
         );
+        app(PaymentBillService::class)->syncBillsForPaymentType($paymentType->fresh());
         app(AuditLogService::class)->record($request, 'payment_types', 'update', $paymentType, $before, $paymentType->fresh(['billRules'])->toArray());
 
         return response()->json([
@@ -119,6 +121,9 @@ class PaymentTypeController extends Controller
             'metode_pembayaran' => [...$requiredRules, 'array', 'min:1'],
             'metode_pembayaran.*' => ['string', 'max:255', Rule::exists('payment_methods', 'name')->where('is_active', true)],
             'status' => [...$requiredRules, 'in:Aktif,Nonaktif'],
+            'is_billed_to_all' => 'nullable|boolean',
+            'billed_months' => 'nullable|array',
+            'billed_months.*' => 'integer|between:1,12',
             'due_day' => 'nullable|integer|between:1,31',
             'target_type' => 'nullable|in:all,class,student',
             'class_id' => 'nullable|integer|exists:classes,id',
@@ -149,7 +154,7 @@ class PaymentTypeController extends Controller
     private function paymentTypePayload(array $validated): array
     {
         return collect($validated)
-            ->only(['nama', 'deskripsi', 'nominal_default', 'periode', 'payment_period_type_id', 'metode_pembayaran', 'status'])
+            ->only(['nama', 'deskripsi', 'nominal_default', 'periode', 'payment_period_type_id', 'metode_pembayaran', 'status', 'is_billed_to_all', 'billed_months'])
             ->all();
     }
 
