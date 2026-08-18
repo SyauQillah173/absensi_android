@@ -299,9 +299,10 @@ class PembayaranController extends Controller
             ],
         );
 
-        if ($transaction->status === 'Lunas') {
-            app(WhatsAppNotificationService::class)->queuePaymentTransaction($transaction, $actor->id);
-        }
+        // WA Notification is now handled by notifyWa endpoint based on user choice in frontend
+        // if ($transaction->status === 'Lunas') {
+        //     app(WhatsAppNotificationService::class)->queuePaymentTransaction($transaction, $actor->id);
+        // }
 
         return response()->json([
             'success' => true,
@@ -328,6 +329,26 @@ class PembayaranController extends Controller
             'data' => $this->paymentHistoryService->formatLegacyPayment(
                 $pembayaran->load(['siswa', 'wali', 'paymentType'])
             ),
+        ]);
+    }
+
+    public function showTransaction(PaymentTransaction $paymentTransaction)
+    {
+        $paymentTransaction->loadMissing(['siswa', 'wali', 'items.paymentType', 'createdByUser', 'paymentMethod']);
+        return response()->json([
+            'success' => true,
+            'data' => $this->paymentHistoryService->formatTransaction($paymentTransaction),
+        ]);
+    }
+
+    public function notifyWa(Request $request, PaymentTransaction $paymentTransaction)
+    {
+        $actor = $this->resolveActor($request);
+        $log = app(WhatsAppNotificationService::class)->queuePaymentTransaction($paymentTransaction, $actor?->id);
+
+        return response()->json([
+            'success' => true,
+            'message' => $log ? 'Notifikasi WhatsApp berhasil masuk antrean' : 'Tidak dapat mengirim notifikasi WA',
         ]);
     }
 

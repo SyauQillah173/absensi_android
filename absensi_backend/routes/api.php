@@ -252,7 +252,9 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::get('payment-bill-rules', [PaymentBillController::class, 'rules'])->middleware('permission:keuangan,view');
         Route::post('payment-bills/generate', [PaymentBillController::class, 'generate'])->middleware('permission:keuangan,create');
         Route::post('payment-bills/{paymentBill}/notify', [PaymentBillController::class, 'notify'])->middleware('permission:keuangan,approve');
+        Route::get('pembayaran/transaksi/{paymentTransaction}', [PembayaranController::class, 'showTransaction'])->middleware('permission:keuangan,view');
         Route::delete('pembayaran/transaksi/{paymentTransaction}', [PembayaranController::class, 'destroyTransaction'])->middleware('permission:keuangan,delete');
+        Route::post('pembayaran/transaksi/{paymentTransaction}/notify-wa', [PembayaranController::class, 'notifyWa'])->middleware('permission:keuangan,create');
         Route::apiResource('pembayaran', PembayaranController::class)->middleware('permission:keuangan,view');
 
         Route::get('payment-security-settings', [AdminPaymentSecuritySettingController::class, 'show']);
@@ -287,6 +289,7 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
 
         // PENGELUARAN
         Route::get('pengeluaran', [PengeluaranController::class, 'index'])->middleware('permission:keuangan,view');
+        Route::get('pengeluaran/{id}', [PengeluaranController::class, 'show'])->middleware('permission:keuangan,view');
         Route::post('pengeluaran', [PengeluaranController::class, 'store'])->middleware('permission:keuangan,create');
         Route::put('pengeluaran/{id}', [PengeluaranController::class, 'update'])->middleware('permission:keuangan,update');
         Route::delete('pengeluaran/{id}', [PengeluaranController::class, 'destroy'])->middleware('permission:keuangan,delete');

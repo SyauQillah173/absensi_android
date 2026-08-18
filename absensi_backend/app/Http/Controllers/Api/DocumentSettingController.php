@@ -37,6 +37,7 @@ class DocumentSettingController extends Controller
                     'payment_admin_name' => 'required|string|max:255',
                     'payment_admin_title' => 'required|string|max:255',
                     'payment_signature_mode' => 'required|in:kosong,uploaded',
+                    'receipt_width' => 'nullable|string|max:20',
                 ]
                 : [
                     'user_id' => 'required|exists:users,id',
@@ -155,6 +156,7 @@ class DocumentSettingController extends Controller
                 'payment_admin_name' => 'Petugas Administrasi',
                 'payment_admin_title' => 'Petugas Administrasi',
                 'payment_signature_mode' => 'kosong',
+                'receipt_width' => '58mm',
             ]
         );
     }
@@ -209,6 +211,7 @@ class DocumentSettingController extends Controller
             'payment_signature_mode' => $pembayaran['signature_mode'],
             'payment_signature_path' => $pembayaran['signature_path'],
             'payment_signature_url' => $pembayaran['signature_url'],
+            'receipt_width' => $settings->receipt_width ?? '58mm',
             'nilai' => $nilai,
             'pembayaran' => $pembayaran,
             'updated_at' => optional($settings->updated_at)->format('Y-m-d H:i'),

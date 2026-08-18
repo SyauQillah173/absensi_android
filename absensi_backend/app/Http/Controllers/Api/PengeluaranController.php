@@ -19,6 +19,19 @@ class PengeluaranController extends Controller
         ]);
     }
 
+    public function show($id)
+    {
+        $pengeluaran = Pengeluaran::with('penginput:id,name')->find($id);
+        if (!$pengeluaran) {
+            return response()->json(['success' => false, 'message' => 'Data tidak ditemukan'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $pengeluaran
+        ]);
+    }
+
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
