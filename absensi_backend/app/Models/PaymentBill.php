@@ -5,6 +5,9 @@ namespace App\Models;
 use App\Services\AcademicPeriodService;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property \Illuminate\Support\Carbon|null $due_date
+ */
 class PaymentBill extends Model
 {
     protected $fillable = [

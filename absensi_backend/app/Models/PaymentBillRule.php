@@ -5,6 +5,10 @@ namespace App\Models;
 use App\Services\AcademicPeriodService;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property \Illuminate\Support\Carbon|null $starts_on
+ * @property \Illuminate\Support\Carbon|null $ends_on
+ */
 class PaymentBillRule extends Model
 {
     protected $fillable = [

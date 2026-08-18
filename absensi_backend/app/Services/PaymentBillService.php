@@ -66,8 +66,8 @@ class PaymentBillService
                 : $this->normalizeDueDay($rule?->due_day ?? 10),
             'target_type' => $options['target_type'] ?? 'all',
             'class_id' => $options['class_id'] ?? null,
-            'starts_on' => $options['starts_on'] ?? $rule?->starts_on?->toDateString() ?? now()->toDateString(),
-            'ends_on' => array_key_exists('ends_on', $options) ? $options['ends_on'] : $rule?->ends_on?->toDateString(),
+            'starts_on' => $options['starts_on'] ?? ($rule && $rule->starts_on ? $rule->starts_on->format('Y-m-d') : now()->format('Y-m-d')),
+            'ends_on' => array_key_exists('ends_on', $options) ? $options['ends_on'] : ($rule && $rule->ends_on ? $rule->ends_on->format('Y-m-d') : null),
             'is_active' => $options['is_active'] ?? (($paymentType->status ?? 'Aktif') === 'Aktif'),
             'notification_settings' => $options['notification_settings'] ?? [
                 'channels' => ['in_app'],
@@ -103,6 +103,7 @@ class PaymentBillService
             ->when($ruleId, fn ($query) => $query->where('id', $ruleId))
             ->orderBy('id')
             ->chunkById(50, function ($rules) use ($through, &$createdOrTouched) {
+                /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\PaymentBillRule> $rules */
                 foreach ($rules as $rule) {
                     if (!$rule->paymentType || ($rule->paymentType->status ?? 'Aktif') !== 'Aktif') {
                         continue;
@@ -116,7 +117,7 @@ class PaymentBillService
                     $students = $this->targetStudents($rule)->get();
                     foreach ($students as $siswa) {
                         foreach ($periods as $period) {
-                            $status = Carbon::parse($period['due_date'])->lt(now()->startOfDay())
+                            $status = Carbon::parse($period['due_date']) < now()->startOfDay()
                                 ? 'Terlambat'
                                 : 'Belum Lunas';
                             $existing = PaymentBill::query()

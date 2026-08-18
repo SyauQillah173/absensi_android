@@ -137,6 +137,48 @@ class PembayaranController extends Controller
         ]);
     }
 
+    private function validateStoreRequest(Request $request): array
+    {
+        return $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'siswa_id' => 'required|exists:siswa,id',
+            'atas_nama' => 'nullable|string',
+            'jenis' => 'nullable|string|max:255',
+            'via' => 'required|string|max:255',
+            'payment_method_id' => 'nullable|integer|exists:payment_methods,id',
+            'jumlah' => 'nullable|integer|min:0',
+            'tanggal' => 'required|date',
+            'status' => 'required|in:Lunas,Belum Lunas,Menunggu',
+            'payment_status_id' => 'nullable|integer|exists:payment_statuses,id',
+            'periode_mulai' => 'nullable|string',
+            'periode_selesai' => 'nullable|string',
+            'keterangan' => 'nullable|string',
+            'payment_type_id' => 'nullable|exists:payment_types,id',
+            'payment_bill_id' => 'nullable|exists:payment_bills,id',
+            'academic_year_id' => 'nullable|integer|exists:academic_years,id',
+            'semester_id' => 'nullable|integer|exists:semesters,id',
+            'tahun_ajaran' => 'nullable|string|max:30',
+            'semester' => 'nullable|string|max:30',
+            'payment_items' => 'nullable|array|min:1',
+            'payment_items.*.payment_type_id' => 'nullable|exists:payment_types,id',
+            'payment_items.*.payment_bill_id' => 'nullable|exists:payment_bills,id',
+            'payment_items.*.jumlah' => 'nullable|integer|min:0',
+            'payment_items.*.period_month' => 'nullable|integer|min:1|max:12',
+            'payment_items.*.month' => 'nullable|integer|min:1|max:12',
+            'payment_items.*.keterangan' => 'nullable|string',
+            'payment_items.*.academic_year_id' => 'nullable|integer|exists:academic_years,id',
+            'payment_items.*.semester_id' => 'nullable|integer|exists:semesters,id',
+            'payment_items.*.tahun_ajaran' => 'nullable|string|max:30',
+            'payment_items.*.semester' => 'nullable|string|max:30',
+            'biometric_verified_at' => 'nullable|date',
+            'biometric_verification_method' => ['nullable', Rule::in(self::BIOMETRIC_METHODS)],
+            'biometric_verification_mode' => 'nullable|string|max:100',
+            'device_label' => 'nullable|string|max:255',
+            'payment_security_password' => 'nullable|string',
+            'payment_security_pin' => 'nullable|string',
+        ]);
+    }
+
     public function store(Request $request)
     {
         try {
@@ -145,44 +187,7 @@ class PembayaranController extends Controller
                 return $this->forbidden('Hanya admin yang dapat mencatat pembayaran');
             }
 
-            $validated = $request->validate([
-                'user_id' => 'required|exists:users,id',
-                'siswa_id' => 'required|exists:siswa,id',
-                'atas_nama' => 'nullable|string',
-                'jenis' => 'nullable|string|max:255',
-                'via' => 'required|string|max:255',
-                'payment_method_id' => 'nullable|integer|exists:payment_methods,id',
-                'jumlah' => 'nullable|integer|min:0',
-                'tanggal' => 'required|date',
-                'status' => 'required|in:Lunas,Belum Lunas,Menunggu',
-                'payment_status_id' => 'nullable|integer|exists:payment_statuses,id',
-                'periode_mulai' => 'nullable|string',
-                'periode_selesai' => 'nullable|string',
-                'keterangan' => 'nullable|string',
-                'payment_type_id' => 'nullable|exists:payment_types,id',
-                'payment_bill_id' => 'nullable|exists:payment_bills,id',
-                'academic_year_id' => 'nullable|integer|exists:academic_years,id',
-                'semester_id' => 'nullable|integer|exists:semesters,id',
-                'tahun_ajaran' => 'nullable|string|max:30',
-                'semester' => 'nullable|string|max:30',
-                'payment_items' => 'nullable|array|min:1',
-                'payment_items.*.payment_type_id' => 'nullable|exists:payment_types,id',
-                'payment_items.*.payment_bill_id' => 'nullable|exists:payment_bills,id',
-                'payment_items.*.jumlah' => 'nullable|integer|min:0',
-                'payment_items.*.period_month' => 'nullable|integer|min:1|max:12',
-                'payment_items.*.month' => 'nullable|integer|min:1|max:12',
-                'payment_items.*.keterangan' => 'nullable|string',
-                'payment_items.*.academic_year_id' => 'nullable|integer|exists:academic_years,id',
-                'payment_items.*.semester_id' => 'nullable|integer|exists:semesters,id',
-                'payment_items.*.tahun_ajaran' => 'nullable|string|max:30',
-                'payment_items.*.semester' => 'nullable|string|max:30',
-                'biometric_verified_at' => 'nullable|date',
-                'biometric_verification_method' => ['nullable', Rule::in(self::BIOMETRIC_METHODS)],
-                'biometric_verification_mode' => 'nullable|string|max:100',
-                'device_label' => 'nullable|string|max:255',
-                'payment_security_password' => 'nullable|string',
-                'payment_security_pin' => 'nullable|string',
-            ]);
+            $validated = $this->validateStoreRequest($request);
             $validated = $this->normalizePaymentReferences($validated);
             if (!empty($validated['payment_method_id'])) {
                 $this->assertActivePaymentMethod((int) $validated['payment_method_id']);
