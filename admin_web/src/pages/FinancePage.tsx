@@ -410,8 +410,13 @@ function StudentBillingPanel({
   });
   const student = students.find((item) => num(item.id) === selectedStudentId);
   const totals = (summary?.summary ?? summary) as ApiRecord | undefined;
-  const monthly = Array.isArray(summary?.monthly) ? (summary.monthly as ApiRecord[]) : Array.isArray(summary?.monthly_items) ? (summary?.monthly_items as ApiRecord[]) : [];
-  const general = Array.isArray(summary?.general) ? (summary.general as ApiRecord[]) : Array.isArray(summary?.general_items) ? (summary?.general_items as ApiRecord[]) : [];
+  const groups = Array.isArray(summary?.groups) ? (summary.groups as ApiRecord[]) : [];
+  const monthly = groups.length > 0
+    ? groups.flatMap((g) => (Array.isArray(g.monthly) ? g.monthly : []))
+    : Array.isArray(summary?.monthly) ? (summary.monthly as ApiRecord[]) : Array.isArray(summary?.monthly_items) ? (summary?.monthly_items as ApiRecord[]) : [];
+  const general = groups.length > 0
+    ? groups.flatMap((g) => (Array.isArray(g.general) ? g.general : []))
+    : Array.isArray(summary?.general) ? (summary.general as ApiRecord[]) : Array.isArray(summary?.general_items) ? (summary?.general_items as ApiRecord[]) : [];
 
   return (
     <div className="space-y-5">
@@ -461,7 +466,7 @@ function StudentBillingPanel({
                             return (
                               <td key={`${str(item.id)}-${monthNo}`} className={`h-14 min-w-16 rounded-2xl text-center text-sm font-extrabold ${paid ? 'bg-[#138F81] text-white' : 'bg-[#D9E4EA] text-[#636E72]'}`}>
                                 <div>{str(month.label ?? monthLabels[monthNo] ?? monthNo)}</div>
-                                <div>{paid ? <Check className="mx-auto" size={18} /> : '-'}</div>
+                                <div>{paid ? <Check className="mx-auto" size={18} /> : <X className="mx-auto" size={18} />}</div>
                               </td>
                             );
                           })}

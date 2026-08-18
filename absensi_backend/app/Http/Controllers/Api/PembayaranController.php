@@ -346,7 +346,7 @@ class PembayaranController extends Controller
 
     public function showTransaction(PaymentTransaction $paymentTransaction)
     {
-        $paymentTransaction->loadMissing(['siswa', 'wali', 'items.paymentType', 'createdByUser', 'paymentMethod']);
+        $paymentTransaction->loadMissing(['siswa', 'wali', 'items.paymentType', 'creator', 'paymentMethod']);
         return response()->json([
             'success' => true,
             'data' => $this->paymentHistoryService->formatTransaction($paymentTransaction),
