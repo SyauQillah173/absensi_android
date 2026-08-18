@@ -809,14 +809,88 @@ class PaymentBillService
             return;
         }
 
-        if (is_array($paymentType->billed_months)) {
+        $isMonthly = str_contains(strtolower($paymentType->periode ?? ''), 'bulan');
+
+        if ($isMonthly && is_array($paymentType->billed_months)) {
             if (empty($paymentType->billed_months)) {
                 $query->whereNotNull('period_month')->delete();
+                return;
             } else {
                 $query->whereNotNull('period_month')
                     ->whereNotIn('period_month', array_map('intval', $paymentType->billed_months))
                     ->delete();
             }
+        }
+
+        // Fast generation for missing checked months (only for monthly bills)
+        if (!$isMonthly || empty($paymentType->billed_months)) {
+            return;
+        }
+
+        $academicYear = AcademicYear::query()->where('is_active', true)->first();
+        if (!$academicYear) {
+            return;
+        }
+
+        $rule = $this->ensureRuleForPaymentType($paymentType);
+        $monthsToBill = array_map('intval', $paymentType->billed_months);
+
+        $students = Siswa::query()
+            ->whereHas('tahunAjaran', function ($q) use ($academicYear) {
+                $q->where('academic_year_id', $academicYear->id)
+                  ->where('is_active', true);
+            })
+            ->get();
+
+        $existingBills = PaymentBill::query()
+            ->where('payment_type_id', $paymentType->id)
+            ->where('academic_year_id', $academicYear->id)
+            ->whereNotNull('period_month')
+            ->select('siswa_id', 'period_month')
+            ->get()
+            ->groupBy('siswa_id')
+            ->map(fn ($items) => $items->pluck('period_month')->toArray());
+
+        $inserts = [];
+        $now = now();
+
+        foreach ($students as $student) {
+            $existingMonths = $existingBills->get($student->id, []);
+            $missingMonths = array_diff($monthsToBill, $existingMonths);
+
+            foreach ($missingMonths as $month) {
+                $periodYear = $this->academicPeriodYear((int) $academicYear->year_start, (int) $academicYear->year_end, $month);
+                $periodKey = sprintf('%04d-%02d', $periodYear, $month);
+                $periodLabel = $this->monthLabel(Carbon::create($periodYear, $month, 1));
+                $dueDate = $this->dueDateForMonth(Carbon::create($periodYear, $month, 1), $rule->due_day);
+                $status = $dueDate->lt($now->startOfDay()) ? 'Terlambat' : 'Belum Lunas';
+
+                $inserts[] = [
+                    'payment_bill_rule_id' => $rule->id,
+                    'payment_type_id' => $paymentType->id,
+                    'siswa_id' => $student->id,
+                    'wali_id' => $student->wali_id,
+                    'class_id' => $student->class_id,
+                    'period_key' => $periodKey,
+                    'period_year' => $periodYear,
+                    'period_month' => $month,
+                    'period_label' => $periodLabel,
+                    'title' => trim($paymentType->nama . ' ' . $periodLabel),
+                    'amount' => (int) ($paymentType->nominal_default ?? $rule->nominal),
+                    'due_date' => $dueDate->toDateString(),
+                    'status' => $status,
+                    'academic_year_id' => $academicYear->id,
+                    'tahun_ajaran' => $academicYear->name,
+                    'semester_id' => null,
+                    'semester' => null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+
+        foreach (array_chunk($inserts, 500) as $chunk) {
+            PaymentBill::insert($chunk);
         }
     }
 }
