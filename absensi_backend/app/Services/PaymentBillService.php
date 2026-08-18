@@ -253,7 +253,6 @@ class PaymentBillService
         $bill = PaymentBill::query()
             ->where('siswa_id', $siswa->id)
             ->where('academic_year_id', $academicYearId)
-            ->where('semester_id', $semester?->id)
             ->where('payment_type_id', $paymentType->id)
             ->where('period_month', $month)
             ->first();
@@ -401,7 +400,6 @@ class PaymentBillService
                     $existing = PaymentBill::query()
                         ->where('siswa_id', $student->id)
                         ->where('academic_year_id', $academicYear->id)
-                        ->where('semester_id', $semester?->id)
                         ->where('payment_type_id', $paymentType->id)
                         ->where('period_month', $month)
                         ->first();
@@ -410,7 +408,6 @@ class PaymentBillService
                         [
                             'siswa_id' => $student->id,
                             'academic_year_id' => $academicYear->id,
-                            'semester_id' => $semester?->id,
                             'payment_type_id' => $paymentType->id,
                             'period_month' => $month,
                         ],
@@ -429,6 +426,7 @@ class PaymentBillService
                                 : $status,
                             'tahun_ajaran' => $academicYear->name,
                             'semester' => $semester?->name,
+                            'semester_id' => $semester?->id,
                         ]
                     );
                     $createdOrTouched++;
