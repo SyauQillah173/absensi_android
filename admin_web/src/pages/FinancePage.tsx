@@ -1007,3 +1007,92 @@ function DocumentSettingsPanel({ settings, onSaved }: { settings: ApiRecord | nu
     </div>
   );
 }
+
+function SaveButton({ saving, form, label }: { saving: boolean; form: string; label: string }) {
+  return (
+    <button className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#138F81] text-sm font-extrabold text-white disabled:opacity-60" disabled={saving} form={form} type="submit">
+      {saving ? <X size={18} /> : <Save size={18} />} {saving ? 'Menyimpan...' : label}
+    </button>
+  );
+}
+
+function PengeluaranPanel({ rows, onCreate, onEdit, onDelete }: { rows: ApiRecord[]; onCreate: () => void; onEdit: (row: ApiRecord) => void; onDelete: (row: ApiRecord) => void }) {
+  const columns = [
+    { key: 'tanggal', header: 'Tanggal', render: (row: ApiRecord) => new Date(String(row.tanggal)).toLocaleDateString('id-ID') },
+    { key: 'judul', header: 'Judul', render: (row: ApiRecord) => str(row.judul) },
+    { key: 'kategori', header: 'Kategori', render: (row: ApiRecord) => str(row.kategori) },
+    { key: 'jumlah', header: 'Nominal', render: (row: ApiRecord) => <MoneyText value={num(row.jumlah)} className="font-extrabold text-[#FF7675]" /> },
+    { key: 'keterangan', header: 'Keterangan', render: (row: ApiRecord) => str(row.keterangan) },
+    { key: 'penginput', header: 'Diinput Oleh', render: (row: ApiRecord) => str(record(row.penginput)?.name ?? '-') },
+    {
+      key: 'aksi',
+      header: 'Aksi',
+      render: (row: ApiRecord) => (
+        <div className="flex gap-2">
+          <button className="rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-bold text-[#2E86DE]" onClick={() => onEdit(row)} type="button">Edit</button>
+          <button className="rounded-xl bg-[#FDF4E6] px-3 py-2 text-xs font-bold text-[#D9822B]" onClick={() => window.open(`/finance/print-expense/${row.id}`, '_blank')} type="button"><Printer size={14} /></button>
+          <button className="rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-bold text-[#D63031]" onClick={() => void onDelete(row)} type="button"><Trash2 size={14} /></button>
+        </div>
+      )
+    }
+  ];
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <button className="flex min-h-10 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-bold text-white" onClick={onCreate} type="button">
+          <Plus size={16} /> Tambah Pengeluaran
+        </button>
+      </div>
+      <DataTable
+        columns={columns}
+        rows={rows}
+        emptyText="Belum ada data pengeluaran."
+      />
+    </div>
+  );
+}
+
+function PengeluaranModal({ row, onClose, onSaved }: { row: ApiRecord | null; onClose: () => void; onSaved: () => Promise<void> }) {
+  const [judul, setJudul] = useState(str(row?.judul, ''));
+  const [jumlah, setJumlah] = useState(String(row?.jumlah ?? '0'));
+  const [tanggal, setTanggal] = useState(str(row?.tanggal, new Date().toISOString().split('T')[0]));
+  const [kategori, setKategori] = useState(str(row?.kategori, ''));
+  const [keterangan, setKeterangan] = useState(str(row?.keterangan, ''));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setError('');
+    try {
+      const payload = { judul, jumlah: num(jumlah), tanggal, kategori, keterangan };
+      if (row?.id) await api.updatePengeluaran(num(row.id), payload);
+      else await api.createPengeluaran(payload);
+      await onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Data pengeluaran gagal disimpan');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <ModalForm title={row ? 'Edit Pengeluaran' : 'Tambah Pengeluaran'} onClose={onClose} footer={<SaveButton saving={saving} form="pengeluaran-form" label="Simpan" />}>
+      <form id="pengeluaran-form" className="space-y-4" onSubmit={submit}>
+        <TextField label="Tanggal" value={tanggal} onChange={setTanggal} required />
+        <TextField label="Judul/Keperluan" value={judul} onChange={setJudul} required />
+        <label className="block">
+          <span className="mb-2 block text-sm font-bold text-[#636E72]">Nominal (Rp)</span>
+          <input className="q-input" type="number" min="0" value={jumlah} onChange={(event) => setJumlah(event.target.value)} required />
+        </label>
+        <TextField label="Kategori" value={kategori} onChange={setKategori} />
+        <label className="block">
+          <span className="mb-2 block text-sm font-bold text-[#636E72]">Keterangan Tambahan</span>
+          <textarea className="q-input min-h-24" value={keterangan} onChange={(event) => setKeterangan(event.target.value)} />
+        </label>
+        {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
+      </form>
+    </ModalForm>
+  );
+}
