@@ -182,7 +182,7 @@ export function FinancePage() {
         <PostPaymentActionModal
           transaction={successTransaction}
           onPrint={() => {
-            window.open(`/finance/print/${successTransaction.id}`, '_blank');
+            window.open(`/finance/print/${successTransaction.id}`, '_blank', 'noopener,noreferrer');
           }}
           onSendWa={async () => {
             try {
@@ -1064,7 +1064,7 @@ function PengeluaranPanel({ rows, onCreate, onEdit, onDelete }: { rows: ApiRecor
       render: (row: ApiRecord) => (
         <div className="flex gap-2">
           <button className="rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-bold text-[#2E86DE]" onClick={() => onEdit(row)} type="button">Edit</button>
-          <button className="rounded-xl bg-[#FDF4E6] px-3 py-2 text-xs font-bold text-[#D9822B]" onClick={() => window.open(`/finance/print-expense/${row.id}`, '_blank')} type="button"><Printer size={14} /></button>
+          <button className="rounded-xl bg-[#FDF4E6] px-3 py-2 text-xs font-bold text-[#D9822B]" onClick={() => window.open(`/finance/print-expense/${row.id}`, '_blank', 'noopener,noreferrer')} type="button"><Printer size={14} /></button>
           <button className="rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-bold text-[#D63031]" onClick={() => void onDelete(row)} type="button"><Trash2 size={14} /></button>
         </div>
       )
