@@ -139,176 +139,184 @@ class PembayaranController extends Controller
 
     public function store(Request $request)
     {
-        $actor = $this->resolveActor($request);
-        if (!$actor || $actor->role !== 'admin') {
-            return $this->forbidden('Hanya admin yang dapat mencatat pembayaran');
-        }
+        try {
+            $actor = $this->resolveActor($request);
+            if (!$actor || $actor->role !== 'admin') {
+                return $this->forbidden('Hanya admin yang dapat mencatat pembayaran');
+            }
 
-        $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'siswa_id' => 'required|exists:siswa,id',
-            'atas_nama' => 'nullable|string',
-            'jenis' => 'nullable|string|max:255',
-            'via' => 'required|string|max:255',
-            'payment_method_id' => 'nullable|integer|exists:payment_methods,id',
-            'jumlah' => 'nullable|integer|min:0',
-            'tanggal' => 'required|date',
-            'status' => 'required|in:Lunas,Belum Lunas,Menunggu',
-            'payment_status_id' => 'nullable|integer|exists:payment_statuses,id',
-            'periode_mulai' => 'nullable|string',
-            'periode_selesai' => 'nullable|string',
-            'keterangan' => 'nullable|string',
-            'payment_type_id' => 'nullable|exists:payment_types,id',
-            'payment_bill_id' => 'nullable|exists:payment_bills,id',
-            'academic_year_id' => 'nullable|integer|exists:academic_years,id',
-            'semester_id' => 'nullable|integer|exists:semesters,id',
-            'tahun_ajaran' => 'nullable|string|max:30',
-            'semester' => 'nullable|string|max:30',
-            'payment_items' => 'nullable|array|min:1',
-            'payment_items.*.payment_type_id' => 'nullable|exists:payment_types,id',
-            'payment_items.*.payment_bill_id' => 'nullable|exists:payment_bills,id',
-            'payment_items.*.jumlah' => 'nullable|integer|min:0',
-            'payment_items.*.period_month' => 'nullable|integer|min:1|max:12',
-            'payment_items.*.month' => 'nullable|integer|min:1|max:12',
-            'payment_items.*.keterangan' => 'nullable|string',
-            'payment_items.*.academic_year_id' => 'nullable|integer|exists:academic_years,id',
-            'payment_items.*.semester_id' => 'nullable|integer|exists:semesters,id',
-            'payment_items.*.tahun_ajaran' => 'nullable|string|max:30',
-            'payment_items.*.semester' => 'nullable|string|max:30',
-            'biometric_verified_at' => 'nullable|date',
-            'biometric_verification_method' => ['nullable', Rule::in(self::BIOMETRIC_METHODS)],
-            'biometric_verification_mode' => 'nullable|string|max:100',
-            'device_label' => 'nullable|string|max:255',
-            'payment_security_password' => 'nullable|string',
-            'payment_security_pin' => 'nullable|string',
-        ]);
-        $validated = $this->normalizePaymentReferences($validated);
-        $this->assertActivePaymentMethod((int) $validated['payment_method_id']);
-
-        $securitySetting = AdminPaymentSecuritySetting::query()->firstOrCreate(
-            ['user_id' => $actor->id],
-            [
-                'face_enabled' => false,
-                'fingerprint_enabled' => false,
-                'verification_mode' => 'fingerprint_only',
-                'biometric_required' => false,
-            ]
-        );
-
-        $this->assertPaymentSecurityPayload($validated, $securitySetting, $actor);
-
-        $siswa = Siswa::with('wali')->findOrFail($validated['siswa_id']);
-        $paymentItems = $this->resolvePaymentItems($validated, $siswa);
-        if ($paymentItems->isEmpty()) {
-            throw ValidationException::withMessages([
-                'payment_items' => ['Pilih minimal satu item pembayaran yang valid.'],
+            $validated = $request->validate([
+                'user_id' => 'required|exists:users,id',
+                'siswa_id' => 'required|exists:siswa,id',
+                'atas_nama' => 'nullable|string',
+                'jenis' => 'nullable|string|max:255',
+                'via' => 'required|string|max:255',
+                'payment_method_id' => 'nullable|integer|exists:payment_methods,id',
+                'jumlah' => 'nullable|integer|min:0',
+                'tanggal' => 'required|date',
+                'status' => 'required|in:Lunas,Belum Lunas,Menunggu',
+                'payment_status_id' => 'nullable|integer|exists:payment_statuses,id',
+                'periode_mulai' => 'nullable|string',
+                'periode_selesai' => 'nullable|string',
+                'keterangan' => 'nullable|string',
+                'payment_type_id' => 'nullable|exists:payment_types,id',
+                'payment_bill_id' => 'nullable|exists:payment_bills,id',
+                'academic_year_id' => 'nullable|integer|exists:academic_years,id',
+                'semester_id' => 'nullable|integer|exists:semesters,id',
+                'tahun_ajaran' => 'nullable|string|max:30',
+                'semester' => 'nullable|string|max:30',
+                'payment_items' => 'nullable|array|min:1',
+                'payment_items.*.payment_type_id' => 'nullable|exists:payment_types,id',
+                'payment_items.*.payment_bill_id' => 'nullable|exists:payment_bills,id',
+                'payment_items.*.jumlah' => 'nullable|integer|min:0',
+                'payment_items.*.period_month' => 'nullable|integer|min:1|max:12',
+                'payment_items.*.month' => 'nullable|integer|min:1|max:12',
+                'payment_items.*.keterangan' => 'nullable|string',
+                'payment_items.*.academic_year_id' => 'nullable|integer|exists:academic_years,id',
+                'payment_items.*.semester_id' => 'nullable|integer|exists:semesters,id',
+                'payment_items.*.tahun_ajaran' => 'nullable|string|max:30',
+                'payment_items.*.semester' => 'nullable|string|max:30',
+                'biometric_verified_at' => 'nullable|date',
+                'biometric_verification_method' => ['nullable', Rule::in(self::BIOMETRIC_METHODS)],
+                'biometric_verification_mode' => 'nullable|string|max:100',
+                'device_label' => 'nullable|string|max:255',
+                'payment_security_password' => 'nullable|string',
+                'payment_security_pin' => 'nullable|string',
             ]);
-        }
+            $validated = $this->normalizePaymentReferences($validated);
+            if (!empty($validated['payment_method_id'])) {
+                $this->assertActivePaymentMethod((int) $validated['payment_method_id']);
+            }
 
-        $atasNama = $siswa->wali?->name
-            ?? $siswa->nama_wali
-            ?? $validated['atas_nama']
-            ?? 'Wali Santri';
-        $total = (int) $paymentItems->sum('jumlah');
-        $transactionStatus = $this->deriveTransactionStatus($validated['status'], $paymentItems);
-        $transactionStatusId = app(ReferenceResolver::class)->paymentStatusId($transactionStatus);
-        $periodPayload = $paymentItems
-            ->map(fn ($item) => collect($item)->only(['academic_year_id', 'semester_id', 'tahun_ajaran', 'semester'])->all())
-            ->first(fn ($item) => !empty($item['academic_year_id']) || !empty($item['tahun_ajaran']), []);
+            $securitySetting = AdminPaymentSecuritySetting::query()->firstOrCreate(
+                ['user_id' => $actor->id],
+                [
+                    'face_enabled' => false,
+                    'fingerprint_enabled' => false,
+                    'verification_mode' => 'fingerprint_only',
+                    'biometric_required' => false,
+                ]
+            );
 
-        $transaction = DB::transaction(function () use ($actor, $validated, $paymentItems, $siswa, $atasNama, $total, $securitySetting, $periodPayload, $transactionStatus, $transactionStatusId) {
-            $transaction = PaymentTransaction::query()->create([
-                'kode_transaksi' => $this->generateTransactionCode(),
-                'siswa_id' => $siswa->id,
-                'wali_id' => $siswa->wali_id,
-                'created_by_user_id' => $actor->id,
-                'updated_by_user_id' => $actor->id,
-                'atas_nama' => $atasNama,
-                'via' => $validated['via'],
-                'payment_method_id' => $validated['payment_method_id'],
-                'jumlah_total' => $total,
-                'total_item' => $paymentItems->count(),
-                'tanggal' => $validated['tanggal'],
-                'status' => $transactionStatus,
-                'payment_status_id' => $transactionStatusId,
-                'keterangan' => $validated['keterangan'] ?? null,
-                'biometric_required' => true,
-                'biometric_verified_at' => $validated['biometric_verified_at'],
-                'biometric_verification_method' => $validated['biometric_verification_method'] ?? 'device_biometric',
-                'biometric_verification_mode' => $validated['biometric_verification_mode'] ?? $securitySetting->verification_mode,
-                ...$periodPayload,
-            ]);
+            $this->assertPaymentSecurityPayload($validated, $securitySetting, $actor);
 
-            foreach ($paymentItems->values() as $index => $item) {
-                Pembayaran::query()->create([
-                    'payment_transaction_id' => $transaction->id,
-                    'sort_order' => $index,
-                    'siswa_id' => $siswa->id,
-                    'payment_type_id' => $item['payment_type_id'],
-                    'payment_bill_id' => $item['payment_bill_id'] ?? null,
-                    'wali_id' => $siswa->wali_id,
-                    'atas_nama' => $atasNama,
-                    'jenis' => $item['jenis'],
-                    'via' => $validated['via'],
-                    'payment_method_id' => $validated['payment_method_id'],
-                    'jumlah' => $item['jumlah'],
-                    'tanggal' => $validated['tanggal'],
-                    'status' => $item['status'],
-                    'payment_status_id' => app(ReferenceResolver::class)->paymentStatusId($item['status']),
-                    'periode_mulai' => $validated['periode_mulai'] ?? null,
-                    'periode_selesai' => $validated['periode_selesai'] ?? null,
-                    'academic_year_id' => $item['academic_year_id'] ?? $periodPayload['academic_year_id'] ?? null,
-                    'semester_id' => $item['semester_id'] ?? $periodPayload['semester_id'] ?? null,
-                    'tahun_ajaran' => $item['tahun_ajaran'] ?? $periodPayload['tahun_ajaran'] ?? null,
-                    'semester' => $item['semester'] ?? $periodPayload['semester'] ?? null,
-                    'keterangan' => $item['keterangan'] ?? $validated['keterangan'] ?? null,
+            $siswa = Siswa::with('wali')->findOrFail($validated['siswa_id']);
+            $paymentItems = $this->resolvePaymentItems($validated, $siswa);
+            if ($paymentItems->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'payment_items' => ['Pilih minimal satu item pembayaran yang valid.'],
                 ]);
             }
 
-            app(PaymentBillService::class)->recalculateBills($paymentItems->pluck('payment_bill_id'));
+            $atasNama = $siswa->wali?->name
+                ?? $siswa->nama_wali
+                ?? $validated['atas_nama']
+                ?? 'Wali Santri';
+            $total = (int) $paymentItems->sum('jumlah');
+            $transactionStatus = $this->deriveTransactionStatus($validated['status'], $paymentItems);
+            $transactionStatusId = app(ReferenceResolver::class)->paymentStatusId($transactionStatus);
+            $periodPayload = $paymentItems
+                ->map(fn ($item) => collect($item)->only(['academic_year_id', 'semester_id', 'tahun_ajaran', 'semester'])->all())
+                ->first(fn ($item) => !empty($item['academic_year_id']) || !empty($item['tahun_ajaran']), []);
 
-            $securitySetting->update([
-                'last_verified_at' => $validated['biometric_verified_at'],
-                'last_verification_method' => $validated['biometric_verification_method'] ?? 'device_biometric',
-                'last_payment_transaction_code' => $transaction->kode_transaksi,
-                'last_device_label' => $validated['device_label'] ?? $securitySetting->last_device_label,
+            $transaction = DB::transaction(function () use ($actor, $validated, $paymentItems, $siswa, $atasNama, $total, $securitySetting, $periodPayload, $transactionStatus, $transactionStatusId) {
+                $transaction = PaymentTransaction::query()->create([
+                    'kode_transaksi' => $this->generateTransactionCode(),
+                    'siswa_id' => $siswa->id,
+                    'wali_id' => $siswa->wali_id,
+                    'created_by_user_id' => $actor->id,
+                    'updated_by_user_id' => $actor->id,
+                    'atas_nama' => $atasNama,
+                    'via' => $validated['via'],
+                    'payment_method_id' => $validated['payment_method_id'] ?? null,
+                    'jumlah_total' => $total,
+                    'total_item' => $paymentItems->count(),
+                    'tanggal' => $validated['tanggal'],
+                    'status' => $transactionStatus,
+                    'payment_status_id' => $transactionStatusId,
+                    'keterangan' => $validated['keterangan'] ?? null,
+                    'biometric_required' => true,
+                    'biometric_verified_at' => $validated['biometric_verified_at'],
+                    'biometric_verification_method' => $validated['biometric_verification_method'] ?? 'device_biometric',
+                    'biometric_verification_mode' => $validated['biometric_verification_mode'] ?? $securitySetting->verification_mode,
+                    ...$periodPayload,
+                ]);
+
+                foreach ($paymentItems->values() as $index => $item) {
+                    Pembayaran::query()->create([
+                        'payment_transaction_id' => $transaction->id,
+                        'sort_order' => $index,
+                        'siswa_id' => $siswa->id,
+                        'payment_type_id' => $item['payment_type_id'] ?? null,
+                        'payment_bill_id' => $item['payment_bill_id'] ?? null,
+                        'wali_id' => $siswa->wali_id,
+                        'atas_nama' => $atasNama,
+                        'jenis' => $item['jenis'] ?? 'Pembayaran',
+                        'via' => $validated['via'],
+                        'payment_method_id' => $validated['payment_method_id'] ?? null,
+                        'jumlah' => $item['jumlah'] ?? 0,
+                        'tanggal' => $validated['tanggal'],
+                        'status' => $item['status'] ?? 'Menunggu',
+                        'payment_status_id' => app(ReferenceResolver::class)->paymentStatusId($item['status'] ?? 'Menunggu'),
+                        'periode_mulai' => $validated['periode_mulai'] ?? null,
+                        'periode_selesai' => $validated['periode_selesai'] ?? null,
+                        'academic_year_id' => $item['academic_year_id'] ?? $periodPayload['academic_year_id'] ?? null,
+                        'semester_id' => $item['semester_id'] ?? $periodPayload['semester_id'] ?? null,
+                        'tahun_ajaran' => $item['tahun_ajaran'] ?? $periodPayload['tahun_ajaran'] ?? null,
+                        'semester' => $item['semester'] ?? $periodPayload['semester'] ?? null,
+                        'keterangan' => $item['keterangan'] ?? $validated['keterangan'] ?? null,
+                    ]);
+                }
+
+                app(PaymentBillService::class)->recalculateBills($paymentItems->pluck('payment_bill_id'));
+
+                $securitySetting->update([
+                    'last_verified_at' => $validated['biometric_verified_at'],
+                    'last_verification_method' => $validated['biometric_verification_method'] ?? 'device_biometric',
+                    'last_payment_transaction_code' => $transaction->kode_transaksi,
+                    'last_device_label' => $validated['device_label'] ?? $securitySetting->last_device_label,
+                ]);
+
+                return $transaction->fresh(['siswa', 'wali', 'items.paymentType']);
+            });
+
+            app(AuditLogService::class)->record($request, 'pembayaran', 'create', $transaction, null, $transaction->toArray(), [
+                'jumlah_total' => $transaction->jumlah_total,
+                'total_item' => $transaction->total_item,
             ]);
 
-            return $transaction->fresh(['siswa', 'wali', 'items.paymentType']);
-        });
+            app(AdminActivityNotificationService::class)->notifyAdmins(
+                'Pembayaran Baru',
+                sprintf(
+                    'Pembayaran %s sebesar Rp %s berhasil dicatat untuk %s.',
+                    $transaction->items->pluck('paymentType.nama')->filter()->unique()->join(', ') ?: 'santri',
+                    number_format((float) $transaction->jumlah_total, 0, ',', '.'),
+                    $transaction->siswa?->nama ?? 'Santri'
+                ),
+                'pembayaran',
+                [
+                    'payment_transaction_id' => $transaction->id,
+                    'siswa_id' => $transaction->siswa_id,
+                    'jumlah' => (int) $transaction->jumlah_total,
+                    'status' => $transaction->status,
+                ],
+            );
 
-        app(AuditLogService::class)->record($request, 'pembayaran', 'create', $transaction, null, $transaction->toArray(), [
-            'jumlah_total' => $transaction->jumlah_total,
-            'total_item' => $transaction->total_item,
-        ]);
-
-        app(AdminActivityNotificationService::class)->notifyAdmins(
-            'Pembayaran Baru',
-            sprintf(
-                'Pembayaran %s sebesar Rp %s berhasil dicatat untuk %s.',
-                $transaction->items->pluck('paymentType.nama')->filter()->unique()->join(', ') ?: 'santri',
-                number_format((float) $transaction->jumlah_total, 0, ',', '.'),
-                $transaction->siswa?->nama ?? 'Santri'
-            ),
-            'pembayaran',
-            [
-                'payment_transaction_id' => $transaction->id,
-                'siswa_id' => $transaction->siswa_id,
-                'jumlah' => (int) $transaction->jumlah_total,
-                'status' => $transaction->status,
-            ],
-        );
-
-        // WA Notification is now handled by notifyWa endpoint based on user choice in frontend
-        // if ($transaction->status === 'Lunas') {
-        //     app(WhatsAppNotificationService::class)->queuePaymentTransaction($transaction, $actor->id);
-        // }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Pembayaran berhasil dicatat',
-            'data' => $this->paymentHistoryService->formatTransaction($transaction),
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => 'Pembayaran berhasil dicatat',
+                'data' => $this->paymentHistoryService->formatTransaction($transaction),
+            ], 201);
+        } catch (\Throwable $th) {
+            if ($th instanceof ValidationException) {
+                throw $th;
+            }
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan sistem: ' . $th->getMessage() . ' di baris ' . $th->getLine() . ' pada ' . basename($th->getFile()),
+                'trace' => $th->getTraceAsString(),
+            ], 400);
+        }
     }
 
     public function show(Pembayaran $pembayaran)
