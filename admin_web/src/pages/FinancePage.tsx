@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import { DataTable } from '../components/DataTable';
 import { ModalForm } from '../components/ModalForm';
 import { formatMoney, MoneyText } from '../components/MoneyText';
+import { DeleteTransactionModal } from '../components/DeleteTransactionModal';
 import { PostPaymentActionModal } from '../components/PostPaymentActionModal';
 import { SearchInput } from '../components/SearchInput';
 import { SegmentedTabs } from '../components/SegmentedTabs';
@@ -196,6 +197,17 @@ export function FinancePage() {
         />
       ) : null}
 
+      {deletingTransaction ? (
+        <DeleteTransactionModal
+          transaction={deletingTransaction}
+          onClose={() => setDeletingTransaction(null)}
+          onDeleted={async () => {
+            setDeletingTransaction(null);
+            await load();
+          }}
+        />
+      ) : null}
+
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -235,22 +247,8 @@ export function FinancePage() {
 
       <section className="q-panel p-4 sm:p-6">
         {isLoading ? <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-bold text-[#636E72]">Memuat data keuangan...</div> : null}
-        {!isLoading && activeTab === 'today' ? <PaymentsTable rows={today} emptyText="Belum ada transaksi hari ini." onDelete={async (row) => {
-            try {
-              await api.deletePaymentTransaction(idOf(row), row.source === 'legacy' ? 'legacy' : 'transaction');
-              await load();
-            } catch (err) {
-              alert('Gagal menghapus transaksi');
-            }
-          }} /> : null}
-        {!isLoading && activeTab === 'history' ? <PaymentsTable rows={history} emptyText="Riwayat pembayaran masih kosong." onDelete={async (row) => {
-            try {
-              await api.deletePaymentTransaction(idOf(row), row.source === 'legacy' ? 'legacy' : 'transaction');
-              await load();
-            } catch (err) {
-              alert('Gagal menghapus transaksi');
-            }
-          }} /> : null}
+        {!isLoading && activeTab === 'today' ? <PaymentsTable rows={today} emptyText="Belum ada transaksi hari ini." onDelete={(row) => setDeletingTransaction(row)} /> : null}
+        {!isLoading && activeTab === 'history' ? <PaymentsTable rows={history} emptyText="Riwayat pembayaran masih kosong." onDelete={(row) => setDeletingTransaction(row)} /> : null}
         {!isLoading && activeTab === 'student' ? (
           <StudentBillingPanel students={students} selectedStudentId={billingStudentId} onSelect={openBilling} summary={billingSummary} />
         ) : null}
@@ -404,11 +402,7 @@ function PaymentsTable({ rows, emptyText, onDelete }: { rows: ApiRecord[]; empty
         ...(onDelete ? [{ key: 'actions', header: '', render: (row: ApiRecord) => (
           <div className="flex justify-end gap-2">
             <button
-              onClick={() => {
-                if (confirm('Yakin ingin menghapus transaksi ini?')) {
-                  onDelete(row);
-                }
-              }}
+              onClick={() => onDelete(row)}
               className="rounded-xl bg-red-50 p-2 text-red-600 hover:bg-red-100"
               title="Hapus Pembayaran"
             >

@@ -412,25 +412,35 @@ class PembayaranController extends Controller
 
     public function destroy(Request $request, Pembayaran $pembayaran)
     {
+        $billIds = collect([$pembayaran->payment_bill_id]);
+        $before = $pembayaran->toArray();
+
         if ($pembayaran->payment_transaction_id) {
             $transaction = PaymentTransaction::query()->find($pembayaran->payment_transaction_id);
             if ($transaction) {
-                $before = $transaction->load('items')->toArray();
-                $billIds = $transaction->items->pluck('payment_bill_id');
-                $transaction->items()->delete();
-                $transaction->delete();
+                // Delete single item
+                $pembayaran->delete();
+                
+                // Recalculate or check remaining items
+                $remainingItemsCount = $transaction->items()->count();
+                if ($remainingItemsCount === 0) {
+                    $transaction->delete();
+                    app(AuditLogService::class)->record($request, 'pembayaran', 'delete_transaction', $transaction, $transaction->toArray(), null);
+                } else {
+                    $transaction->jumlah_total = $transaction->items()->sum('jumlah');
+                    $transaction->save();
+                    app(AuditLogService::class)->record($request, 'pembayaran', 'delete_item', $pembayaran, $before, null);
+                }
+
                 app(PaymentBillService::class)->recalculateBills($billIds);
-                app(AuditLogService::class)->record($request, 'pembayaran', 'delete_transaction', $transaction, $before, null);
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Transaksi pembayaran berhasil dihapus',
+                    'message' => 'Item pembayaran berhasil dihapus',
                 ]);
             }
         }
 
-        $before = $pembayaran->toArray();
-        $billIds = collect([$pembayaran->payment_bill_id]);
         $pembayaran->delete();
         app(PaymentBillService::class)->recalculateBills($billIds);
         app(AuditLogService::class)->record($request, 'pembayaran', 'delete', $pembayaran, $before, null);
