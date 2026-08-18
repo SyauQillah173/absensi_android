@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\PaymentMethodController;
 use App\Http\Controllers\Api\PaymentPeriodTypeController;
 use App\Http\Controllers\Api\PaymentTypeController;
 use App\Http\Controllers\Api\PembayaranController;
+use App\Http\Controllers\Api\PengeluaranController;
 use App\Http\Controllers\Api\PenilaianController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\ReferenceController;
@@ -282,8 +283,15 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::get('payment-types', [PaymentTypeController::class, 'index'])->middleware('permission:keuangan,view');
         Route::post('payment-types', [PaymentTypeController::class, 'store'])->middleware('permission:keuangan,create');
         Route::put('payment-types/{paymentType}', [PaymentTypeController::class, 'update'])->middleware('permission:keuangan,update');
-        Route::delete('payment-types/{paymentType}', [PaymentTypeController::class, 'destroy'])->middleware('permission:keuangan,delete');
-        Route::get('payment-methods', [PaymentMethodController::class, 'index'])->middleware('permission:keuangan,view');
+        Route::delete('pembayaran/types/{type}', [PembayaranController::class, 'destroyType'])->middleware('permission:keuangan,delete');
+
+        // PENGELUARAN
+        Route::get('pengeluaran', [PengeluaranController::class, 'index'])->middleware('permission:keuangan,view');
+        Route::post('pengeluaran', [PengeluaranController::class, 'store'])->middleware('permission:keuangan,create');
+        Route::put('pengeluaran/{id}', [PengeluaranController::class, 'update'])->middleware('permission:keuangan,update');
+        Route::delete('pengeluaran/{id}', [PengeluaranController::class, 'destroy'])->middleware('permission:keuangan,delete');
+
+        Route::post('academic-years', [ReferenceController::class, 'storeAcademicYear']);
         Route::post('payment-methods', [PaymentMethodController::class, 'store'])->middleware('permission:keuangan,create');
         Route::put('payment-methods/{paymentMethod}', [PaymentMethodController::class, 'update'])->middleware('permission:keuangan,update');
         Route::delete('payment-methods/{paymentMethod}', [PaymentMethodController::class, 'destroy'])->middleware('permission:keuangan,delete');

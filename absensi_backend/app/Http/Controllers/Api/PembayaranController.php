@@ -8,6 +8,7 @@ use App\Models\DocumentSetting;
 use App\Models\PaymentTransaction;
 use App\Models\PaymentBill;
 use App\Models\Pembayaran;
+use App\Models\Pengeluaran;
 use App\Models\PaymentType;
 use App\Models\Siswa;
 use App\Models\User;
@@ -108,12 +109,20 @@ class PembayaranController extends Controller
             ->orderBy('month')
             ->get();
 
+        // Get monthly expense for the current year
+        $expenses = Pengeluaran::whereYear('tanggal', $year)
+            ->selectRaw('MONTH(tanggal) as month, SUM(jumlah) as total')
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get();
+
         $months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-        $chartData = collect(range(1, 12))->map(function ($month) use ($payments, $months) {
+        $chartData = collect(range(1, 12))->map(function ($month) use ($payments, $expenses, $months) {
             $payment = $payments->firstWhere('month', $month);
             $income = $payment ? (int) $payment->total : 0;
-            // Generate dummy expense (pengeluaran) between 30% to 80% of income for demonstration
-            $expense = $income > 0 ? (int) ($income * rand(30, 80) / 100) : 0;
+            
+            $expenseData = $expenses->firstWhere('month', $month);
+            $expense = $expenseData ? (int) $expenseData->total : 0;
             
             return [
                 'name' => $months[$month - 1],
