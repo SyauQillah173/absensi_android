@@ -235,8 +235,22 @@ export function FinancePage() {
 
       <section className="q-panel p-4 sm:p-6">
         {isLoading ? <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-bold text-[#636E72]">Memuat data keuangan...</div> : null}
-        {!isLoading && activeTab === 'today' ? <PaymentsTable rows={today} emptyText="Belum ada transaksi hari ini." /> : null}
-        {!isLoading && activeTab === 'history' ? <PaymentsTable rows={history} emptyText="Riwayat pembayaran masih kosong." /> : null}
+        {!isLoading && activeTab === 'today' ? <PaymentsTable rows={today} emptyText="Belum ada transaksi hari ini." onDelete={async (row) => {
+            try {
+              await api.deletePaymentTransaction(idOf(row), row.source === 'legacy' ? 'legacy' : 'transaction');
+              await load();
+            } catch (err) {
+              alert('Gagal menghapus transaksi');
+            }
+          }} /> : null}
+        {!isLoading && activeTab === 'history' ? <PaymentsTable rows={history} emptyText="Riwayat pembayaran masih kosong." onDelete={async (row) => {
+            try {
+              await api.deletePaymentTransaction(idOf(row), row.source === 'legacy' ? 'legacy' : 'transaction');
+              await load();
+            } catch (err) {
+              alert('Gagal menghapus transaksi');
+            }
+          }} /> : null}
         {!isLoading && activeTab === 'student' ? (
           <StudentBillingPanel students={students} selectedStudentId={billingStudentId} onSelect={openBilling} summary={billingSummary} />
         ) : null}
@@ -375,7 +389,7 @@ export function FinancePage() {
   );
 }
 
-function PaymentsTable({ rows, emptyText }: { rows: ApiRecord[]; emptyText: string }) {
+function PaymentsTable({ rows, emptyText, onDelete }: { rows: ApiRecord[]; emptyText: string; onDelete?: (row: ApiRecord) => void }) {
   return (
     <DataTable
       rows={rows}
@@ -386,7 +400,22 @@ function PaymentsTable({ rows, emptyText }: { rows: ApiRecord[]; emptyText: stri
         { key: 'jenis', header: 'Jenis', render: (row) => str(row.jenis ?? row.payment_type_name) },
         { key: 'jumlah', header: 'Nominal', render: (row) => <MoneyText value={row.jumlah} className="font-extrabold text-[#138F81]" /> },
         { key: 'via', header: 'Metode', render: (row) => str(row.via ?? row.payment_method_name) },
-        { key: 'status', header: 'Status', render: (row) => <StatusBadge label={str(row.status, 'Tercatat')} tone={statusTone(row.status)} /> }
+        { key: 'status', header: 'Status', render: (row) => <StatusBadge label={str(row.status, 'Tercatat')} tone={statusTone(row.status)} /> },
+        ...(onDelete ? [{ key: 'actions', header: '', render: (row: ApiRecord) => (
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => {
+                if (confirm('Yakin ingin menghapus transaksi ini?')) {
+                  onDelete(row);
+                }
+              }}
+              className="rounded-xl bg-red-50 p-2 text-red-600 hover:bg-red-100"
+              title="Hapus Pembayaran"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ) }] : [])
       ]}
     />
   );

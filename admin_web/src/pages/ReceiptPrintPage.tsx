@@ -48,18 +48,18 @@ export function ReceiptPrintPage({ id }: { id: string }) {
         {settings?.document_logo_url ? (
           <img src={String(settings.document_logo_url)} alt="Logo" className="mx-auto mb-2 h-12 w-12 object-contain" />
         ) : null}
-        <h1 className="font-bold text-base">UNIVERSITAS QOMARUDDIN</h1>
-        <p className="text-xs">SAMPURNAN BUNGAH GRESIK</p>
+        <h1 className="font-bold text-base">{str(settings?.payment_admin_name ?? 'NAMA APLIKASI/INSTITUSI')}</h1>
+        <p className="text-xs">{str(settings?.payment_admin_title ?? 'Alamat Institusi')}</p>
         <p className="text-xs">================================</p>
         <h2 className="font-bold text-sm mt-2">BUKTI PEMBAYARAN</h2>
       </div>
 
       <div className="mb-4">
-        <div className="flex justify-between"><span className="w-20">No. Trx</span><span>: {str(transaction.kode_transaksi)}</span></div>
+        <div className="flex justify-between"><span className="w-20">No. Trx</span><span>: {str(transaction.transaction_code ?? transaction.kode_transaksi)}</span></div>
         <div className="flex justify-between"><span className="w-20">Tanggal</span><span>: {new Date(String(transaction.tanggal)).toLocaleDateString('id-ID')}</span></div>
         <div className="flex justify-between"><span className="w-20">Santri</span><span>: {str((transaction.siswa as ApiRecord)?.nama)}</span></div>
         <div className="flex justify-between"><span className="w-20">Wali</span><span>: {str((transaction.wali as ApiRecord)?.name ?? transaction.atas_nama)}</span></div>
-        <div className="flex justify-between"><span className="w-20">Petugas</span><span>: {str((transaction.createdByUser as ApiRecord)?.name)}</span></div>
+        <div className="flex justify-between"><span className="w-20">Petugas</span><span>: {str((transaction.creator as ApiRecord)?.name ?? '-')}</span></div>
       </div>
 
       <div className="border-t border-b border-dashed border-black py-2 mb-4">
@@ -80,7 +80,7 @@ export function ReceiptPrintPage({ id }: { id: string }) {
 
       <div className="flex justify-between font-bold text-base mb-4">
         <span>TOTAL</span>
-        <span>Rp {num(transaction.jumlah_total).toLocaleString('id-ID')}</span>
+        <span>Rp {num(transaction.jumlah ?? transaction.jumlah_total).toLocaleString('id-ID')}</span>
       </div>
 
       <div className="text-center text-xs mt-6">

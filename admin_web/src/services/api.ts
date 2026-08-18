@@ -621,6 +621,12 @@ export const api = {
   updatePaymentType(id: number, data: ApiRecord) {
     return request<ApiRecord>(`/payment-types/${id}`, { method: 'PUT', body: JSON.stringify(data) });
   },
+  deletePaymentTransaction(id: number, type: 'transaction' | 'legacy') {
+    if (type === 'transaction') {
+      return request(`/pembayaran/transaksi/${id}`, { method: 'DELETE' });
+    }
+    return request(`/pembayaran/${id}`, { method: 'DELETE' });
+  },
   deletePaymentType(id: number) {
     return request(`/payment-types/${id}`, { method: 'DELETE' });
   },
