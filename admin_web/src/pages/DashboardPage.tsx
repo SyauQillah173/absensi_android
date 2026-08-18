@@ -1,5 +1,8 @@
 import { BookMarked, BookOpenCheck, CalendarCheck, ChevronRight, Landmark, RefreshCw, UsersRound, WalletCards } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import {
+  PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Bar
+} from 'recharts';
 import { useAuth } from '../auth/AuthContext';
 import { DataTable } from '../components/DataTable';
 import { MoneyText, formatCompactMoney, formatMoney } from '../components/MoneyText';
@@ -166,6 +169,46 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
           />
         ) : null}
         {showAbsensi ? <StatCard title="Absensi Sholat" value={getNumber(sholat, 'total')} subtitle={`${getNumber(sholat, 'kamar_sudah_diabsen')} kamar diabsen`} icon={CalendarCheck} tone="purple" /> : null}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5 mb-5">
+        <section className="q-card p-5">
+          <h2 className="text-lg font-extrabold text-[#2D3436] mb-1">Total Santri per Jenis Kelamin</h2>
+          <p className="text-xs font-semibold text-[#636E72] mb-4">Perbandingan jumlah santri laki-laki dan perempuan</p>
+          <div className="h-[250px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie 
+                  data={Array.isArray(statistik?.siswa_per_gender) ? statistik.siswa_per_gender : []} 
+                  dataKey="value" nameKey="name" 
+                  cx="50%" cy="50%" innerRadius={60} outerRadius={80} 
+                  paddingAngle={5} label
+                >
+                  {(Array.isArray(statistik?.siswa_per_gender) ? statistik.siswa_per_gender : []).map((entry: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#138F81' : '#0984E3'} />
+                  ))}
+                </Pie>
+                <RechartsTooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+
+        <section className="q-card p-5">
+          <h2 className="text-lg font-extrabold text-[#2D3436] mb-1">Sebaran Santri per Kelas</h2>
+          <p className="text-xs font-semibold text-[#636E72] mb-4">Jumlah santri berdasarkan jenjang kelas</p>
+          <div className="h-[250px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={Array.isArray(statistik?.siswa_per_kelas) ? statistik.siswa_per_kelas : []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
+                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
+                <RechartsTooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                <Bar dataKey="value" fill="#138F81" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
       </div>
 
       {showAbsensi ? (

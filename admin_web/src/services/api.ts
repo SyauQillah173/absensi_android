@@ -609,6 +609,9 @@ export const api = {
   paymentAll(limit = 150) {
     return request<ApiRecord[]>('/pembayaran', {}, { semua: 1, limit });
   },
+  paymentChart() {
+    return request<ApiRecord[]>('/pembayaran/chart');
+  },
   paymentTypes(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>('/payment-types', {}, params);
   },

@@ -1,5 +1,8 @@
 import { CalendarDays, Check, CreditCard, Landmark, Plus, RefreshCw, Save, Trash2, WalletCards, X } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
+} from 'recharts';
 import { useAuth } from '../auth/AuthContext';
 import { DataTable } from '../components/DataTable';
 import { ModalForm } from '../components/ModalForm';
@@ -83,19 +86,21 @@ export function FinancePage() {
   const [editing, setEditing] = useState<ApiRecord | null>(null);
   const [billingStudentId, setBillingStudentId] = useState<number>(0);
   const [billingSummary, setBillingSummary] = useState<ApiRecord | null>(null);
+  const [chartData, setChartData] = useState<ApiRecord[]>([]);
 
   async function load() {
     setIsLoading(true);
     setError('');
     try {
-      const [todayResult, historyResult, typesResult, methodsResult, periodsResult, studentsResult, academicResult] = await Promise.all([
+      const [todayResult, historyResult, typesResult, methodsResult, periodsResult, studentsResult, academicResult, chartResult] = await Promise.all([
         api.paymentToday(),
         api.paymentAll(),
         api.paymentTypes(),
         api.paymentMethods(),
         api.paymentPeriodTypes(),
         api.siswa({ with_wali: 1, status: 'Aktif', for_payment: 1 }),
-        api.academicPeriods()
+        api.academicPeriods(),
+        api.paymentChart()
       ]);
       setToday(Array.isArray(todayResult.data) ? todayResult.data : []);
       setHistory(Array.isArray(historyResult.data) ? historyResult.data : []);
@@ -104,6 +109,7 @@ export function FinancePage() {
       setPaymentPeriods(Array.isArray(periodsResult.data) ? periodsResult.data : []);
       setStudents(Array.isArray(studentsResult.data) ? studentsResult.data : []);
       setAcademicPeriods(Array.isArray(academicResult.data) ? academicResult.data : []);
+      setChartData(Array.isArray(chartResult.data) ? chartResult.data : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Data keuangan gagal dimuat');
     } finally {
@@ -169,6 +175,33 @@ export function FinancePage() {
         <StatCard title="Tipe Pembayaran Aktif" value={activeTypes.length} subtitle={`${paymentTypes.length} master tagihan`} icon={Landmark} tone="teal" />
         <StatCard title="Metode Aktif" value={activeMethods.length} subtitle={`${paymentMethods.length} metode tersimpan`} icon={CreditCard} tone="blue" />
       </div>
+
+      <section className="q-card p-5 mb-5">
+        <h2 className="text-lg font-extrabold text-[#2D3436] mb-1">Tren Keuangan Tahun {new Date().getFullYear()}</h2>
+        <p className="text-xs font-semibold text-[#636E72] mb-4">Grafik Pemasukan vs Pengeluaran Bulanan (Dummy Data untuk Pengeluaran)</p>
+        <div className="h-[300px] w-full mt-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorPemasukan" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#138F81" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#138F81" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorPengeluaran" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#FF7675" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#FF7675" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
+              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} tickFormatter={(value) => `Rp ${(value/1000).toFixed(0)}K`} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <RechartsTooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} formatter={(value: any) => formatMoney(value)} />
+              <Area type="monotone" dataKey="Pemasukan" stroke="#138F81" strokeWidth={3} fillOpacity={1} fill="url(#colorPemasukan)" />
+              <Area type="monotone" dataKey="Pengeluaran" stroke="#FF7675" strokeWidth={3} fillOpacity={1} fill="url(#colorPengeluaran)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
 
       <SegmentedTabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
