@@ -23,6 +23,7 @@ use App\Services\MapelAccessService;
 use App\Services\PermissionService;
 use App\Services\ReferenceResolver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
