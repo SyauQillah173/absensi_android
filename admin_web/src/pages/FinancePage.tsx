@@ -32,6 +32,7 @@ const tabs = [
   { id: 'today', label: 'Hari Ini' },
   { id: 'history', label: 'Riwayat' },
   { id: 'student', label: 'Per Santri' },
+  { id: 'pengeluaran', label: 'Pengeluaran' },
   { id: 'types', label: 'Tipe Bayar' },
   { id: 'methods', label: 'Metode' },
   { id: 'periods', label: 'Periode' }
@@ -82,17 +83,18 @@ export function FinancePage() {
   const [academicPeriods, setAcademicPeriods] = useState<ApiRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [modal, setModal] = useState<'payment' | 'type' | 'method' | 'period' | null>(null);
+  const [modal, setModal] = useState<'payment' | 'type' | 'method' | 'period' | 'pengeluaran' | null>(null);
   const [editing, setEditing] = useState<ApiRecord | null>(null);
   const [billingStudentId, setBillingStudentId] = useState<number>(0);
   const [billingSummary, setBillingSummary] = useState<ApiRecord | null>(null);
   const [chartData, setChartData] = useState<ApiRecord[]>([]);
+  const [pengeluaran, setPengeluaran] = useState<ApiRecord[]>([]);
 
   async function load() {
     setIsLoading(true);
     setError('');
     try {
-      const [todayResult, historyResult, typesResult, methodsResult, periodsResult, studentsResult, academicResult, chartResult] = await Promise.all([
+      const [todayResult, historyResult, typesResult, methodsResult, periodsResult, studentsResult, academicResult, chartResult, pengeluaranResult] = await Promise.all([
         api.paymentToday(),
         api.paymentAll(),
         api.paymentTypes(),
@@ -100,7 +102,8 @@ export function FinancePage() {
         api.paymentPeriodTypes(),
         api.siswa({ with_wali: 1, status: 'Aktif', for_payment: 1 }),
         api.academicPeriods(),
-        api.paymentChart()
+        api.paymentChart(),
+        api.pengeluaran()
       ]);
       setToday(Array.isArray(todayResult.data) ? todayResult.data : []);
       setHistory(Array.isArray(historyResult.data) ? historyResult.data : []);
@@ -110,6 +113,7 @@ export function FinancePage() {
       setStudents(Array.isArray(studentsResult.data) ? studentsResult.data : []);
       setAcademicPeriods(Array.isArray(academicResult.data) ? academicResult.data : []);
       setChartData(Array.isArray(chartResult.data) ? chartResult.data : []);
+      setPengeluaran(Array.isArray(pengeluaranResult.data) ? pengeluaranResult.data : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Data keuangan gagal dimuat');
     } finally {
@@ -178,7 +182,7 @@ export function FinancePage() {
 
       <section className="q-card p-5 mb-5">
         <h2 className="text-lg font-extrabold text-[#2D3436] mb-1">Tren Keuangan Tahun {new Date().getFullYear()}</h2>
-        <p className="text-xs font-semibold text-[#636E72] mb-4">Grafik Pemasukan vs Pengeluaran Bulanan (Dummy Data untuk Pengeluaran)</p>
+        <p className="text-xs font-semibold text-[#636E72] mb-4">Grafik Pemasukan vs Pengeluaran Bulanan</p>
         <div className="h-[300px] w-full mt-4">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
@@ -211,6 +215,23 @@ export function FinancePage() {
         {!isLoading && activeTab === 'history' ? <PaymentsTable rows={history} emptyText="Riwayat pembayaran masih kosong." /> : null}
         {!isLoading && activeTab === 'student' ? (
           <StudentBillingPanel students={students} selectedStudentId={billingStudentId} onSelect={openBilling} summary={billingSummary} />
+        ) : null}
+        {!isLoading && activeTab === 'pengeluaran' ? (
+          <PengeluaranPanel
+            rows={pengeluaran}
+            onCreate={() => {
+              setEditing(null);
+              setModal('pengeluaran');
+            }}
+            onEdit={(row) => {
+              setEditing(row);
+              setModal('pengeluaran');
+            }}
+            onDelete={async (row) => {
+              await api.deletePengeluaran(idOf(row));
+              await load();
+            }}
+          />
         ) : null}
         {!isLoading && activeTab === 'types' ? (
           <MasterPaymentTypes
@@ -302,6 +323,17 @@ export function FinancePage() {
       ) : null}
       {modal === 'period' ? (
         <PaymentPeriodModal
+          row={editing}
+          onClose={() => setModal(null)}
+          onSaved={async () => {
+            setModal(null);
+            setEditing(null);
+            await load();
+          }}
+        />
+      ) : null}
+      {modal === 'pengeluaran' ? (
+        <PengeluaranModal
           row={editing}
           onClose={() => setModal(null)}
           onSaved={async () => {
@@ -895,5 +927,85 @@ function SaveButton({ saving, form, label }: { saving: boolean; form: string; la
     <button className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#138F81] text-sm font-extrabold text-white disabled:opacity-60" disabled={saving} form={form} type="submit">
       {saving ? <X size={18} /> : <Save size={18} />} {saving ? 'Menyimpan...' : label}
     </button>
+  );
+}
+
+function PengeluaranPanel({ rows, onCreate, onEdit, onDelete }: { rows: ApiRecord[]; onCreate: () => void; onEdit: (row: ApiRecord) => void; onDelete: (row: ApiRecord) => void }) {
+  const columns = [
+    { key: 'tanggal', header: 'Tanggal', render: (row: ApiRecord) => new Date(String(row.tanggal)).toLocaleDateString('id-ID') },
+    { key: 'judul', header: 'Judul', render: (row: ApiRecord) => str(row.judul) },
+    { key: 'kategori', header: 'Kategori', render: (row: ApiRecord) => str(row.kategori) },
+    { key: 'jumlah', header: 'Nominal', render: (row: ApiRecord) => <MoneyText value={num(row.jumlah)} className="font-extrabold text-[#FF7675]" /> },
+    { key: 'keterangan', header: 'Keterangan', render: (row: ApiRecord) => str(row.keterangan) },
+    { key: 'penginput', header: 'Diinput Oleh', render: (row: ApiRecord) => str(record(row.penginput)?.name ?? '-') },
+    {
+      key: 'aksi',
+      header: 'Aksi',
+      render: (row: ApiRecord) => (
+        <div className="flex gap-2">
+          <button className="rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-bold text-[#2E86DE]" onClick={() => onEdit(row)} type="button">Edit</button>
+          <button className="rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-bold text-[#D63031]" onClick={() => void onDelete(row)} type="button"><Trash2 size={14} /></button>
+        </div>
+      )
+    }
+  ];
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <button className="flex min-h-10 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-bold text-white" onClick={onCreate} type="button">
+          <Plus size={16} /> Tambah Pengeluaran
+        </button>
+      </div>
+      <DataTable
+        columns={columns}
+        rows={rows}
+        emptyText="Belum ada data pengeluaran."
+      />
+    </div>
+  );
+}
+
+function PengeluaranModal({ row, onClose, onSaved }: { row: ApiRecord | null; onClose: () => void; onSaved: () => Promise<void> }) {
+  const [judul, setJudul] = useState(str(row?.judul, ''));
+  const [jumlah, setJumlah] = useState(String(row?.jumlah ?? '0'));
+  const [tanggal, setTanggal] = useState(str(row?.tanggal, new Date().toISOString().split('T')[0]));
+  const [kategori, setKategori] = useState(str(row?.kategori, ''));
+  const [keterangan, setKeterangan] = useState(str(row?.keterangan, ''));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setError('');
+    try {
+      const payload = { judul, jumlah: num(jumlah), tanggal, kategori, keterangan };
+      if (row?.id) await api.updatePengeluaran(num(row.id), payload);
+      else await api.createPengeluaran(payload);
+      await onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Data pengeluaran gagal disimpan');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <ModalForm title={row ? 'Edit Pengeluaran' : 'Tambah Pengeluaran'} onClose={onClose} footer={<SaveButton saving={saving} form="pengeluaran-form" label="Simpan" />}>
+      <form id="pengeluaran-form" className="space-y-4" onSubmit={submit}>
+        <TextField label="Tanggal" value={tanggal} onChange={setTanggal} required />
+        <TextField label="Judul/Keperluan" value={judul} onChange={setJudul} required />
+        <label className="block">
+          <span className="mb-2 block text-sm font-bold text-[#636E72]">Nominal (Rp)</span>
+          <input className="q-input" type="number" min="0" value={jumlah} onChange={(event) => setJumlah(event.target.value)} required />
+        </label>
+        <TextField label="Kategori" value={kategori} onChange={setKategori} />
+        <label className="block">
+          <span className="mb-2 block text-sm font-bold text-[#636E72]">Keterangan Tambahan</span>
+          <textarea className="q-input min-h-24" value={keterangan} onChange={(event) => setKeterangan(event.target.value)} />
+        </label>
+        {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
+      </form>
+    </ModalForm>
   );
 }

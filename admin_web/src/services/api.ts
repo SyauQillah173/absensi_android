@@ -746,5 +746,17 @@ export const api = {
   },
   updateNotificationSettings(settings: ApiRecord[]) {
     return request<ApiRecord[]>('/notification-settings', { method: 'PUT', body: JSON.stringify({ settings }) });
+  },
+  pengeluaran(params?: Record<string, string | number | boolean>) {
+    return request<ApiRecord[]>('/pengeluaran', {}, params);
+  },
+  createPengeluaran(data: ApiRecord) {
+    return request<ApiRecord>('/pengeluaran', { method: 'POST', body: JSON.stringify(data) });
+  },
+  updatePengeluaran(id: number, data: ApiRecord) {
+    return request<ApiRecord>(`/pengeluaran/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+  deletePengeluaran(id: number) {
+    return request(`/pengeluaran/${id}`, { method: 'DELETE' });
   }
 };
