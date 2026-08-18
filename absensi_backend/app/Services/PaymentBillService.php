@@ -822,8 +822,73 @@ class PaymentBillService
             }
         }
 
+        // Handle non-monthly bills (e.g. Kitab, Seragam)
+        if (!$isMonthly) {
+            $academicYear = AcademicYear::query()->where('is_active', true)->first();
+            if (!$academicYear) {
+                return;
+            }
+
+            $rule = $this->ensureRuleForPaymentType($paymentType);
+
+            $students = Siswa::query()
+                ->whereHas('tahunAjaran', function ($q) use ($academicYear) {
+                    $q->where('academic_year_id', $academicYear->id)
+                      ->where('is_active', true);
+                })
+                ->get();
+
+            $existingBills = PaymentBill::query()
+                ->where('payment_type_id', $paymentType->id)
+                ->where('academic_year_id', $academicYear->id)
+                ->select('siswa_id')
+                ->get()
+                ->pluck('siswa_id')
+                ->toArray();
+
+            $inserts = [];
+            $now = now();
+
+            foreach ($students as $student) {
+                if (!in_array($student->id, $existingBills)) {
+                    $dueDate = $now->copy();
+                    if ($rule->due_day) {
+                        $dueDate = $this->dueDateForMonth($now, $rule->due_day);
+                    }
+                    $status = $dueDate->lt($now->startOfDay()) ? 'Terlambat' : 'Belum Lunas';
+
+                    $inserts[] = [
+                        'payment_bill_rule_id' => $rule->id,
+                        'payment_type_id' => $paymentType->id,
+                        'siswa_id' => $student->id,
+                        'wali_id' => $student->wali_id,
+                        'class_id' => $student->class_id,
+                        'period_key' => 'once',
+                        'period_year' => null,
+                        'period_month' => null,
+                        'period_label' => 'Sekali Bayar',
+                        'title' => trim($paymentType->nama . ' (Sekali Bayar)'),
+                        'amount' => (int) ($paymentType->nominal_default ?? $rule->nominal),
+                        'due_date' => $dueDate->toDateString(),
+                        'status' => $status,
+                        'academic_year_id' => $academicYear->id,
+                        'tahun_ajaran' => $academicYear->name,
+                        'semester_id' => null,
+                        'semester' => null,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
+            }
+
+            foreach (array_chunk($inserts, 500) as $chunk) {
+                PaymentBill::insert($chunk);
+            }
+            return;
+        }
+
         // Fast generation for missing checked months (only for monthly bills)
-        if (!$isMonthly || empty($paymentType->billed_months)) {
+        if (empty($paymentType->billed_months)) {
             return;
         }
 
