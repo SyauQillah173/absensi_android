@@ -309,7 +309,11 @@ class PembayaranController extends Controller
             ], 201);
         } catch (\Throwable $th) {
             if ($th instanceof ValidationException) {
-                throw $th;
+                return response()->json([
+                    'success' => false,
+                    'message' => collect($th->errors())->flatten()->first() ?? $th->getMessage(),
+                    'errors' => $th->errors(),
+                ], 422);
             }
             return response()->json([
                 'success' => false,
@@ -871,25 +875,33 @@ class PembayaranController extends Controller
 
         if (empty($validated['biometric_verified_at']) || empty($validated['biometric_verification_method'])) {
             $pin = $validated['payment_security_pin'] ?? null;
-            if (
-                $securitySetting->pin_enabled
-                && $securitySetting->transaction_pin_hash
-                && is_string($pin)
-                && $pin !== ''
-                && Hash::check($pin, $securitySetting->transaction_pin_hash)
-            ) {
-                $validated['biometric_verified_at'] = now()->toDateTimeString();
-                $validated['biometric_verification_method'] = 'admin_pin';
-                $validated['biometric_verification_mode'] = 'admin_pin_fallback';
-                return;
+            if (is_string($pin) && $pin !== '') {
+                if (
+                    $securitySetting->pin_enabled
+                    && $securitySetting->transaction_pin_hash
+                    && Hash::check($pin, $securitySetting->transaction_pin_hash)
+                ) {
+                    $validated['biometric_verified_at'] = now()->toDateTimeString();
+                    $validated['biometric_verification_method'] = 'admin_pin';
+                    $validated['biometric_verification_mode'] = 'admin_pin_fallback';
+                    return;
+                }
+                throw ValidationException::withMessages([
+                    'payment_security_pin' => ['PIN transaksi admin tidak valid.'],
+                ]);
             }
 
             $password = $validated['payment_security_password'] ?? null;
-            if (is_string($password) && $password !== '' && Hash::check($password, $actor->password)) {
-                $validated['biometric_verified_at'] = now()->toDateTimeString();
-                $validated['biometric_verification_method'] = 'admin_password';
-                $validated['biometric_verification_mode'] = 'admin_password_fallback';
-                return;
+            if (is_string($password) && $password !== '') {
+                if (Hash::check($password, $actor->password)) {
+                    $validated['biometric_verified_at'] = now()->toDateTimeString();
+                    $validated['biometric_verification_method'] = 'admin_password';
+                    $validated['biometric_verification_mode'] = 'admin_password_fallback';
+                    return;
+                }
+                throw ValidationException::withMessages([
+                    'payment_security_password' => ['Password admin tidak valid.'],
+                ]);
             }
 
             throw ValidationException::withMessages([
