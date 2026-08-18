@@ -7,7 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import { DataTable } from '../components/DataTable';
 import { ModalForm } from '../components/ModalForm';
 import { formatMoney, MoneyText } from '../components/MoneyText';
-import { DeleteTransactionModal } from '../components/DeleteTransactionModal';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { PostPaymentActionModal } from '../components/PostPaymentActionModal';
 import { SearchInput } from '../components/SearchInput';
 import { SegmentedTabs } from '../components/SegmentedTabs';
@@ -94,7 +94,7 @@ export function FinancePage() {
   const [pengeluaran, setPengeluaran] = useState<ApiRecord[]>([]);
   const [documentSettings, setDocumentSettings] = useState<ApiRecord | null>(null);
   const [successTransaction, setSuccessTransaction] = useState<ApiRecord | null>(null);
-  const [deletingTransaction, setDeletingTransaction] = useState<ApiRecord | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: number; type: 'transaction' | 'legacy'; title: string } | null>(null);
 
   async function load() {
     setIsLoading(true);
@@ -198,13 +198,25 @@ export function FinancePage() {
         />
       ) : null}
 
-      {deletingTransaction ? (
-        <DeleteTransactionModal
-          transaction={deletingTransaction}
-          onClose={() => setDeletingTransaction(null)}
-          onDeleted={async () => {
-            setDeletingTransaction(null);
-            await load();
+      {confirmDelete ? (
+        <ConfirmDialog
+          title="Hapus Data"
+          message={`Yakin ingin menghapus ${confirmDelete.title}? Tindakan ini tidak dapat dibatalkan.`}
+          tone="danger"
+          confirmLabel="Hapus"
+          isBusy={isLoading}
+          onCancel={() => setConfirmDelete(null)}
+          onConfirm={async () => {
+            try {
+              setIsLoading(true);
+              await api.deletePaymentTransaction(confirmDelete.id, confirmDelete.type);
+              setConfirmDelete(null);
+              await load();
+            } catch (err) {
+              alert('Gagal menghapus data');
+            } finally {
+              setIsLoading(false);
+            }
           }}
         />
       ) : null}
@@ -248,8 +260,8 @@ export function FinancePage() {
 
       <section className="q-panel p-4 sm:p-6">
         {isLoading ? <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-bold text-[#636E72]">Memuat data keuangan...</div> : null}
-        {!isLoading && activeTab === 'today' ? <PaymentsTable rows={today} emptyText="Belum ada transaksi hari ini." onDelete={(row) => setDeletingTransaction(row)} /> : null}
-        {!isLoading && activeTab === 'history' ? <PaymentsTable rows={history} emptyText="Riwayat pembayaran masih kosong." onDelete={(row) => setDeletingTransaction(row)} /> : null}
+        {!isLoading && activeTab === 'today' ? <PaymentsTable rows={today} emptyText="Belum ada transaksi hari ini." onDeleteTransaction={(row) => setConfirmDelete({ id: num(row.id), type: row.source === 'legacy' ? 'legacy' : 'transaction', title: `Transaksi ${str(row.transaction_code ?? row.kode_transaksi)}` })} onDeleteItem={(item) => setConfirmDelete({ id: num(item.id), type: 'legacy', title: `Item ${str(item.nama)}` })} /> : null}
+        {!isLoading && activeTab === 'history' ? <PaymentsTable rows={history} emptyText="Riwayat pembayaran masih kosong." onDeleteTransaction={(row) => setConfirmDelete({ id: num(row.id), type: row.source === 'legacy' ? 'legacy' : 'transaction', title: `Transaksi ${str(row.transaction_code ?? row.kode_transaksi)}` })} onDeleteItem={(item) => setConfirmDelete({ id: num(item.id), type: 'legacy', title: `Item ${str(item.nama)}` })} /> : null}
         {!isLoading && activeTab === 'student' ? (
           <StudentBillingPanel students={students} selectedStudentId={billingStudentId} onSelect={openBilling} summary={billingSummary} />
         ) : null}
@@ -388,11 +400,42 @@ export function FinancePage() {
   );
 }
 
-function PaymentsTable({ rows, emptyText, onDelete }: { rows: ApiRecord[]; emptyText: string; onDelete?: (row: ApiRecord) => void }) {
+function PaymentsTable({ rows, emptyText, onDeleteTransaction, onDeleteItem }: { rows: ApiRecord[]; emptyText: string; onDeleteTransaction?: (row: ApiRecord) => void; onDeleteItem?: (item: ApiRecord) => void }) {
   return (
     <DataTable
       rows={rows}
       emptyText={emptyText}
+      isRowExpandable={(row) => row.is_multi_payment === true || (Array.isArray(row.payment_items) && row.payment_items.length > 1)}
+      renderExpandedRow={(row) => {
+        const items = Array.isArray(row.payment_items) ? row.payment_items : [];
+        return (
+          <div className="grid gap-2">
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Rincian Transaksi</p>
+            <div className="grid max-w-2xl gap-2">
+              {items.map((item, i) => (
+                <div key={i} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-colors hover:border-gray-300">
+                  <div>
+                    <div className="font-bold text-[#2D3436]">{str(item.nama)}</div>
+                    <div className="text-xs font-semibold text-gray-500">{str(item.periode)} {str(item.keterangan)}</div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-extrabold text-[#138F81]">Rp {num(item.jumlah).toLocaleString('id-ID')}</span>
+                    {onDeleteItem ? (
+                      <button
+                        onClick={() => onDeleteItem(item)}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600 transition-colors hover:bg-red-100"
+                        title="Hapus Item"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }}
       columns={[
         { key: 'siswa', header: 'Santri', render: (row) => str(row.siswa_nama ?? row.nama_siswa ?? row.nama) },
         { key: 'atas', header: 'Atas Nama', render: (row) => str(row.atas_nama ?? row.wali_nama) },
@@ -400,12 +443,12 @@ function PaymentsTable({ rows, emptyText, onDelete }: { rows: ApiRecord[]; empty
         { key: 'jumlah', header: 'Nominal', render: (row) => <MoneyText value={row.jumlah} className="font-extrabold text-[#138F81]" /> },
         { key: 'via', header: 'Metode', render: (row) => str(row.via ?? row.payment_method_name) },
         { key: 'status', header: 'Status', render: (row) => <StatusBadge label={str(row.status, 'Tercatat')} tone={statusTone(row.status)} /> },
-        ...(onDelete ? [{ key: 'actions', header: '', render: (row: ApiRecord) => (
+        ...(onDeleteTransaction ? [{ key: 'actions', header: '', render: (row: ApiRecord) => (
           <div className="flex justify-end gap-2">
             <button
-              onClick={() => onDelete(row)}
+              onClick={() => onDeleteTransaction(row)}
               className="rounded-xl bg-red-50 p-2 text-red-600 hover:bg-red-100"
-              title="Hapus Pembayaran"
+              title="Hapus Seluruh Transaksi"
             >
               <Trash2 size={16} />
             </button>
