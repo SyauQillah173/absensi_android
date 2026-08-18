@@ -33,7 +33,7 @@ const monthLabels: Record<number, string> = {
 const tabs = [
   { id: 'today', label: 'Hari Ini' },
   { id: 'history', label: 'Riwayat' },
-  { id: 'student', label: 'TAGIHAN' },
+  { id: 'student', label: 'Tagihan' },
   { id: 'pengeluaran', label: 'Pengeluaran' },
   { id: 'types', label: 'Tipe Bayar' },
   { id: 'methods', label: 'Metode' },
