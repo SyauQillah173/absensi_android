@@ -47,8 +47,8 @@ export function ExpensePrintPage({ id }: { id: string }) {
         {settings?.document_logo_url ? (
           <img src={String(settings.document_logo_url)} alt="Logo" className="mx-auto mb-2 h-12 w-12 object-contain" />
         ) : null}
-        <h1 className="font-bold text-base">UNIVERSITAS QOMARUDDIN</h1>
-        <p className="text-xs">SAMPURNAN BUNGAH GRESIK</p>
+        <h1 className="font-bold text-base">{str(settings?.payment_admin_name ?? 'NAMA APLIKASI/INSTITUSI')}</h1>
+        <p className="text-xs">{str(settings?.payment_admin_title ?? 'Alamat Institusi')}</p>
         <p className="text-xs">================================</p>
         <h2 className="font-bold text-sm mt-2">KWITANSI PENGELUARAN</h2>
       </div>

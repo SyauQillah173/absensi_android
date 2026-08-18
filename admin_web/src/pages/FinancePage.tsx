@@ -189,7 +189,8 @@ export function FinancePage() {
           onSendWa={async () => {
             try {
               await api.notifyWaPayment(Number(successTransaction.id));
-              alert('Notifikasi WhatsApp sedang dikirim!');
+              alert('Notifikasi WhatsApp berhasil dikirim!');
+              setSuccessTransaction(null);
             } catch (err) {
               alert(err instanceof Error ? err.message : 'Gagal mengirim WA');
             }
@@ -263,7 +264,25 @@ export function FinancePage() {
         {!isLoading && activeTab === 'today' ? <PaymentsTable rows={today} emptyText="Belum ada transaksi hari ini." onDeleteTransaction={(row) => setConfirmDelete({ id: num(row.id), type: row.source === 'legacy' ? 'legacy' : 'transaction', title: `Transaksi ${str(row.transaction_code ?? row.kode_transaksi)}` })} onDeleteItem={(item) => setConfirmDelete({ id: num(item.id), type: 'legacy', title: `Item ${str(item.nama)}` })} /> : null}
         {!isLoading && activeTab === 'history' ? <PaymentsTable rows={history} emptyText="Riwayat pembayaran masih kosong." onDeleteTransaction={(row) => setConfirmDelete({ id: num(row.id), type: row.source === 'legacy' ? 'legacy' : 'transaction', title: `Transaksi ${str(row.transaction_code ?? row.kode_transaksi)}` })} onDeleteItem={(item) => setConfirmDelete({ id: num(item.id), type: 'legacy', title: `Item ${str(item.nama)}` })} /> : null}
         {!isLoading && activeTab === 'student' ? (
-          <StudentBillingPanel students={students} selectedStudentId={billingStudentId} onSelect={openBilling} summary={billingSummary} />
+          <StudentBillingPanel
+            students={students}
+            selectedStudentId={billingStudentId}
+            onSelect={openBilling}
+            summary={billingSummary}
+            onDeletePayment={async (pembayaranId, name) => {
+              try {
+                setIsLoading(true);
+                await api.deletePaymentTransaction(pembayaranId, 'legacy');
+                await load();
+                if (billingStudentId) await openBilling(billingStudentId);
+                alert(`Pembayaran ${name} berhasil dibatalkan`);
+              } catch (err) {
+                alert(`Gagal membatalkan pembayaran: ${err instanceof Error ? err.message : 'Unknown error'}`);
+              } finally {
+                setIsLoading(false);
+              }
+            }}
+          />
         ) : null}
         {!isLoading && activeTab === 'pengeluaran' ? (
           <PengeluaranPanel
@@ -463,14 +482,17 @@ function StudentBillingPanel({
   students,
   selectedStudentId,
   onSelect,
-  summary
+  summary,
+  onDeletePayment
 }: {
   students: ApiRecord[];
   selectedStudentId: number;
   onSelect: (id: number) => void;
   summary: ApiRecord | null;
+  onDeletePayment: (pembayaranId: number, name: string) => Promise<void>;
 }) {
   const [search, setSearch] = useState('');
+  const [confirmCancel, setConfirmCancel] = useState<{ id: number; title: string } | null>(null);
   const filtered = students.filter((student) => {
     const text = `${student.nama ?? ''} ${student.nis ?? ''} ${student.nisn ?? ''} ${student.kelas ?? ''}`.toLowerCase();
     return text.includes(search.toLowerCase());
@@ -530,10 +552,19 @@ function StudentBillingPanel({
                           {months.map((month) => {
                             const monthNo = num(month.month ?? month.period_month ?? month.month_code);
                             const paid = month.is_paid === true || String(month.status ?? '').toLowerCase() === 'lunas';
+                            const pId = month.pembayaran_id;
                             return (
-                              <td key={`${str(item.id)}-${monthNo}`} className={`h-14 min-w-16 rounded-2xl text-center text-sm font-extrabold ${paid ? 'bg-[#138F81] text-white' : 'bg-[#D9E4EA] text-[#636E72]'}`}>
+                              <td key={`${str(item.id)}-${monthNo}`} className={`h-14 min-w-16 rounded-2xl text-center text-sm font-extrabold ${paid ? 'bg-[#138F81] text-white cursor-pointer hover:bg-[#0A7065] transition-colors group relative' : 'bg-[#D9E4EA] text-[#636E72]'}`}
+                                onClick={() => {
+                                  if (paid && pId) {
+                                    setConfirmCancel({ id: Number(pId), title: `SPP ${month.label}` });
+                                  }
+                                }}
+                                title={paid && pId ? "Klik untuk membatalkan pembayaran ini" : undefined}
+                              >
                                 <div>{str(month.label ?? monthLabels[monthNo] ?? monthNo)}</div>
-                                <div>{paid ? <Check className="mx-auto" size={18} /> : <X className="mx-auto" size={18} />}</div>
+                                <div>{paid ? <Check className="mx-auto group-hover:hidden" size={18} /> : <X className="mx-auto" size={18} />}</div>
+                                {paid ? <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-2xl opacity-0 group-hover:opacity-100"><Trash2 size={18} className="text-white" /></div> : null}
                               </td>
                             );
                           })}
@@ -555,7 +586,25 @@ function StudentBillingPanel({
                 { key: 'tagihan', header: 'Tagihan', render: (row) => <MoneyText value={row.amount ?? row.amount_due} /> },
                 { key: 'dibayar', header: 'Dibayar', render: (row) => <MoneyText value={row.paid_amount} /> },
                 { key: 'kurang', header: 'Kurang', render: (row) => <MoneyText value={row.remaining_amount} /> },
-                { key: 'status', header: 'Status', render: (row) => <StatusBadge label={str(row.display_status ?? row.status)} tone={statusTone(row.display_status ?? row.status)} /> }
+                { key: 'status', header: 'Status', render: (row) => <StatusBadge label={str(row.display_status ?? row.status)} tone={statusTone(row.display_status ?? row.status)} /> },
+                { key: 'actions', header: '', render: (row: ApiRecord) => {
+                  const isPaid = row.is_paid === true || str(row.display_status ?? row.status).toLowerCase() === 'lunas';
+                  const pId = row.pembayaran_id;
+                  if (!isPaid || !pId) return null;
+                  return (
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => {
+                          setConfirmCancel({ id: Number(pId), title: str(row.name ?? row.nama ?? row.payment_type_name) });
+                        }}
+                        className="rounded-xl bg-red-50 p-2 text-red-600 hover:bg-red-100"
+                        title="Batalkan Pembayaran"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  );
+                }}
               ]}
             />
           </section>
@@ -563,6 +612,20 @@ function StudentBillingPanel({
       ) : (
         <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-bold text-[#636E72]">Pilih santri untuk melihat tagihan.</div>
       )}
+
+      {confirmCancel ? (
+        <ConfirmDialog
+          title="Batalkan Pembayaran"
+          message={`Yakin ingin membatalkan pembayaran ${confirmCancel.title}? Data transaksi ini akan dihapus.`}
+          tone="danger"
+          confirmLabel="Batalkan Pembayaran"
+          onCancel={() => setConfirmCancel(null)}
+          onConfirm={async () => {
+            await onDeletePayment(confirmCancel.id, confirmCancel.title);
+            setConfirmCancel(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -873,6 +936,7 @@ function PaymentTypeModal({
       };
       if (row?.id) await api.updatePaymentType(num(row.id), payload);
       else await api.createPaymentType(payload);
+      alert('Tipe Pembayaran berhasil disimpan!');
       await onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Tipe pembayaran gagal disimpan');
@@ -1033,11 +1097,11 @@ function PaymentPeriodModal({ row, onClose, onSaved }: { row: ApiRecord | null; 
   );
 }
 
-function TextField({ label, value, onChange, required = false }: { label: string; value: string; onChange: (value: string) => void; required?: boolean }) {
+function TextField({ label, value, onChange, required = false, placeholder }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; placeholder?: string }) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-bold text-[#636E72]">{label}</span>
-      <input className="q-input" value={value} onChange={(event) => onChange(event.target.value)} required={required} />
+      <input className="q-input" value={value} onChange={(event) => onChange(event.target.value)} required={required} placeholder={placeholder} />
     </label>
   );
 }
@@ -1067,6 +1131,8 @@ function StatusPicker({ value, onChange }: { value: string; onChange: (value: st
 
 function DocumentSettingsPanel({ settings, onSaved }: { settings: ApiRecord | null; onSaved: () => Promise<void> }) {
   const [receiptWidth, setReceiptWidth] = useState(String(settings?.receipt_width ?? '58mm'));
+  const [paymentAdminName, setPaymentAdminName] = useState(String(settings?.payment_admin_name ?? ''));
+  const [paymentAdminTitle, setPaymentAdminTitle] = useState(String(settings?.payment_admin_title ?? ''));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -1077,7 +1143,13 @@ function DocumentSettingsPanel({ settings, onSaved }: { settings: ApiRecord | nu
     setError('');
     setSuccess('');
     try {
-      await api.updateDocumentSettings({ receipt_width: receiptWidth });
+      await api.updateDocumentSettings({ 
+        document_type: 'pembayaran',
+        receipt_width: receiptWidth,
+        payment_admin_name: paymentAdminName,
+        payment_admin_title: paymentAdminTitle,
+        payment_signature_mode: settings?.payment_signature_mode ?? 'kosong'
+      });
       await onSaved();
       setSuccess('Pengaturan berhasil disimpan');
       setTimeout(() => setSuccess(''), 3000);
@@ -1093,6 +1165,18 @@ function DocumentSettingsPanel({ settings, onSaved }: { settings: ApiRecord | nu
       <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
         <h2 className="text-xl font-extrabold text-[#2D3436] mb-4">Pengaturan Cetak Struk</h2>
         <form onSubmit={submit} className="space-y-4">
+          <TextField 
+            label="Nama Aplikasi / Institusi di Struk" 
+            value={paymentAdminName} 
+            onChange={setPaymentAdminName} 
+            placeholder="Contoh: Pondok Pesantren XYZ"
+          />
+          <TextField 
+            label="Alamat / Keterangan di Struk" 
+            value={paymentAdminTitle} 
+            onChange={setPaymentAdminTitle} 
+            placeholder="Contoh: Jl. Merdeka No. 123"
+          />
           <label className="block">
             <span className="mb-2 block text-sm font-bold text-[#636E72]">Ukuran Kertas Printer</span>
             <select
