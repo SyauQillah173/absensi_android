@@ -241,7 +241,7 @@ class AbsensiController extends Controller
                 [
                     'created_count' => count($created),
                     'updated_count' => count($updated),
-                    'tanggal' => $sample?->tanggal ? \Carbon\Carbon::parse($sample->tanggal)->format('Y-m-d') : date('Y-m-d'),
+                    'tanggal' => $sample?->tanggal ? Carbon::parse($sample->tanggal)->format('Y-m-d') : date('Y-m-d'),
                 ],
             );
         }

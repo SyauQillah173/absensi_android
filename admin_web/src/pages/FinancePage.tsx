@@ -94,6 +94,7 @@ export function FinancePage() {
   const [pengeluaran, setPengeluaran] = useState<ApiRecord[]>([]);
   const [documentSettings, setDocumentSettings] = useState<ApiRecord | null>(null);
   const [successTransaction, setSuccessTransaction] = useState<ApiRecord | null>(null);
+  const [deletingTransaction, setDeletingTransaction] = useState<ApiRecord | null>(null);
 
   async function load() {
     setIsLoading(true);
