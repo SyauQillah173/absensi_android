@@ -444,6 +444,7 @@ class PaymentBillService
                 continue;
             }
 
+            $academicYearWithSemesters = $academicYear->loadMissing('semesters');
             $months = array_keys($this->monthOrderForPaymentType($paymentType, $semester?->id));
             if (is_array($paymentType->billed_months) && !empty($paymentType->billed_months)) {
                 $months = array_intersect($months, array_map('intval', $paymentType->billed_months));
@@ -456,6 +457,7 @@ class PaymentBillService
                     $periodLabel = $this->monthLabel(Carbon::create($periodYear, $month, 1));
                     $dueDate = $this->dueDateForMonth(Carbon::create($periodYear, $month, 1), $rule->due_day)->toDateString();
                     $status = Carbon::parse($dueDate)->lt(now()->startOfDay()) ? 'Terlambat' : 'Belum Lunas';
+                    $semesterInfo = $this->semesterForMonth($month, $academicYearWithSemesters);
 
                     $existing = PaymentBill::query()
                         ->where('siswa_id', $student->id)
@@ -485,8 +487,8 @@ class PaymentBillService
                                 ? $existing->status
                                 : $status,
                             'tahun_ajaran' => $academicYear->name,
-                            'semester' => $semester?->name,
-                            'semester_id' => $semester?->id,
+                            'semester' => $semesterInfo['semester'],
+                            'semester_id' => $semesterInfo['semester_id'],
                         ]
                     );
                     $createdOrTouched++;
@@ -814,6 +816,27 @@ class PaymentBillService
         return null;
     }
 
+    /**
+     * Determine the semester_id and semester name for a given month within an academic year.
+     * Jul-Dec = Ganjil, Jan-Jun = Genap.
+     */
+    private function semesterForMonth(int $month, AcademicYear $academicYear): array
+    {
+        $isGanjil = $month >= 7 && $month <= 12;
+        $code = $isGanjil ? 'ganjil' : 'genap';
+        $semester = $academicYear->semesters
+            ? $academicYear->semesters->first(fn ($s) => strtolower($s->code ?? $s->name ?? '') === $code)
+            : DB::table('semesters')
+                ->where('academic_year_id', $academicYear->id)
+                ->whereRaw('lower(coalesce(code, name)) = ?', [$code])
+                ->first();
+
+        return [
+            'semester_id' => $semester->id ?? null,
+            'semester' => $semester->name ?? ucfirst($code),
+        ];
+    }
+
     private function prepareNotifications(PaymentBill $bill, PaymentBillRule $rule): void
     {
         if (!$bill->due_date || !$bill->wali_id) {
@@ -943,7 +966,7 @@ class PaymentBillService
             return;
         }
 
-        $academicYear = AcademicYear::query()->where('is_active', true)->first();
+        $academicYear = AcademicYear::query()->with('semesters')->where('is_active', true)->first();
         if (!$academicYear) {
             return;
         }
@@ -981,6 +1004,8 @@ class PaymentBillService
                 $dueDate = $this->dueDateForMonth(Carbon::create($periodYear, $month, 1), $rule->due_day);
                 $status = $dueDate->lt($now->startOfDay()) ? 'Terlambat' : 'Belum Lunas';
 
+                $semesterInfo = $this->semesterForMonth($month, $academicYear);
+
                 $inserts[] = [
                     'payment_bill_rule_id' => $rule->id,
                     'payment_type_id' => $paymentType->id,
@@ -997,8 +1022,8 @@ class PaymentBillService
                     'status' => $status,
                     'academic_year_id' => $academicYear->id,
                     'tahun_ajaran' => $academicYear->name,
-                    'semester_id' => null,
-                    'semester' => null,
+                    'semester_id' => $semesterInfo['semester_id'],
+                    'semester' => $semesterInfo['semester'],
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];

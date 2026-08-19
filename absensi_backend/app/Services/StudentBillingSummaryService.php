@@ -183,13 +183,34 @@ class StudentBillingSummaryService
 
     private function groups(Collection $rows): array
     {
-        return $rows
+        // First, separate rows that have a semester from those that don't (tagihan umum)
+        $withSemester = $rows->filter(fn (array $row) => !empty($row['semester_id']) || !empty($row['semester']));
+        $withoutSemester = $rows->filter(fn (array $row) => empty($row['semester_id']) && empty($row['semester']));
+
+        // Group the semester-tagged rows
+        $groups = $withSemester
             ->groupBy(fn (array $row) => implode('|', [
                 $row['academic_year_id'] ?? 'legacy',
                 $row['tahun_ajaran'] ?? 'Tanpa Periode',
                 $row['semester_id'] ?? 'legacy',
                 $row['semester'] ?? '',
-            ]))
+            ]));
+
+        // Merge orphan (no-semester) rows into an existing group of the same academic year,
+        // or create a dedicated group if none exists
+        $withoutSemester->each(function (array $row) use (&$groups) {
+            $yearId = $row['academic_year_id'] ?? 'legacy';
+            $matchKey = $groups->keys()->first(fn (string $key) => str_starts_with($key, $yearId . '|'));
+            if ($matchKey) {
+                $groups[$matchKey] = $groups[$matchKey]->push($row);
+            } else {
+                $fallbackKey = implode('|', [$yearId, $row['tahun_ajaran'] ?? 'Tanpa Periode', 'legacy', '']);
+                $existing = $groups->get($fallbackKey, collect());
+                $groups[$fallbackKey] = $existing->push($row);
+            }
+        });
+
+        return $groups
             ->map(function (Collection $groupRows) {
                 $first = $groupRows->first();
                 $monthlyRows = $groupRows->where('is_monthly', true);
