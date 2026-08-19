@@ -834,7 +834,17 @@ function PaymentModal({
   const selectedType = paymentTypes.find((row) => num(row.id) === typeId);
   const selectedMethod = paymentMethods.find((row) => num(row.id) === methodId);
   const monthly = isMonthly(selectedType);
-  const months = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
+  let availableMonths = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
+  if (selectedType) {
+    const rules = Array.isArray(selectedType.bill_rules) ? selectedType.bill_rules : (Array.isArray(selectedType.billRules) ? selectedType.billRules : []);
+    const rule = rules.find((r: any) => Number(r.semester_id) === Number(semesterId));
+    if (rule && Array.isArray(rule.billed_months)) {
+      availableMonths = rule.billed_months.map(Number);
+    } else if (Array.isArray(selectedType.billed_months)) {
+      availableMonths = selectedType.billed_months.map(Number);
+    }
+  }
+  const months = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6].filter(m => availableMonths.includes(m));
   const nominal = num(selectedType?.nominal_default);
   const total = monthly ? selectedMonths.size * nominal : num(amount || nominal);
 
