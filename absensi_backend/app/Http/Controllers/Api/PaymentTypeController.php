@@ -106,7 +106,7 @@ class PaymentTypeController extends Controller
             );
         }
 
-        app(PaymentBillService::class)->syncBillsForPaymentType($paymentType->fresh());
+        app(PaymentBillService::class)->syncBillsForPaymentType($paymentType->fresh(), $targetSemesterId);
         app(AuditLogService::class)->record($request, 'payment_types', 'update', $paymentType, $before, $paymentType->fresh(['billRules'])->toArray());
 
         return response()->json([

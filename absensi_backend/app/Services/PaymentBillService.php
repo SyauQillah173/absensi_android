@@ -883,7 +883,7 @@ class PaymentBillService
         }
     }
 
-    public function syncBillsForPaymentType(PaymentType $paymentType): void
+    public function syncBillsForPaymentType(PaymentType $paymentType, ?int $targetSemesterId = null): void
     {
         $query = PaymentBill::query()
             ->where('payment_type_id', $paymentType->id)
@@ -894,22 +894,29 @@ class PaymentBillService
             return;
         }
 
-        $rule = $this->ensureRuleForPaymentType($paymentType);
+        $rule = $this->ensureRuleForPaymentType($paymentType, null, $targetSemesterId ? ['semester_id' => $targetSemesterId] : []);
         $isMonthly = str_contains(strtolower($paymentType->periode ?? ''), 'bulan');
 
         if ($isMonthly && is_array($rule->billed_months)) {
+            $deleteQuery = (clone $query)->whereNotNull('period_month');
+            if ($rule->semester_id) {
+                $deleteQuery->where('semester_id', $rule->semester_id);
+            }
+
             if (empty($rule->billed_months)) {
-                $query->whereNotNull('period_month')->delete();
+                $deleteQuery->delete();
                 return;
             } else {
-                $query->whereNotNull('period_month')
-                    ->whereNotIn('period_month', array_map('intval', $rule->billed_months))
+                $deleteQuery->whereNotIn('period_month', array_map('intval', $rule->billed_months))
                     ->delete();
             }
         }
 
         // Handle non-monthly bills (e.g. Kitab, Seragam)
         if (!$isMonthly) {
+            // BERSIIHKAN semua tagihan bulanan yang belum lunas jika tipe diubah ke Sekali Bayar
+            (clone $query)->whereNotNull('period_month')->delete();
+
             $academicYear = AcademicYear::query()->where('is_active', true)->first();
             if (!$academicYear) {
                 return;
