@@ -151,6 +151,9 @@ export function FinancePage() {
   const activeMethods = paymentMethods.filter((method) => method.is_active !== false);
   const activePeriods = paymentPeriods.filter((period) => period.is_active !== false);
   const activeTypes = paymentTypes.filter((type) => String(type.status ?? 'Aktif') === 'Aktif');
+  
+  const activeAcademicYear = academicPeriods.find((item) => item.is_active === true || item.status === 'Aktif') ?? academicPeriods[0];
+  const activeSemesters = Array.isArray(activeAcademicYear?.semesters) ? activeAcademicYear.semesters : [];
 
   async function openBilling(studentId = billingStudentId) {
     if (!studentId) return;
@@ -394,6 +397,7 @@ export function FinancePage() {
       {modal === 'type' ? (
         <PaymentTypeModal
           row={editing}
+          semesters={activeSemesters}
           paymentMethods={activeMethods}
           paymentPeriods={activePeriods}
           onClose={() => setModal(null)}
@@ -978,17 +982,20 @@ function SelectField({
 
 function PaymentTypeModal({
   row,
+  semesters,
   paymentMethods,
   paymentPeriods,
   onClose,
   onSaved
 }: {
   row: ApiRecord | null;
+  semesters: ApiRecord[];
   paymentMethods: ApiRecord[];
   paymentPeriods: ApiRecord[];
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const [targetSemesterId, setTargetSemesterId] = useState(0); // 0 means Global (Semua Semester)
   const [name, setName] = useState(str(row?.nama, ''));
   const [amount, setAmount] = useState(String(row?.nominal_default ?? ''));
   const [periodId, setPeriodId] = useState(num(row?.payment_period_type_id ?? paymentPeriods[0]?.id));
@@ -999,6 +1006,24 @@ function PaymentTypeModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Saat targetSemesterId berubah, load setting rule-nya jika ada
+  useEffect(() => {
+    if (!row) return;
+    if (targetSemesterId === 0) {
+      setAmount(String(row.nominal_default ?? ''));
+      setBilledMonths(new Set(Array.isArray(row.billed_months) ? row.billed_months.map(Number) : [7,8,9,10,11,12,1,2,3,4,5,6]));
+      return;
+    }
+    const rule = (Array.isArray(row.billRules) ? row.billRules : []).find((r: any) => num(r.semester_id) === targetSemesterId);
+    if (rule) {
+      setAmount(String(rule.nominal ?? row.nominal_default ?? ''));
+      setBilledMonths(new Set(Array.isArray(rule.billed_months) ? rule.billed_months.map(Number) : (Array.isArray(row.billed_months) ? row.billed_months.map(Number) : [7,8,9,10,11,12,1,2,3,4,5,6])));
+    } else {
+      setAmount(String(row.nominal_default ?? ''));
+      setBilledMonths(new Set(Array.isArray(row.billed_months) ? row.billed_months.map(Number) : [7,8,9,10,11,12,1,2,3,4,5,6]));
+    }
+  }, [targetSemesterId, row]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1015,6 +1040,7 @@ function PaymentTypeModal({
         status,
         is_billed_to_all: isBilledToAll,
         billed_months: Array.from(billedMonths),
+        target_semester_id: targetSemesterId > 0 ? targetSemesterId : null,
       };
       if (row?.id) await api.updatePaymentType(num(row.id), payload);
       else await api.createPaymentType(payload);
@@ -1031,8 +1057,22 @@ function PaymentTypeModal({
   return (
     <ModalForm title={row ? 'Edit Tipe Pembayaran' : 'Tambah Tipe Pembayaran'} onClose={onClose} footer={<SaveButton saving={saving} form="type-form" label="Simpan Tipe Pembayaran" />}>
       <form id="type-form" className="space-y-4" onSubmit={submit}>
+        {row && (
+          <div className="rounded-2xl border-2 border-orange-100 bg-orange-50 p-4">
+            <SelectField 
+              label="Pilih Target Semester (Opsional)" 
+              value={targetSemesterId} 
+              onChange={setTargetSemesterId} 
+              rows={[{ id: 0, name: 'Berlaku Global (Semua Semester)' }, ...semesters]} 
+              labelOf={(s) => str(s.name ?? s.semester)} 
+            />
+            <p className="mt-2 text-xs text-orange-600">
+              Ubah ke semester spesifik (Ganjil/Genap) jika Anda ingin mengubah Nominal/Bulan tagihan yang <b>hanya berlaku untuk semester tersebut</b>.
+            </p>
+          </div>
+        )}
         <TextField label="Nama Tipe Pembayaran" value={name} onChange={setName} required />
-        <TextField label="Nominal Default" value={amount} onChange={(value) => setAmount(value.replace(/\D/g, ''))} required />
+        <TextField label={targetSemesterId > 0 ? "Nominal Semester Ini" : "Nominal Default"} value={amount} onChange={(value) => setAmount(value.replace(/\D/g, ''))} required />
         <SelectField label="Periode Pembayaran" value={periodId} onChange={setPeriodId} rows={paymentPeriods} labelOf={(item) => str(item.name)} />
         
         <div className="flex items-center gap-3 rounded-2xl bg-white p-4">
