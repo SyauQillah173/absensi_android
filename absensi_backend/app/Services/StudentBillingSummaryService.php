@@ -217,15 +217,31 @@ class StudentBillingSummaryService
     {
         $first = $items->first();
         $byMonth = $items->keyBy(fn (array $row) => (int) ($row['period_month'] ?? 0));
+        
+        $semester = $first['semester'] ?? null;
+        $semesterMonths = $this->monthsForSemester($semester) ?? array_keys(self::ACADEMIC_MONTHS);
+        
+        $paymentType = \App\Models\PaymentType::query()->find($first['payment_type_id'] ?? 0);
+        $billedMonths = $paymentType && is_array($paymentType->billed_months) 
+            ? array_map('intval', $paymentType->billed_months) 
+            : array_keys(self::ACADEMIC_MONTHS);
+
         $monthOrder = collect(self::ACADEMIC_MONTHS)
-            ->filter(fn (string $label, int $month) => $byMonth->has($month))
+            ->filter(fn (string $label, int $month) => in_array($month, $semesterMonths, true) && in_array($month, $billedMonths, true))
             ->all();
+
+        // Ensure any existing bills outside the filter still show up (e.g. legacy data)
+        foreach ($byMonth->keys() as $month) {
+            if ($month > 0 && !isset($monthOrder[$month])) {
+                $monthOrder[$month] = self::ACADEMIC_MONTHS[$month] ?? (string)$month;
+            }
+        }
 
         return [
             'payment_type_id' => $first['payment_type_id'] ?? null,
             'name' => $first['payment_type_name'] ?? $first['title'] ?? 'Pembayaran Bulanan',
             'months' => collect($monthOrder)
-                ->map(function (string $label, int $month) use ($byMonth) {
+                ->map(function (string $label, int $month) use ($byMonth, $paymentType) {
                     $row = $byMonth->get($month);
 
                     return [
@@ -234,8 +250,8 @@ class StudentBillingSummaryService
                         'status' => $row['display_status'] ?? $row['status'] ?? 'Belum Ada Tagihan',
                         'is_paid' => (bool) ($row['is_paid'] ?? false),
                         'paid_amount' => (int) ($row['paid_amount'] ?? 0),
-                        'amount' => (int) ($row['amount'] ?? 0),
-                        'remaining_amount' => (int) ($row['remaining_amount'] ?? 0),
+                        'amount' => (int) ($row['amount'] ?? $paymentType?->nominal_default ?? 0),
+                        'remaining_amount' => (int) ($row['remaining_amount'] ?? $paymentType?->nominal_default ?? 0),
                         'bill_id' => $row['id'] ?? null,
                         'pembayaran_id' => $row['pembayaran_id'] ?? null,
                         'bill' => $row,
