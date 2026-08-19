@@ -830,10 +830,25 @@ function PaymentModal({
   const [selectedMonths, setSelectedMonths] = useState<Set<number>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [bills, setBills] = useState<ApiRecord[]>([]);
+
+  useEffect(() => {
+    if (!studentId || !academicYearId) return;
+    api.studentBillingSummary({ user_id: userId, siswa_id: studentId, academic_year_id: academicYearId })
+      .then(res => {
+        const data = res.data && typeof res.data === 'object' ? (res.data as ApiRecord) : res;
+        const mb = Array.isArray(data.monthly_bills) ? data.monthly_bills : [];
+        const gb = Array.isArray(data.general_bills) ? data.general_bills : [];
+        setBills([...mb, ...gb] as ApiRecord[]);
+      })
+      .catch(console.error);
+  }, [studentId, academicYearId, userId]);
+
   const selectedStudent = students.find((row) => num(row.id) === studentId);
   const selectedType = paymentTypes.find((row) => num(row.id) === typeId);
   const selectedMethod = paymentMethods.find((row) => num(row.id) === methodId);
   const monthly = isMonthly(selectedType);
+  
   let availableMonths = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
   if (selectedType) {
     const rules = Array.isArray(selectedType.bill_rules) ? selectedType.bill_rules : (Array.isArray(selectedType.billRules) ? selectedType.billRules : []);
@@ -848,7 +863,16 @@ function PaymentModal({
   const nominal = num(selectedType?.nominal_default);
   const total = monthly ? selectedMonths.size * nominal : num(amount || nominal);
 
+  const paidMonths = new Set(
+    bills
+      .filter(b => num(b.payment_type_id) === typeId && num(b.semester_id) === semesterId && (b.status === 'Lunas' || b.status === 'Dibatalkan'))
+      .map(b => num(b.period_month))
+  );
+
+  const isGeneralPaid = !monthly && bills.some(b => num(b.payment_type_id) === typeId && (num(b.semester_id) === semesterId || !b.semester_id) && (b.status === 'Lunas' || b.status === 'Dibatalkan'));
+
   function toggleMonth(month: number) {
+    if (paidMonths.has(month)) return;
     setSelectedMonths((current) => {
       const next = new Set(current);
       if (next.has(month)) next.delete(month);
@@ -900,7 +924,7 @@ function PaymentModal({
       title="Tambah Pembayaran Baru"
       onClose={onClose}
       footer={
-        <button className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#138F81] text-sm font-extrabold text-white disabled:opacity-60" disabled={isSaving} form="payment-form" type="submit">
+        <button className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#138F81] text-sm font-extrabold text-white disabled:opacity-60" disabled={isSaving || isGeneralPaid} form="payment-form" type="submit">
           <Save size={18} /> {isSaving ? 'Menyimpan...' : 'Simpan Pembayaran'}
         </button>
       }
@@ -929,10 +953,11 @@ function PaymentModal({
             <p className="mb-3 text-sm font-extrabold text-[#2D3436]">Pilih Bulan</p>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
               {months.map((month) => {
-                const selected = selectedMonths.has(month);
+                const isPaid = paidMonths.has(month);
+                const selected = selectedMonths.has(month) || isPaid;
                 return (
-                  <button key={month} className={`min-h-11 rounded-2xl text-sm font-extrabold ${selected ? 'bg-[#138F81] text-white' : 'bg-[#F2F4F6] text-[#138F81]'}`} onClick={() => toggleMonth(month)} type="button">
-                    {selected ? '✓ ' : ''}{monthLabels[month]}
+                  <button key={month} disabled={isPaid} className={`min-h-11 rounded-2xl text-sm font-extrabold ${isPaid ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : selected ? 'bg-[#138F81] text-white' : 'bg-[#F2F4F6] text-[#138F81]'}`} onClick={() => !isPaid && toggleMonth(month)} type="button" title={isPaid ? "Sudah Lunas" : ""}>
+                    {isPaid ? '✓ (Lunas) ' : selected ? '✓ ' : ''}{monthLabels[month]}
                   </button>
                 );
               })}
@@ -941,7 +966,7 @@ function PaymentModal({
         ) : (
           <label className="block">
             <span className="mb-2 block text-sm font-bold text-[#636E72]">Nominal Dibayar</span>
-            <input className="q-input" inputMode="numeric" value={amount} onChange={(event) => setAmount(event.target.value.replace(/\D/g, ''))} />
+            <input className="q-input" inputMode="numeric" value={amount} onChange={(event) => setAmount(event.target.value.replace(/\D/g, ''))} disabled={isGeneralPaid} />
           </label>
         )}
         <label className="block">
@@ -957,6 +982,7 @@ function PaymentModal({
           <span className="mb-2 block text-sm font-bold text-[#636E72]">Password Admin jika diminta sistem</span>
           <input className="q-input" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Opsional" />
         </label>
+        {isGeneralPaid ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">Tipe pembayaran ini sudah Lunas dan tidak perlu dibayar lagi.</div> : null}
         {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
         <div className="rounded-2xl bg-[#D0EAF0] px-4 py-3 text-right text-lg font-extrabold text-[#138F81]">Total {formatMoney(total)}</div>
       </form>
