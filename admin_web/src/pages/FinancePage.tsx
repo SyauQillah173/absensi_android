@@ -489,6 +489,15 @@ function PaymentsTable({ rows, emptyText, onDeleteTransaction, onDeleteItem }: {
         { key: 'siswa', header: 'Santri', render: (row) => str(row.siswa_nama ?? row.nama_siswa ?? row.nama) },
         { key: 'atas', header: 'Atas Nama', render: (row) => str(row.atas_nama ?? row.wali_nama) },
         { key: 'jenis', header: 'Jenis', render: (row) => str(row.jenis ?? row.payment_type_name) },
+        { key: 'periode', header: 'Periode', render: (row) => {
+          const items = Array.isArray(row.payment_items) ? row.payment_items : [];
+          const first = items[0] ?? {};
+          const periodLabel = str(first.payment_bill?.period_label ?? first.periode, '');
+          const semester = str(row.semester ?? first.semester, '');
+          const tahunAjaran = str(row.tahun_ajaran ?? first.tahun_ajaran, '');
+          const parts = [periodLabel, semester, tahunAjaran].filter(p => p && p !== '-');
+          return parts.length > 0 ? parts.join(' • ') : '-';
+        }},
         { key: 'jumlah', header: 'Nominal', render: (row) => <MoneyText value={row.jumlah} className="font-extrabold text-[#138F81]" /> },
         { key: 'via', header: 'Metode', render: (row) => str(row.via ?? row.payment_method_name) },
         { key: 'status', header: 'Status', render: (row) => <StatusBadge label={str(row.status, 'Tercatat')} tone={statusTone(row.status)} /> },
@@ -894,7 +903,13 @@ function PaymentModal({
           <SelectField label="Semester" value={Number(semesterId) || 0} onChange={setSemesterId} rows={semesters} labelOf={(row) => str(row.name ?? row.semester)} />
         </div>
         <SelectField label="Tipe Pembayaran" value={typeId} onChange={(id) => { setTypeId(id); setAmount(String(paymentTypes.find((row) => num(row.id) === id)?.nominal_default ?? '')); setMethodId(0); setSelectedMonths(new Set()); }} rows={paymentTypes} labelOf={(row) => `${str(row.nama)} - ${formatMoney(row.nominal_default)}`} />
-        <SelectField label="Metode Pembayaran" value={methodId} onChange={setMethodId} rows={paymentMethods.filter(m => m.is_active !== false && (!selectedType?.metode_pembayaran || !Array.isArray(selectedType.metode_pembayaran) || selectedType.metode_pembayaran.length === 0 || selectedType.metode_pembayaran.includes(str(m.name))))} labelOf={(row) => str(row.name)} />
+        <SelectField label="Metode Pembayaran" value={methodId} onChange={setMethodId} rows={paymentMethods.filter(m => {
+          if (m.is_active === false) return false;
+          const allowed = selectedType?.metode_pembayaran;
+          if (!allowed || !Array.isArray(allowed) || allowed.length === 0) return true;
+          const methodName = str(m.name).toLowerCase();
+          return allowed.some((a: unknown) => String(a).toLowerCase() === methodName);
+        })} labelOf={(row) => str(row.name)} />
         {monthly ? (
           <div className="rounded-3xl bg-white p-4">
             <p className="mb-3 text-sm font-extrabold text-[#2D3436]">Pilih Bulan</p>
