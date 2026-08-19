@@ -528,12 +528,14 @@ function StudentBillingPanel({
   const student = students.find((item) => num(item.id) === selectedStudentId);
   const totals = (summary?.summary ?? summary) as ApiRecord | undefined;
   const groups = Array.isArray(summary?.groups) ? (summary.groups as ApiRecord[]) : [];
-  const monthly = groups.length > 0
-    ? groups.flatMap((g) => (Array.isArray(g.monthly) ? g.monthly : []))
-    : Array.isArray(summary?.monthly) ? (summary.monthly as ApiRecord[]) : Array.isArray(summary?.monthly_items) ? (summary?.monthly_items as ApiRecord[]) : [];
-  const general = groups.length > 0
-    ? groups.flatMap((g) => (Array.isArray(g.general) ? g.general : []))
-    : Array.isArray(summary?.general) ? (summary.general as ApiRecord[]) : Array.isArray(summary?.general_items) ? (summary?.general_items as ApiRecord[]) : [];
+  let groupsData = groups;
+  if (groupsData.length === 0) {
+    const fallbackMonthly = Array.isArray(summary?.monthly) ? summary.monthly : Array.isArray(summary?.monthly_items) ? summary?.monthly_items : [];
+    const fallbackGeneral = Array.isArray(summary?.general) ? summary.general : Array.isArray(summary?.general_items) ? summary?.general_items : [];
+    if (fallbackMonthly.length > 0 || fallbackGeneral.length > 0) {
+      groupsData = [{ period_badge: 'Semua Periode', monthly: fallbackMonthly, general: fallbackGeneral }];
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -564,78 +566,98 @@ function StudentBillingPanel({
             <SummaryBox title="Kurang" value={totals?.total_kurang_bayar ?? totals?.remaining_amount ?? 0} tone="red" />
             <SummaryBox title="Menunggu" value={totals?.total_menunggu ?? totals?.pending_amount ?? 0} tone="orange" />
           </div>
-          <section className="q-card p-5">
-            <h3 className="mb-4 text-lg font-extrabold text-[#2D3436]">Pembayaran Bulanan</h3>
-            <div className="overflow-x-auto q-scrollbar">
-              <table className="w-full min-w-[760px] border-separate border-spacing-2">
-                <tbody>
-                  {monthly.length === 0 ? (
-                    <tr><td className="rounded-2xl bg-[#E1EFF7] p-5 text-center text-sm font-bold text-[#636E72]">Belum ada tagihan bulanan.</td></tr>
-                  ) : (
-                    monthly.map((item) => {
-                      const months = Array.isArray(item.months) ? (item.months as ApiRecord[]) : Array.isArray(item.items) ? (item.items as ApiRecord[]) : [item];
-                      return (
-                        <tr key={str(item.payment_type_id ?? item.id ?? item.name)}>
-                          <td className="rounded-2xl bg-white px-4 py-3 text-sm font-extrabold">{str(item.name ?? item.nama ?? item.payment_type_name ?? 'SPP')}</td>
-                          {months.map((month) => {
-                            const monthNo = num(month.month ?? month.period_month ?? month.month_code);
-                            const paid = month.is_paid === true || String(month.status ?? '').toLowerCase() === 'lunas';
-                            const pId = month.pembayaran_id;
-                            return (
-                              <td key={`${str(item.id)}-${monthNo}`} className={`h-14 min-w-16 rounded-2xl text-center text-sm font-extrabold ${paid ? 'bg-[#138F81] text-white cursor-pointer hover:bg-[#0A7065] transition-colors group relative' : 'bg-[#D9E4EA] text-[#636E72]'}`}
-                                onClick={() => {
-                                  if (paid && pId) {
-                                    setConfirmCancel({ id: Number(pId), title: `SPP ${month.label}` });
-                                  }
-                                }}
-                                title={paid && pId ? "Klik untuk membatalkan pembayaran ini" : undefined}
-                              >
-                                <div>{str(month.label ?? monthLabels[monthNo] ?? monthNo)}</div>
-                                <div>{paid ? <Check className="mx-auto group-hover:hidden" size={18} /> : <X className="mx-auto" size={18} />}</div>
-                                {paid ? <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-2xl opacity-0 group-hover:opacity-100"><Trash2 size={18} className="text-white" /></div> : null}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      );
-                    })
+          {groupsData.length === 0 ? (
+            <div className="rounded-2xl bg-[#E1EFF7] p-8 text-center font-bold text-[#636E72]">Belum ada tagihan untuk santri ini.</div>
+          ) : (
+            groupsData.map((group, idx) => {
+              const groupMonthly = Array.isArray(group.monthly) ? (group.monthly as ApiRecord[]) : [];
+              const groupGeneral = Array.isArray(group.general) ? (group.general as ApiRecord[]) : [];
+              const periodTitle = str(group.period_badge, 'Periode Tagihan');
+
+              return (
+                <div key={idx} className="space-y-4 rounded-3xl bg-[#F8F9FA] p-5 shadow-sm border border-[#E1EFF7]">
+                  <h2 className="flex items-center gap-2 text-xl font-black text-[#2D3436]">
+                    <CalendarDays size={20} className="text-[#138F81]" />
+                    {periodTitle}
+                  </h2>
+                  
+                  {groupMonthly.length > 0 && (
+                    <section className="q-card p-5">
+                      <h3 className="mb-4 text-lg font-extrabold text-[#2D3436]">Pembayaran Bulanan</h3>
+                      <div className="overflow-x-auto q-scrollbar">
+                        <table className="w-full min-w-[760px] border-separate border-spacing-2">
+                          <tbody>
+                            {groupMonthly.map((item) => {
+                              const months = Array.isArray(item.months) ? (item.months as ApiRecord[]) : Array.isArray(item.items) ? (item.items as ApiRecord[]) : [item];
+                              return (
+                                <tr key={str(item.payment_type_id ?? item.id ?? item.name)}>
+                                  <td className="rounded-2xl bg-white px-4 py-3 text-sm font-extrabold">{str(item.name ?? item.nama ?? item.payment_type_name ?? 'SPP')}</td>
+                                  {months.map((month) => {
+                                    const monthNo = num(month.month ?? month.period_month ?? month.month_code);
+                                    const paid = month.is_paid === true || String(month.status ?? '').toLowerCase() === 'lunas';
+                                    const pId = month.pembayaran_id;
+                                    return (
+                                      <td key={`${str(item.id)}-${monthNo}`} className={`group relative h-14 min-w-16 rounded-2xl text-center text-sm font-extrabold ${paid ? 'cursor-pointer bg-[#138F81] text-white transition-colors hover:bg-[#0A7065]' : 'bg-[#D9E4EA] text-[#636E72]'}`}
+                                        onClick={() => {
+                                          if (paid && pId) {
+                                            setConfirmCancel({ id: Number(pId), title: `SPP ${month.label}` });
+                                          }
+                                        }}
+                                        title={paid && pId ? "Klik untuk membatalkan pembayaran ini" : undefined}
+                                      >
+                                        <div>{str(month.label ?? monthLabels[monthNo] ?? monthNo)}</div>
+                                        <div>{paid ? <Check className="mx-auto group-hover:hidden" size={18} /> : <X className="mx-auto" size={18} />}</div>
+                                        {paid ? <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/20 opacity-0 group-hover:opacity-100"><Trash2 size={18} className="text-white" /></div> : null}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
                   )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-          <section className="q-card p-5">
-            <h3 className="mb-4 text-lg font-extrabold text-[#2D3436]">Pembayaran Umum</h3>
-            <DataTable
-              rows={general}
-              emptyText="Belum ada tagihan umum."
-              columns={[
-                { key: 'nama', header: 'Tipe', render: (row) => str(row.name ?? row.nama ?? row.payment_type_name) },
-                { key: 'tagihan', header: 'Tagihan', render: (row) => <MoneyText value={row.amount ?? row.amount_due} /> },
-                { key: 'dibayar', header: 'Dibayar', render: (row) => <MoneyText value={row.paid_amount} /> },
-                { key: 'kurang', header: 'Kurang', render: (row) => <MoneyText value={row.remaining_amount} /> },
-                { key: 'status', header: 'Status', render: (row) => <StatusBadge label={str(row.display_status ?? row.status)} tone={statusTone(row.display_status ?? row.status)} /> },
-                { key: 'actions', header: '', render: (row: ApiRecord) => {
-                  const isPaid = row.is_paid === true || str(row.display_status ?? row.status).toLowerCase() === 'lunas';
-                  const pId = row.pembayaran_id;
-                  if (!isPaid || !pId) return null;
-                  return (
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => {
-                          setConfirmCancel({ id: Number(pId), title: str(row.name ?? row.nama ?? row.payment_type_name) });
-                        }}
-                        className="rounded-xl bg-red-50 p-2 text-red-600 hover:bg-red-100"
-                        title="Batalkan Pembayaran"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  );
-                }}
-              ]}
-            />
-          </section>
+
+                  {groupGeneral.length > 0 && (
+                    <section className="q-card p-5">
+                      <h3 className="mb-4 text-lg font-extrabold text-[#2D3436]">Pembayaran Umum</h3>
+                      <DataTable
+                        rows={groupGeneral}
+                        emptyText="Belum ada tagihan umum."
+                        columns={[
+                          { key: 'nama', header: 'Tipe', render: (row) => str(row.name ?? row.nama ?? row.payment_type_name) },
+                          { key: 'tagihan', header: 'Tagihan', render: (row) => <MoneyText value={row.amount ?? row.amount_due} /> },
+                          { key: 'dibayar', header: 'Dibayar', render: (row) => <MoneyText value={row.paid_amount} /> },
+                          { key: 'kurang', header: 'Kurang', render: (row) => <MoneyText value={row.remaining_amount} /> },
+                          { key: 'status', header: 'Status', render: (row) => <StatusBadge label={str(row.display_status ?? row.status)} tone={statusTone(row.display_status ?? row.status)} /> },
+                          { key: 'actions', header: '', render: (row: ApiRecord) => {
+                            const isPaid = row.is_paid === true || str(row.display_status ?? row.status).toLowerCase() === 'lunas';
+                            const pId = row.pembayaran_id;
+                            if (!isPaid || !pId) return null;
+                            return (
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  onClick={() => {
+                                    setConfirmCancel({ id: Number(pId), title: str(row.name ?? row.nama ?? row.payment_type_name) });
+                                  }}
+                                  className="rounded-xl bg-red-50 p-2 text-red-600 hover:bg-red-100"
+                                  title="Batalkan Pembayaran"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            );
+                          }}
+                        ]}
+                      />
+                    </section>
+                  )}
+                </div>
+              );
+            })
+          )}
         </>
       ) : (
         <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-bold text-[#636E72]">Pilih santri untuk melihat tagihan.</div>
@@ -781,7 +803,12 @@ function PaymentModal({
   const [studentId, setStudentId] = useState(0);
   const [typeId, setTypeId] = useState(0);
   const [methodId, setMethodId] = useState(0);
-  const [academicYearId, setAcademicYearId] = useState(num(academicPeriods.find((item) => item.is_active === true)?.id ?? academicPeriods[0]?.id));
+  const defaultAcademic = academicPeriods.find((item) => item.is_active === true) ?? academicPeriods[0];
+  const [academicYearId, setAcademicYearId] = useState(num(defaultAcademic?.id));
+  const selectedAcademic = academicPeriods.find((item) => num(item.id) === academicYearId);
+  const semesters = Array.isArray(selectedAcademic?.semesters) ? (selectedAcademic.semesters as ApiRecord[]) : [];
+  const defaultSemester = semesters.find((s) => s.is_active === true || s.status === 'Aktif') ?? semesters[0];
+  const [semesterId, setSemesterId] = useState<number | ''>(defaultSemester ? num(defaultSemester.id) : '');
   const [amount, setAmount] = useState('');
   const [password, setPassword] = useState('');
   const [notes, setNotes] = useState('');
@@ -813,7 +840,8 @@ function PaymentModal({
     try {
       const baseItem = {
         payment_type_id: typeId,
-        academic_year_id: academicYearId || undefined
+        academic_year_id: academicYearId || undefined,
+        semester_id: semesterId || undefined
       };
       const payment_items = monthly
         ? Array.from(selectedMonths).map((month) => ({ ...baseItem, period_month: month, jumlah: nominal }))
@@ -829,6 +857,7 @@ function PaymentModal({
         tanggal: new Date().toISOString().slice(0, 10),
         status: 'Lunas',
         academic_year_id: academicYearId || undefined,
+        semester_id: semesterId || undefined,
         payment_items,
         ...(password.trim() ? { payment_security_password: password.trim() } : {})
       };
@@ -854,7 +883,14 @@ function PaymentModal({
       <form id="payment-form" className="space-y-4" onSubmit={submit}>
         <SelectField label="Siswa" value={studentId} onChange={setStudentId} rows={students} labelOf={(row) => `${str(row.nama)} - ${str(row.nis)} - ${str(row.kelas)}`} />
         <input className="q-input" disabled value={str(selectedStudent?.wali_nama ?? selectedStudent?.nama_wali, 'Nama wali akan terisi otomatis')} />
-        <SelectField label="Tahun Ajaran" value={academicYearId} onChange={setAcademicYearId} rows={academicPeriods} labelOf={(row) => str(row.tahun_ajaran ?? row.name ?? row.label)} />
+        <div className="grid grid-cols-2 gap-3">
+          <SelectField label="Tahun Ajaran" value={academicYearId} onChange={(id) => {
+            setAcademicYearId(id);
+            const sems = Array.isArray(academicPeriods.find(a => num(a.id) === id)?.semesters) ? (academicPeriods.find(a => num(a.id) === id)?.semesters as ApiRecord[]) : [];
+            setSemesterId(sems[0] ? num(sems[0].id) : '');
+          }} rows={academicPeriods} labelOf={(row) => str(row.tahun_ajaran ?? row.name ?? row.label)} />
+          <SelectField label="Semester" value={Number(semesterId) || 0} onChange={setSemesterId} rows={semesters} labelOf={(row) => str(row.name ?? row.semester)} />
+        </div>
         <SelectField label="Tipe Pembayaran" value={typeId} onChange={(id) => { setTypeId(id); setAmount(String(paymentTypes.find((row) => num(row.id) === id)?.nominal_default ?? '')); setSelectedMonths(new Set()); }} rows={paymentTypes} labelOf={(row) => `${str(row.nama)} - ${formatMoney(row.nominal_default)}`} />
         <SelectField label="Metode Pembayaran" value={methodId} onChange={setMethodId} rows={paymentMethods} labelOf={(row) => str(row.name)} />
         {monthly ? (
