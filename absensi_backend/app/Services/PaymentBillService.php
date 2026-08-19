@@ -478,6 +478,7 @@ class PaymentBillService
                         [
                             'siswa_id' => $student->id,
                             'academic_year_id' => $academicYear->id,
+                            'semester_id' => $semesterInfo['semester_id'],
                             'payment_type_id' => $paymentType->id,
                             'period_month' => $month,
                         ],
@@ -1001,6 +1002,7 @@ class PaymentBillService
             ->where('payment_type_id', $paymentType->id)
             ->where('academic_year_id', $academicYear->id)
             ->whereNotNull('period_month')
+            ->when($rule->semester_id, fn($q) => $q->where('semester_id', $rule->semester_id))
             ->select('siswa_id', 'period_month')
             ->get()
             ->groupBy('siswa_id')
