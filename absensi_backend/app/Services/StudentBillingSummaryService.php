@@ -188,7 +188,7 @@ class StudentBillingSummaryService
                 $row['academic_year_id'] ?? 'legacy',
                 $row['tahun_ajaran'] ?? 'Tanpa Periode',
                 $row['semester_id'] ?? 'legacy',
-                $row['semester'] ?? 'Tanpa Semester',
+                $row['semester'] ?? '',
             ]))
             ->map(function (Collection $groupRows) {
                 $first = $groupRows->first();
@@ -198,7 +198,7 @@ class StudentBillingSummaryService
                     'academic_year_id' => $first['academic_year_id'] ?? null,
                     'tahun_ajaran' => $first['tahun_ajaran'] ?? 'Tanpa Periode',
                     'semester_id' => $first['semester_id'] ?? null,
-                    'semester' => $first['semester'] ?? 'Tanpa Semester',
+                    'semester' => $first['semester'] ?? '',
                     'period_badge' => $this->periodBadge($first['tahun_ajaran'] ?? null, $first['semester'] ?? null),
                     'monthly' => $monthlyRows
                         ->groupBy('payment_type_id')
@@ -227,7 +227,11 @@ class StudentBillingSummaryService
             : array_keys(self::ACADEMIC_MONTHS);
 
         $monthOrder = collect(self::ACADEMIC_MONTHS)
-            ->filter(fn (string $label, int $month) => in_array($month, $semesterMonths, true) && in_array($month, $billedMonths, true))
+            ->filter(function (string $label, int $month) use ($semesterMonths, $billedMonths, $paymentType) {
+                $isFullYear = $this->billService->usesFullYearMonths($paymentType);
+                $inSemester = $isFullYear || in_array($month, $semesterMonths, true);
+                return $inSemester && in_array($month, $billedMonths, true);
+            })
             ->all();
 
         // Ensure any existing bills outside the filter still show up (e.g. legacy data)

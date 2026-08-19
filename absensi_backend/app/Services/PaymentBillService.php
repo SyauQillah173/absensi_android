@@ -309,12 +309,16 @@ class PaymentBillService
             ->where('payment_type_id', $paymentType->id)
             ->whereNull('period_month');
 
-        $periode = strtolower($paymentType->periode ?? '');
-        if (!str_contains($periode, 'sekali')) {
+        $isMonthly = str_contains(strtolower($paymentType->periode ?? ''), 'bulan') 
+            || str_contains(strtolower($paymentType->nama), 'spp') 
+            || str_contains(strtolower($paymentType->nama), 'syahriyah');
+
+        if ($isMonthly) {
             $billQuery->where('academic_year_id', $academicYearId);
-            if (str_contains($periode, 'semester')) {
-                $billQuery->where('semester_id', $semester?->id);
-            }
+            $billQuery->where('semester_id', $semester?->id);
+        } else {
+            // For non-monthly bills, it's strictly one per academic year, disregarding semester
+            $billQuery->where('academic_year_id', $academicYearId);
         }
 
         $bill = $billQuery->first();
@@ -340,18 +344,18 @@ class PaymentBillService
             'siswa_id' => $siswa->id,
             'wali_id' => $siswa->wali_id,
             'class_id' => $siswa->class_id,
-            'period_key' => 'once-' . $academicYearId . '-' . ($semester?->id ?: 'all'),
+            'period_key' => 'once-' . $academicYearId . '-' . ($isMonthly ? ($semester?->id ?: 'all') : 'all'),
             'period_year' => null,
             'period_month' => null,
             'period_label' => 'Sekali Bayar',
-            'title' => $paymentType->nama,
+            'title' => trim($paymentType->nama . ' (Sekali Bayar)'),
             'amount' => $amountDue,
             'due_date' => now()->toDateString(),
             'status' => 'Belum Lunas',
             'academic_year_id' => $academicYearId,
-            'semester_id' => $semester?->id,
+            'semester_id' => $isMonthly ? $semester?->id : null,
             'tahun_ajaran' => $year->name,
-            'semester' => $semester?->name,
+            'semester' => $isMonthly ? $semester?->name : null,
         ]);
     }
 
@@ -371,11 +375,6 @@ class PaymentBillService
 
         $paymentTypes = PaymentType::query()
             ->where('status', 'Aktif')
-            ->where(function ($query) {
-                $query->where('periode', 'ilike', '%bulan%')
-                    ->orWhere('nama', 'ilike', '%spp%')
-                    ->orWhere('nama', 'ilike', '%syahriyah%');
-            })
             ->orderBy('id')
             ->get();
 
@@ -400,6 +399,51 @@ class PaymentBillService
             }
 
             $rule = $this->ensureRuleForPaymentType($paymentType);
+            $isMonthly = str_contains(strtolower($paymentType->periode ?? ''), 'bulan') 
+                || str_contains(strtolower($paymentType->nama), 'spp') 
+                || str_contains(strtolower($paymentType->nama), 'syahriyah');
+
+            if (!$isMonthly) {
+                foreach ($students as $student) {
+                    $existing = PaymentBill::query()
+                        ->where('siswa_id', $student->id)
+                        ->where('academic_year_id', $academicYear->id)
+                        ->where('payment_type_id', $paymentType->id)
+                        ->whereNull('period_month')
+                        ->exists();
+
+                    if (!$existing) {
+                        $dueDate = now()->copy();
+                        if ($rule->due_day) {
+                            $dueDate = $this->dueDateForMonth(now(), $rule->due_day);
+                        }
+                        $status = $dueDate->lt(now()->startOfDay()) ? 'Terlambat' : 'Belum Lunas';
+
+                        PaymentBill::query()->create([
+                            'siswa_id' => $student->id,
+                            'academic_year_id' => $academicYear->id,
+                            'payment_type_id' => $paymentType->id,
+                            'payment_bill_rule_id' => $rule->id,
+                            'wali_id' => $student->wali_id,
+                            'class_id' => $student->class_id,
+                            'period_key' => 'once',
+                            'period_year' => null,
+                            'period_month' => null,
+                            'period_label' => 'Sekali Bayar',
+                            'title' => trim($paymentType->nama . ' (Sekali Bayar)'),
+                            'amount' => (int) ($paymentType->nominal_default ?? $rule->nominal),
+                            'due_date' => $dueDate->toDateString(),
+                            'status' => $status,
+                            'tahun_ajaran' => $academicYear->name,
+                            'semester' => null,
+                            'semester_id' => null,
+                        ]);
+                        $createdOrTouched++;
+                    }
+                }
+                continue;
+            }
+
             $months = array_keys($this->monthOrderForPaymentType($paymentType, $semester?->id));
             if (is_array($paymentType->billed_months) && !empty($paymentType->billed_months)) {
                 $months = array_intersect($months, array_map('intval', $paymentType->billed_months));
