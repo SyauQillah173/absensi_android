@@ -243,16 +243,29 @@ class PaymentBillService
             throw ValidationException::withMessages(['academic_year_id' => ['Tahun ajaran tidak ditemukan.']]);
         }
 
-        $semester = $semesterId
-            ? DB::table('semesters')->where('id', $semesterId)->where('academic_year_id', $academicYearId)->first()
-            : null;
-        $semesterMonths = $this->monthsForSemester($semester?->id, $semester?->code ?? $semester?->name ?? null);
-        if (!$this->usesFullYearMonths($paymentType) && $semesterMonths !== null && !in_array($month, $semesterMonths, true)) {
-            throw ValidationException::withMessages([
-                'payment_items' => ['Bulan yang dipilih tidak sesuai dengan semester aktif.'],
-            ]);
+        $rule = $this->ensureRuleForPaymentType($paymentType, null, $semesterId ? ['semester_id' => $semesterId] : []);
+        $isMonthly = str_contains(strtolower($paymentType->periode ?? ''), 'bulan') 
+                || str_contains(strtolower($paymentType->nama), 'spp') 
+                || str_contains(strtolower($paymentType->nama), 'syahriyah');
+
+        if ($isMonthly && is_array($rule->billed_months) && !empty($rule->billed_months)) {
+            $allowedMonths = array_map('intval', $rule->billed_months);
+            if (!in_array($month, $allowedMonths, true)) {
+                throw ValidationException::withMessages([
+                    'payment_items' => ['Bulan yang dipilih tidak termasuk dalam setting bulan tagihan untuk semester ini.'],
+                ]);
+            }
+        } else {
+            $semester = $semesterId
+                ? DB::table('semesters')->where('id', $semesterId)->where('academic_year_id', $academicYearId)->first()
+                : null;
+            $semesterMonths = $this->monthsForSemester($semester?->id, $semester?->code ?? $semester?->name ?? null);
+            if (!$this->usesFullYearMonths($paymentType) && $semesterMonths !== null && !in_array($month, $semesterMonths, true)) {
+                throw ValidationException::withMessages([
+                    'payment_items' => ['Bulan yang dipilih tidak sesuai dengan semester aktif.'],
+                ]);
+            }
         }
-        $rule = $this->ensureRuleForPaymentType($paymentType);
         $periodYear = $this->academicPeriodYear((int) $year->year_start, (int) $year->year_end, $month);
         $periodKey = sprintf('%04d-%02d', $periodYear, $month);
         $periodLabel = $this->monthLabel(Carbon::create($periodYear, $month, 1));
