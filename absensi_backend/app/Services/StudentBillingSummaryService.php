@@ -223,15 +223,22 @@ class StudentBillingSummaryService
         $semesterMonths = $this->monthsForSemester($semester) ?? array_keys(self::ACADEMIC_MONTHS);
         
         $paymentType = \App\Models\PaymentType::query()->find($first['payment_type_id'] ?? 0);
-        $billedMonths = $paymentType && is_array($paymentType->billed_months) 
-            ? array_map('intval', $paymentType->billed_months) 
-            : array_keys(self::ACADEMIC_MONTHS);
+        
+        $rule = \App\Models\PaymentBillRule::query()
+            ->where('payment_type_id', $first['payment_type_id'] ?? 0)
+            ->where('academic_year_id', $first['academic_year_id'] ?? 0)
+            ->where('semester_id', $first['semester_id'] ?? 0)
+            ->first();
+
+        $billedMonths = $rule && is_array($rule->billed_months) 
+            ? array_map('intval', $rule->billed_months) 
+            : ($paymentType && is_array($paymentType->billed_months) ? array_map('intval', $paymentType->billed_months) : array_keys(self::ACADEMIC_MONTHS));
 
         $monthOrder = collect(self::ACADEMIC_MONTHS)
-            ->filter(function (string $label, int $month) use ($semesterMonths, $billedMonths, $paymentType) {
-                $isFullYear = $this->billService->usesFullYearMonths($paymentType);
-                $inSemester = $isFullYear || in_array($month, $semesterMonths, true);
-                return $inSemester && in_array($month, $billedMonths, true);
+            ->filter(function (string $label, int $month) use ($billedMonths) {
+                // Semua bulan yang dicentang di rule akan ditampilkan untuk grup semester ini, 
+                // tanpa mempedulikan month belong ke Ganjil/Genap.
+                return in_array($month, $billedMonths, true);
             })
             ->all();
 

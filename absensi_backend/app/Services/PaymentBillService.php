@@ -51,10 +51,13 @@ class PaymentBillService
 
     public function ensureRuleForPaymentType(PaymentType $paymentType, ?int $actorId = null, array $options = []): PaymentBillRule
     {
-        $rule = PaymentBillRule::query()
-            ->where('payment_type_id', $paymentType->id)
-            ->orderBy('id')
-            ->first();
+        $query = PaymentBillRule::query()->where('payment_type_id', $paymentType->id);
+        
+        if (isset($options['semester_id'])) {
+            $query->where('semester_id', $options['semester_id']);
+        }
+        
+        $rule = $query->orderBy('id')->first();
 
         $payload = [
             'payment_type_id' => $paymentType->id,
@@ -66,6 +69,7 @@ class PaymentBillService
                 : $this->normalizeDueDay($rule?->due_day ?? 10),
             'target_type' => $options['target_type'] ?? 'all',
             'class_id' => $options['class_id'] ?? null,
+            'billed_months' => $options['billed_months'] ?? ($rule ? $rule->billed_months : $paymentType->billed_months),
             'starts_on' => $options['starts_on'] ?? ($rule && $rule->starts_on ? $rule->starts_on->format('Y-m-d') : now()->format('Y-m-d')),
             'ends_on' => array_key_exists('ends_on', $options) ? $options['ends_on'] : ($rule && $rule->ends_on ? $rule->ends_on->format('Y-m-d') : null),
             'is_active' => $options['is_active'] ?? (($paymentType->status ?? 'Aktif') === 'Aktif'),
@@ -78,6 +82,10 @@ class PaymentBillService
             ],
             'created_by_user_id' => $actorId,
         ];
+
+        if (isset($options['semester_id'])) {
+            $payload['semester_id'] = $options['semester_id'];
+        }
 
         if ($rule) {
             $rule->update($payload);
@@ -369,10 +377,7 @@ class PaymentBillService
 
     public function generateBillsForAcademicPeriod(AcademicYear $academicYear, ?Semester $semester = null): int
     {
-        $months = $this->monthsForSemester($semester?->id, $semester?->code ?? $semester?->name ?? null)
-            ?? array_keys(self::ACADEMIC_MONTHS);
         $createdOrTouched = 0;
-
         $paymentTypes = PaymentType::query()
             ->where('status', 'Aktif')
             ->orderBy('id')
@@ -444,11 +449,8 @@ class PaymentBillService
                 continue;
             }
 
+            $months = $rule->billed_months ? array_map('intval', $rule->billed_months) : [];
             $academicYearWithSemesters = $academicYear->loadMissing('semesters');
-            $months = array_keys($this->monthOrderForPaymentType($paymentType, null));
-            if (is_array($paymentType->billed_months) && !empty($paymentType->billed_months)) {
-                $months = array_intersect($months, array_map('intval', $paymentType->billed_months));
-            }
 
             foreach ($students as $student) {
                 foreach ($months as $month) {
@@ -457,11 +459,17 @@ class PaymentBillService
                     $periodLabel = $this->monthLabel(Carbon::create($periodYear, $month, 1));
                     $dueDate = $this->dueDateForMonth(Carbon::create($periodYear, $month, 1), $rule->due_day)->toDateString();
                     $status = Carbon::parse($dueDate)->lt(now()->startOfDay()) ? 'Terlambat' : 'Belum Lunas';
-                    $semesterInfo = $this->semesterForMonth($month, $academicYearWithSemesters);
+                    
+                    // Assign ALL configured months to the semester defined in the rule
+                    $semesterInfo = [
+                        'semester_id' => $rule->semester_id,
+                        'semester' => $rule->semester,
+                    ];
 
                     $existing = PaymentBill::query()
                         ->where('siswa_id', $student->id)
                         ->where('academic_year_id', $academicYear->id)
+                        ->where('semester_id', $rule->semester_id) // Match the specific semester's bill
                         ->where('payment_type_id', $paymentType->id)
                         ->where('period_month', $month)
                         ->first();
@@ -698,8 +706,8 @@ class PaymentBillService
             $last = $end->copy()->startOfMonth();
             $periods = [];
 
-            $billedMonths = is_array($rule->paymentType?->billed_months) 
-                ? array_map('intval', $rule->paymentType->billed_months) 
+            $billedMonths = is_array($rule->billed_months) 
+                ? array_map('intval', $rule->billed_months) 
                 : null;
 
             while ($cursor->lte($last)) {
@@ -883,15 +891,16 @@ class PaymentBillService
             return;
         }
 
+        $rule = $this->ensureRuleForPaymentType($paymentType);
         $isMonthly = str_contains(strtolower($paymentType->periode ?? ''), 'bulan');
 
-        if ($isMonthly && is_array($paymentType->billed_months)) {
-            if (empty($paymentType->billed_months)) {
+        if ($isMonthly && is_array($rule->billed_months)) {
+            if (empty($rule->billed_months)) {
                 $query->whereNotNull('period_month')->delete();
                 return;
             } else {
                 $query->whereNotNull('period_month')
-                    ->whereNotIn('period_month', array_map('intval', $paymentType->billed_months))
+                    ->whereNotIn('period_month', array_map('intval', $rule->billed_months))
                     ->delete();
             }
         }
@@ -902,8 +911,6 @@ class PaymentBillService
             if (!$academicYear) {
                 return;
             }
-
-            $rule = $this->ensureRuleForPaymentType($paymentType);
 
             $students = Siswa::query()
                 ->whereHas('tahunAjaran', function ($q) use ($academicYear) {
@@ -962,7 +969,7 @@ class PaymentBillService
         }
 
         // Fast generation for missing checked months (only for monthly bills)
-        if (empty($paymentType->billed_months)) {
+        if (empty($rule->billed_months)) {
             return;
         }
 
@@ -971,8 +978,7 @@ class PaymentBillService
             return;
         }
 
-        $rule = $this->ensureRuleForPaymentType($paymentType);
-        $monthsToBill = array_map('intval', $paymentType->billed_months);
+        $monthsToBill = array_map('intval', $rule->billed_months);
 
         $students = Siswa::query()
             ->whereHas('tahunAjaran', function ($q) use ($academicYear) {
@@ -1032,6 +1038,25 @@ class PaymentBillService
 
         foreach (array_chunk($inserts, 500) as $chunk) {
             PaymentBill::insert($chunk);
+        }
+
+        // Hapus tagihan yang bulannya di-uncheck, TAPI HANYA JIKA bulan tersebut
+        // milik semester dari rule ini (artinya semester yang sedang diedit).
+        $ruleSemesterMonths = $this->monthsForSemester(null, $rule->semester) ?? [];
+        $monthsToDelete = array_diff($ruleSemesterMonths, $monthsToBill);
+
+        if (!empty($monthsToDelete)) {
+            PaymentBill::query()
+                ->where('payment_type_id', $paymentType->id)
+                ->where('academic_year_id', $academicYear->id)
+                ->where('semester_id', $rule->semester_id) // Hanya hapus di semester yg di-setting
+                ->whereIn('period_month', $monthsToDelete)
+                ->where(function ($q) {
+                    $q->whereNull('status')
+                      ->orWhereNotIn('status', ['Lunas', 'Menunggu Verifikasi']);
+                })
+                ->whereDoesntHave('pembayaran')
+                ->delete();
         }
     }
 }

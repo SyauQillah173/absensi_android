@@ -61,13 +61,51 @@ class PaymentTypeController extends Controller
     {
         $validated = $this->validatePayload($request, $paymentType->id, false);
         $ruleOptions = $this->billRuleOptions($validated);
+        
         $before = $paymentType->load('billRules')->toArray();
-        $paymentType->update($this->paymentTypePayload($validated));
-        app(PaymentBillService::class)->ensureRuleForPaymentType(
-            $paymentType->fresh(),
-            app(ActorResolver::class)->active($request)?->id,
-            $ruleOptions
-        );
+        
+        $targetSemesterId = $validated['target_semester_id'] ?? null;
+        
+        if ($targetSemesterId) {
+            // Update the specific rule for the target semester
+            $academicYear = app(\App\Services\AcademicPeriodService::class)->getActiveAcademicYear();
+            if ($academicYear) {
+                $rule = \App\Models\PaymentBillRule::query()
+                    ->where('payment_type_id', $paymentType->id)
+                    ->where('academic_year_id', $academicYear->id)
+                    ->where('semester_id', $targetSemesterId)
+                    ->first();
+                
+                if ($rule) {
+                    $rule->update([
+                        'nominal' => $ruleOptions['nominal'] ?? $rule->nominal,
+                        'billed_months' => $ruleOptions['billed_months'] ?? $rule->billed_months,
+                    ]);
+                } else {
+                    // Create rule if not exists
+                    app(PaymentBillService::class)->ensureRuleForPaymentType(
+                        $paymentType,
+                        app(ActorResolver::class)->active($request)?->id,
+                        array_merge($ruleOptions, ['semester_id' => $targetSemesterId])
+                    );
+                }
+            }
+            
+            // Do NOT update global nominal_default or billed_months if targeting a specific semester
+            $payload = collect($this->paymentTypePayload($validated))
+                ->except(['nominal_default', 'billed_months'])
+                ->all();
+            $paymentType->update($payload);
+            
+        } else {
+            $paymentType->update($this->paymentTypePayload($validated));
+            app(PaymentBillService::class)->ensureRuleForPaymentType(
+                $paymentType->fresh(),
+                app(ActorResolver::class)->active($request)?->id,
+                $ruleOptions
+            );
+        }
+
         app(PaymentBillService::class)->syncBillsForPaymentType($paymentType->fresh());
         app(AuditLogService::class)->record($request, 'payment_types', 'update', $paymentType, $before, $paymentType->fresh(['billRules'])->toArray());
 
@@ -132,6 +170,7 @@ class PaymentTypeController extends Controller
             'starts_on' => 'nullable|date',
             'ends_on' => 'nullable|date|after_or_equal:starts_on',
             'notification_settings' => 'nullable|array',
+            'target_semester_id' => 'nullable|integer',
         ]);
 
         if (isset($validated['periode'])) {
@@ -172,6 +211,7 @@ class PaymentTypeController extends Controller
             'target_type' => $validated['target_type'] ?? 'all',
             'class_id' => $validated['class_id'] ?? null,
             'student_ids' => $validated['student_ids'] ?? [],
+            'billed_months' => $validated['billed_months'] ?? null,
             'starts_on' => $validated['starts_on'] ?? null,
             'ends_on' => $validated['ends_on'] ?? null,
             'is_active' => ($validated['status'] ?? 'Aktif') === 'Aktif',
