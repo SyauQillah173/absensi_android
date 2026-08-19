@@ -445,7 +445,7 @@ class PaymentBillService
             }
 
             $academicYearWithSemesters = $academicYear->loadMissing('semesters');
-            $months = array_keys($this->monthOrderForPaymentType($paymentType, $semester?->id));
+            $months = array_keys($this->monthOrderForPaymentType($paymentType, null));
             if (is_array($paymentType->billed_months) && !empty($paymentType->billed_months)) {
                 $months = array_intersect($months, array_map('intval', $paymentType->billed_months));
             }
@@ -480,8 +480,8 @@ class PaymentBillService
                             'period_key' => $periodKey,
                             'period_year' => $periodYear,
                             'period_label' => $periodLabel,
-                            'title' => trim($paymentType->nama . ' ' . $periodLabel),
-                            'amount' => (int) ($paymentType->nominal_default ?? $rule->nominal),
+                            'title' => $existing ? $existing->title : trim($paymentType->nama . ' ' . $periodLabel),
+                            'amount' => $existing ? $existing->amount : (int) ($paymentType->nominal_default ?? $rule->nominal),
                             'due_date' => $dueDate,
                             'status' => in_array($existing?->status, ['Lunas', 'Dibatalkan', 'Menunggu Verifikasi'], true)
                                 ? $existing->status
