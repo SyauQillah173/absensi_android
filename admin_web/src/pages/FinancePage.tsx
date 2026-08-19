@@ -837,9 +837,8 @@ function PaymentModal({
     api.studentBillingSummary({ user_id: userId, siswa_id: studentId, academic_year_id: academicYearId })
       .then(res => {
         const data = res.data && typeof res.data === 'object' ? (res.data as ApiRecord) : res;
-        const mb = Array.isArray(data.monthly_bills) ? data.monthly_bills : [];
-        const gb = Array.isArray(data.general_bills) ? data.general_bills : [];
-        setBills([...mb, ...gb] as ApiRecord[]);
+        const tagihan = Array.isArray(data.tagihan) ? data.tagihan : [];
+        setBills(tagihan as ApiRecord[]);
       })
       .catch(console.error);
   }, [studentId, academicYearId, userId]);
