@@ -304,13 +304,20 @@ class PaymentBillService
             ? DB::table('semesters')->where('id', $semesterId)->where('academic_year_id', $academicYearId)->first()
             : null;
 
-        $bill = PaymentBill::query()
+        $billQuery = PaymentBill::query()
             ->where('siswa_id', $siswa->id)
-            ->where('academic_year_id', $academicYearId)
-            ->where('semester_id', $semester?->id)
             ->where('payment_type_id', $paymentType->id)
-            ->whereNull('period_month')
-            ->first();
+            ->whereNull('period_month');
+
+        $periode = strtolower($paymentType->periode ?? '');
+        if (!str_contains($periode, 'sekali')) {
+            $billQuery->where('academic_year_id', $academicYearId);
+            if (str_contains($periode, 'semester')) {
+                $billQuery->where('semester_id', $semester?->id);
+            }
+        }
+
+        $bill = $billQuery->first();
 
         if ($bill) {
             if (in_array($bill->status, ['Lunas', 'Dibatalkan'], true)) {
