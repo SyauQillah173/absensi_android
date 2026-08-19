@@ -416,7 +416,7 @@ class PaymentBillService
                 continue;
             }
 
-            $rule = $this->ensureRuleForPaymentType($paymentType);
+            $rule = $this->ensureRuleForPaymentType($paymentType, null, $semester ? ['semester_id' => $semester->id] : []);
             $isMonthly = str_contains(strtolower($paymentType->periode ?? ''), 'bulan') 
                 || str_contains(strtolower($paymentType->nama), 'spp') 
                 || str_contains(strtolower($paymentType->nama), 'syahriyah');
@@ -453,8 +453,8 @@ class PaymentBillService
                             'due_date' => $dueDate->toDateString(),
                             'status' => $status,
                             'tahun_ajaran' => $academicYear->name,
-                            'semester' => null,
-                            'semester_id' => null,
+                            'semester' => $semester ? $semester->name : null,
+                            'semester_id' => $semester ? $semester->id : null,
                         ]);
                         $createdOrTouched++;
                     }

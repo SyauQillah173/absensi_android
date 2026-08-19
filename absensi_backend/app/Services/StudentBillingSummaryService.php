@@ -92,7 +92,17 @@ class StudentBillingSummaryService
             $query->where('academic_year_id', (int) $filters['academic_year_id']);
         }
         if (!empty($filters['semester_id'])) {
-            $query->where('semester_id', (int) $filters['semester_id']);
+            $semesterId = (int) $filters['semester_id'];
+            $query->where(function ($q) use ($semesterId) {
+                $q->where('semester_id', $semesterId)
+                  ->orWhere(function ($q2) use ($semesterId) {
+                      $q2->whereIn('status', ['Belum Lunas', 'Terlambat'])
+                         ->where(function ($q3) use ($semesterId) {
+                             $q3->whereNull('semester_id')
+                                ->orWhere('semester_id', '!=', $semesterId);
+                         });
+                  });
+            });
         }
         if (!empty($filters['tahun_ajaran'])) {
             $query->where('tahun_ajaran', $filters['tahun_ajaran']);
