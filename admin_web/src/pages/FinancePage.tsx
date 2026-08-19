@@ -463,7 +463,9 @@ function PaymentsTable({ rows, emptyText, onDeleteTransaction, onDeleteItem }: {
                 <div key={i} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition-colors hover:border-gray-300">
                   <div>
                     <div className="font-bold text-[#2D3436]">{str(item.nama)}</div>
-                    <div className="text-xs font-semibold text-gray-500">{str(item.periode)} {str(item.keterangan)}</div>
+                    <div className="text-xs font-semibold text-gray-500">
+                      {str(item.payment_bill?.period_label ?? item.periode)} {str(item.tahun_ajaran)} {str(item.semester)} {str(item.keterangan)}
+                    </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="text-sm font-extrabold text-[#138F81]">Rp {num(item.jumlah).toLocaleString('id-ID')}</span>
@@ -891,8 +893,8 @@ function PaymentModal({
           }} rows={academicPeriods} labelOf={(row) => str(row.tahun_ajaran ?? row.name ?? row.label)} />
           <SelectField label="Semester" value={Number(semesterId) || 0} onChange={setSemesterId} rows={semesters} labelOf={(row) => str(row.name ?? row.semester)} />
         </div>
-        <SelectField label="Tipe Pembayaran" value={typeId} onChange={(id) => { setTypeId(id); setAmount(String(paymentTypes.find((row) => num(row.id) === id)?.nominal_default ?? '')); setSelectedMonths(new Set()); }} rows={paymentTypes} labelOf={(row) => `${str(row.nama)} - ${formatMoney(row.nominal_default)}`} />
-        <SelectField label="Metode Pembayaran" value={methodId} onChange={setMethodId} rows={paymentMethods} labelOf={(row) => str(row.name)} />
+        <SelectField label="Tipe Pembayaran" value={typeId} onChange={(id) => { setTypeId(id); setAmount(String(paymentTypes.find((row) => num(row.id) === id)?.nominal_default ?? '')); setMethodId(0); setSelectedMonths(new Set()); }} rows={paymentTypes} labelOf={(row) => `${str(row.nama)} - ${formatMoney(row.nominal_default)}`} />
+        <SelectField label="Metode Pembayaran" value={methodId} onChange={setMethodId} rows={paymentMethods.filter(m => m.is_active !== false && (!selectedType?.metode_pembayaran || !Array.isArray(selectedType.metode_pembayaran) || selectedType.metode_pembayaran.length === 0 || selectedType.metode_pembayaran.includes(str(m.name))))} labelOf={(row) => str(row.name)} />
         {monthly ? (
           <div className="rounded-3xl bg-white p-4">
             <p className="mb-3 text-sm font-extrabold text-[#2D3436]">Pilih Bulan</p>
