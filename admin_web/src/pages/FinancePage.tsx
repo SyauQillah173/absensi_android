@@ -1015,7 +1015,8 @@ function PaymentTypeModal({
       setBilledMonths(new Set(Array.isArray(row.billed_months) ? row.billed_months.map(Number) : [7,8,9,10,11,12,1,2,3,4,5,6]));
       return;
     }
-    const rule = (Array.isArray(row.billRules) ? row.billRules : []).find((r: any) => num(r.semester_id) === targetSemesterId);
+    const rulesArray = Array.isArray(row.bill_rules) ? row.bill_rules : (Array.isArray(row.billRules) ? row.billRules : []);
+    const rule = rulesArray.find((r: any) => num(r.semester_id) === targetSemesterId);
     if (rule) {
       setAmount(String(rule.nominal ?? row.nominal_default ?? ''));
       setBilledMonths(new Set(Array.isArray(rule.billed_months) ? rule.billed_months.map(Number) : (Array.isArray(row.billed_months) ? row.billed_months.map(Number) : [7,8,9,10,11,12,1,2,3,4,5,6])));
