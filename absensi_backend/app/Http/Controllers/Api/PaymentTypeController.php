@@ -68,11 +68,11 @@ class PaymentTypeController extends Controller
         
         if ($targetSemesterId) {
             // Update the specific rule for the target semester
-            $academicYear = app(\App\Services\AcademicPeriodService::class)->getActiveAcademicYear();
-            if ($academicYear) {
+            $activePeriod = app(\App\Services\AcademicPeriodService::class)->active();
+            if ($activePeriod) {
                 $rule = \App\Models\PaymentBillRule::query()
                     ->where('payment_type_id', $paymentType->id)
-                    ->where('academic_year_id', $academicYear->id)
+                    ->where('academic_year_id', $activePeriod['academic_year_id'])
                     ->where('semester_id', $targetSemesterId)
                     ->first();
                 

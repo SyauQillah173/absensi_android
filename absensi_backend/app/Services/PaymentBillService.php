@@ -111,7 +111,7 @@ class PaymentBillService
             ->when($ruleId, fn ($query) => $query->where('id', $ruleId))
             ->orderBy('id')
             ->chunkById(50, function ($rules) use ($through, &$createdOrTouched) {
-                /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\PaymentBillRule> $rules */
+                /** @var \Illuminate\Database\Eloquent\Collection<int, PaymentBillRule> $rules */
                 foreach ($rules as $rule) {
                     if (!$rule->paymentType || ($rule->paymentType->status ?? 'Aktif') !== 'Aktif') {
                         continue;
@@ -693,6 +693,9 @@ class PaymentBillService
         return ($paymentType->periodType?->month_mode ?? 'semester') === 'full_year';
     }
 
+    /**
+     * @return Collection<int, array>
+     */
     private function periodsForRule(PaymentBillRule $rule, Carbon $through): Collection
     {
         $start = $rule->starts_on ? $rule->starts_on->copy() : now()->startOfDay();
@@ -833,7 +836,7 @@ class PaymentBillService
         $isGanjil = $month >= 7 && $month <= 12;
         $code = $isGanjil ? 'ganjil' : 'genap';
         $semester = $academicYear->semesters
-            ? $academicYear->semesters->first(fn ($s) => strtolower($s->code ?? $s->name ?? '') === $code)
+            ? collect($academicYear->semesters)->first(fn ($s) => strtolower($s->code ?? $s->name ?? '') === $code)
             : DB::table('semesters')
                 ->where('academic_year_id', $academicYear->id)
                 ->whereRaw('lower(coalesce(code, name)) = ?', [$code])
