@@ -557,50 +557,57 @@ class PaymentBillService
             $targetSemesterId = $semester?->id ?? $rule->semester_id;
             $targetSemesterName = $semester?->name ?? $rule->semester ?? 'Ganjil';
 
+            $inserts = [];
+            $now = now();
+
+            $existingBills = PaymentBill::query()
+                ->where('payment_type_id', $paymentType->id)
+                ->where('academic_year_id', $academicYear->id)
+                ->where('semester_id', $targetSemesterId)
+                ->whereNotNull('period_month')
+                ->select('siswa_id', 'period_month')
+                ->get()
+                ->groupBy('siswa_id')
+                ->map(fn ($items) => $items->pluck('period_month')->toArray());
+
             foreach ($students as $student) {
-                foreach ($months as $month) {
+                $existingMonths = $existingBills->get($student->id, []);
+                $missingMonths = array_diff($months, $existingMonths);
+
+                foreach ($missingMonths as $month) {
                     $periodYear = $this->academicPeriodYear((int) $academicYear->year_start, (int) $academicYear->year_end, $month);
                     $periodKey = sprintf('%04d-%02d', $periodYear, $month);
                     $periodLabel = $this->monthLabel(Carbon::create($periodYear, $month, 1));
                     $dueDate = $this->dueDateForMonth(Carbon::create($periodYear, $month, 1), $rule->due_day)->toDateString();
-                    $status = Carbon::parse($dueDate)->lt(now()->startOfDay()) ? 'Terlambat' : 'Belum Lunas';
+                    $status = Carbon::parse($dueDate)->lt($now->startOfDay()) ? 'Terlambat' : 'Belum Lunas';
 
-                    $existing = PaymentBill::query()
-                        ->where('siswa_id', $student->id)
-                        ->where('academic_year_id', $academicYear->id)
-                        ->where('semester_id', $targetSemesterId)
-                        ->where('payment_type_id', $paymentType->id)
-                        ->where('period_month', $month)
-                        ->first();
-
-                    PaymentBill::query()->updateOrCreate(
-                        [
-                            'siswa_id' => $student->id,
-                            'academic_year_id' => $academicYear->id,
-                            'semester_id' => $targetSemesterId,
-                            'payment_type_id' => $paymentType->id,
-                            'period_month' => $month,
-                        ],
-                        [
-                            'payment_bill_rule_id' => $rule->id,
-                            'wali_id' => $student->wali_id,
-                            'class_id' => $student->class_id,
-                            'period_key' => $periodKey,
-                            'period_year' => $periodYear,
-                            'period_label' => $periodLabel,
-                            'title' => $existing ? $existing->title : trim($paymentType->nama . ' ' . $periodLabel),
-                            'amount' => $existing ? $existing->amount : (int) ($rule->nominal ?: ($paymentType->nominal_default ?? 0)),
-                            'due_date' => $dueDate,
-                            'status' => in_array($existing?->status, ['Lunas', 'Dibatalkan', 'Menunggu Verifikasi'], true)
-                                ? $existing->status
-                                : $status,
-                            'tahun_ajaran' => $academicYear->name,
-                            'semester' => $targetSemesterName,
-                            'semester_id' => $targetSemesterId,
-                        ]
-                    );
-                    $createdOrTouched++;
+                    $inserts[] = [
+                        'payment_bill_rule_id' => $rule->id,
+                        'payment_type_id' => $paymentType->id,
+                        'siswa_id' => $student->id,
+                        'wali_id' => $student->wali_id,
+                        'class_id' => $student->class_id,
+                        'period_key' => $periodKey,
+                        'period_year' => $periodYear,
+                        'period_month' => $month,
+                        'period_label' => $periodLabel,
+                        'title' => trim($paymentType->nama . ' ' . $periodLabel),
+                        'amount' => (int) ($rule->nominal ?: ($paymentType->nominal_default ?? 0)),
+                        'due_date' => $dueDate,
+                        'status' => $status,
+                        'tahun_ajaran' => $academicYear->name,
+                        'semester' => $targetSemesterName,
+                        'semester_id' => $targetSemesterId,
+                        'academic_year_id' => $academicYear->id,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
                 }
+            }
+
+            foreach (array_chunk($inserts, 500) as $chunk) {
+                PaymentBill::insert($chunk);
+                $createdOrTouched += count($chunk);
             }
         }
 
