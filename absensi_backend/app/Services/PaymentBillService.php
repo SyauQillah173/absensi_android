@@ -1024,8 +1024,16 @@ class PaymentBillService
         }
     }
 
+    /**
+     * Sinkronisasi tagihan untuk tipe pembayaran tertentu.
+     * 
+     * @param PaymentType $paymentType
+     * @param int|null $targetSemesterId
+     * @return void
+     */
     public function syncBillsForPaymentType(PaymentType $paymentType, ?int $targetSemesterId = null): void
     {
+        /** @var \Illuminate\Database\Eloquent\Builder $query */
         $query = PaymentBill::query()
             ->where('payment_type_id', $paymentType->id)
             ->whereIn('status', ['Belum Lunas', 'Terlambat']);

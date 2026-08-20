@@ -101,7 +101,7 @@ class AcademicPeriodController extends Controller
         $autoSync = $this->prepareActivePeriod($request, $year);
         
         $semester = $year->semesters()->where('is_active', true)->first();
-        $billCount = app(\App\Services\PaymentBillService::class)->generateBillsForAcademicPeriod($year, $semester);
+        $billCount = app(PaymentBillService::class)->generateBillsForAcademicPeriod($year, $semester);
         
         app(AuditLogService::class)->record($request, 'academic_periods', 'activate', $year, $before, [
             ...$year->toArray(),
@@ -128,7 +128,7 @@ class AcademicPeriodController extends Controller
         $autoSync = $this->prepareActivePeriod($request, $year);
         
         $semester = $year->semesters()->where('is_active', true)->first();
-        $billCount = app(\App\Services\PaymentBillService::class)->generateBillsForAcademicPeriod($year, $semester);
+        $billCount = app(PaymentBillService::class)->generateBillsForAcademicPeriod($year, $semester);
         
         app(AuditLogService::class)->record($request, 'academic_periods', 'semester', $year, $before, [
             ...$year->toArray(),

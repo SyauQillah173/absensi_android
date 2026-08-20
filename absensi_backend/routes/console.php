@@ -287,7 +287,7 @@ Artisan::command(
 
         $groups = $rows
             ->groupBy(fn (Absensi $row) => Absensi::buildAttendanceKey(
-                $row->tanggal?->format('Y-m-d') ?? $row->tanggal,
+                \Carbon\Carbon::parse($row->tanggal)->format('Y-m-d'),
                 $row->class_id,
                 $row->mapel_id,
                 $row->jadwal_id,
@@ -325,10 +325,11 @@ Artisan::command(
                     ->whereNotNull('jadwal_id')
                     ->whereNotNull('siswa_id')
                     ->orderBy('id')
-                    ->chunkById(100, function ($chunk) {
+                    ->chunkById(100, function (\Illuminate\Database\Eloquent\Collection $chunk) {
+                        /** @var Absensi $row */
                         foreach ($chunk as $row) {
                             $row->attendance_key = Absensi::buildAttendanceKey(
-                                $row->tanggal?->format('Y-m-d') ?? $row->tanggal,
+                                \Carbon\Carbon::parse($row->tanggal)->format('Y-m-d'),
                                 $row->class_id,
                                 $row->mapel_id,
                                 $row->jadwal_id,
