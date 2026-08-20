@@ -397,3 +397,8 @@ Artisan::command(
         return 0;
     }
 )->purpose('Generate tagihan otomatis pembayaran secara idempotent');
+
+\Illuminate\Support\Facades\Schedule::command('payments:generate-bills')
+    ->dailyAt('00:00')
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/payments-generate-bills.log'));
