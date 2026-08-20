@@ -99,7 +99,14 @@ class AcademicPeriodController extends Controller
         $before = AcademicYear::query()->where('is_active', true)->get()->toArray();
         $year = $this->periodService->activate($academicYear, $validated['semester'] ?? $validated['active_semester'] ?? null);
         $autoSync = $this->prepareActivePeriod($request, $year);
-        app(AuditLogService::class)->record($request, 'academic_periods', 'activate', $year, $before, $year->toArray());
+        
+        $semester = $year->semesters()->where('is_active', true)->first();
+        $billCount = app(\App\Services\PaymentBillService::class)->generateBillsForAcademicPeriod($year, $semester);
+        
+        app(AuditLogService::class)->record($request, 'academic_periods', 'activate', $year, $before, [
+            ...$year->toArray(),
+            'payment_bills_generated' => $billCount,
+        ]);
 
         return response()->json([
             'success' => true,
@@ -119,7 +126,14 @@ class AcademicPeriodController extends Controller
         $this->periodService->setSemester($academicYear, $validated['semester']);
         $year = $academicYear->fresh('semesters');
         $autoSync = $this->prepareActivePeriod($request, $year);
-        app(AuditLogService::class)->record($request, 'academic_periods', 'semester', $year, $before, $year->toArray());
+        
+        $semester = $year->semesters()->where('is_active', true)->first();
+        $billCount = app(\App\Services\PaymentBillService::class)->generateBillsForAcademicPeriod($year, $semester);
+        
+        app(AuditLogService::class)->record($request, 'academic_periods', 'semester', $year, $before, [
+            ...$year->toArray(),
+            'payment_bills_generated' => $billCount,
+        ]);
 
         return response()->json([
             'success' => true,

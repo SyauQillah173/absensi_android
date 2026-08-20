@@ -248,6 +248,26 @@ class PaymentBillService
                 || str_contains(strtolower($paymentType->nama), 'spp') 
                 || str_contains(strtolower($paymentType->nama), 'syahriyah');
 
+        $periodYear = $this->academicPeriodYear((int) $year->year_start, (int) $year->year_end, $month);
+        $periodKey = sprintf('%04d-%02d', $periodYear, $month);
+        $periodLabel = $this->monthLabel(Carbon::create($periodYear, $month, 1));
+        
+        $bill = PaymentBill::query()
+            ->where('siswa_id', $siswa->id)
+            ->where('academic_year_id', $academicYearId)
+            ->where('payment_type_id', $paymentType->id)
+            ->where('period_month', $month)
+            ->first();
+
+        if ($bill) {
+            if (in_array($bill->status, ['Lunas', 'Dibatalkan'], true)) {
+                throw ValidationException::withMessages([
+                    'payment_items' => ["Bulan {$periodLabel} sudah {$bill->status} dan tidak dapat dibayar ulang."],
+                ]);
+            }
+            return $bill;
+        }
+
         if ($isMonthly && is_array($rule->billed_months) && !empty($rule->billed_months)) {
             $allowedMonths = array_map('intval', $rule->billed_months);
             if (!in_array($month, $allowedMonths, true)) {
@@ -266,28 +286,9 @@ class PaymentBillService
                 ]);
             }
         }
-        $periodYear = $this->academicPeriodYear((int) $year->year_start, (int) $year->year_end, $month);
-        $periodKey = sprintf('%04d-%02d', $periodYear, $month);
-        $periodLabel = $this->monthLabel(Carbon::create($periodYear, $month, 1));
+        
         $dueDate = $this->dueDateForMonth(Carbon::create($periodYear, $month, 1), $rule->due_day)->toDateString();
         $status = Carbon::parse($dueDate)->lt(now()->startOfDay()) ? 'Terlambat' : 'Belum Lunas';
-
-        $bill = PaymentBill::query()
-            ->where('siswa_id', $siswa->id)
-            ->where('academic_year_id', $academicYearId)
-            ->where('payment_type_id', $paymentType->id)
-            ->where('period_month', $month)
-            ->first();
-
-        if ($bill) {
-            if (in_array($bill->status, ['Lunas', 'Dibatalkan'], true)) {
-                throw ValidationException::withMessages([
-                    'payment_items' => ["Bulan {$periodLabel} sudah {$bill->status} dan tidak dapat dibayar ulang."],
-                ]);
-            }
-
-            return $bill;
-        }
 
         return PaymentBill::query()->create([
             'payment_bill_rule_id' => $rule->id,
@@ -427,6 +428,7 @@ class PaymentBillService
                         ->where('siswa_id', $student->id)
                         ->where('academic_year_id', $academicYear->id)
                         ->where('payment_type_id', $paymentType->id)
+                        ->when($semester, fn($q) => $q->where('semester_id', $semester->id))
                         ->whereNull('period_month')
                         ->exists();
 
