@@ -41,28 +41,35 @@ class ResetPaymentData extends Command
         $this->info("Menghapus seluruh riwayat transaksi, pembayaran, dan tagihan...");
 
         try {
-            $driver = DB::connection()->getDriverName();
+            $candidateTables = [
+                'pembayaran',
+                'payment_bills',
+                'payment_bill_notifications',
+                'payment_bill_rule_student',
+                'payment_bill_rules',
+                'payment_transactions',
+                'payment_transaction_items',
+            ];
 
-            if ($driver === 'pgsql') {
-                DB::statement('TRUNCATE TABLE payment_transaction_items, payment_transactions, pembayaran, payment_bills, payment_bill_rules RESTART IDENTITY CASCADE;');
-            } else {
-                Schema::disableForeignKeyConstraints();
-                if (Schema::hasTable('payment_transaction_items')) {
-                    DB::table('payment_transaction_items')->truncate();
+            $existingTables = [];
+            foreach ($candidateTables as $tableName) {
+                if (Schema::hasTable($tableName)) {
+                    $existingTables[] = $tableName;
                 }
-                if (Schema::hasTable('payment_transactions')) {
-                    DB::table('payment_transactions')->truncate();
+            }
+
+            if (!empty($existingTables)) {
+                $driver = DB::connection()->getDriverName();
+                if ($driver === 'pgsql') {
+                    $tableList = implode(', ', $existingTables);
+                    DB::statement("TRUNCATE TABLE {$tableList} RESTART IDENTITY CASCADE;");
+                } else {
+                    Schema::disableForeignKeyConstraints();
+                    foreach ($existingTables as $tableName) {
+                        DB::table($tableName)->truncate();
+                    }
+                    Schema::enableForeignKeyConstraints();
                 }
-                if (Schema::hasTable('pembayaran')) {
-                    DB::table('pembayaran')->truncate();
-                }
-                if (Schema::hasTable('payment_bills')) {
-                    DB::table('payment_bills')->truncate();
-                }
-                if (Schema::hasTable('payment_bill_rules')) {
-                    DB::table('payment_bill_rules')->truncate();
-                }
-                Schema::enableForeignKeyConstraints();
             }
 
             $this->info("✓ Data transaksi pembayaran berhasil dibersihkan.");
