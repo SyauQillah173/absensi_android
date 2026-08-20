@@ -287,7 +287,7 @@ Artisan::command(
 
         $groups = $rows
             ->groupBy(fn (Absensi $row) => Absensi::buildAttendanceKey(
-                \Carbon\Carbon::parse($row->tanggal)->format('Y-m-d'),
+                \Carbon\Carbon::parse((string) $row->tanggal)->format('Y-m-d'),
                 $row->class_id,
                 $row->mapel_id,
                 $row->jadwal_id,
@@ -329,7 +329,7 @@ Artisan::command(
                         /** @var Absensi $row */
                         foreach ($chunk as $row) {
                             $row->attendance_key = Absensi::buildAttendanceKey(
-                                \Carbon\Carbon::parse($row->tanggal)->format('Y-m-d'),
+                                \Carbon\Carbon::parse((string) $row->tanggal)->format('Y-m-d'),
                                 $row->class_id,
                                 $row->mapel_id,
                                 $row->jadwal_id,
