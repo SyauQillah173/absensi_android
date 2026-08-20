@@ -864,11 +864,17 @@ function PaymentModal({
 
   const paidMonths = new Set(
     bills
-      .filter(b => num(b.payment_type_id) === typeId && num(b.semester_id) === semesterId && (b.status === 'Lunas' || b.status === 'Dibatalkan'))
+      .filter(b => num(b.payment_type_id) === typeId && (num(b.semester_id) === Number(semesterId) || !b.semester_id) && (b.status === 'Lunas' || b.status === 'Dibatalkan' || b.is_paid === true))
       .map(b => num(b.period_month))
   );
 
-  const isGeneralPaid = !monthly && bills.some(b => num(b.payment_type_id) === typeId && (num(b.semester_id) === semesterId || !b.semester_id) && (b.status === 'Lunas' || b.status === 'Dibatalkan'));
+  const matchingGeneralBill = !monthly
+    ? bills.find(b => num(b.payment_type_id) === typeId && (num(b.semester_id) === Number(semesterId) || !b.semester_id))
+    : null;
+
+  const isGeneralPaid = matchingGeneralBill
+    ? (matchingGeneralBill.status === 'Lunas' || matchingGeneralBill.is_paid === true)
+    : false;
 
   function toggleMonth(month: number) {
     if (paidMonths.has(month)) return;
@@ -963,10 +969,17 @@ function PaymentModal({
             </div>
           </div>
         ) : (
-          <label className="block">
-            <span className="mb-2 block text-sm font-bold text-[#636E72]">Nominal Dibayar</span>
-            <input className="q-input" inputMode="numeric" value={amount} onChange={(event) => setAmount(event.target.value.replace(/\D/g, ''))} disabled={isGeneralPaid} />
-          </label>
+          <div className="space-y-2">
+            <label className="block">
+              <span className="mb-2 block text-sm font-bold text-[#636E72]">Nominal Dibayar</span>
+              <input className="q-input" inputMode="numeric" value={amount} onChange={(event) => setAmount(event.target.value.replace(/\D/g, ''))} disabled={isGeneralPaid} />
+            </label>
+            {matchingGeneralBill && !isGeneralPaid && num(matchingGeneralBill.paid_amount) > 0 ? (
+              <div className="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 text-xs font-bold text-amber-800">
+                ⚠️ Tagihan ini telah dibayar sebagian ({formatMoney(matchingGeneralBill.paid_amount)}). Sisa tagihan: <span className="text-red-600 font-extrabold">{formatMoney(matchingGeneralBill.remaining_amount ?? matchingGeneralBill.amount)}</span>.
+              </div>
+            ) : null}
+          </div>
         )}
         <label className="block">
           <span className="mb-2 block text-sm font-bold text-[#636E72]">Catatan (Opsional)</span>
