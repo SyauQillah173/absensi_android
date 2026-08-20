@@ -1,25 +1,100 @@
-# Miscellaneous
+# ==========================================
+# 1. ENVIRONMENT & SECRET CREDENTIALS
+# ==========================================
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
+
+# Security Keys, Certificates & Keystores
+*.key
+*.pem
+*.cert
+*.crt
+*.p12
+*.pfx
+*.jks
+*.keystore
+auth.json
+oauth*.json
+
+# ==========================================
+# 2. CATATAN PRIBADI, PANDUAN & PROMPT
+# ==========================================
+# Semua file text catatan
+*.txt
+**/*.txt
+!**/robots.txt
+
+# Catatan Markdown & Panduan Belajar Pribadi
+CATATAN_*.md
+TUTORIAL_*.md
+PANDUAN_*.md
+PROMPT_*.md
+PROPMT_*.md
+*.guide.md
+*.personal.md
+konteks_*.txt
+panduan_*.txt
+
+# Folder Asisten AI & Konfigurasi Pribadi
+.agents/
+.sixth/
+.codex/
+.gemini/
+.claude/
+
+# ==========================================
+# 3. BACKUP, ARCHIVES & TEMPORARY FILES
+# ==========================================
+*.zip
+*.rar
+*.tar.gz
+*.7z
+*.bak
+*.tmp
 *.class
-*.log
 *.pyc
 *.swp
 .DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
+Thumbs.db
 migrate_working_dir/
 
-# IntelliJ & IDE related
+# ==========================================
+# 4. LOGS & DATABASE RUNTIME
+# ==========================================
+*.log
+**/*.log
+*.sqlite
+*.sqlite-journal
+absensi_backend/storage/logs/*.log
+absensi_backend/.tmp/
+absensi_backend/test_*.php
+
+# ==========================================
+# 5. WHATSAPP BOT SESSIONS & CACHE
+# ==========================================
+WhatsApp_Bot/sessions/
+WhatsApp_Bot/.wwebjs_cache/
+WhatsApp_Bot/.wwebjs_auth/
+WhatsApp_Bot/logs/
+WhatsApp_Bot/bot_runtime.log
+
+# ==========================================
+# 6. IDE & EDITOR SETTINGS
+# ==========================================
 *.iml
 *.ipr
 *.iws
 .idea/
 .vscode/
+.atom/
+.history
 
-# Flutter/Dart/Pub related
+# ==========================================
+# 7. FLUTTER & DART BUILD ARTIFACTS
+# ==========================================
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
@@ -28,47 +103,23 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
-
-# Android Studio will place build artifacts here
+app.*.symbols
+app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
 
-# Personal project notes / private local guides
-/PANDUAN_*.txt
-/PROMPT_*.txt
-/PROPMT_*.txt
-
-# Zip, Archive & Backup files
-*.zip
-*.rar
-*.tar.gz
-*.bak
-*.tmp
-
-# Vercel & Environment
+# ==========================================
+# 8. WEB ADMIN (REACT/VITE) & VERCEL
+# ==========================================
 .vercel
-**/.env
-**/.env.*
-.env
-.env.*
-
-
-# Web Admin build artifacts
 admin_web/dist/
 admin_web/dist.zip
 admin_web/vite.config.js
 admin_web/vite.config.d.ts
 
-# Backend test and temp files
-absensi_backend/.tmp/
-absensi_backend/test_*.php
-absensi_backend/storage/logs/*.log
-
-# WhatsApp Bot cache and sessions
-WhatsApp_Bot/.wwebjs_cache/
-WhatsApp_Bot/sessions/
-WhatsApp_Bot/bot_runtime.log
-
-# Legacy and removed folders
+# ==========================================
+# 9. LEGACY & REMOVED DIRECTORIES
+# ==========================================
 absensi_skripsi/
+
