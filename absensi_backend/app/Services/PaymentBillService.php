@@ -209,7 +209,8 @@ class PaymentBillService
             ->get()
             ->keyBy(fn (PaymentBill $bill) => (int) $bill->period_month);
 
-        $monthOrder = $this->monthOrderForPaymentType($paymentType, $semesterId);
+        $rule = $this->ensureRuleForPaymentType($paymentType, null, $semesterId ? ['semester_id' => $semesterId] : []);
+        $monthOrder = $this->monthOrderForPaymentType($paymentType, $semesterId, $rule);
 
         return collect($monthOrder)
             ->map(function (string $label, int $month) use ($bills, $paymentType, $year, $semesterId) {
@@ -286,13 +287,6 @@ class PaymentBillService
             if (!in_array($month, $allowedMonths, true)) {
                 throw ValidationException::withMessages([
                     'payment_items' => ['Bulan yang dipilih tidak termasuk dalam setting bulan tagihan untuk semester ini.'],
-                ]);
-            }
-        } else {
-            $semesterMonths = $this->monthsForSemester($semester?->id, $semester?->code ?? $semester?->name ?? null);
-            if (!$this->usesFullYearMonths($paymentType) && $semesterMonths !== null && !in_array($month, $semesterMonths, true)) {
-                throw ValidationException::withMessages([
-                    'payment_items' => ['Bulan yang dipilih tidak sesuai dengan semester aktif.'],
                 ]);
             }
         }
@@ -718,8 +712,8 @@ class PaymentBillService
 
     public function formatBill(PaymentBill $bill): array
     {
-        $bill->loadMissing(['paymentType.periodType', 'siswa:id,nama,nis,kelas,wali_id']);
-        $monthOrder = $this->monthOrderForPaymentType($bill->paymentType, $bill->semester_id ?: $bill->semester);
+        $bill->loadMissing(['paymentType.periodType', 'siswa:id,nama,nis,kelas,wali_id', 'rule']);
+        $monthOrder = $this->monthOrderForPaymentType($bill->paymentType, $bill->semester_id ?: $bill->semester, $bill->rule ?? null);
 
         return [
             'id' => $bill->id,
@@ -756,24 +750,20 @@ class PaymentBillService
         ];
     }
 
-    public function monthOrderForPaymentType(?PaymentType $paymentType = null, mixed $semester = null): array
+    public function monthOrderForPaymentType(?PaymentType $paymentType = null, mixed $semester = null, ?PaymentBillRule $rule = null): array
     {
         if ($this->usesFullYearMonths($paymentType)) {
             return self::CALENDAR_MONTHS;
         }
 
-        $months = $this->monthsForSemester(
-            is_numeric($semester) ? (int) $semester : null,
-            is_numeric($semester) ? null : (string) $semester
-        );
-
-        if ($months === null) {
-            return self::ACADEMIC_MONTHS;
+        if ($rule && !empty($rule->billed_months)) {
+            $allowed = array_map('intval', $rule->billed_months);
+            return collect(self::ACADEMIC_MONTHS)
+                ->filter(fn (string $label, int $month) => in_array($month, $allowed, true))
+                ->all();
         }
 
-        return collect(self::ACADEMIC_MONTHS)
-            ->filter(fn (string $label, int $month) => in_array($month, $months, true))
-            ->all();
+        return self::ACADEMIC_MONTHS;
     }
 
     public function usesFullYearMonths(?PaymentType $paymentType): bool
@@ -1138,16 +1128,13 @@ class PaymentBillService
 
     private function syncMonthlyBillsForPaymentType(PaymentType $paymentType, PaymentBillRule $rule): void
     {
-        if (empty($rule->billed_months)) {
-            return;
-        }
-
         $academicYear = AcademicYear::query()->with('semesters')->where('is_active', true)->first();
         if (!$academicYear) {
             return;
         }
 
-        $monthsToBill = array_map('intval', $rule->billed_months);
+        $billedMonths = !empty($rule->billed_months) ? $rule->billed_months : array_keys(self::ACADEMIC_MONTHS);
+        $monthsToBill = array_map('intval', $billedMonths);
 
         $students = Siswa::query()
             ->whereHas('tahunAjaran', function ($q) use ($academicYear) {
