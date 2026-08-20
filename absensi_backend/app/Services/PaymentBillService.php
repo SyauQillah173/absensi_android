@@ -489,65 +489,66 @@ class PaymentBillService
                 
                 $titleSuffix = $periodLabel === 'Sekali Bayar' ? '(Sekali Bayar)' : "({$periodLabel})";
 
+                $existingStudentIds = PaymentBill::query()
+                    ->where('payment_type_id', $paymentType->id)
+                    ->whereNull('period_month')
+                    ->when($periode === 'tahunan' || $periode === 'umum', fn ($q) => $q->where('academic_year_id', $academicYear->id))
+                    ->when($periode === 'semesteran' && $semester, fn ($q) => $q->where('academic_year_id', $academicYear->id)->where('semester_id', $semester->id))
+                    ->pluck('siswa_id')
+                    ->all();
+
+                $inserts = [];
+                $now = now();
+                $dueDate = now()->copy();
+                if ($rule->due_day) {
+                    $dueDate = $this->dueDateForMonth(now(), $rule->due_day);
+                }
+                $status = $dueDate->lt($now->startOfDay()) ? 'Terlambat' : 'Belum Lunas';
+
+                $insertSemesterId = null;
+                $insertSemesterName = null;
+                $insertAcademicYearId = $academicYear->id;
+                $insertAcademicYearName = $academicYear->name;
+
+                if ($periode === 'semesteran' && $semester) {
+                    $insertSemesterId = $semester->id;
+                    $insertSemesterName = $semester->name;
+                } elseif ($periode === 'sekali') {
+                    $insertAcademicYearId = null;
+                    $insertAcademicYearName = null;
+                }
+
                 foreach ($students as $student) {
-                    $billQuery = PaymentBill::query()
-                        ->where('siswa_id', $student->id)
-                        ->where('payment_type_id', $paymentType->id)
-                        ->whereNull('period_month');
-
-                    if ($periode === 'tahunan' || $periode === 'umum') {
-                        $billQuery->where('academic_year_id', $academicYear->id);
-                    } elseif ($periode === 'semesteran') {
-                        $billQuery->where('academic_year_id', $academicYear->id);
-                        if ($semester) {
-                            $billQuery->where('semester_id', $semester->id);
-                        }
+                    if (in_array($student->id, $existingStudentIds, true)) {
+                        continue;
                     }
-                    // For 'sekali', we just check globally if they ever paid it
 
-                    $existing = $billQuery->exists();
+                    $inserts[] = [
+                        'siswa_id' => $student->id,
+                        'academic_year_id' => $insertAcademicYearId,
+                        'payment_type_id' => $paymentType->id,
+                        'payment_bill_rule_id' => $rule->id,
+                        'wali_id' => $student->wali_id,
+                        'class_id' => $student->class_id,
+                        'period_key' => 'once',
+                        'period_year' => null,
+                        'period_month' => null,
+                        'period_label' => $periodLabel,
+                        'title' => trim($paymentType->nama . ' ' . $titleSuffix),
+                        'amount' => (int) ($paymentType->nominal_default ?? $rule->nominal),
+                        'due_date' => $dueDate->toDateString(),
+                        'status' => $status,
+                        'tahun_ajaran' => $insertAcademicYearName,
+                        'semester' => $insertSemesterName,
+                        'semester_id' => $insertSemesterId,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
 
-                    if (!$existing) {
-                        $dueDate = now()->copy();
-                        if ($rule->due_day) {
-                            $dueDate = $this->dueDateForMonth(now(), $rule->due_day);
-                        }
-                        $status = $dueDate->lt(now()->startOfDay()) ? 'Terlambat' : 'Belum Lunas';
-
-                        $insertSemesterId = null;
-                        $insertSemesterName = null;
-                        $insertAcademicYearId = $academicYear->id;
-                        $insertAcademicYearName = $academicYear->name;
-
-                        if ($periode === 'semesteran' && $semester) {
-                            $insertSemesterId = $semester->id;
-                            $insertSemesterName = $semester->name;
-                        } elseif ($periode === 'sekali') {
-                            $insertAcademicYearId = null;
-                            $insertAcademicYearName = null;
-                        }
-
-                        PaymentBill::query()->create([
-                            'siswa_id' => $student->id,
-                            'academic_year_id' => $insertAcademicYearId,
-                            'payment_type_id' => $paymentType->id,
-                            'payment_bill_rule_id' => $rule->id,
-                            'wali_id' => $student->wali_id,
-                            'class_id' => $student->class_id,
-                            'period_key' => 'once',
-                            'period_year' => null,
-                            'period_month' => null,
-                            'period_label' => $periodLabel,
-                            'title' => trim($paymentType->nama . ' ' . $titleSuffix),
-                            'amount' => (int) ($paymentType->nominal_default ?? $rule->nominal),
-                            'due_date' => $dueDate->toDateString(),
-                            'status' => $status,
-                            'tahun_ajaran' => $insertAcademicYearName,
-                            'semester' => $insertSemesterName,
-                            'semester_id' => $insertSemesterId,
-                        ]);
-                        $createdOrTouched++;
-                    }
+                foreach (array_chunk($inserts, 500) as $chunk) {
+                    PaymentBill::insert($chunk);
+                    $createdOrTouched += count($chunk);
                 }
                 continue;
             }
