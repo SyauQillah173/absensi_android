@@ -547,7 +547,11 @@ class PaymentBillService
                 }
 
                 foreach (array_chunk($inserts, 500) as $chunk) {
-                    PaymentBill::insert($chunk);
+                    PaymentBill::upsert(
+                        $chunk,
+                        ['payment_bill_rule_id', 'siswa_id', 'period_key'],
+                        ['amount', 'title', 'period_label', 'due_date', 'status', 'academic_year_id', 'tahun_ajaran', 'semester_id', 'semester', 'updated_at']
+                    );
                     $createdOrTouched += count($chunk);
                 }
                 continue;
@@ -607,7 +611,11 @@ class PaymentBillService
             }
 
             foreach (array_chunk($inserts, 500) as $chunk) {
-                PaymentBill::insert($chunk);
+                PaymentBill::upsert(
+                    $chunk,
+                    ['payment_bill_rule_id', 'siswa_id', 'period_key'],
+                    ['amount', 'title', 'period_label', 'due_date', 'status', 'academic_year_id', 'tahun_ajaran', 'semester_id', 'semester', 'updated_at']
+                );
                 $createdOrTouched += count($chunk);
             }
         }
@@ -1161,7 +1169,11 @@ class PaymentBillService
         }
 
         foreach (array_chunk($inserts, 500) as $chunk) {
-            PaymentBill::insert($chunk);
+            PaymentBill::upsert(
+                $chunk,
+                ['payment_bill_rule_id', 'siswa_id', 'period_key'],
+                ['amount', 'title', 'period_label', 'due_date', 'status', 'academic_year_id', 'tahun_ajaran', 'semester_id', 'semester', 'updated_at']
+            );
         }
     }
 
@@ -1252,7 +1264,11 @@ class PaymentBillService
         }
 
         foreach (array_chunk($inserts, 500) as $chunk) {
-            PaymentBill::insert($chunk);
+            PaymentBill::upsert(
+                $chunk,
+                ['payment_bill_rule_id', 'siswa_id', 'period_key'],
+                ['amount', 'title', 'period_label', 'due_date', 'status', 'academic_year_id', 'tahun_ajaran', 'semester_id', 'semester', 'updated_at']
+            );
         }
 
         // Hapus tagihan yang bulannya di-uncheck HANYA pada semester ini
