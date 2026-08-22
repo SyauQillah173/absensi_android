@@ -92,17 +92,7 @@ class StudentBillingSummaryService
             $query->where('academic_year_id', (int) $filters['academic_year_id']);
         }
         if (!empty($filters['semester_id'])) {
-            $semesterId = (int) $filters['semester_id'];
-            $query->where(function ($q) use ($semesterId) {
-                $q->where('semester_id', $semesterId)
-                  ->orWhere(function ($q2) use ($semesterId) {
-                      $q2->whereIn('status', ['Belum Lunas', 'Terlambat'])
-                         ->where(function ($q3) use ($semesterId) {
-                             $q3->whereNull('semester_id')
-                                ->orWhere('semester_id', '!=', $semesterId);
-                         });
-                  });
-            });
+            $query->where('semester_id', (int) $filters['semester_id']);
         }
         if (!empty($filters['tahun_ajaran'])) {
             $query->where('tahun_ajaran', $filters['tahun_ajaran']);
@@ -229,33 +219,35 @@ class StudentBillingSummaryService
         $first = $items->first();
         $byMonth = $items->keyBy(fn (array $row) => (int) ($row['period_month'] ?? 0));
         
-        $semester = $first['semester'] ?? null;
-        $semesterMonths = $this->monthsForSemester($semester) ?? array_keys(self::ACADEMIC_MONTHS);
-        
         $paymentType = \App\Models\PaymentType::query()->find($first['payment_type_id'] ?? 0);
         
-        $rule = \App\Models\PaymentBillRule::query()
-            ->where('payment_type_id', $first['payment_type_id'] ?? 0)
-            ->where('academic_year_id', $first['academic_year_id'] ?? 0)
-            ->where('semester_id', $first['semester_id'] ?? 0)
-            ->first();
+        $ruleQuery = \App\Models\PaymentBillRule::query()
+            ->where('payment_type_id', $first['payment_type_id'] ?? 0);
+            
+        if (!empty($first['semester_id'])) {
+            $ruleQuery->where('semester_id', $first['semester_id']);
+        }
+        if (!empty($first['academic_year_id'])) {
+            $ruleQuery->where('academic_year_id', $first['academic_year_id']);
+        }
+        $rule = $ruleQuery->orderBy('id')->first();
 
-        $billedMonths = $rule && is_array($rule->billed_months) 
+        $all12Months = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
+        $billedMonths = ($rule && is_array($rule->billed_months)) 
             ? array_map('intval', $rule->billed_months) 
-            : ($paymentType && is_array($paymentType->billed_months) ? array_map('intval', $paymentType->billed_months) : array_keys(self::ACADEMIC_MONTHS));
+            : (($paymentType && is_array($paymentType->billed_months)) ? array_map('intval', $paymentType->billed_months) : $all12Months);
 
         $monthOrder = collect(self::ACADEMIC_MONTHS)
             ->filter(function (string $label, int $month) use ($billedMonths) {
-                // Semua bulan yang dicentang di rule akan ditampilkan untuk grup semester ini, 
-                // tanpa mempedulikan month belong ke Ganjil/Genap.
                 return in_array($month, $billedMonths, true);
             })
             ->all();
 
-        // Ensure any existing bills outside the filter still show up (e.g. legacy data)
-        foreach ($byMonth->keys() as $month) {
-            if ($month > 0 && !isset($monthOrder[$month])) {
-                $monthOrder[$month] = self::ACADEMIC_MONTHS[$month] ?? (string)$month;
+        // Hanya tambahkan bulan di luar filter JIKA bulan tersebut SUDAH DIBAYAR (is_paid === true)
+        foreach ($byMonth as $month => $row) {
+            $monthNo = (int) $month;
+            if ($monthNo > 0 && !isset($monthOrder[$monthNo]) && !empty($row['is_paid'])) {
+                $monthOrder[$monthNo] = self::ACADEMIC_MONTHS[$monthNo] ?? (string)$monthNo;
             }
         }
 

@@ -1044,42 +1044,60 @@ class PaymentBillService
      */
     public function syncBillsForPaymentType(PaymentType $paymentType, ?int $targetSemesterId = null): void
     {
-        /** @var \Illuminate\Database\Eloquent\Builder $query */
-        $query = PaymentBill::query()
-            ->where('payment_type_id', $paymentType->id)
-            ->whereIn('status', ['Belum Lunas', 'Terlambat']);
-
         if (!$paymentType->is_billed_to_all) {
-            $query->delete();
+            PaymentBill::query()
+                ->where('payment_type_id', $paymentType->id)
+                ->where(function ($q) {
+                    $q->whereNull('status')
+                      ->orWhereNotIn('status', ['Lunas', 'Menunggu Verifikasi']);
+                })
+                ->whereDoesntHave('pembayaran')
+                ->delete();
             return;
         }
 
-        $rule = $this->ensureRuleForPaymentType($paymentType, null, $targetSemesterId ? ['semester_id' => $targetSemesterId] : []);
-        $isMonthly = str_contains(strtolower($paymentType->periode ?? ''), 'bulan');
+        $activePeriod = app(AcademicPeriodService::class)->active();
+        $academicYearId = $activePeriod['academic_year_id'] ?? null;
+        $semesterId = $targetSemesterId ?: ($activePeriod['semester_id'] ?? null);
 
-        if ($isMonthly && is_array($rule->billed_months)) {
-            $deleteQuery = (clone $query)->whereNotNull('period_month');
-            if ($rule->semester_id) {
-                $deleteQuery->where('semester_id', $rule->semester_id);
+        $rule = $this->ensureRuleForPaymentType($paymentType, null, $semesterId ? ['semester_id' => $semesterId] : []);
+        $isMonthly = str_contains(strtolower($paymentType->periode ?? ''), 'bulan') 
+            || str_contains(strtolower($paymentType->nama), 'spp') 
+            || str_contains(strtolower($paymentType->nama), 'syahriyah');
+
+        if ($isMonthly) {
+            $all12Months = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
+            $billedMonths = is_array($rule->billed_months) ? array_map('intval', $rule->billed_months) : $all12Months;
+
+            $deleteQuery = PaymentBill::query()
+                ->where('payment_type_id', $paymentType->id)
+                ->whereNotNull('period_month')
+                ->where(function ($q) {
+                    $q->whereNull('status')
+                      ->orWhereNotIn('status', ['Lunas', 'Menunggu Verifikasi']);
+                })
+                ->whereDoesntHave('pembayaran');
+
+            if ($academicYearId) {
+                $deleteQuery->where('academic_year_id', $academicYearId);
+            }
+            if ($semesterId) {
+                $deleteQuery->where('semester_id', $semesterId);
             }
 
-            if (empty($rule->billed_months)) {
+            if (empty($billedMonths)) {
                 $deleteQuery->delete();
-                return;
             } else {
-                $deleteQuery->whereNotIn('period_month', array_map('intval', $rule->billed_months))
-                    ->delete();
+                $deleteQuery->whereNotIn('period_month', $billedMonths)->delete();
             }
+
+            // Fast generation for missing checked months (only for monthly bills)
+            $this->syncMonthlyBillsForPaymentType($paymentType, $rule);
+            return;
         }
 
         // Handle non-monthly bills (e.g. Kitab, Seragam)
-        if (!$isMonthly) {
-            $this->syncNonMonthlyBillsForPaymentType($paymentType, clone $query, $rule);
-            return;
-        }
-
-        // Fast generation for missing checked months (only for monthly bills)
-        $this->syncMonthlyBillsForPaymentType($paymentType, $rule);
+        $this->syncNonMonthlyBillsForPaymentType($paymentType, PaymentBill::query()->where('payment_type_id', $paymentType->id)->whereIn('status', ['Belum Lunas', 'Terlambat']), $rule);
     }
 
     private function syncNonMonthlyBillsForPaymentType(PaymentType $paymentType, $query, PaymentBillRule $rule): void
