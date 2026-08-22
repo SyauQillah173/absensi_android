@@ -214,6 +214,8 @@ class PaymentBillController extends Controller
                 'whatsapp_log' => $whatsappLog,
             ],
         ]);
+    }
+
     public function notifyStudent(Request $request, int $siswaId)
     {
         $siswa = Siswa::query()->with(['wali:id,name,email,no_hp'])->findOrFail($siswaId);
