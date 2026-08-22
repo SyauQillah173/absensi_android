@@ -59,61 +59,73 @@ class PaymentTypeController extends Controller
 
     public function update(Request $request, PaymentType $paymentType)
     {
-        $validated = $this->validatePayload($request, $paymentType->id, false);
-        $ruleOptions = $this->billRuleOptions($validated);
-        
-        $before = $paymentType->load('billRules')->toArray();
-        
-        $targetSemesterId = $validated['target_semester_id'] ?? null;
-        
-        if ($targetSemesterId) {
-            // Update the specific rule for the target semester
-            $activePeriod = app(\App\Services\AcademicPeriodService::class)->active();
-            if ($activePeriod) {
-                $rule = \App\Models\PaymentBillRule::query()
-                    ->where('payment_type_id', $paymentType->id)
-                    ->where('academic_year_id', $activePeriod['academic_year_id'])
-                    ->where('semester_id', $targetSemesterId)
-                    ->first();
-                
-                if ($rule) {
-                    $rule->update([
-                        'nominal' => $ruleOptions['nominal'] ?? $rule->nominal,
-                        'billed_months' => $ruleOptions['billed_months'] ?? $rule->billed_months,
-                    ]);
+        try {
+            $validated = $this->validatePayload($request, $paymentType->id, false);
+            $ruleOptions = $this->billRuleOptions($validated);
+            
+            $before = $paymentType->load('billRules')->toArray();
+            $targetSemesterId = $validated['target_semester_id'] ?? null;
+            
+            DB::transaction(function () use ($request, $paymentType, $validated, $ruleOptions, $targetSemesterId) {
+                if ($targetSemesterId) {
+                    $activePeriod = app(\App\Services\AcademicPeriodService::class)->active();
+                    if ($activePeriod) {
+                        $rule = \App\Models\PaymentBillRule::query()
+                            ->where('payment_type_id', $paymentType->id)
+                            ->where('semester_id', $targetSemesterId)
+                            ->first();
+                        
+                        if ($rule) {
+                            $rule->update([
+                                'nominal' => $ruleOptions['nominal'] ?? $rule->nominal,
+                                'billed_months' => $ruleOptions['billed_months'] ?? $rule->billed_months,
+                                'is_active' => $ruleOptions['is_active'] ?? $rule->is_active,
+                            ]);
+                        } else {
+                            app(PaymentBillService::class)->ensureRuleForPaymentType(
+                                $paymentType,
+                                app(ActorResolver::class)->active($request)?->id,
+                                array_merge($ruleOptions, ['semester_id' => $targetSemesterId])
+                            );
+                        }
+                    }
+                    
+                    $payload = collect($this->paymentTypePayload($validated))
+                        ->except(['nominal_default'])
+                        ->all();
+                    $paymentType->update($payload);
                 } else {
-                    // Create rule if not exists
+                    $paymentType->update($this->paymentTypePayload($validated));
                     app(PaymentBillService::class)->ensureRuleForPaymentType(
-                        $paymentType,
+                        $paymentType->fresh(),
                         app(ActorResolver::class)->active($request)?->id,
-                        array_merge($ruleOptions, ['semester_id' => $targetSemesterId])
+                        $ruleOptions
                     );
                 }
-            }
-            
-            // Do NOT update global nominal_default or billed_months if targeting a specific semester
-            $payload = collect($this->paymentTypePayload($validated))
-                ->except(['nominal_default', 'billed_months'])
-                ->all();
-            $paymentType->update($payload);
-            
-        } else {
-            $paymentType->update($this->paymentTypePayload($validated));
-            app(PaymentBillService::class)->ensureRuleForPaymentType(
-                $paymentType->fresh(),
-                app(ActorResolver::class)->active($request)?->id,
-                $ruleOptions
-            );
+
+                app(PaymentBillService::class)->syncBillsForPaymentType($paymentType->fresh(), $targetSemesterId);
+            });
+
+            app(AuditLogService::class)->record($request, 'payment_types', 'update', $paymentType, $before, $paymentType->fresh(['billRules'])->toArray());
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Tipe pembayaran berhasil diperbarui',
+                'data' => $paymentType->fresh(['billRules']),
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->validator->errors()->first() ?: 'Validasi gagal',
+                'errors' => $e->validator->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('PaymentType update failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memperbarui tipe pembayaran: ' . $e->getMessage(),
+            ], 500);
         }
-
-        app(PaymentBillService::class)->syncBillsForPaymentType($paymentType->fresh(), $targetSemesterId);
-        app(AuditLogService::class)->record($request, 'payment_types', 'update', $paymentType, $before, $paymentType->fresh(['billRules'])->toArray());
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Tipe pembayaran berhasil diperbarui',
-            'data' => $paymentType->fresh(['billRules']),
-        ]);
     }
 
     public function destroy(Request $request, PaymentType $paymentType)
