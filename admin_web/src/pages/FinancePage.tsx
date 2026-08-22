@@ -1043,14 +1043,26 @@ function PaymentTypeModal({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
-  const [targetSemesterId, setTargetSemesterId] = useState(0); // 0 means Global (Semua Semester)
+  const activeSem = semesters.find((s) => s.is_active === true) ?? semesters[0];
+  const [targetSemesterId, setTargetSemesterId] = useState(num(activeSem?.id));
   const [name, setName] = useState(str(row?.nama, ''));
   const [amount, setAmount] = useState(String(row?.nominal_default ?? ''));
   const [periodId, setPeriodId] = useState(num(row?.payment_period_type_id ?? paymentPeriods[0]?.id));
   const [status, setStatus] = useState(str(row?.status, 'Aktif'));
   const [methods, setMethods] = useState<Set<string>>(() => new Set((Array.isArray(row?.metode_pembayaran) ? row?.metode_pembayaran : paymentMethods.map((item) => item.name)).map(String)));
   const [isBilledToAll, setIsBilledToAll] = useState(row?.is_billed_to_all !== false);
-  const [billedMonths, setBilledMonths] = useState<Set<number>>(() => new Set(Array.isArray(row?.billed_months) ? row?.billed_months.map(Number) : [7,8,9,10,11,12,1,2,3,4,5,6]));
+  const [billedMonths, setBilledMonths] = useState<Set<number>>(() => {
+    const allMonths = [7,8,9,10,11,12,1,2,3,4,5,6];
+    const rulesArray = Array.isArray(row?.bill_rules) ? row?.bill_rules : (Array.isArray(row?.billRules) ? row?.billRules : []);
+    const rule = rulesArray.find((r: any) => num(r.semester_id) === num(activeSem?.id));
+    if (rule && Array.isArray(rule.billed_months) && rule.billed_months.length > 0) {
+      return new Set(rule.billed_months.map(Number));
+    }
+    if (Array.isArray(row?.billed_months) && row.billed_months.length > 0) {
+      return new Set(row.billed_months.map(Number));
+    }
+    return new Set(allMonths);
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -1058,19 +1070,20 @@ function PaymentTypeModal({
   // Saat targetSemesterId berubah, load setting rule-nya jika ada
   useEffect(() => {
     if (!row) return;
+    const allMonths = [7,8,9,10,11,12,1,2,3,4,5,6];
     if (targetSemesterId === 0) {
       setAmount(String(row.nominal_default ?? ''));
-      setBilledMonths(new Set(Array.isArray(row.billed_months) ? row.billed_months.map(Number) : [7,8,9,10,11,12,1,2,3,4,5,6]));
+      setBilledMonths(new Set(Array.isArray(row.billed_months) && row.billed_months.length > 0 ? row.billed_months.map(Number) : allMonths));
       return;
     }
     const rulesArray = Array.isArray(row.bill_rules) ? row.bill_rules : (Array.isArray(row.billRules) ? row.billRules : []);
     const rule = rulesArray.find((r: any) => num(r.semester_id) === targetSemesterId);
     if (rule) {
       setAmount(String(rule.nominal ?? row.nominal_default ?? ''));
-      setBilledMonths(new Set(Array.isArray(rule.billed_months) ? rule.billed_months.map(Number) : (Array.isArray(row.billed_months) ? row.billed_months.map(Number) : [7,8,9,10,11,12,1,2,3,4,5,6])));
+      setBilledMonths(new Set(Array.isArray(rule.billed_months) && rule.billed_months.length > 0 ? rule.billed_months.map(Number) : (Array.isArray(row.billed_months) && row.billed_months.length > 0 ? row.billed_months.map(Number) : allMonths)));
     } else {
       setAmount(String(row.nominal_default ?? ''));
-      setBilledMonths(new Set(Array.isArray(row.billed_months) ? row.billed_months.map(Number) : [7,8,9,10,11,12,1,2,3,4,5,6]));
+      setBilledMonths(new Set(Array.isArray(row.billed_months) && row.billed_months.length > 0 ? row.billed_months.map(Number) : allMonths));
     }
   }, [targetSemesterId, row]);
 
