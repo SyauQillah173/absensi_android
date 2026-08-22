@@ -600,22 +600,23 @@ function StudentBillingPanel({
                   </h2>
                   
                   {groupMonthly.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="text-xs font-black tracking-wider text-gray-500 uppercase">BULANAN (SPP / SYAHRIYAH)</div>
+                    <div className="space-y-3">
+                      <div className="text-xs font-black tracking-wider text-gray-500 uppercase">BULANAN (SPP / SYAHRIYAH 12 BULAN)</div>
                       <div className="overflow-x-auto q-scrollbar rounded-xl border border-gray-200">
                         <table className="w-full min-w-[760px] border-collapse text-xs">
                           <thead>
-                            <tr className="bg-gray-100 font-black text-gray-700 text-center">
-                              <th rowSpan={2} className="border border-gray-200 bg-gray-50 px-4 py-2 text-left w-48 align-middle">Tipe Pembayaran</th>
-                              <th colSpan={6} className="border border-gray-200 bg-teal-50 text-[#138F81] py-1.5 text-center font-black">Semester Ganjil</th>
-                              <th colSpan={6} className="border border-gray-200 bg-blue-50 text-[#2E86DE] py-1.5 text-center font-black">Semester Genap</th>
-                            </tr>
-                            <tr className="bg-gray-50 font-black text-gray-700 text-center">
-                              {['Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'].map((m) => (
-                                <th key={m} className="border border-gray-200 px-1 py-1.5 text-center w-12 bg-teal-50/40 text-teal-900">{m}</th>
-                              ))}
-                              {['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'].map((m) => (
-                                <th key={m} className="border border-gray-200 px-1 py-1.5 text-center w-12 bg-blue-50/40 text-blue-900">{m}</th>
+                            <tr className="bg-gray-50 font-black text-gray-700">
+                              <th className="border border-gray-200 px-4 py-2.5 text-left w-52">Tipe Pembayaran</th>
+                              {['Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'].map((m, idx) => (
+                                <th
+                                  key={m}
+                                  className={`border border-gray-200 px-1 py-2.5 text-center w-12 ${
+                                    idx < 6 ? 'text-teal-900 bg-teal-50/30' : 'text-blue-900 bg-blue-50/30'
+                                  }`}
+                                  title={idx < 6 ? `${m} (Semester Ganjil)` : `${m} (Semester Genap)`}
+                                >
+                                  {m}
+                                </th>
                               ))}
                             </tr>
                           </thead>
@@ -624,8 +625,9 @@ function StudentBillingPanel({
                               const months = Array.isArray(item.months) ? (item.months as ApiRecord[]) : [];
                               return (
                                 <tr key={str(item.payment_type_id ?? item.id ?? item.name)}>
-                                  <td className="border border-gray-200 bg-white px-4 py-3 font-extrabold text-gray-800">
-                                    {str(item.name ?? item.nama ?? item.payment_type_name ?? 'SPP')}
+                                  <td className="border border-gray-200 bg-white px-4 py-3 text-gray-800">
+                                    <div className="font-extrabold text-sm">{str(item.name ?? item.nama ?? item.payment_type_name ?? 'SPP')}</div>
+                                    <div className="text-[11px] font-semibold text-gray-500">12 Bulan (Ganjil & Genap)</div>
                                   </td>
                                   {months.map((month) => {
                                     const monthNo = num(month.month);
@@ -633,6 +635,7 @@ function StudentBillingPanel({
                                     const paid = status === 'Lunas' || month.is_paid === true;
                                     const isLibur = status === 'Libur';
                                     const pId = month.pembayaran_id;
+                                    const semLabel = [7, 8, 9, 10, 11, 12].includes(monthNo) ? 'Semester Ganjil' : 'Semester Genap';
 
                                     return (
                                       <td
@@ -646,15 +649,15 @@ function StudentBillingPanel({
                                         }`}
                                         onClick={() => {
                                           if (paid && pId) {
-                                            setConfirmCancel({ id: Number(pId), title: `${str(item.name)} ${month.label}` });
+                                            setConfirmCancel({ id: Number(pId), title: `${str(item.name)} ${month.label} (${semLabel})` });
                                           }
                                         }}
                                         title={
                                           isLibur
-                                            ? 'Bulan Libur / Tidak Ditagihkan'
+                                            ? `Bulan ${month.label} (${semLabel}) - Libur / Tidak Ditagihkan`
                                             : paid
-                                            ? 'Lunas (Klik untuk batalkan)'
-                                            : `Belum Lunas: ${formatMoney(month.remaining_amount ?? month.amount)}`
+                                            ? `Bulan ${month.label} (${semLabel}) - LUNAS ✓ (Klik untuk batalkan jika perlu)`
+                                            : `Bulan ${month.label} (${semLabel}) - Belum Lunas: ${formatMoney(month.remaining_amount ?? month.amount)}`
                                         }
                                       >
                                         <div className="flex h-11 w-full items-center justify-center text-sm font-extrabold">
@@ -668,6 +671,32 @@ function StudentBillingPanel({
                             })}
                           </tbody>
                         </table>
+                      </div>
+
+                      {/* Legend & Penjelasan Pembagian Semester SPP */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-gray-50/80 p-3 text-xs font-semibold text-gray-600">
+                        <div className="flex flex-wrap items-center gap-4">
+                          <div className="flex items-center gap-1.5">
+                            <span className="flex h-4 w-4 items-center justify-center rounded bg-[#138F81] text-[10px] font-black text-white">✓</span>
+                            <span>Sudah Lunas</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="flex h-4 w-4 items-center justify-center rounded bg-[#E74C3C] text-[10px] font-black text-white">X</span>
+                            <span>Belum Lunas</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="flex h-4 w-4 items-center justify-center rounded bg-gray-200 text-[10px] font-black text-gray-500">-</span>
+                            <span>Libur SPP</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
+                          <span className="rounded-md border border-teal-200 bg-teal-50 px-2 py-0.5 text-teal-800">
+                            Semester Ganjil: Jul – Des
+                          </span>
+                          <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-blue-800">
+                            Semester Genap: Jan – Jun
+                          </span>
+                        </div>
                       </div>
                     </div>
                   )}
