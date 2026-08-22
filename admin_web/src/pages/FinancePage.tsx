@@ -1144,7 +1144,25 @@ function PaymentTypeModal({
 
         {paymentPeriods.find((item) => num(item.id) === periodId)?.code === 'bulanan' ? (
           <div className="rounded-3xl bg-white p-4">
-            <p className="mb-3 text-sm font-extrabold text-[#2D3436]">Bulan yang ditagihkan</p>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm font-extrabold text-[#2D3436]">Bulan yang ditagihkan ({billedMonths.size} bulan)</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBilledMonths(new Set([7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6]))}
+                  className="rounded-lg bg-teal-50 px-2 py-1 text-xs font-bold text-[#138F81] hover:bg-teal-100"
+                >
+                  Pilih Semua (12 Bulan)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBilledMonths(new Set())}
+                  className="rounded-lg bg-gray-100 px-2 py-1 text-xs font-bold text-gray-600 hover:bg-gray-200"
+                >
+                  Kosongkan
+                </button>
+              </div>
+            </div>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
               {[
                 { v: 7, l: 'Jul' }, { v: 8, l: 'Agu' }, { v: 9, l: 'Sep' }, { v: 10, l: 'Okt' }, { v: 11, l: 'Nov' }, { v: 12, l: 'Des' },
@@ -1152,12 +1170,21 @@ function PaymentTypeModal({
               ].map((m) => {
                 const selected = billedMonths.has(m.v);
                 return (
-                  <button key={m.v} className={`rounded-xl py-2 text-xs font-bold ${selected ? 'bg-[#138F81] text-white' : 'bg-[#F2F4F6] text-[#636E72]'}`} onClick={() => setBilledMonths((current) => {
-                    const next = new Set(current);
-                    if (next.has(m.v)) next.delete(m.v);
-                    else next.add(m.v);
-                    return next;
-                  })} type="button">{m.l}</button>
+                  <button
+                    key={m.v}
+                    className={`rounded-xl py-2 text-xs font-bold transition-all ${
+                      selected ? 'bg-[#138F81] text-white shadow-sm' : 'bg-[#F2F4F6] text-[#636E72] hover:bg-[#E2E8F0]'
+                    }`}
+                    onClick={() => setBilledMonths((current) => {
+                      const next = new Set(current);
+                      if (next.has(m.v)) next.delete(m.v);
+                      else next.add(m.v);
+                      return next;
+                    })}
+                    type="button"
+                  >
+                    {m.l} {selected ? '✓' : ''}
+                  </button>
                 );
               })}
             </div>
