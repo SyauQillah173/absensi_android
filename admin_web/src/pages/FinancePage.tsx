@@ -561,8 +561,44 @@ function DirectPaymentCashier({
     return map;
   }, [summaryData, typeId, selectedType]);
 
+  // Find matching general / non-bulanan bill from summaryData
+  const matchingGeneralBill = useMemo(() => {
+    if (monthly || !summaryData || !typeId) return null;
+    const groups = Array.isArray(summaryData.groups) ? (summaryData.groups as ApiRecord[]) : [];
+    for (const group of groups) {
+      if (!group.academic_year_id || num(group.academic_year_id) === academicYearId) {
+        const generalList = Array.isArray(group.general) ? (group.general as ApiRecord[]) : [];
+        const match = generalList.find((g) => {
+          const matchType = num(g.payment_type_id ?? g.id) === typeId;
+          const matchSem = !g.semester_id || !semesterId || num(g.semester_id) === Number(semesterId);
+          return matchType && matchSem;
+        });
+        if (match) return match;
+      }
+    }
+    const billsList = Array.isArray(summaryData.tagihan) ? (summaryData.tagihan as ApiRecord[]) : [];
+    return billsList.find((b) => num(b.payment_type_id) === typeId && (!b.semester_id || !semesterId || num(b.semester_id) === Number(semesterId))) || null;
+  }, [monthly, summaryData, typeId, academicYearId, semesterId]);
+
   const defaultNominal = num(selectedType?.nominal_default);
-  const grossAmount = monthly ? selectedMonths.size * defaultNominal : num(customAmount || defaultNominal);
+  const totalTagihanAsli = num(matchingGeneralBill?.amount ?? matchingGeneralBill?.amount_due ?? defaultNominal);
+  const sudahDibayar = num(matchingGeneralBill?.paid_amount);
+  const sisaKurangBayar = matchingGeneralBill ? num(matchingGeneralBill.remaining_amount) : defaultNominal;
+  const isGeneralPaid = !monthly && matchingGeneralBill ? (matchingGeneralBill.status === 'Lunas' || matchingGeneralBill.is_paid === true || (sudahDibayar >= totalTagihanAsli && totalTagihanAsli > 0)) : false;
+
+  // Auto-fill customAmount with remaining balance when type changes or bill updates
+  useEffect(() => {
+    if (!monthly) {
+      if (matchingGeneralBill) {
+        const rem = num(matchingGeneralBill.remaining_amount);
+        setCustomAmount(String(rem > 0 ? rem : (matchingGeneralBill.amount ?? defaultNominal)));
+      } else {
+        setCustomAmount(String(defaultNominal));
+      }
+    }
+  }, [typeId, matchingGeneralBill, monthly, defaultNominal]);
+
+  const grossAmount = monthly ? selectedMonths.size * defaultNominal : num(customAmount || sisaKurangBayar || defaultNominal);
 
   // Calculate discounts
   const totalPercentDiscount = Number(discountGuru || 0) + Number(discountYatim || 0) + Number(discountPrestasi || 0) + Number(discountTahfidz || 0);
@@ -694,6 +730,10 @@ function DirectPaymentCashier({
                       <span className="ml-2 text-xs font-semibold text-teal-700">
                         ({Array.from(selectedMonths).map((m) => monthLabels[m]).join(', ')})
                       </span>
+                    ) : !monthly && matchingGeneralBill && sudahDibayar > 0 ? (
+                      <span className="ml-2 text-xs font-bold text-amber-700">
+                        (Cicilan / Sisa Kurang Bayar: {formatMoney(sisaKurangBayar)})
+                      </span>
                     ) : null}
                   </td>
                   <td className="py-3 px-3 text-right text-gray-700">{formatMoney(grossAmount)}</td>
@@ -701,7 +741,7 @@ function DirectPaymentCashier({
                   <td className="py-3 px-3 text-right font-extrabold text-gray-800">{formatMoney(netAmount)}</td>
                   <td className="py-3 px-3 text-right font-black text-[#138F81] text-sm">{formatMoney(netAmount)}</td>
                   <td className="py-3 px-3 text-xs text-gray-500">
-                    {monthly ? `${selectedMonths.size} Bulan SPP` : 'Pembayaran Tagihan'}
+                    {monthly ? `${selectedMonths.size} Bulan SPP` : !monthly && matchingGeneralBill && sudahDibayar > 0 ? `Angsuran/Pelunasan (Sisa: ${formatMoney(sisaKurangBayar)})` : 'Pembayaran Tagihan'}
                   </td>
                 </tr>
               ) : (
@@ -815,16 +855,39 @@ function DirectPaymentCashier({
             </div>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
+            {matchingGeneralBill && sudahDibayar > 0 && !isGeneralPaid ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs font-bold text-amber-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <span className="font-black text-amber-700">⚠️ Status Cicilan (Kurang Bayar):</span> Total Tagihan: {formatMoney(totalTagihanAsli)}, Sudah Dibayar: {formatMoney(sudahDibayar)}.
+                </div>
+                <div className="font-extrabold">
+                  Sisa Kurang Bayar: <span className="font-black text-red-600 text-sm">{formatMoney(sisaKurangBayar)}</span>
+                </div>
+              </div>
+            ) : null}
+
+            {isGeneralPaid ? (
+              <div className="rounded-2xl border border-teal-200 bg-teal-50 p-4 text-xs font-bold text-teal-900">
+                ✅ Tagihan {str(selectedType?.nama)} untuk periode ini sudah <b>LUNAS</b> ({formatMoney(totalTagihanAsli)}).
+              </div>
+            ) : null}
+
             <label className="block">
-              <span className="mb-1 block text-xs font-black uppercase tracking-wider text-gray-600">Nominal Tagihan</span>
+              <span className="mb-1 block text-xs font-black uppercase tracking-wider text-gray-600">
+                Nominal Tagihan Yang Akan Dibayar (Sisa Kurang Bayar)
+              </span>
               <input
-                className="q-input"
+                className="q-input font-bold"
                 inputMode="numeric"
-                value={customAmount || String(defaultNominal)}
+                disabled={isGeneralPaid}
+                value={customAmount}
                 onChange={(e) => setCustomAmount(e.target.value.replace(/\D/g, ''))}
                 placeholder="Masukkan nominal tagihan"
               />
+              <span className="mt-1.5 block text-[11px] font-semibold text-gray-500">
+                💡 Sistem otomatis mengisikan sisa kurang bayar ({formatMoney(sisaKurangBayar)}). Anda dapat menyesuaikan nominal jika santri membayar cicilan bertahap.
+              </span>
             </label>
           </div>
         )}
@@ -832,7 +895,7 @@ function DirectPaymentCashier({
         {/* TAGIHAN DISPLAY */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="block">
-            <span className="mb-1 block text-xs font-black uppercase tracking-wider text-gray-600">Tagihan</span>
+            <span className="mb-1 block text-xs font-black uppercase tracking-wider text-gray-600">Tagihan Yang Dibayar</span>
             <input className="q-input font-bold bg-gray-50 text-gray-800" disabled value={formatMoney(grossAmount)} />
           </label>
 
