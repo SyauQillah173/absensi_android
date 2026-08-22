@@ -103,9 +103,9 @@ export function FinancePage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  async function load() {
-    setIsLoading(true);
-    setError('');
+  async function load(silent = false) {
+    if (!silent) setIsLoading(true);
+    if (!silent) setError('');
     try {
       const [todayResult, historyResult, typesResult, methodsResult, periodsResult, studentsResult, academicResult, chartResult, pengeluaranResult, documentSettingsResult] = await Promise.all([
         api.paymentToday(),
@@ -130,9 +130,9 @@ export function FinancePage() {
       setPengeluaran(Array.isArray(pengeluaranResult.data) ? pengeluaranResult.data : []);
       setDocumentSettings(documentSettingsResult.data as ApiRecord);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Data keuangan gagal dimuat');
+      if (!silent) setError(err instanceof Error ? err.message : 'Data keuangan gagal dimuat');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }
 
@@ -155,10 +155,10 @@ export function FinancePage() {
   const activeAcademicYear = academicPeriods.find((item) => item.is_active === true || item.status === 'Aktif') ?? academicPeriods[0];
   const activeSemesters = Array.isArray(activeAcademicYear?.semesters) ? activeAcademicYear.semesters : [];
 
-  async function openBilling(studentId = billingStudentId) {
+  async function openBilling(studentId = billingStudentId, silent = false) {
     if (!studentId) return;
     setBillingStudentId(studentId);
-    setBillingSummary(null);
+    if (!silent) setBillingSummary(null);
     try {
       const activeAcademic = academicPeriods.find((item) => item.is_active === true || item.status === 'Aktif') ?? academicPeriods[0];
       const result = await api.studentBillingSummary({
@@ -168,7 +168,7 @@ export function FinancePage() {
       });
       setBillingSummary(result.data && typeof result.data === 'object' ? (result.data as ApiRecord) : result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Tagihan santri gagal dimuat');
+      if (!silent) setError(err instanceof Error ? err.message : 'Tagihan santri gagal dimuat');
     }
   }
 
@@ -278,8 +278,8 @@ export function FinancePage() {
             academicPeriods={academicPeriods}
             userId={session?.id ?? 0}
             onPaymentSuccess={async () => {
-              await load();
-              if (billingStudentId) await openBilling(billingStudentId);
+              await load(true);
+              if (billingStudentId) await openBilling(billingStudentId, true);
               showToast('✅ Pembayaran santri berhasil disimpan!', 'success');
             }}
             onDeletePayment={async (pembayaranId, name) => {
@@ -524,6 +524,7 @@ function DirectPaymentCashier({
   onPaymentSuccess: () => Promise<void>;
 }) {
   const studentId = num(student.id);
+  const currentStudentIdRef = useRef(studentId);
 
   const defaultAcademic = academicPeriods.find((item) => item.is_active === true) ?? academicPeriods[0];
   const [academicYearId, setAcademicYearId] = useState(num(defaultAcademic?.id));
@@ -549,10 +550,22 @@ function DirectPaymentCashier({
   const [completedList, setCompletedList] = useState<PaidSessionItem[]>([]);
   const [sendingWaId, setSendingWaId] = useState<number | null>(null);
 
-  // Reset completed cashier list when student changes
+  // Reset completed cashier list ONLY when student genuinely changes
   useEffect(() => {
-    setCompletedList([]);
-  }, [student.id]);
+    if (currentStudentIdRef.current !== studentId) {
+      currentStudentIdRef.current = studentId;
+      setCompletedList([]);
+    }
+  }, [studentId]);
+
+  function handlePrintAll() {
+    if (completedList.length === 0) return;
+    completedList.forEach((item, index) => {
+      setTimeout(() => {
+        window.open(`/finance/print/${item.id}`, '_blank', 'noopener,noreferrer');
+      }, index * 250);
+    });
+  }
 
   // Discount states
   const [discountGuru, setDiscountGuru] = useState<number>(0);
@@ -777,6 +790,14 @@ function DirectPaymentCashier({
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
+                onClick={handlePrintAll}
+                className="flex items-center gap-1.5 rounded-xl bg-[#138F81] text-white px-3 py-1.5 text-xs font-black hover:bg-[#0A7065] shadow-sm transition-colors"
+                title="Cetak semua struk transaksi yang ada di tabel ini"
+              >
+                <Printer size={14} /> Cetak Semua Struk ({completedList.length})
+              </button>
+              <button
+                type="button"
                 onClick={() => {
                   const latest = completedList[0];
                   if (latest) {
@@ -786,7 +807,7 @@ function DirectPaymentCashier({
                 className="flex items-center gap-1.5 rounded-xl bg-teal-50 border border-teal-200 px-3 py-1.5 text-xs font-black text-teal-800 hover:bg-teal-100 transition-colors"
                 title="Cetak struk pembayaran terakhir"
               >
-                <Printer size={14} /> Cetak Struk Terakhir
+                <Printer size={14} /> Cetak Terakhir
               </button>
               <button
                 type="button"
