@@ -601,7 +601,7 @@ function StudentBillingPanel({
                   
                   {groupMonthly.length > 0 && (
                     <div className="space-y-3">
-                      <div className="text-xs font-black tracking-wider text-gray-500 uppercase">BULANAN (SPP / SYAHRIYAH 12 BULAN)</div>
+                      <div className="text-xs font-black tracking-wider text-gray-500 uppercase">BULANAN (SPP)</div>
                       <div className="overflow-x-auto q-scrollbar rounded-xl border border-gray-200">
                         <table className="w-full min-w-[760px] border-collapse text-xs">
                           <thead>
