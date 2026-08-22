@@ -560,11 +560,8 @@ function DirectPaymentCashier({
 
   function handlePrintAll() {
     if (completedList.length === 0) return;
-    completedList.forEach((item, index) => {
-      setTimeout(() => {
-        window.open(`/finance/print/${item.id}`, '_blank', 'noopener,noreferrer');
-      }, index * 250);
-    });
+    const combinedIds = completedList.map((item) => item.id).join(',');
+    window.open(`/finance/print/${combinedIds}`, '_blank', 'noopener,noreferrer');
   }
 
   // Discount states
@@ -764,7 +761,6 @@ function DirectPaymentCashier({
     { title: 'Genap (Akhir)', months: [4, 5, 6] },
   ];
 
-  const hasItems = (monthly && selectedMonths.size > 0) || (!monthly && netAmount > 0);
   const totalSessionPaid = completedList.reduce((acc, curr) => acc + curr.netAmount, 0);
 
   return (
@@ -791,31 +787,18 @@ function DirectPaymentCashier({
               <button
                 type="button"
                 onClick={handlePrintAll}
-                className="flex items-center gap-1.5 rounded-xl bg-[#138F81] text-white px-3 py-1.5 text-xs font-black hover:bg-[#0A7065] shadow-sm transition-colors"
-                title="Cetak semua struk transaksi yang ada di tabel ini"
+                className="flex items-center gap-2 rounded-xl bg-[#138F81] text-white px-4 py-2 text-xs font-black hover:bg-[#0A7065] shadow-md shadow-[#138F81]/25 transition-all"
+                title="Cetak struk semua pembayaran yang ada di tabel ini"
               >
-                <Printer size={14} /> Cetak Semua Struk ({completedList.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const latest = completedList[0];
-                  if (latest) {
-                    window.open(`/finance/print/${latest.id}`, '_blank', 'noopener,noreferrer');
-                  }
-                }}
-                className="flex items-center gap-1.5 rounded-xl bg-teal-50 border border-teal-200 px-3 py-1.5 text-xs font-black text-teal-800 hover:bg-teal-100 transition-colors"
-                title="Cetak struk pembayaran terakhir"
-              >
-                <Printer size={14} /> Cetak Terakhir
+                <Printer size={15} /> Cetak Struk ({completedList.length})
               </button>
               <button
                 type="button"
                 onClick={() => setCompletedList([])}
-                className="flex items-center gap-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 px-3 py-1.5 text-xs font-black text-gray-600 transition-colors"
-                title="Bersihkan daftar sesi kasir santri ini"
+                className="flex items-center gap-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 px-4 py-2 text-xs font-black text-gray-700 transition-colors"
+                title="Selesai dan bersihkan tabel sesi kasir santri ini"
               >
-                <RefreshCw size={13} /> Selesai / Reset Sesi
+                <RefreshCw size={14} /> Refresh / Selesai
               </button>
             </div>
           )}
@@ -837,46 +820,12 @@ function DirectPaymentCashier({
               </tr>
             </thead>
             <tbody>
-              {/* 1. DRAFT ROW (Sedang Diisi di Form) */}
-              {hasItems && (
-                <tr className="border-b border-gray-100 bg-amber-50/40 font-bold">
-                  <td className="py-3 px-3 text-center text-amber-700 font-extrabold">•</td>
-                  <td className="py-3 px-3">
-                    <span className="inline-block rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800 border border-amber-300 animate-pulse">
-                      📝 Sedang Diinput
-                    </span>
-                  </td>
-                  <td className="py-3 px-3 font-extrabold text-gray-800">
-                    {str(selectedType?.nama ?? 'SPP')}
-                    {monthly && selectedMonths.size > 0 ? (
-                      <span className="ml-2 text-xs font-semibold text-teal-700">
-                        ({Array.from(selectedMonths).map((m) => monthLabels[m]).join(', ')})
-                      </span>
-                    ) : !monthly && matchingGeneralBill && sudahDibayar > 0 ? (
-                      <span className="ml-2 text-xs font-bold text-amber-700">
-                        (Cicilan / Sisa: {formatMoney(sisaKurangBayar)})
-                      </span>
-                    ) : null}
-                  </td>
-                  <td className="py-3 px-3 text-right text-gray-700">{formatMoney(grossAmount)}</td>
-                  <td className="py-3 px-3 text-right text-amber-600">{totalDiscount > 0 ? `-${formatMoney(totalDiscount)}` : 'Rp 0'}</td>
-                  <td className="py-3 px-3 text-right font-extrabold text-gray-800">{formatMoney(netAmount)}</td>
-                  <td className="py-3 px-3 text-right font-black text-[#138F81] text-sm">{formatMoney(netAmount)}</td>
-                  <td className="py-3 px-3 text-xs text-gray-500">
-                    {monthly ? `${selectedMonths.size} Bulan SPP` : !monthly && matchingGeneralBill && sudahDibayar > 0 ? `Cicilan Sisa ${formatMoney(sisaKurangBayar)}` : 'Pembayaran Tagihan'}
-                  </td>
-                  <td className="py-3 px-3 text-center text-[11px] font-bold text-gray-400">
-                    Belum Disimpan
-                  </td>
-                </tr>
-              )}
-
-              {/* 2. COMPLETED TRANSACTIONS IN THIS SESSION */}
+              {/* COMPLETED TRANSACTIONS IN THIS SESSION */}
               {completedList.map((item, idx) => (
                 <tr key={item.id} className="border-b border-gray-100 bg-teal-50/20 font-bold hover:bg-teal-50/40 transition-colors">
                   <td className="py-3 px-3 text-center text-teal-800 font-extrabold">{idx + 1}</td>
                   <td className="py-3 px-3">
-                    <span className="inline-block rounded-md bg-[#138F81] px-2 py-0.5 text-[10px] font-black text-white shadow-xs">
+                    <span className="inline-block rounded-md bg-[#138F81] px-2.5 py-1 text-[10px] font-black text-white shadow-xs">
                       ✓ Sukses ({item.time})
                     </span>
                   </td>
@@ -898,7 +847,7 @@ function DirectPaymentCashier({
                         type="button"
                         onClick={() => window.open(`/finance/print/${item.id}`, '_blank', 'noopener,noreferrer')}
                         className="rounded-lg bg-teal-100 hover:bg-teal-200 p-1.5 text-teal-800 font-bold transition-colors"
-                        title="Cetak Struk"
+                        title="Cetak Struk Transaksi Ini"
                       >
                         <Printer size={14} />
                       </button>
@@ -916,11 +865,10 @@ function DirectPaymentCashier({
                 </tr>
               ))}
 
-              {/* 3. EMPTY STATE */}
-              {!hasItems && completedList.length === 0 && (
+              {completedList.length === 0 && (
                 <tr>
                   <td colSpan={9} className="py-8 text-center text-gray-400 font-semibold italic">
-                    Belum ada transaksi di sesi ini. Silakan pilih tipe pembayaran dan centang bulan/isi nominal di form bawah, lalu klik Simpan Pembayaran.
+                    Belum ada pembayaran yang berhasil di sesi ini. Silakan lakukan pembayaran pada form di bawah.
                   </td>
                 </tr>
               )}
