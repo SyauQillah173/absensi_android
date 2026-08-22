@@ -1203,21 +1203,29 @@ function SelectField({
   value,
   onChange,
   rows,
-  labelOf
+  labelOf,
+  hidePlaceholder = false,
 }: {
   label: string;
-  value: number;
+  value: number | string;
   onChange: (id: number) => void;
   rows: ApiRecord[];
   labelOf: (row: ApiRecord) => string;
+  hidePlaceholder?: boolean;
 }) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-bold text-[#636E72]">{label}</span>
-      <select className="q-input" value={value || ''} onChange={(event) => onChange(Number(event.target.value))} required>
-        <option value="">Pilih {label.toLowerCase()}</option>
+      <select
+        className="q-input"
+        value={value !== undefined && value !== null && value !== '' ? String(value) : (value === 0 ? '0' : '')}
+        onChange={(event) => onChange(Number(event.target.value))}
+      >
+        {!hidePlaceholder && <option value="">Pilih {label.toLowerCase()}</option>}
         {rows.map((row) => (
-          <option key={num(row.id)} value={num(row.id)}>{labelOf(row)}</option>
+          <option key={num(row.id)} value={String(num(row.id))}>
+            {labelOf(row)}
+          </option>
         ))}
       </select>
     </label>
@@ -1323,6 +1331,7 @@ function PaymentTypeModal({
               onChange={setTargetSemesterId} 
               rows={[{ id: 0, name: 'Berlaku Global (Semua Semester)' }, ...semesters]} 
               labelOf={(s) => str(s.name ?? s.semester)} 
+              hidePlaceholder={true}
             />
             <p className="mt-2 text-xs text-orange-600">
               Ubah ke semester spesifik (Ganjil/Genap) jika Anda ingin mengubah Nominal/Bulan tagihan yang <b>hanya berlaku untuk semester tersebut</b>.
