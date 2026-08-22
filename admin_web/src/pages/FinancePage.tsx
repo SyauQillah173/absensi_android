@@ -885,9 +885,6 @@ function DirectPaymentCashier({
                 onChange={(e) => setCustomAmount(e.target.value.replace(/\D/g, ''))}
                 placeholder="Masukkan nominal tagihan"
               />
-              <span className="mt-1.5 block text-[11px] font-semibold text-gray-500">
-                💡 Sistem otomatis mengisikan sisa kurang bayar ({formatMoney(sisaKurangBayar)}). Anda dapat menyesuaikan nominal jika santri membayar cicilan bertahap.
-              </span>
             </label>
           </div>
         )}
