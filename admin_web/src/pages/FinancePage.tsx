@@ -277,6 +277,15 @@ export function FinancePage() {
             selectedStudentId={billingStudentId}
             onSelect={openBilling}
             summary={billingSummary}
+            paymentTypes={activeTypes}
+            paymentMethods={activeMethods}
+            academicPeriods={academicPeriods}
+            userId={session?.id ?? 0}
+            onPaymentSuccess={async () => {
+              await load();
+              if (billingStudentId) await openBilling(billingStudentId);
+              showToast('✅ Pembayaran santri berhasil disimpan!', 'success');
+            }}
             onDeletePayment={async (pembayaranId, name) => {
               try {
                 setIsLoading(true);
@@ -504,18 +513,514 @@ function PaymentsTable({ rows, emptyText, onDeleteTransaction, onDeleteItem }: {
   );
 }
 
+function DirectPaymentCashier({
+  student,
+  userId,
+  paymentTypes,
+  paymentMethods,
+  academicPeriods,
+  summaryData,
+  onPaymentSuccess,
+}: {
+  student: ApiRecord;
+  userId: number;
+  paymentTypes: ApiRecord[];
+  paymentMethods: ApiRecord[];
+  academicPeriods: ApiRecord[];
+  summaryData: ApiRecord | null;
+  onPaymentSuccess: () => Promise<void>;
+}) {
+  const studentId = num(student.id);
+  const defaultAcademic = academicPeriods.find((item) => item.is_active === true) ?? academicPeriods[0];
+  const [academicYearId, setAcademicYearId] = useState(num(defaultAcademic?.id));
+  const selectedAcademic = academicPeriods.find((item) => num(item.id) === academicYearId);
+  const semesters = Array.isArray(selectedAcademic?.semesters) ? (selectedAcademic.semesters as ApiRecord[]) : [];
+  const defaultSemester = semesters.find((s) => s.is_active === true || s.status === 'Aktif') ?? semesters[0];
+  const [semesterId, setSemesterId] = useState<number | ''>(defaultSemester ? num(defaultSemester.id) : '');
+
+  const [typeId, setTypeId] = useState(paymentTypes[0] ? num(paymentTypes[0].id) : 0);
+  const selectedType = paymentTypes.find((row) => num(row.id) === typeId);
+  const monthly = isMonthly(selectedType);
+
+  const [selectedMonths, setSelectedMonths] = useState<Set<number>>(new Set());
+  const [customAmount, setCustomAmount] = useState('');
+  const [methodId, setMethodId] = useState(paymentMethods[0] ? num(paymentMethods[0].id) : 0);
+  const [notes, setNotes] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  // Discount states
+  const [discountGuru, setDiscountGuru] = useState<number>(0);
+  const [discountYatim, setDiscountYatim] = useState<number>(0);
+  const [discountPrestasi, setDiscountPrestasi] = useState<number>(0);
+  const [discountTahfidz, setDiscountTahfidz] = useState<number>(0);
+  const [discountLain, setDiscountLain] = useState<number>(0);
+
+  // Month Status Map for selected type
+  const monthStatusMap = useMemo(() => {
+    const map = new Map<number, { isPaid: boolean; isHoliday: boolean; status: string; amount: number }>();
+    if (summaryData && typeId) {
+      const groups = Array.isArray(summaryData.groups) ? (summaryData.groups as ApiRecord[]) : [];
+      for (const group of groups) {
+        const monthlyList = Array.isArray(group.monthly) ? (group.monthly as ApiRecord[]) : [];
+        const match = monthlyList.find((m) => num(m.payment_type_id) === typeId);
+        if (match && Array.isArray(match.months)) {
+          for (const m of match.months as ApiRecord[]) {
+            const mNo = num(m.month);
+            const st = str(m.status);
+            const isPaid = m.is_paid === true || st.toLowerCase() === 'lunas';
+            const isHoliday = st.toLowerCase() === 'libur';
+            map.set(mNo, { isPaid, isHoliday, status: st, amount: num(m.amount ?? selectedType?.nominal_default) });
+          }
+        }
+      }
+    }
+    return map;
+  }, [summaryData, typeId, selectedType]);
+
+  const defaultNominal = num(selectedType?.nominal_default);
+  const grossAmount = monthly ? selectedMonths.size * defaultNominal : num(customAmount || defaultNominal);
+
+  // Calculate discounts
+  const totalPercentDiscount = Number(discountGuru || 0) + Number(discountYatim || 0) + Number(discountPrestasi || 0) + Number(discountTahfidz || 0);
+  const discountFromPercent = Math.round((grossAmount * totalPercentDiscount) / 100);
+  const totalDiscount = discountFromPercent + Number(discountLain || 0);
+  const netAmount = Math.max(0, grossAmount - totalDiscount);
+
+  function toggleMonth(month: number) {
+    const mInfo = monthStatusMap.get(month);
+    if (mInfo?.isPaid || mInfo?.isHoliday) return;
+    setSelectedMonths((prev) => {
+      const next = new Set(prev);
+      if (next.has(month)) next.delete(month);
+      else next.add(month);
+      return next;
+    });
+  }
+
+  function handleReset() {
+    setSelectedMonths(new Set());
+    setCustomAmount('');
+    setDiscountGuru(0);
+    setDiscountYatim(0);
+    setDiscountPrestasi(0);
+    setDiscountTahfidz(0);
+    setDiscountLain(0);
+    setNotes('');
+    setError('');
+  }
+
+  async function handleSave() {
+    if (!studentId || !typeId || !methodId || netAmount <= 0) {
+      setError('Pilih minimal satu bulan tagihan / isi nominal bayar yang valid');
+      return;
+    }
+    setIsSaving(true);
+    setError('');
+    try {
+      const baseItem = {
+        payment_type_id: typeId,
+        academic_year_id: academicYearId || undefined,
+        semester_id: semesterId || undefined,
+      };
+
+      const payment_items = monthly
+        ? Array.from(selectedMonths).map((month) => ({
+            ...baseItem,
+            period_month: month,
+            jumlah: defaultNominal - Math.round(totalDiscount / (selectedMonths.size || 1)),
+          }))
+        : [{ ...baseItem, jumlah: netAmount }];
+
+      const discountNotes: string[] = [];
+      if (discountGuru > 0) discountNotes.push(`Diskon Guru: ${discountGuru}%`);
+      if (discountYatim > 0) discountNotes.push(`Diskon Yatim: ${discountYatim}%`);
+      if (discountPrestasi > 0) discountNotes.push(`Diskon Prestasi: ${discountPrestasi}%`);
+      if (discountTahfidz > 0) discountNotes.push(`Diskon Tahfidz: ${discountTahfidz}%`);
+      if (discountLain > 0) discountNotes.push(`Diskon Lain: ${formatMoney(discountLain)}`);
+      if (notes.trim()) discountNotes.push(notes.trim());
+
+      const selectedMethod = paymentMethods.find((m) => num(m.id) === methodId);
+
+      const payload: PaymentFormPayload = {
+        user_id: userId,
+        siswa_id: studentId,
+        atas_nama: str(student.wali_nama ?? student.nama_wali, ''),
+        via: str(selectedMethod?.name, 'Tunai'),
+        payment_method_id: methodId,
+        jumlah: netAmount,
+        keterangan: discountNotes.length > 0 ? discountNotes.join(' | ') : undefined,
+        tanggal: new Date().toISOString().slice(0, 10),
+        status: 'Lunas',
+        academic_year_id: academicYearId || undefined,
+        semester_id: semesterId || undefined,
+        payment_items,
+      };
+
+      await api.createPayment(payload);
+      handleReset();
+      await onPaymentSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal menyimpan transaksi pembayaran');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  // 4-column month structure
+  const monthColumns = [
+    { title: 'Ganjil (Awal)', months: [7, 8, 9] },
+    { title: 'Ganjil (Akhir)', months: [10, 11, 12] },
+    { title: 'Genap (Awal)', months: [1, 2, 3] },
+    { title: 'Genap (Akhir)', months: [4, 5, 6] },
+  ];
+
+  const hasItems = (monthly && selectedMonths.size > 0) || (!monthly && netAmount > 0);
+
+  return (
+    <div className="space-y-6 pt-4">
+      {/* SECTION 1: PEMBAYARAN SEKARANG */}
+      <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="border-b-2 border-[#138F81] pb-3">
+          <h3 className="text-sm font-black tracking-wider text-gray-800 uppercase">
+            PEMBAYARAN SEKARANG
+          </h3>
+        </div>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[700px] border-collapse text-xs">
+            <thead>
+              <tr className="bg-gray-50 font-black text-gray-700 text-left border-b border-gray-200">
+                <th className="py-2.5 px-3 w-12 text-center">No</th>
+                <th className="py-2.5 px-3">Tipe Pembayaran</th>
+                <th className="py-2.5 px-3 text-right">Tagihan</th>
+                <th className="py-2.5 px-3 text-right">Diskon</th>
+                <th className="py-2.5 px-3 text-right">Total Tagihan</th>
+                <th className="py-2.5 px-3 text-right">Nominal Bayar</th>
+                <th className="py-2.5 px-3">Keterangan</th>
+              </tr>
+            </thead>
+            <tbody>
+              {hasItems ? (
+                <tr className="border-b border-gray-100 bg-teal-50/20 font-bold">
+                  <td className="py-3 px-3 text-center text-gray-500">1</td>
+                  <td className="py-3 px-3 font-extrabold text-gray-800">
+                    {str(selectedType?.nama ?? 'SPP')}
+                    {monthly && selectedMonths.size > 0 ? (
+                      <span className="ml-2 text-xs font-semibold text-teal-700">
+                        ({Array.from(selectedMonths).map((m) => monthLabels[m]).join(', ')})
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className="py-3 px-3 text-right text-gray-700">{formatMoney(grossAmount)}</td>
+                  <td className="py-3 px-3 text-right text-amber-600">{totalDiscount > 0 ? `-${formatMoney(totalDiscount)}` : 'Rp 0'}</td>
+                  <td className="py-3 px-3 text-right font-extrabold text-gray-800">{formatMoney(netAmount)}</td>
+                  <td className="py-3 px-3 text-right font-black text-[#138F81] text-sm">{formatMoney(netAmount)}</td>
+                  <td className="py-3 px-3 text-xs text-gray-500">
+                    {monthly ? `${selectedMonths.size} Bulan SPP` : 'Pembayaran Tagihan'}
+                  </td>
+                </tr>
+              ) : (
+                <tr>
+                  <td colSpan={7} className="py-6 text-center text-gray-400 font-semibold italic">
+                    Belum ada item tagihan yang dipilih. Silakan pilih tipe pembayaran dan centang bulan di form bawah.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* SECTION 2: LAKUKAN PEMBAYARAN */}
+      <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-6">
+        <div className="border-b-2 border-[#138F81] pb-3 flex items-center justify-between">
+          <h3 className="text-sm font-black tracking-wider text-gray-800 uppercase">
+            LAKUKAN PEMBAYARAN
+          </h3>
+          <span className="text-xs font-bold text-gray-500">
+            {str(student.nama)} ({str(student.nis)})
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <SelectField
+            label="Tipe Pembayaran"
+            value={typeId}
+            onChange={(id) => {
+              setTypeId(id);
+              setSelectedMonths(new Set());
+              setCustomAmount('');
+            }}
+            rows={paymentTypes}
+            labelOf={(t) => `${str(t.nama)} - ${formatMoney(t.nominal_default)}`}
+            hidePlaceholder={true}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <SelectField
+              label="Tahun Ajaran"
+              value={academicYearId}
+              onChange={(id) => {
+                setAcademicYearId(id);
+                setSelectedMonths(new Set());
+              }}
+              rows={academicPeriods}
+              labelOf={(a) => str(a.tahun_ajaran ?? a.name ?? a.label)}
+              hidePlaceholder={true}
+            />
+            <SelectField
+              label="Semester"
+              value={Number(semesterId) || 0}
+              onChange={setSemesterId}
+              rows={semesters}
+              labelOf={(s) => str(s.name ?? s.semester)}
+              hidePlaceholder={true}
+            />
+          </div>
+        </div>
+
+        {/* 12-MONTH CHECKBOX GRID (4 COLUMNS) */}
+        {monthly ? (
+          <div className="space-y-2">
+            <label className="block text-xs font-black uppercase tracking-wider text-gray-600">
+              Pilih Bulan Tagihan
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 rounded-2xl bg-gray-50/80 border border-gray-200">
+              {monthColumns.map((col, cIdx) => (
+                <div key={cIdx} className="space-y-2">
+                  <div className="text-[11px] font-black text-gray-500 uppercase tracking-wider border-b pb-1 border-gray-200">
+                    {col.title}
+                  </div>
+                  <div className="space-y-1.5">
+                    {col.months.map((mNo) => {
+                      const mInfo = monthStatusMap.get(mNo);
+                      const isPaid = mInfo?.isPaid === true;
+                      const isHoliday = mInfo?.isHoliday === true;
+                      const isChecked = selectedMonths.has(mNo);
+
+                      return (
+                        <label
+                          key={mNo}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-extrabold transition-all select-none ${
+                            isPaid
+                              ? 'bg-teal-100/70 text-teal-800 border border-teal-300 cursor-not-allowed opacity-90'
+                              : isHoliday
+                              ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
+                              : isChecked
+                              ? 'bg-[#138F81] text-white shadow-sm ring-1 ring-[#0A7065] cursor-pointer'
+                              : 'bg-white text-gray-700 border border-gray-200 hover:bg-teal-50/40 cursor-pointer'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isPaid || isChecked}
+                            disabled={isPaid || isHoliday}
+                            onChange={() => toggleMonth(mNo)}
+                            className="h-4 w-4 rounded border-gray-300 text-[#138F81] focus:ring-[#138F81]"
+                          />
+                          <span className="flex-1">{monthLabels[mNo]}</span>
+                          <span className="text-[10px] opacity-80">
+                            {isPaid ? '✓ Lunas' : isHoliday ? '- Libur' : ''}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <label className="block">
+              <span className="mb-1 block text-xs font-black uppercase tracking-wider text-gray-600">Nominal Tagihan</span>
+              <input
+                className="q-input"
+                inputMode="numeric"
+                value={customAmount || String(defaultNominal)}
+                onChange={(e) => setCustomAmount(e.target.value.replace(/\D/g, ''))}
+                placeholder="Masukkan nominal tagihan"
+              />
+            </label>
+          </div>
+        )}
+
+        {/* TAGIHAN DISPLAY */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label className="block">
+            <span className="mb-1 block text-xs font-black uppercase tracking-wider text-gray-600">Tagihan</span>
+            <input className="q-input font-bold bg-gray-50 text-gray-800" disabled value={formatMoney(grossAmount)} />
+          </label>
+
+          <SelectField
+            label="Metode Pembayaran"
+            value={methodId}
+            onChange={setMethodId}
+            rows={paymentMethods.filter((m) => m.is_active !== false)}
+            labelOf={(m) => str(m.name)}
+            hidePlaceholder={true}
+          />
+        </div>
+
+        {/* DISKON SECTION */}
+        <div className="rounded-2xl border border-gray-200 bg-gray-50/50 p-4 space-y-3">
+          <div className="text-xs font-black tracking-wider text-gray-700 uppercase">
+            POTONGAN / DISKON (OPSIONAL)
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <label className="block">
+              <span className="mb-1 block text-xs font-bold text-gray-600">Diskon Anak Guru (%)</span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  className="q-input text-right font-bold"
+                  value={discountGuru || ''}
+                  onChange={(e) => setDiscountGuru(Math.min(100, Math.max(0, Number(e.target.value))))}
+                  placeholder="0"
+                />
+                <span className="text-sm font-black text-gray-500">%</span>
+              </div>
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-bold text-gray-600">Diskon Anak Yatim / Kurang Mampu (%)</span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  className="q-input text-right font-bold"
+                  value={discountYatim || ''}
+                  onChange={(e) => setDiscountYatim(Math.min(100, Math.max(0, Number(e.target.value))))}
+                  placeholder="0"
+                />
+                <span className="text-sm font-black text-gray-500">%</span>
+              </div>
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-bold text-gray-600">Diskon Anak Berprestasi (%)</span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  className="q-input text-right font-bold"
+                  value={discountPrestasi || ''}
+                  onChange={(e) => setDiscountPrestasi(Math.min(100, Math.max(0, Number(e.target.value))))}
+                  placeholder="0"
+                />
+                <span className="text-sm font-black text-gray-500">%</span>
+              </div>
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-bold text-gray-600">Diskon Tahfidz (%)</span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  className="q-input text-right font-bold"
+                  value={discountTahfidz || ''}
+                  onChange={(e) => setDiscountTahfidz(Math.min(100, Math.max(0, Number(e.target.value))))}
+                  placeholder="0"
+                />
+                <span className="text-sm font-black text-gray-500">%</span>
+              </div>
+            </label>
+
+            <label className="block sm:col-span-2">
+              <span className="mb-1 block text-xs font-bold text-gray-600">Diskon Lain-lain (Rp)</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                className="q-input font-bold"
+                value={discountLain ? String(discountLain) : ''}
+                onChange={(e) => setDiscountLain(Number(e.target.value.replace(/\D/g, '')))}
+                placeholder="Rp 0"
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* CATATAN & NOMINAL BAYAR */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label className="block">
+            <span className="mb-1 block text-xs font-black uppercase tracking-wider text-gray-600">Catatan / Keterangan</span>
+            <input
+              type="text"
+              className="q-input"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Cth: Pembayaran cicilan tahap 1"
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-black uppercase tracking-wider text-gray-600">Nominal Bayar (Total)</span>
+            <input
+              className="q-input font-black text-lg bg-teal-50/60 text-[#138F81] border-teal-300"
+              disabled
+              value={formatMoney(netAmount)}
+            />
+          </label>
+        </div>
+
+        {error ? (
+          <div className="rounded-2xl bg-red-50 border border-red-200 p-3 text-xs font-bold text-red-700">
+            {error}
+          </div>
+        ) : null}
+
+        {/* ACTION BUTTONS */}
+        <div className="flex items-center justify-end gap-3 pt-2">
+          <button
+            type="button"
+            onClick={handleReset}
+            disabled={isSaving}
+            className="px-6 py-2.5 rounded-2xl font-black text-sm bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving || netAmount <= 0}
+            className="flex items-center gap-2 px-8 py-2.5 rounded-2xl font-black text-sm bg-[#138F81] text-white hover:bg-[#0A7065] shadow-md shadow-[#138F81]/25 disabled:opacity-50 transition-all"
+          >
+            <Save size={17} />
+            {isSaving ? 'Menyimpan...' : 'Simpan Pembayaran'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StudentBillingPanel({
   students,
   selectedStudentId,
   onSelect,
   summary,
-  onDeletePayment
+  onDeletePayment,
+  paymentTypes,
+  paymentMethods,
+  academicPeriods,
+  userId,
+  onPaymentSuccess,
 }: {
   students: ApiRecord[];
   selectedStudentId: number;
   onSelect: (id: number) => void;
   summary: ApiRecord | null;
   onDeletePayment: (pembayaranId: number, name: string) => Promise<void>;
+  paymentTypes: ApiRecord[];
+  paymentMethods: ApiRecord[];
+  academicPeriods: ApiRecord[];
+  userId: number;
+  onPaymentSuccess: () => Promise<void>;
 }) {
   const [search, setSearch] = useState('');
   const [confirmCancel, setConfirmCancel] = useState<{ id: number; title: string } | null>(null);
@@ -773,6 +1278,19 @@ function StudentBillingPanel({
               );
             })
           )}
+
+          {/* KASIR POS PEMBAYARAN SANTRI */}
+          {student ? (
+            <DirectPaymentCashier
+              student={student}
+              userId={userId}
+              paymentTypes={paymentTypes}
+              paymentMethods={paymentMethods}
+              academicPeriods={academicPeriods}
+              summaryData={summary}
+              onPaymentSuccess={onPaymentSuccess}
+            />
+          ) : null}
         </>
       ) : (
         <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-bold text-[#636E72]">Pilih santri untuk melihat tagihan.</div>
