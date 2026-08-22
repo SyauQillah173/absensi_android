@@ -203,24 +203,7 @@ export function FinancePage() {
         </div>
       ) : null}
 
-      {successTransaction ? (
-        <PostPaymentActionModal
-          transaction={successTransaction}
-          onPrint={() => {
-            window.open(`/finance/print/${successTransaction.id}`, '_blank', 'noopener,noreferrer');
-          }}
-          onSendWa={async () => {
-            try {
-              await api.notifyWaPayment(Number(successTransaction.id));
-              showToast('Notifikasi WhatsApp berhasil dikirim!', 'success');
-              setSuccessTransaction(null);
-            } catch (err) {
-              showToast(err instanceof Error ? err.message : 'Gagal mengirim WA', 'error');
-            }
-          }}
-          onClose={() => setSuccessTransaction(null)}
-        />
-      ) : null}
+
 
       {confirmDelete ? (
         <ConfirmDialog
@@ -386,9 +369,9 @@ export function FinancePage() {
           paymentMethods={activeMethods}
           academicPeriods={academicPeriods}
           onClose={() => setModal(null)}
-          onSaved={async (trx) => {
+          onSaved={async () => {
             setModal(null);
-            if (trx) setSuccessTransaction(trx);
+            showToast('✅ Pembayaran berhasil dicatat!', 'success');
             await load();
             if (billingStudentId) await openBilling(billingStudentId);
           }}
@@ -618,14 +601,21 @@ function StudentBillingPanel({
                   
                   {groupMonthly.length > 0 && (
                     <div className="space-y-2">
-                      <div className="text-xs font-black tracking-wider text-gray-500 uppercase">BULANAN</div>
+                      <div className="text-xs font-black tracking-wider text-gray-500 uppercase">BULANAN (SPP / SYAHRIYAH)</div>
                       <div className="overflow-x-auto q-scrollbar rounded-xl border border-gray-200">
                         <table className="w-full min-w-[760px] border-collapse text-xs">
                           <thead>
-                            <tr className="bg-gray-50 font-black text-gray-700">
-                              <th className="border border-gray-200 px-4 py-2.5 text-left w-48">Tipe Pembayaran</th>
-                              {['Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'].map((m) => (
-                                <th key={m} className="border border-gray-200 px-1 py-2.5 text-center w-12">{m}</th>
+                            <tr className="bg-gray-100 font-black text-gray-700 text-center">
+                              <th rowSpan={2} className="border border-gray-200 bg-gray-50 px-4 py-2 text-left w-48 align-middle">Tipe Pembayaran</th>
+                              <th colSpan={6} className="border border-gray-200 bg-teal-50 text-[#138F81] py-1.5 text-center font-black">Semester Ganjil</th>
+                              <th colSpan={6} className="border border-gray-200 bg-blue-50 text-[#2E86DE] py-1.5 text-center font-black">Semester Genap</th>
+                            </tr>
+                            <tr className="bg-gray-50 font-black text-gray-700 text-center">
+                              {['Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'].map((m) => (
+                                <th key={m} className="border border-gray-200 px-1 py-1.5 text-center w-12 bg-teal-50/40 text-teal-900">{m}</th>
+                              ))}
+                              {['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'].map((m) => (
+                                <th key={m} className="border border-gray-200 px-1 py-1.5 text-center w-12 bg-blue-50/40 text-blue-900">{m}</th>
                               ))}
                             </tr>
                           </thead>
@@ -684,16 +674,17 @@ function StudentBillingPanel({
 
                   {groupGeneral.length > 0 && (
                     <div className="space-y-2 pt-2">
-                      <div className="text-xs font-black tracking-wider text-gray-500 uppercase">UMUM</div>
+                      <div className="text-xs font-black tracking-wider text-gray-500 uppercase">UMUM (NON-BULANAN)</div>
                       <div className="overflow-x-auto q-scrollbar rounded-xl border border-gray-200">
                         <table className="w-full min-w-[760px] border-collapse text-xs">
                           <thead>
                             <tr className="bg-gray-50 font-black text-gray-700">
                               <th className="border border-gray-200 px-4 py-2.5 text-left">Tipe Pembayaran</th>
-                              <th className="border border-gray-200 px-4 py-2.5 text-right w-40">Tagihan</th>
-                              <th className="border border-gray-200 px-4 py-2.5 text-right w-40">Dibayar</th>
-                              <th className="border border-gray-200 px-4 py-2.5 text-right w-40">Kurang Bayar</th>
-                              <th className="border border-gray-200 px-4 py-2.5 text-center w-36">Status</th>
+                              <th className="border border-gray-200 px-3 py-2.5 text-center w-36">Semester / Periode</th>
+                              <th className="border border-gray-200 px-4 py-2.5 text-right w-36">Tagihan</th>
+                              <th className="border border-gray-200 px-4 py-2.5 text-right w-36">Dibayar</th>
+                              <th className="border border-gray-200 px-4 py-2.5 text-right w-36">Kurang Bayar</th>
+                              <th className="border border-gray-200 px-4 py-2.5 text-center w-32">Status</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -703,11 +694,23 @@ function StudentBillingPanel({
                               const remaining = num(row.remaining_amount);
                               const status = str(row.display_status ?? row.status);
                               const isLunas = status.toLowerCase() === 'lunas' || (amount > 0 && paidAmount >= amount);
+                              const semesterName = str(row.semester, row.semester_id === 1 ? 'Semester Ganjil' : row.semester_id === 2 ? 'Semester Genap' : 'Tahunan / Sekali Bayar');
 
                               return (
                                 <tr key={rIdx} className="hover:bg-gray-50/50">
                                   <td className="border border-gray-200 bg-white px-4 py-3 font-extrabold text-gray-800">
                                     {str(row.name ?? row.nama ?? row.payment_type_name ?? row.title)}
+                                  </td>
+                                  <td className="border border-gray-200 bg-white px-3 py-3 text-center">
+                                    <span className={`inline-block rounded-md px-2.5 py-1 text-xs font-black ${
+                                      semesterName.toLowerCase().includes('ganjil')
+                                        ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                                        : semesterName.toLowerCase().includes('genap')
+                                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                        : 'bg-gray-100 text-gray-600'
+                                    }`}>
+                                      {semesterName}
+                                    </span>
                                   </td>
                                   <td className="border border-gray-200 bg-white px-4 py-3 text-right font-bold text-gray-700">
                                     {formatMoney(amount)}
@@ -899,14 +902,20 @@ function PaymentModal({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [bills, setBills] = useState<ApiRecord[]>([]);
+  const [summaryData, setSummaryData] = useState<ApiRecord | null>(null);
 
   useEffect(() => {
-    if (!studentId || !academicYearId) return;
+    if (!studentId || !academicYearId) {
+      setSummaryData(null);
+      setBills([]);
+      return;
+    }
     api.studentBillingSummary({ user_id: userId, siswa_id: studentId, academic_year_id: academicYearId })
       .then(res => {
-        const data = res.data && typeof res.data === 'object' ? (res.data as ApiRecord) : res;
-        const tagihan = Array.isArray(data.tagihan) ? data.tagihan : [];
-        setBills(tagihan as ApiRecord[]);
+        const data = (res.data && typeof res.data === 'object' ? res.data : res) as ApiRecord;
+        setSummaryData(data);
+        const tagihan = Array.isArray(data.tagihan) ? (data.tagihan as ApiRecord[]) : [];
+        setBills(tagihan);
       })
       .catch(console.error);
   }, [studentId, academicYearId, userId]);
@@ -915,26 +924,42 @@ function PaymentModal({
   const selectedType = paymentTypes.find((row) => num(row.id) === typeId);
   const selectedMethod = paymentMethods.find((row) => num(row.id) === methodId);
   const monthly = isMonthly(selectedType);
-  
-  let availableMonths = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
-  if (selectedType) {
-    const rules = Array.isArray(selectedType.bill_rules) ? selectedType.bill_rules : (Array.isArray(selectedType.billRules) ? selectedType.billRules : []);
-    const rule = rules.find((r: any) => Number(r.semester_id) === Number(semesterId));
-    if (rule && Array.isArray(rule.billed_months)) {
-      availableMonths = rule.billed_months.map(Number);
-    } else if (Array.isArray(selectedType.billed_months)) {
-      availableMonths = selectedType.billed_months.map(Number);
+
+  // Extract month status map for the selected payment type
+  const monthStatusMap = useMemo(() => {
+    const map = new Map<number, { isPaid: boolean; isHoliday: boolean; status: string }>();
+    if (summaryData && typeId) {
+      const groups = Array.isArray(summaryData.groups) ? (summaryData.groups as ApiRecord[]) : [];
+      for (const group of groups) {
+        const monthlyList = Array.isArray(group.monthly) ? (group.monthly as ApiRecord[]) : [];
+        const match = monthlyList.find((m) => num(m.payment_type_id) === typeId);
+        if (match && Array.isArray(match.months)) {
+          for (const m of match.months as ApiRecord[]) {
+            const mNo = num(m.month);
+            const st = str(m.status);
+            const isPaid = m.is_paid === true || st.toLowerCase() === 'lunas';
+            const isHoliday = st.toLowerCase() === 'libur';
+            map.set(mNo, { isPaid, isHoliday, status: st });
+          }
+        }
+      }
     }
-  }
-  const months = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6].filter(m => availableMonths.includes(m));
+    // Also cross-reference with bills
+    for (const b of bills) {
+      if (num(b.payment_type_id) === typeId && b.period_month) {
+        const mNo = num(b.period_month);
+        const isPaid = b.status === 'Lunas' || b.is_paid === true;
+        const current = map.get(mNo);
+        if (!current || isPaid) {
+          map.set(mNo, { isPaid, isHoliday: false, status: str(b.status) });
+        }
+      }
+    }
+    return map;
+  }, [summaryData, bills, typeId]);
+
   const nominal = num(selectedType?.nominal_default);
   const total = monthly ? selectedMonths.size * nominal : num(amount || nominal);
-
-  const paidMonths = new Set(
-    bills
-      .filter(b => num(b.payment_type_id) === typeId && (num(b.semester_id) === Number(semesterId) || !b.semester_id) && (b.status === 'Lunas' || b.status === 'Dibatalkan' || b.is_paid === true))
-      .map(b => num(b.period_month))
-  );
 
   const matchingGeneralBill = !monthly
     ? bills.find(b => num(b.payment_type_id) === typeId && (num(b.semester_id) === Number(semesterId) || !b.semester_id))
@@ -945,7 +970,8 @@ function PaymentModal({
     : false;
 
   function toggleMonth(month: number) {
-    if (paidMonths.has(month)) return;
+    const mInfo = monthStatusMap.get(month);
+    if (mInfo?.isPaid || mInfo?.isHoliday) return;
     setSelectedMonths((current) => {
       const next = new Set(current);
       if (next.has(month)) next.delete(month);
@@ -1003,13 +1029,14 @@ function PaymentModal({
       }
     >
       <form id="payment-form" className="space-y-4" onSubmit={submit}>
-        <SelectField label="Siswa" value={studentId} onChange={setStudentId} rows={students} labelOf={(row) => `${str(row.nama)} - ${str(row.nis)} - ${str(row.kelas)}`} />
+        <SelectField label="Siswa" value={studentId} onChange={(id) => { setStudentId(id); setSelectedMonths(new Set()); }} rows={students} labelOf={(row) => `${str(row.nama)} - ${str(row.nis)} - ${str(row.kelas)}`} />
         <input className="q-input" disabled value={str(selectedStudent?.wali_nama ?? selectedStudent?.nama_wali, 'Nama wali akan terisi otomatis')} />
         <div className="grid grid-cols-2 gap-3">
           <SelectField label="Tahun Ajaran" value={academicYearId} onChange={(id) => {
             setAcademicYearId(id);
             const sems = Array.isArray(academicPeriods.find(a => num(a.id) === id)?.semesters) ? (academicPeriods.find(a => num(a.id) === id)?.semesters as ApiRecord[]) : [];
             setSemesterId(sems[0] ? num(sems[0].id) : '');
+            setSelectedMonths(new Set());
           }} rows={academicPeriods} labelOf={(row) => str(row.tahun_ajaran ?? row.name ?? row.label)} />
           <SelectField label="Semester" value={Number(semesterId) || 0} onChange={setSemesterId} rows={semesters} labelOf={(row) => str(row.name ?? row.semester)} />
         </div>
@@ -1022,18 +1049,90 @@ function PaymentModal({
           return allowed.some((a: unknown) => String(a).toLowerCase() === methodName);
         })} labelOf={(row) => str(row.name)} />
         {monthly ? (
-          <div className="rounded-3xl bg-white p-4">
-            <p className="mb-3 text-sm font-extrabold text-[#2D3436]">Pilih Bulan</p>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-              {months.map((month) => {
-                const isPaid = paidMonths.has(month);
-                const selected = selectedMonths.has(month) || isPaid;
-                return (
-                  <button key={month} disabled={isPaid} className={`min-h-11 rounded-2xl text-sm font-extrabold ${isPaid ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : selected ? 'bg-[#138F81] text-white' : 'bg-[#F2F4F6] text-[#138F81]'}`} onClick={() => !isPaid && toggleMonth(month)} type="button" title={isPaid ? "Sudah Lunas" : ""}>
-                    {isPaid ? '✓ (Lunas) ' : selected ? '✓ ' : ''}{monthLabels[month]}
-                  </button>
-                );
-              })}
+          <div className="rounded-3xl bg-white p-5 border border-gray-100 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-black text-[#2D3436]">Pilih Bulan Tagihan SPP</p>
+              <span className="text-xs font-bold text-gray-500">
+                {selectedMonths.size} bulan dipilih ({formatMoney(total)})
+              </span>
+            </div>
+
+            {/* Semester Ganjil Section */}
+            <div className="space-y-1.5">
+              <div className="text-[11px] font-black tracking-wider text-teal-700 uppercase flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#138F81]"></span> Semester Ganjil (Jul - Des)
+              </div>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                {[7, 8, 9, 10, 11, 12].map((month) => {
+                  const mInfo = monthStatusMap.get(month);
+                  const isPaid = mInfo?.isPaid === true;
+                  const isHoliday = mInfo?.isHoliday === true;
+                  const selected = selectedMonths.has(month);
+
+                  return (
+                    <button
+                      key={month}
+                      disabled={isPaid || isHoliday}
+                      type="button"
+                      onClick={() => toggleMonth(month)}
+                      className={`min-h-12 rounded-2xl px-2 py-1.5 text-xs font-black transition-all flex flex-col items-center justify-center ${
+                        isPaid
+                          ? 'bg-[#138F81] text-white cursor-not-allowed shadow-sm'
+                          : isHoliday
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+                          : selected
+                          ? 'bg-[#138F81] text-white ring-2 ring-[#0A7065] shadow-md scale-[1.02]'
+                          : 'bg-[#F2F4F6] text-[#138F81] hover:bg-[#E1EFF7]'
+                      }`}
+                      title={isPaid ? 'Sudah Lunas' : isHoliday ? 'Bulan Libur (Tidak Ditagihkan)' : 'Klik untuk pilih'}
+                    >
+                      <span className="text-sm">{monthLabels[month]}</span>
+                      <span className="text-[10px] font-extrabold opacity-90">
+                        {isPaid ? '✓ Lunas' : isHoliday ? '- Libur' : selected ? '✓ Dipilih' : 'Pilih'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Semester Genap Section */}
+            <div className="space-y-1.5 pt-2 border-t border-gray-100">
+              <div className="text-[11px] font-black tracking-wider text-blue-700 uppercase flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#2E86DE]"></span> Semester Genap (Jan - Jun)
+              </div>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                {[1, 2, 3, 4, 5, 6].map((month) => {
+                  const mInfo = monthStatusMap.get(month);
+                  const isPaid = mInfo?.isPaid === true;
+                  const isHoliday = mInfo?.isHoliday === true;
+                  const selected = selectedMonths.has(month);
+
+                  return (
+                    <button
+                      key={month}
+                      disabled={isPaid || isHoliday}
+                      type="button"
+                      onClick={() => toggleMonth(month)}
+                      className={`min-h-12 rounded-2xl px-2 py-1.5 text-xs font-black transition-all flex flex-col items-center justify-center ${
+                        isPaid
+                          ? 'bg-[#138F81] text-white cursor-not-allowed shadow-sm'
+                          : isHoliday
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+                          : selected
+                          ? 'bg-[#138F81] text-white ring-2 ring-[#0A7065] shadow-md scale-[1.02]'
+                          : 'bg-[#F2F4F6] text-[#138F81] hover:bg-[#E1EFF7]'
+                      }`}
+                      title={isPaid ? 'Sudah Lunas' : isHoliday ? 'Bulan Libur (Tidak Ditagihkan)' : 'Klik untuk pilih'}
+                    >
+                      <span className="text-sm">{monthLabels[month]}</span>
+                      <span className="text-[10px] font-extrabold opacity-90">
+                        {isPaid ? '✓ Lunas' : isHoliday ? '- Libur' : selected ? '✓ Dipilih' : 'Pilih'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         ) : (
