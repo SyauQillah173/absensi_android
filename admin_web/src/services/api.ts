@@ -708,6 +708,9 @@ export const api = {
   studentBillingSummary(params: Record<string, string | number | boolean>) {
     return request<ApiRecord>('/payment-bills/student-summary', {}, params);
   },
+  sendBillNotification(studentId: number) {
+    return request<ApiRecord>(`/payment-bills/student/${studentId}/notify`, { method: 'POST' });
+  },
   notifyPaymentBill(id: number, data: { message?: string; channel?: 'in_app' | 'whatsapp' | 'both' }) {
     return request<ApiRecord>(`/payment-bills/${id}/notify`, { method: 'POST', body: JSON.stringify(data) });
   },

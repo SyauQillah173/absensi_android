@@ -214,6 +214,34 @@ class PaymentBillController extends Controller
                 'whatsapp_log' => $whatsappLog,
             ],
         ]);
+    public function notifyStudent(Request $request, int $siswaId)
+    {
+        $siswa = Siswa::query()->with(['wali:id,name,email,no_hp'])->findOrFail($siswaId);
+        $summary = $this->summaryService->forStudent($siswa);
+        $totalKurang = (int) ($summary['summary']['total_kurang_bayar'] ?? 0);
+        $waliName = $siswa->wali?->name ?? $siswa->nama_wali ?? 'Bapak/Ibu Wali Santri';
+        $noHp = $siswa->wali?->no_hp ?? $siswa->no_hp_wali;
+
+        $msg = "Assalamu'alaikum Wr. Wb. {$waliName},\n\n";
+        $msg .= "Berikut kami sampaikan rincian tagihan santri atas nama:\n";
+        $msg .= "Nama: *{$siswa->nama}*\n";
+        $msg .= "NIS: *{$siswa->nis}*\n";
+        $msg .= "Kelas: *{$siswa->kelas}*\n\n";
+        $msg .= "Total Tunggakan: *Rp " . number_format($totalKurang, 0, ',', '.') . "*\n\n";
+        $msg .= "Mohon untuk dapat menyelesaikan pembayaran tepat waktu. Terima kasih.\n_Yayasan Pondok Pesantren Qomaruddin_";
+
+        if ($noHp) {
+            try {
+                app(\App\Services\WhatsAppClientService::class)->sendMessage($noHp, $msg);
+            } catch (\Throwable $e) {
+                // Keep resilient
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tagihan santri berhasil dikirim ke WhatsApp Wali!',
+        ]);
     }
 
     private function summary(): array

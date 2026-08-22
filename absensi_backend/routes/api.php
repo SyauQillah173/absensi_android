@@ -251,6 +251,7 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::get('payment-bills/monthly-options', [PaymentBillController::class, 'monthlyOptions'])->middleware('permission:keuangan,view');
         Route::get('payment-bill-rules', [PaymentBillController::class, 'rules'])->middleware('permission:keuangan,view');
         Route::post('payment-bills/generate', [PaymentBillController::class, 'generate'])->middleware('permission:keuangan,create');
+        Route::post('payment-bills/student/{siswaId}/notify', [PaymentBillController::class, 'notifyStudent'])->middleware('permission:keuangan,approve');
         Route::post('payment-bills/{paymentBill}/notify', [PaymentBillController::class, 'notify'])->middleware('permission:keuangan,approve');
         Route::get('pembayaran/transaksi/{paymentTransaction}', [PembayaranController::class, 'showTransaction'])->middleware('permission:keuangan,view');
         Route::delete('pembayaran/transaksi/{paymentTransaction}', [PembayaranController::class, 'destroyTransaction'])->middleware('permission:keuangan,delete');
