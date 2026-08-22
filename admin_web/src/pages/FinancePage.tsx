@@ -1112,7 +1112,7 @@ function PaymentTypeModal({
   onSaved: () => Promise<void>;
 }) {
   const activeSem = semesters.find((s) => s.is_active === true) ?? semesters[0];
-  const [targetSemesterId, setTargetSemesterId] = useState(num(activeSem?.id));
+  const [targetSemesterId, setTargetSemesterId] = useState(0);
   const [name, setName] = useState(str(row?.nama, ''));
   const [amount, setAmount] = useState(String(row?.nominal_default ?? ''));
   const [periodId, setPeriodId] = useState(num(row?.payment_period_type_id ?? paymentPeriods[0]?.id));
@@ -1121,13 +1121,13 @@ function PaymentTypeModal({
   const [isBilledToAll, setIsBilledToAll] = useState(row?.is_billed_to_all !== false);
   const [billedMonths, setBilledMonths] = useState<Set<number>>(() => {
     const allMonths = [7,8,9,10,11,12,1,2,3,4,5,6];
-    const rulesArray = Array.isArray(row?.bill_rules) ? row?.bill_rules : (Array.isArray(row?.billRules) ? row?.billRules : []);
-    const rule = rulesArray.find((r: any) => num(r.semester_id) === num(activeSem?.id));
-    if (rule && Array.isArray(rule.billed_months) && rule.billed_months.length > 0) {
-      return new Set(rule.billed_months.map(Number));
-    }
     if (Array.isArray(row?.billed_months) && row.billed_months.length > 0) {
       return new Set(row.billed_months.map(Number));
+    }
+    const rulesArray = Array.isArray(row?.bill_rules) ? row?.bill_rules : (Array.isArray(row?.billRules) ? row?.billRules : []);
+    const rule = rulesArray[0];
+    if (rule && Array.isArray(rule.billed_months) && rule.billed_months.length > 0) {
+      return new Set(rule.billed_months.map(Number));
     }
     return new Set(allMonths);
   });

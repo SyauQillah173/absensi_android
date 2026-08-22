@@ -65,6 +65,11 @@ class PaymentBill extends Model
         return $this->belongsTo(PaymentTransaction::class);
     }
 
+    public function pembayaran()
+    {
+        return $this->hasMany(Pembayaran::class, 'payment_bill_id');
+    }
+
     public function notifications()
     {
         return $this->hasMany(PaymentBillNotification::class);

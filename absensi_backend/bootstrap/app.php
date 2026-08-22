@@ -36,8 +36,8 @@ return Application::configure(basePath: dirname(__DIR__))
             $payload = [
                 'success' => false,
                 'message' => $e instanceof ValidationException
-                    ? 'Validasi gagal'
-                    : ($statusCode >= 500 && !config('app.debug') ? 'Terjadi kesalahan server' : $e->getMessage()),
+                    ? ($e->validator->errors()->first() ?: 'Validasi gagal')
+                    : $e->getMessage(),
             ];
 
             if ($e instanceof ValidationException) {

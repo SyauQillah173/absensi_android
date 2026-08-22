@@ -1059,7 +1059,8 @@ class PaymentBillService
                     $q->whereNull('status')
                       ->orWhereNotIn('status', ['Lunas', 'Menunggu Verifikasi']);
                 })
-                ->whereDoesntHave('pembayaran')
+                ->whereNull('payment_transaction_id')
+                ->whereNull('paid_at')
                 ->delete();
             return;
         }
@@ -1084,7 +1085,8 @@ class PaymentBillService
                     $q->whereNull('status')
                       ->orWhereNotIn('status', ['Lunas', 'Menunggu Verifikasi']);
                 })
-                ->whereDoesntHave('pembayaran');
+                ->whereNull('payment_transaction_id')
+                ->whereNull('paid_at');
 
             if ($academicYearId) {
                 $deleteQuery->where('academic_year_id', $academicYearId);

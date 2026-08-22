@@ -37,7 +37,9 @@ set_exception_handler(function (Throwable $e): void {
     header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
-        'message' => 'Terjadi kesalahan server',
+        'message' => $e->getMessage() ?: 'Terjadi kesalahan server',
+        'file' => basename($e->getFile()),
+        'line' => $e->getLine(),
     ]);
 });
 
@@ -55,7 +57,9 @@ register_shutdown_function(function (): void {
 
     echo json_encode([
         'success' => false,
-        'message' => 'Terjadi kesalahan server',
+        'message' => $error['message'] ?? 'Terjadi kesalahan server',
+        'file' => basename($error['file'] ?? ''),
+        'line' => $error['line'] ?? 0,
     ]);
 });
 
