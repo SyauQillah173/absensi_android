@@ -492,6 +492,18 @@ function PaymentsTable({ rows, emptyText, onDeleteTransaction, onDeleteItem }: {
       ]}
     />
   );
+}interface PaidSessionItem {
+  id: number;
+  code: string;
+  typeName: string;
+  detail: string;
+  grossAmount: number;
+  discountAmount: number;
+  netAmount: number;
+  method: string;
+  time: string;
+  notes: string;
+  txData?: ApiRecord;
 }
 
 function DirectPaymentCashier({
@@ -512,6 +524,7 @@ function DirectPaymentCashier({
   onPaymentSuccess: () => Promise<void>;
 }) {
   const studentId = num(student.id);
+
   const defaultAcademic = academicPeriods.find((item) => item.is_active === true) ?? academicPeriods[0];
   const [academicYearId, setAcademicYearId] = useState(num(defaultAcademic?.id));
   const selectedAcademic = academicPeriods.find((item) => num(item.id) === academicYearId);
@@ -531,6 +544,15 @@ function DirectPaymentCashier({
   const [showPassword, setShowPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Completed payments in this cashier session
+  const [completedList, setCompletedList] = useState<PaidSessionItem[]>([]);
+  const [sendingWaId, setSendingWaId] = useState<number | null>(null);
+
+  // Reset completed cashier list when student changes
+  useEffect(() => {
+    setCompletedList([]);
+  }, [student.id]);
 
   // Discount states
   const [discountGuru, setDiscountGuru] = useState<number>(0);
@@ -630,6 +652,18 @@ function DirectPaymentCashier({
     setError('');
   }
 
+  async function handleSendWa(paymentId: number) {
+    try {
+      setSendingWaId(paymentId);
+      const res = await api.notifyWaPayment(paymentId);
+      alert(res.message || 'Pesan WhatsApp struk pembayaran berhasil dikirim ke Wali!');
+    } catch (err) {
+      alert(`Gagal mengirim WhatsApp: ${err instanceof Error ? err.message : 'Terjadi kesalahan'}`);
+    } finally {
+      setSendingWaId(null);
+    }
+  }
+
   async function handleSave() {
     if (!studentId || !typeId || !methodId || netAmount <= 0) {
       setError('Pilih minimal satu bulan tagihan / isi nominal bayar yang valid');
@@ -678,7 +712,28 @@ function DirectPaymentCashier({
         ...(password.trim() ? { payment_security_password: password.trim() } : {}),
       };
 
-      await api.createPayment(payload);
+      const res = await api.createPayment(payload);
+      const tx = (res.data && typeof res.data === 'object' ? res.data : {}) as ApiRecord;
+      const txId = num(tx.id || (tx as any).payment_transaction_id || Date.now());
+      const txCode = str(tx.kode_transaksi || tx.invoice_number || `TRX-${Date.now().toString().slice(-6)}`);
+
+      const newItem: PaidSessionItem = {
+        id: txId,
+        code: txCode,
+        typeName: str(selectedType?.nama || 'Tagihan'),
+        detail: monthly
+          ? `${selectedMonths.size} Bulan (${Array.from(selectedMonths).map((m) => monthLabels[m]).join(', ')})`
+          : (matchingGeneralBill && sudahDibayar > 0 ? `Angsuran/Pelunasan (Sisa: ${formatMoney(Math.max(0, sisaKurangBayar - netAmount))})` : 'Pembayaran Penuh'),
+        grossAmount: grossAmount,
+        discountAmount: totalDiscount,
+        netAmount: netAmount,
+        method: str(selectedMethod?.name, 'Tunai'),
+        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        notes: discountNotes.join(' | '),
+        txData: tx,
+      };
+
+      setCompletedList((prev) => [newItem, ...prev]);
       handleReset();
       await onPaymentSuccess();
     } catch (err) {
@@ -697,33 +752,79 @@ function DirectPaymentCashier({
   ];
 
   const hasItems = (monthly && selectedMonths.size > 0) || (!monthly && netAmount > 0);
+  const totalSessionPaid = completedList.reduce((acc, curr) => acc + curr.netAmount, 0);
 
   return (
     <div className="space-y-6 pt-4">
-      {/* SECTION 1: PEMBAYARAN SEKARANG */}
-      <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="border-b-2 border-[#138F81] pb-3">
-          <h3 className="text-sm font-black tracking-wider text-gray-800 uppercase">
-            PEMBAYARAN SEKARANG
-          </h3>
+      {/* SECTION 1: PEMBAYARAN SEKARANG (SESI KASIR) */}
+      <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
+        <div className="border-b-2 border-[#138F81] pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-black tracking-wider text-gray-800 uppercase flex items-center gap-2">
+              <span>PEMBAYARAN SEKARANG</span>
+              {completedList.length > 0 && (
+                <span className="rounded-full bg-teal-100 px-2.5 py-0.5 text-[11px] font-black text-teal-800">
+                  {completedList.length} Transaksi Selesai (Total {formatMoney(totalSessionPaid)})
+                </span>
+              )}
+            </h3>
+            <p className="text-[11px] font-medium text-gray-500 mt-0.5">
+              Daftar transaksi kasir untuk <span className="font-bold text-teal-800">{str(student.nama)}</span>. Data tetap tersimpan di sini selama sesi input.
+            </p>
+          </div>
+
+          {completedList.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const latest = completedList[0];
+                  if (latest) {
+                    window.open(`/finance/print/${latest.id}`, '_blank', 'noopener,noreferrer');
+                  }
+                }}
+                className="flex items-center gap-1.5 rounded-xl bg-teal-50 border border-teal-200 px-3 py-1.5 text-xs font-black text-teal-800 hover:bg-teal-100 transition-colors"
+                title="Cetak struk pembayaran terakhir"
+              >
+                <Printer size={14} /> Cetak Struk Terakhir
+              </button>
+              <button
+                type="button"
+                onClick={() => setCompletedList([])}
+                className="flex items-center gap-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 px-3 py-1.5 text-xs font-black text-gray-600 transition-colors"
+                title="Bersihkan daftar sesi kasir santri ini"
+              >
+                <RefreshCw size={13} /> Selesai / Reset Sesi
+              </button>
+            </div>
+          )}
         </div>
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[700px] border-collapse text-xs">
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] border-collapse text-xs">
             <thead>
               <tr className="bg-gray-50 font-black text-gray-700 text-left border-b border-gray-200">
-                <th className="py-2.5 px-3 w-12 text-center">No</th>
+                <th className="py-2.5 px-3 w-10 text-center">No</th>
+                <th className="py-2.5 px-3">Status</th>
                 <th className="py-2.5 px-3">Tipe Pembayaran</th>
                 <th className="py-2.5 px-3 text-right">Tagihan</th>
                 <th className="py-2.5 px-3 text-right">Diskon</th>
                 <th className="py-2.5 px-3 text-right">Total Tagihan</th>
                 <th className="py-2.5 px-3 text-right">Nominal Bayar</th>
                 <th className="py-2.5 px-3">Keterangan</th>
+                <th className="py-2.5 px-3 text-center w-28">Aksi Cetak / WA</th>
               </tr>
             </thead>
             <tbody>
-              {hasItems ? (
-                <tr className="border-b border-gray-100 bg-teal-50/20 font-bold">
-                  <td className="py-3 px-3 text-center text-gray-500">1</td>
+              {/* 1. DRAFT ROW (Sedang Diisi di Form) */}
+              {hasItems && (
+                <tr className="border-b border-gray-100 bg-amber-50/40 font-bold">
+                  <td className="py-3 px-3 text-center text-amber-700 font-extrabold">•</td>
+                  <td className="py-3 px-3">
+                    <span className="inline-block rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800 border border-amber-300 animate-pulse">
+                      📝 Sedang Diinput
+                    </span>
+                  </td>
                   <td className="py-3 px-3 font-extrabold text-gray-800">
                     {str(selectedType?.nama ?? 'SPP')}
                     {monthly && selectedMonths.size > 0 ? (
@@ -732,7 +833,7 @@ function DirectPaymentCashier({
                       </span>
                     ) : !monthly && matchingGeneralBill && sudahDibayar > 0 ? (
                       <span className="ml-2 text-xs font-bold text-amber-700">
-                        (Cicilan / Sisa Kurang Bayar: {formatMoney(sisaKurangBayar)})
+                        (Cicilan / Sisa: {formatMoney(sisaKurangBayar)})
                       </span>
                     ) : null}
                   </td>
@@ -741,13 +842,64 @@ function DirectPaymentCashier({
                   <td className="py-3 px-3 text-right font-extrabold text-gray-800">{formatMoney(netAmount)}</td>
                   <td className="py-3 px-3 text-right font-black text-[#138F81] text-sm">{formatMoney(netAmount)}</td>
                   <td className="py-3 px-3 text-xs text-gray-500">
-                    {monthly ? `${selectedMonths.size} Bulan SPP` : !monthly && matchingGeneralBill && sudahDibayar > 0 ? `Angsuran/Pelunasan (Sisa: ${formatMoney(sisaKurangBayar)})` : 'Pembayaran Tagihan'}
+                    {monthly ? `${selectedMonths.size} Bulan SPP` : !monthly && matchingGeneralBill && sudahDibayar > 0 ? `Cicilan Sisa ${formatMoney(sisaKurangBayar)}` : 'Pembayaran Tagihan'}
+                  </td>
+                  <td className="py-3 px-3 text-center text-[11px] font-bold text-gray-400">
+                    Belum Disimpan
                   </td>
                 </tr>
-              ) : (
+              )}
+
+              {/* 2. COMPLETED TRANSACTIONS IN THIS SESSION */}
+              {completedList.map((item, idx) => (
+                <tr key={item.id} className="border-b border-gray-100 bg-teal-50/20 font-bold hover:bg-teal-50/40 transition-colors">
+                  <td className="py-3 px-3 text-center text-teal-800 font-extrabold">{idx + 1}</td>
+                  <td className="py-3 px-3">
+                    <span className="inline-block rounded-md bg-[#138F81] px-2 py-0.5 text-[10px] font-black text-white shadow-xs">
+                      ✓ Sukses ({item.time})
+                    </span>
+                  </td>
+                  <td className="py-3 px-3 font-extrabold text-gray-800">
+                    <div>{item.typeName}</div>
+                    <div className="text-[11px] font-semibold text-teal-700">{item.detail}</div>
+                  </td>
+                  <td className="py-3 px-3 text-right text-gray-700">{formatMoney(item.grossAmount)}</td>
+                  <td className="py-3 px-3 text-right text-amber-600">{item.discountAmount > 0 ? `-${formatMoney(item.discountAmount)}` : 'Rp 0'}</td>
+                  <td className="py-3 px-3 text-right font-extrabold text-gray-800">{formatMoney(item.netAmount)}</td>
+                  <td className="py-3 px-3 text-right font-black text-[#138F81] text-sm">{formatMoney(item.netAmount)}</td>
+                  <td className="py-3 px-3 text-xs text-gray-600">
+                    <div>Via: <span className="font-bold text-gray-800">{item.method}</span></div>
+                    {item.notes && <div className="text-[11px] text-gray-500 italic truncate max-w-[160px]" title={item.notes}>{item.notes}</div>}
+                  </td>
+                  <td className="py-3 px-3 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => window.open(`/finance/print/${item.id}`, '_blank', 'noopener,noreferrer')}
+                        className="rounded-lg bg-teal-100 hover:bg-teal-200 p-1.5 text-teal-800 font-bold transition-colors"
+                        title="Cetak Struk"
+                      >
+                        <Printer size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSendWa(item.id)}
+                        disabled={sendingWaId === item.id}
+                        className="rounded-lg bg-emerald-100 hover:bg-emerald-200 p-1.5 text-emerald-800 font-bold transition-colors disabled:opacity-50"
+                        title="Kirim Struk ke WhatsApp Wali"
+                      >
+                        <span className="text-[11px] font-black">WA</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+
+              {/* 3. EMPTY STATE */}
+              {!hasItems && completedList.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-6 text-center text-gray-400 font-semibold italic">
-                    Belum ada item tagihan yang dipilih. Silakan pilih tipe pembayaran dan centang bulan di form bawah.
+                  <td colSpan={9} className="py-8 text-center text-gray-400 font-semibold italic">
+                    Belum ada transaksi di sesi ini. Silakan pilih tipe pembayaran dan centang bulan/isi nominal di form bawah, lalu klik Simpan Pembayaran.
                   </td>
                 </tr>
               )}
@@ -1361,6 +1513,108 @@ function StudentBillingPanel({
               onPaymentSuccess={onPaymentSuccess}
             />
           ) : null}
+
+          {/* RIWAYAT SEMUA TRANSAKSI SANTRI (CETAK ULANG KAPAN SAJA) */}
+          {student && Array.isArray(summary?.transactions) && summary.transactions.length > 0 && (
+            <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
+              <div className="border-b-2 border-gray-200 pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-black tracking-wider text-gray-800 uppercase flex items-center gap-2">
+                    <span>RIWAYAT SEMUA PEMBAYARAN SANTRI</span>
+                    <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-black text-gray-700">
+                      {summary.transactions.length} Transaksi Tercatat
+                    </span>
+                  </h3>
+                  <p className="text-[11px] font-medium text-gray-500 mt-0.5">
+                    Gunakan tabel ini jika ingin mencetak ulang struk pembayaran lama atau mengirim ulang WhatsApp ke wali santri.
+                  </p>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-gray-50 font-black text-gray-700 text-left border-b border-gray-200">
+                      <th className="py-2.5 px-3 w-10 text-center">No</th>
+                      <th className="py-2.5 px-3">Tanggal</th>
+                      <th className="py-2.5 px-3">No. Transaksi</th>
+                      <th className="py-2.5 px-3">Tipe Pembayaran / Item</th>
+                      <th className="py-2.5 px-3 text-right">Total Bayar</th>
+                      <th className="py-2.5 px-3 text-center">Metode</th>
+                      <th className="py-2.5 px-3 text-center">Status</th>
+                      <th className="py-2.5 px-3 text-center w-28">Cetak / WA</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(summary.transactions as ApiRecord[]).map((tx, idx) => {
+                      const items = Array.isArray(tx.items) ? (tx.items as ApiRecord[]) : [];
+                      const itemsText = items.map((it) => `${str(it.payment_type_name ?? it.name ?? 'Tagihan')}${it.period_month ? ` (${monthLabels[num(it.period_month)]})` : ''}`).join(', ') || str(tx.keterangan, 'Pembayaran Santri');
+                      const txId = num(tx.id);
+                      const isLunas = str(tx.status).toLowerCase() === 'lunas';
+
+                      return (
+                        <tr key={txId || idx} className="border-b border-gray-100 hover:bg-gray-50/60 transition-colors font-bold">
+                          <td className="py-3 px-3 text-center text-gray-500">{idx + 1}</td>
+                          <td className="py-3 px-3 text-gray-700 whitespace-nowrap">
+                            {str(tx.tanggal ?? tx.created_at ?? '-').slice(0, 10)}
+                          </td>
+                          <td className="py-3 px-3 font-extrabold text-teal-800 whitespace-nowrap">
+                            {str(tx.kode_transaksi ?? tx.invoice_number ?? `TRX-${txId}`)}
+                          </td>
+                          <td className="py-3 px-3 text-gray-800">
+                            <div>{itemsText}</div>
+                            {tx.keterangan && <div className="text-[11px] font-normal text-gray-500 italic truncate max-w-[200px]">{str(tx.keterangan)}</div>}
+                          </td>
+                          <td className="py-3 px-3 text-right font-black text-[#138F81] text-sm whitespace-nowrap">
+                            {formatMoney(tx.jumlah_total ?? tx.jumlah ?? tx.amount ?? 0)}
+                          </td>
+                          <td className="py-3 px-3 text-center whitespace-nowrap">
+                            <span className="inline-block rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-700">
+                              {str(tx.via ?? tx.payment_method_name ?? 'Tunai')}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-center whitespace-nowrap">
+                            <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-black ${
+                              isLunas ? 'bg-teal-100 text-teal-800' : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {str(tx.status ?? 'Lunas')}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => window.open(`/finance/print/${txId}`, '_blank', 'noopener,noreferrer')}
+                                className="rounded-lg bg-teal-50 hover:bg-teal-100 p-1.5 text-teal-800 font-bold transition-colors"
+                                title="Cetak Ulang Struk"
+                              >
+                                <Printer size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    const res = await api.notifyWaPayment(txId);
+                                    alert(res.message || 'Pesan WhatsApp berhasil dikirim!');
+                                  } catch (err) {
+                                    alert(`Gagal mengirim WhatsApp: ${err instanceof Error ? err.message : 'Error'}`);
+                                  }
+                                }}
+                                className="rounded-lg bg-emerald-50 hover:bg-emerald-100 p-1.5 text-emerald-800 font-bold transition-colors"
+                                title="Kirim Ulang WA ke Wali"
+                              >
+                                <span className="text-[11px] font-black">WA</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-bold text-[#636E72]">Pilih santri untuk melihat tagihan.</div>
