@@ -527,6 +527,8 @@ function DirectPaymentCashier({
   const [customAmount, setCustomAmount] = useState('');
   const [methodId, setMethodId] = useState(paymentMethods[0] ? num(paymentMethods[0].id) : 0);
   const [notes, setNotes] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -588,6 +590,7 @@ function DirectPaymentCashier({
     setDiscountTahfidz(0);
     setDiscountLain(0);
     setNotes('');
+    setPassword('');
     setError('');
   }
 
@@ -636,6 +639,7 @@ function DirectPaymentCashier({
         academic_year_id: academicYearId || undefined,
         semester_id: semesterId || undefined,
         payment_items,
+        ...(password.trim() ? { payment_security_password: password.trim() } : {}),
       };
 
       await api.createPayment(payload);
@@ -926,7 +930,7 @@ function DirectPaymentCashier({
           </div>
         </div>
 
-        {/* CATATAN & NOMINAL BAYAR */}
+        {/* CATATAN, PASSWORD & NOMINAL BAYAR */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="block">
             <span className="mb-1 block text-xs font-black uppercase tracking-wider text-gray-600">Catatan / Keterangan</span>
@@ -940,9 +944,34 @@ function DirectPaymentCashier({
           </label>
 
           <label className="block">
-            <span className="mb-1 block text-xs font-black uppercase tracking-wider text-gray-600">Nominal Bayar (Total)</span>
+            <span className="mb-1 block text-xs font-black uppercase tracking-wider text-gray-600 flex items-center justify-between">
+              <span>Password Keamanan Admin</span>
+              <span className="text-[10px] text-teal-700 font-bold">Wajib jika proteksi aktif</span>
+            </span>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className="q-input pr-12"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Masukkan password admin"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 hover:text-gray-600"
+              >
+                {showPassword ? 'Tutup' : 'Lihat'}
+              </button>
+            </div>
+          </label>
+        </div>
+
+        <div>
+          <label className="block">
+            <span className="mb-1 block text-xs font-black uppercase tracking-wider text-gray-600">Total Nominal Bayar</span>
             <input
-              className="q-input font-black text-lg bg-teal-50/60 text-[#138F81] border-teal-300"
+              className="q-input font-black text-xl bg-teal-50/70 text-[#138F81] border-teal-300"
               disabled
               value={formatMoney(netAmount)}
             />
