@@ -1218,7 +1218,7 @@ function SelectField({
       <span className="mb-2 block text-sm font-bold text-[#636E72]">{label}</span>
       <select
         className="q-input"
-        value={value !== undefined && value !== null && value !== '' ? String(value) : (value === 0 ? '0' : '')}
+        value={value !== undefined && value !== null ? String(value) : ''}
         onChange={(event) => onChange(Number(event.target.value))}
       >
         {!hidePlaceholder && <option value="">Pilih {label.toLowerCase()}</option>}
