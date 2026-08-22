@@ -184,30 +184,25 @@ class StudentBillingSummaryService
     private function groups(Collection $rows): array
     {
         return $rows
-            ->groupBy(fn (array $row) => implode('|', [
-                $row['academic_year_id'] ?? 'legacy',
-                $row['tahun_ajaran'] ?? 'Tanpa Periode',
-                $row['semester_id'] ?? 'legacy',
-                !empty($row['semester']) ? $row['semester'] : 'Umum',
-            ]))
-            ->map(function (Collection $groupRows) {
-                $first = $groupRows->first();
-                $monthlyRows = $groupRows->where('is_monthly', true);
-                $semesterName = !empty($first['semester']) ? $first['semester'] : 'Umum';
+            ->groupBy(fn (array $row) => $row['academic_year_id'] ?? ($row['tahun_ajaran'] ?? 'legacy'))
+            ->map(function (Collection $yearRows) {
+                $first = $yearRows->first();
+                $academicYearName = $first['tahun_ajaran'] ?? '2025/2026';
+                $monthlyRows = $yearRows->where('is_monthly', true);
+                $generalRows = $yearRows->where('is_monthly', false);
+
+                // Group monthly by payment_type_id
+                $monthlyTypes = $monthlyRows
+                    ->groupBy('payment_type_id')
+                    ->map(fn (Collection $items) => $this->monthlyTypeRow($items))
+                    ->values();
 
                 return [
                     'academic_year_id' => $first['academic_year_id'] ?? null,
-                    'tahun_ajaran' => $first['tahun_ajaran'] ?? 'Tanpa Periode',
-                    'semester_id' => $first['semester_id'] ?? null,
-                    'semester' => $semesterName,
-                    'period_badge' => $this->periodBadge($first['tahun_ajaran'] ?? null, $semesterName),
-                    'monthly' => $monthlyRows
-                        ->groupBy('payment_type_id')
-                        ->map(fn (Collection $items) => $this->monthlyTypeRow($items))
-                        ->values(),
-                    'general' => $groupRows
-                        ->where('is_monthly', false)
-                        ->values(),
+                    'tahun_ajaran' => $academicYearName,
+                    'period_badge' => $academicYearName,
+                    'monthly' => $monthlyTypes,
+                    'general' => $generalRows->values(),
                 ];
             })
             ->values()
@@ -221,57 +216,55 @@ class StudentBillingSummaryService
         
         $paymentType = \App\Models\PaymentType::query()->find($first['payment_type_id'] ?? 0);
         
-        $ruleQuery = \App\Models\PaymentBillRule::query()
-            ->where('payment_type_id', $first['payment_type_id'] ?? 0);
-            
-        if (!empty($first['semester_id'])) {
-            $ruleQuery->where('semester_id', $first['semester_id']);
-        }
-        if (!empty($first['academic_year_id'])) {
-            $ruleQuery->where('academic_year_id', $first['academic_year_id']);
-        }
-        $rule = $ruleQuery->orderBy('id')->first();
+        $rule = \App\Models\PaymentBillRule::query()
+            ->where('payment_type_id', $first['payment_type_id'] ?? 0)
+            ->when(!empty($first['academic_year_id']), fn ($q) => $q->where('academic_year_id', $first['academic_year_id']))
+            ->orderBy('id')
+            ->first();
 
         $all12Months = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
         $billedMonths = ($rule && is_array($rule->billed_months)) 
             ? array_map('intval', $rule->billed_months) 
             : (($paymentType && is_array($paymentType->billed_months)) ? array_map('intval', $paymentType->billed_months) : $all12Months);
 
-        $monthOrder = collect(self::ACADEMIC_MONTHS)
-            ->filter(function (string $label, int $month) use ($billedMonths) {
-                return in_array($month, $billedMonths, true);
-            })
-            ->all();
+        // Always show all 12 academic months: Jul -> Jun
+        $months = collect(self::ACADEMIC_MONTHS)
+            ->map(function (string $label, int $month) use ($byMonth, $paymentType, $billedMonths) {
+                $row = $byMonth->get($month);
+                $isConfiguredToBill = in_array($month, $billedMonths, true);
+                
+                $isPaid = (bool) ($row['is_paid'] ?? false);
+                $hasBill = !empty($row);
 
-        // Hanya tambahkan bulan di luar filter JIKA bulan tersebut SUDAH DIBAYAR (is_paid === true)
-        foreach ($byMonth as $month => $row) {
-            $monthNo = (int) $month;
-            if ($monthNo > 0 && !isset($monthOrder[$monthNo]) && !empty($row['is_paid'])) {
-                $monthOrder[$monthNo] = self::ACADEMIC_MONTHS[$monthNo] ?? (string)$monthNo;
-            }
-        }
+                $status = 'Libur';
+                if ($isPaid) {
+                    $status = 'Lunas';
+                } elseif ($hasBill && $isConfiguredToBill) {
+                    $status = $row['display_status'] ?? $row['status'] ?? 'Belum Lunas';
+                } elseif (!$isConfiguredToBill && !$hasBill) {
+                    $status = 'Libur';
+                }
+
+                return [
+                    'month' => $month,
+                    'label' => $label,
+                    'status' => $status,
+                    'is_paid' => $isPaid,
+                    'is_billed' => $hasBill && $isConfiguredToBill,
+                    'paid_amount' => (int) ($row['paid_amount'] ?? 0),
+                    'amount' => (int) ($row['amount'] ?? $paymentType?->nominal_default ?? 0),
+                    'remaining_amount' => (int) ($row['remaining_amount'] ?? ($isConfiguredToBill ? ($paymentType?->nominal_default ?? 0) : 0)),
+                    'bill_id' => $row['id'] ?? null,
+                    'pembayaran_id' => $row['pembayaran_id'] ?? null,
+                    'bill' => $row,
+                ];
+            })
+            ->values();
 
         return [
             'payment_type_id' => $first['payment_type_id'] ?? null,
-            'name' => $first['payment_type_name'] ?? $first['title'] ?? 'Pembayaran Bulanan',
-            'months' => collect($monthOrder)
-                ->map(function (string $label, int $month) use ($byMonth, $paymentType) {
-                    $row = $byMonth->get($month);
-
-                    return [
-                        'month' => $month,
-                        'label' => $label,
-                        'status' => $row['display_status'] ?? $row['status'] ?? 'Belum Ada Tagihan',
-                        'is_paid' => (bool) ($row['is_paid'] ?? false),
-                        'paid_amount' => (int) ($row['paid_amount'] ?? 0),
-                        'amount' => (int) ($row['amount'] ?? $paymentType?->nominal_default ?? 0),
-                        'remaining_amount' => (int) ($row['remaining_amount'] ?? $paymentType?->nominal_default ?? 0),
-                        'bill_id' => $row['id'] ?? null,
-                        'pembayaran_id' => $row['pembayaran_id'] ?? null,
-                        'bill' => $row,
-                    ];
-                })
-                ->values(),
+            'name' => $first['payment_type_name'] ?? $first['title'] ?? 'SPP',
+            'months' => $months,
         ];
     }
 

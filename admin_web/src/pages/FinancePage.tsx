@@ -567,62 +567,109 @@ function StudentBillingPanel({
       </div>
 
       {student ? (
-        <div className="q-card p-5">
-          <h3 className="text-lg font-extrabold text-[#2D3436]">{str(student.nama)}</h3>
-          <p className="text-sm font-semibold text-[#636E72]">{str(student.nis)} • {str(student.kelas)} • Wali: {str(student.wali_nama ?? student.nama_wali)}</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-3xl bg-[#138F81] p-6 text-white shadow-md">
+          <div>
+            <h3 className="text-xl font-black">{str(student.nama)} ({str(student.kelas)})</h3>
+            <p className="mt-1 text-sm font-medium text-teal-100">
+              NIS: <span className="font-bold">{str(student.nis)}</span> • Wali: <span className="font-bold">{str(student.wali_nama ?? student.nama_wali)}</span>
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const res = await api.sendBillNotification(num(student.id));
+                  alert(res.message || 'Tagihan berhasil dikirim ke WhatsApp Wali!');
+                } catch (err) {
+                  alert(`Gagal mengirim WhatsApp: ${err instanceof Error ? err.message : 'Error'}`);
+                }
+              }}
+              className="flex items-center gap-2 rounded-2xl bg-white px-4 py-2.5 text-sm font-black text-[#138F81] shadow hover:bg-teal-50"
+            >
+              Kirim Tagihan (WhatsApp)
+            </button>
+          </div>
         </div>
       ) : null}
 
       {summary ? (
         <>
           <div className="grid gap-3 md:grid-cols-4">
-            <SummaryBox title="Tagihan" value={totals?.total_tagihan ?? totals?.amount ?? 0} tone="blue" />
-            <SummaryBox title="Dibayar" value={totals?.total_dibayar ?? totals?.paid_amount ?? 0} tone="teal" />
-            <SummaryBox title="Kurang" value={totals?.total_kurang_bayar ?? totals?.remaining_amount ?? 0} tone="red" />
-            <SummaryBox title="Menunggu" value={totals?.total_menunggu ?? totals?.pending_amount ?? 0} tone="orange" />
+            <SummaryBox title="Total Tagihan" value={totals?.total_tagihan ?? totals?.amount ?? 0} tone="blue" />
+            <SummaryBox title="Total Dibayar" value={totals?.total_dibayar ?? totals?.paid_amount ?? 0} tone="teal" />
+            <SummaryBox title="Kurang Bayar" value={totals?.total_kurang_bayar ?? totals?.remaining_amount ?? 0} tone="red" />
+            <SummaryBox title="Menunggu Verifikasi" value={totals?.total_menunggu ?? totals?.pending_amount ?? 0} tone="orange" />
           </div>
+
           {groupsData.length === 0 ? (
             <div className="rounded-2xl bg-[#E1EFF7] p-8 text-center font-bold text-[#636E72]">Belum ada tagihan untuk santri ini.</div>
           ) : (
             groupsData.map((group, idx) => {
               const groupMonthly = Array.isArray(group.monthly) ? (group.monthly as ApiRecord[]) : [];
               const groupGeneral = Array.isArray(group.general) ? (group.general as ApiRecord[]) : [];
-              const periodTitle = str(group.period_badge, 'Periode Tagihan');
+              const periodTitle = str(group.tahun_ajaran ?? group.period_badge, '2025/2026');
 
               return (
-                <div key={idx} className="space-y-4 rounded-3xl bg-[#F8F9FA] p-5 shadow-sm border border-[#E1EFF7]">
-                  <h2 className="flex items-center gap-2 text-xl font-black text-[#2D3436]">
-                    <CalendarDays size={20} className="text-[#138F81]" />
-                    {periodTitle}
+                <div key={idx} className="space-y-4 rounded-3xl bg-white p-6 shadow-sm border border-gray-200">
+                  <h2 className="text-lg font-black text-gray-800">
+                    Tahun Ajaran: <span className="text-[#138F81]">{periodTitle}</span>
                   </h2>
                   
                   {groupMonthly.length > 0 && (
-                    <section className="q-card p-5">
-                      <h3 className="mb-4 text-lg font-extrabold text-[#2D3436]">Pembayaran Bulanan</h3>
-                      <div className="overflow-x-auto q-scrollbar">
-                        <table className="w-full min-w-[760px] border-separate border-spacing-2">
+                    <div className="space-y-2">
+                      <div className="text-xs font-black tracking-wider text-gray-500 uppercase">BULANAN</div>
+                      <div className="overflow-x-auto q-scrollbar rounded-xl border border-gray-200">
+                        <table className="w-full min-w-[760px] border-collapse text-xs">
+                          <thead>
+                            <tr className="bg-gray-50 font-black text-gray-700">
+                              <th className="border border-gray-200 px-4 py-2.5 text-left w-48">Tipe Pembayaran</th>
+                              {['Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'].map((m) => (
+                                <th key={m} className="border border-gray-200 px-1 py-2.5 text-center w-12">{m}</th>
+                              ))}
+                            </tr>
+                          </thead>
                           <tbody>
                             {groupMonthly.map((item) => {
-                              const months = Array.isArray(item.months) ? (item.months as ApiRecord[]) : Array.isArray(item.items) ? (item.items as ApiRecord[]) : [item];
+                              const months = Array.isArray(item.months) ? (item.months as ApiRecord[]) : [];
                               return (
                                 <tr key={str(item.payment_type_id ?? item.id ?? item.name)}>
-                                  <td className="rounded-2xl bg-white px-4 py-3 text-sm font-extrabold">{str(item.name ?? item.nama ?? item.payment_type_name ?? 'SPP')}</td>
+                                  <td className="border border-gray-200 bg-white px-4 py-3 font-extrabold text-gray-800">
+                                    {str(item.name ?? item.nama ?? item.payment_type_name ?? 'SPP')}
+                                  </td>
                                   {months.map((month) => {
-                                    const monthNo = num(month.month ?? month.period_month ?? month.month_code);
-                                    const paid = month.is_paid === true || String(month.status ?? '').toLowerCase() === 'lunas';
+                                    const monthNo = num(month.month);
+                                    const status = str(month.status, 'Libur');
+                                    const paid = status === 'Lunas' || month.is_paid === true;
+                                    const isLibur = status === 'Libur';
                                     const pId = month.pembayaran_id;
+
                                     return (
-                                      <td key={`${str(item.id)}-${monthNo}`} className={`group relative h-14 min-w-16 rounded-2xl text-center text-sm font-extrabold ${paid ? 'cursor-pointer bg-[#138F81] text-white transition-colors hover:bg-[#0A7065]' : 'bg-[#D9E4EA] text-[#636E72]'}`}
+                                      <td
+                                        key={`${str(item.payment_type_id)}-${monthNo}`}
+                                        className={`border border-gray-200 p-0 text-center font-black transition-colors ${
+                                          isLibur
+                                            ? 'bg-gray-100 text-gray-400'
+                                            : paid
+                                            ? 'bg-[#138F81] text-white hover:bg-[#0A7065] cursor-pointer'
+                                            : 'bg-[#E74C3C] text-white'
+                                        }`}
                                         onClick={() => {
                                           if (paid && pId) {
-                                            setConfirmCancel({ id: Number(pId), title: `SPP ${month.label}` });
+                                            setConfirmCancel({ id: Number(pId), title: `${str(item.name)} ${month.label}` });
                                           }
                                         }}
-                                        title={paid && pId ? "Klik untuk membatalkan pembayaran ini" : undefined}
+                                        title={
+                                          isLibur
+                                            ? 'Bulan Libur / Tidak Ditagihkan'
+                                            : paid
+                                            ? 'Lunas (Klik untuk batalkan)'
+                                            : `Belum Lunas: ${formatMoney(month.remaining_amount ?? month.amount)}`
+                                        }
                                       >
-                                        <div>{str(month.label ?? monthLabels[monthNo] ?? monthNo)}</div>
-                                        <div>{paid ? <Check className="mx-auto group-hover:hidden" size={18} /> : <X className="mx-auto" size={18} />}</div>
-                                        {paid ? <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/20 opacity-0 group-hover:opacity-100"><Trash2 size={18} className="text-white" /></div> : null}
+                                        <div className="flex h-11 w-full items-center justify-center text-sm font-extrabold">
+                                          {isLibur ? '-' : paid ? '✓' : 'X'}
+                                        </div>
                                       </td>
                                     );
                                   })}
@@ -632,42 +679,63 @@ function StudentBillingPanel({
                           </tbody>
                         </table>
                       </div>
-                    </section>
+                    </div>
                   )}
 
                   {groupGeneral.length > 0 && (
-                    <section className="q-card p-5">
-                      <h3 className="mb-4 text-lg font-extrabold text-[#2D3436]">Pembayaran Umum</h3>
-                      <DataTable
-                        rows={groupGeneral}
-                        emptyText="Belum ada tagihan umum."
-                        columns={[
-                          { key: 'nama', header: 'Tipe', render: (row) => str(row.name ?? row.nama ?? row.payment_type_name) },
-                          { key: 'tagihan', header: 'Tagihan', render: (row) => <MoneyText value={row.amount ?? row.amount_due} /> },
-                          { key: 'dibayar', header: 'Dibayar', render: (row) => <MoneyText value={row.paid_amount} /> },
-                          { key: 'kurang', header: 'Kurang', render: (row) => <MoneyText value={row.remaining_amount} /> },
-                          { key: 'status', header: 'Status', render: (row) => <StatusBadge label={str(row.display_status ?? row.status)} tone={statusTone(row.display_status ?? row.status)} /> },
-                          { key: 'actions', header: '', render: (row: ApiRecord) => {
-                            const isPaid = row.is_paid === true || str(row.display_status ?? row.status).toLowerCase() === 'lunas';
-                            const pId = row.pembayaran_id;
-                            if (!isPaid || !pId) return null;
-                            return (
-                              <div className="flex justify-end gap-2">
-                                <button
-                                  onClick={() => {
-                                    setConfirmCancel({ id: Number(pId), title: str(row.name ?? row.nama ?? row.payment_type_name) });
-                                  }}
-                                  className="rounded-xl bg-red-50 p-2 text-red-600 hover:bg-red-100"
-                                  title="Batalkan Pembayaran"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            );
-                          }}
-                        ]}
-                      />
-                    </section>
+                    <div className="space-y-2 pt-2">
+                      <div className="text-xs font-black tracking-wider text-gray-500 uppercase">UMUM</div>
+                      <div className="overflow-x-auto q-scrollbar rounded-xl border border-gray-200">
+                        <table className="w-full min-w-[760px] border-collapse text-xs">
+                          <thead>
+                            <tr className="bg-gray-50 font-black text-gray-700">
+                              <th className="border border-gray-200 px-4 py-2.5 text-left">Tipe Pembayaran</th>
+                              <th className="border border-gray-200 px-4 py-2.5 text-right w-40">Tagihan</th>
+                              <th className="border border-gray-200 px-4 py-2.5 text-right w-40">Dibayar</th>
+                              <th className="border border-gray-200 px-4 py-2.5 text-right w-40">Kurang Bayar</th>
+                              <th className="border border-gray-200 px-4 py-2.5 text-center w-36">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {groupGeneral.map((row, rIdx) => {
+                              const amount = num(row.amount ?? row.amount_due);
+                              const paidAmount = num(row.paid_amount);
+                              const remaining = num(row.remaining_amount);
+                              const status = str(row.display_status ?? row.status);
+                              const isLunas = status.toLowerCase() === 'lunas' || (amount > 0 && paidAmount >= amount);
+
+                              return (
+                                <tr key={rIdx} className="hover:bg-gray-50/50">
+                                  <td className="border border-gray-200 bg-white px-4 py-3 font-extrabold text-gray-800">
+                                    {str(row.name ?? row.nama ?? row.payment_type_name ?? row.title)}
+                                  </td>
+                                  <td className="border border-gray-200 bg-white px-4 py-3 text-right font-bold text-gray-700">
+                                    {formatMoney(amount)}
+                                  </td>
+                                  <td className="border border-gray-200 bg-white px-4 py-3 text-right font-bold text-gray-700">
+                                    {formatMoney(paidAmount)}
+                                  </td>
+                                  <td className="border border-gray-200 bg-white px-4 py-3 text-right font-bold text-gray-700">
+                                    {formatMoney(remaining)}
+                                  </td>
+                                  <td className="border border-gray-200 bg-white px-4 py-3 text-center">
+                                    <span className={`inline-block rounded-lg px-3 py-1 text-xs font-black ${
+                                      isLunas
+                                        ? 'bg-[#138F81] text-white'
+                                        : remaining < amount && paidAmount > 0
+                                        ? 'bg-amber-500 text-white'
+                                        : 'bg-[#E74C3C] text-white'
+                                    }`}>
+                                      {isLunas ? 'LUNAS' : remaining < amount && paidAmount > 0 ? 'KURANG BAYAR' : 'BELUM LUNAS'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   )}
                 </div>
               );
