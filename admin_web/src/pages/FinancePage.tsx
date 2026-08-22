@@ -1563,7 +1563,11 @@ function StudentBillingPanel({
                           </td>
                           <td className="py-3 px-3 text-gray-800">
                             <div>{itemsText}</div>
-                            {tx.keterangan && <div className="text-[11px] font-normal text-gray-500 italic truncate max-w-[200px]">{str(tx.keterangan)}</div>}
+                            {Boolean(tx.keterangan) ? (
+                              <div className="text-[11px] font-normal text-gray-500 italic truncate max-w-[200px]">
+                                {str(tx.keterangan)}
+                              </div>
+                            ) : null}
                           </td>
                           <td className="py-3 px-3 text-right font-black text-[#138F81] text-sm whitespace-nowrap">
                             {formatMoney(tx.jumlah_total ?? tx.jumlah ?? tx.amount ?? 0)}
