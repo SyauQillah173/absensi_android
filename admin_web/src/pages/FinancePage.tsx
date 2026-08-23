@@ -1233,16 +1233,24 @@ function StudentBillingPanel({
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-3 lg:grid-cols-[1fr_280px]">
-        <SearchInput value={search} onChange={setSearch} placeholder="Cari nama / NIS / NISN / kelas" />
-        <select className="q-input" value={selectedStudentId || ''} onChange={(event) => onSelect(Number(event.target.value))}>
-          <option value="">Pilih santri</option>
-          {filtered.map((item) => (
-            <option key={num(item.id)} value={num(item.id)}>
-              {str(item.nama)} - {str(item.nis)} - {str(item.kelas)}
-            </option>
-          ))}
-        </select>
+      <div className="grid gap-3 sm:grid-cols-[280px_1fr] items-center">
+        <div className="w-full">
+          <SearchInput value={search} onChange={setSearch} placeholder="Cari nama / NIS / kelas..." />
+        </div>
+        <div className="w-full">
+          <select
+            className="q-input font-extrabold text-gray-800 text-sm py-3 px-4 shadow-sm border border-teal-200/80 focus:border-[#138F81] bg-white cursor-pointer"
+            value={selectedStudentId || ''}
+            onChange={(event) => onSelect(Number(event.target.value))}
+          >
+            <option value="">-- Pilih Santri ({filtered.length} santri ditemukan) --</option>
+            {filtered.map((item) => (
+              <option key={num(item.id)} value={num(item.id)}>
+                {str(item.nama)}  •  NIS: {str(item.nis)}  •  Kelas: {str(item.kelas)}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {student ? (
