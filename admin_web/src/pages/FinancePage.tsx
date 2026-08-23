@@ -1782,7 +1782,7 @@ function StudentPaymentHistorySection({
                       {str(tx.tanggal ?? tx.created_at ?? '-').slice(0, 10)}
                     </td>
                     <td className="py-2.5 px-3 font-extrabold text-teal-800 whitespace-nowrap">
-                      {str(tx.kode_transaksi ?? tx.invoice_number ?? `TRX-${txId}`)}
+                      {str(tx.kode_transaksi ?? tx.transaction_code ?? tx.invoice_number ?? `TRX-${txId}`)}
                     </td>
                     <td className="py-2.5 px-3 text-gray-800">
                       {items.length > 0 ? (
@@ -1812,15 +1812,13 @@ function StudentPaymentHistorySection({
                           })}
                         </div>
                       ) : (
-                        <div>
-                          <div className="font-extrabold text-gray-900">{str(tx.jenis || tx.keterangan || 'Pembayaran Santri')}</div>
-                          {Boolean(tx.keterangan) && tx.keterangan !== tx.jenis ? (
-                            <div className="text-[11px] font-normal text-gray-500 italic truncate max-w-[220px]">
-                              {str(tx.keterangan)}
-                            </div>
-                          ) : null}
-                        </div>
+                        <div className="font-extrabold text-gray-900">{str(tx.jenis || 'Pembayaran Santri')}</div>
                       )}
+                      {Boolean(tx.keterangan) && tx.keterangan !== '-' && !String(tx.keterangan).toLowerCase().startsWith('pembayaran santri') ? (
+                        <div className="mt-1 flex items-center gap-1 text-[11px] font-medium text-amber-900 bg-amber-50 rounded px-2 py-0.5 border border-amber-200/80 w-fit max-w-[280px] truncate">
+                          <span className="font-bold">📝 Catatan:</span> {str(tx.keterangan)}
+                        </div>
+                      ) : null}
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
                       <div className="text-[11px] font-black text-gray-700">{thnAjaranText}</div>

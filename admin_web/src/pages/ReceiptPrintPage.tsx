@@ -89,7 +89,11 @@ export function ReceiptPrintPage({ id }: { id: string }) {
   const formattedDate = `${day}-${month}-${year}`;
 
   // Transaction code
-  const allCodes = transactions.map((t) => str(t.transaction_code ?? t.kode_transaksi)).filter(Boolean).join(', ');
+  const allCodes = transactions.map((t) => str(t.kode_transaksi ?? t.transaction_code ?? t.invoice_number)).filter(Boolean).join(', ');
+
+  // Catatan / Keterangan
+  const allNotes = transactions.map((t) => str(t.keterangan)).filter((k) => k && k !== '-' && !k.toLowerCase().startsWith('pembayaran santri'));
+  const uniqueNotes = Array.from(new Set(allNotes));
 
   // Student info
   const namaSantri = str(siswa.nama || mainTrx.atas_nama, '-').toUpperCase();
@@ -272,6 +276,14 @@ export function ReceiptPrintPage({ id }: { id: string }) {
             </div>
           ))}
         </div>
+
+        {/* CATATAN / KETERANGAN */}
+        {uniqueNotes.length > 0 && (
+          <div className="mt-1.5 border-t border-black/30 border-dotted pt-1 text-[9.5px] leading-tight">
+            <span className="font-bold">Catatan: </span>
+            <span className="italic">{uniqueNotes.join('; ')}</span>
+          </div>
+        )}
 
         {/* DASHED LINE BEFORE TOTAL */}
         <div className="my-1.5 border-b border-black border-dashed" />

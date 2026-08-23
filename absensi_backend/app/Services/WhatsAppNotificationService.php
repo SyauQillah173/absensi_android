@@ -101,21 +101,32 @@ class WhatsAppNotificationService
 
     public function queuePaymentTransaction(PaymentTransaction $transaction, ?int $createdBy = null): ?WhatsAppMessageLog
     {
-        $transaction->loadMissing(['siswa.wali', 'siswa.guardianProfile', 'siswa.kelasRef', 'bills.paymentType']);
+        $transaction->loadMissing(['siswa.wali', 'siswa.guardianProfile', 'siswa.kelasRef', 'bills.paymentType', 'items.paymentType']);
         if (!$transaction->siswa) {
             return null;
         }
 
-        $title = $transaction->bills->pluck('title')->filter()->join(', ') ?: 'Pembayaran';
+        $items = $transaction->items;
+        $title = $items->pluck('paymentType.nama')->filter()->join(', ')
+            ?: $transaction->bills->pluck('title')->filter()->join(', ')
+            ?: 'Pembayaran';
+
+        $notes = trim((string) $transaction->keterangan);
+        $notesText = ($notes !== '' && $notes !== '-') ? $notes : '-';
 
         return $this->queueStudentMessage(
             'pembayaran',
             'paid',
             $transaction->siswa,
             [
+                'no_transaksi' => $transaction->kode_transaksi,
+                'kode_transaksi' => $transaction->kode_transaksi,
                 'judul_tagihan' => $title,
                 'nominal_bayar' => 'Rp ' . number_format((float) $transaction->jumlah_total, 0, ',', '.'),
-                'tanggal_bayar' => $transaction->tanggal?->format('Y-m-d') ?? now()->format('Y-m-d'),
+                'tanggal_bayar' => $transaction->tanggal?->format('d-m-Y') ?? now()->format('d-m-Y'),
+                'catatan' => $notesText,
+                'keterangan' => $notesText,
+                'pesan' => $notesText !== '-' ? "Catatan: {$notesText}" : '',
                 'source_id' => $transaction->id,
             ],
             "pembayaran:{$transaction->id}",

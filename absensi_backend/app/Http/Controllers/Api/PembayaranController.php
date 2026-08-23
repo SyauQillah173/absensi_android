@@ -1130,7 +1130,7 @@ class PembayaranController extends Controller
     private function generateTransactionCode(): string
     {
         do {
-            $code = 'PAY-' . now()->format('Ymd') . '-' . Str::upper(Str::random(5));
+            $code = 'TR-' . Str::upper(Str::random(6)) . mt_rand(100000, 999999);
         } while (PaymentTransaction::query()->where('kode_transaksi', $code)->exists());
 
         return $code;
