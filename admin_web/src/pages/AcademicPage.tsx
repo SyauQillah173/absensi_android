@@ -1,4 +1,4 @@
-import { CalendarDays, CheckCircle2, Pencil, Plus, RefreshCw, RotateCw } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Pencil, Plus, RefreshCw, RotateCw, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { DataTable, type DataColumn } from '../components/DataTable';
 import { ModalForm } from '../components/ModalForm';
@@ -34,6 +34,8 @@ export function AcademicPage() {
   const [active, setActive] = useState<ApiRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deletingYear, setDeletingYear] = useState<ApiRecord | null>(null);
   const [syncingId, setSyncingId] = useState<number | null>(null);
   const [form, setForm] = useState<AcademicFormState | null>(null);
   const [error, setError] = useState('');
@@ -93,12 +95,20 @@ export function AcademicPage() {
               >
                 <RotateCw size={14} className={`inline ${syncingId === id ? 'animate-spin' : ''}`} /> Sinkron
               </button>
+              <button
+                className="q-soft-action rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-extrabold text-[#D63031] hover:bg-[#FCD8D8] disabled:opacity-60 transition-colors"
+                onClick={() => setDeletingYear(row)}
+                type="button"
+                disabled={isSaving || isDeleting}
+              >
+                <Trash2 size={14} className="inline" /> Hapus
+              </button>
             </div>
           );
         }
       }
     ],
-    [isSaving, syncingId]
+    [isSaving, isDeleting, syncingId]
   );
 
   function openForm(year?: ApiRecord) {
@@ -294,6 +304,49 @@ export function AcademicPage() {
                 ))}
               </div>
             </div>
+          </div>
+        </ModalForm>
+      ) : null}
+
+      {deletingYear ? (
+        <ModalForm
+          title="Hapus Tahun Ajaran"
+          onClose={() => !isDeleting && setDeletingYear(null)}
+          footer={
+            <div className="flex w-full justify-end gap-2">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setDeletingYear(null)}
+                className="rounded-2xl border border-gray-200 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-100"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => void handleDelete()}
+                className="rounded-2xl bg-[#D63031] px-5 py-2.5 text-sm font-black text-white shadow-md hover:bg-red-700 disabled:opacity-50"
+              >
+                {isDeleting ? 'Menghapus...' : 'Ya, Hapus Bersih'}
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800">
+              <p className="text-sm font-bold">
+                ⚠️ Apakah Anda yakin ingin menghapus Tahun Ajaran <span className="font-extrabold underline">{text(deletingYear.name)}</span>?
+              </p>
+              <p className="mt-2 text-xs text-red-700 leading-relaxed">
+                Tindakan ini akan menghapus tahun ajaran beserta seluruh data tagihan (bills), aturan tagihan, dan riwayat semester terkait secara bersih dari database tanpa meninggalkan data sampah (orphan).
+              </p>
+            </div>
+            {deletingYear.is_active ? (
+              <p className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                ℹ️ Tahun ajaran ini sedang <b>Aktif</b>. Setelah dihapus, sistem akan otomatis mengaktifkan tahun ajaran berikutnya yang tersedia.
+              </p>
+            ) : null}
           </div>
         </ModalForm>
       ) : null}

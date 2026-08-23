@@ -390,4 +390,54 @@ class AcademicPeriodService
 
         return $student;
     }
+
+    public function delete(AcademicYear $academicYear): void
+    {
+        DB::transaction(function () use ($academicYear) {
+            $yearId = $academicYear->id;
+            $wasActive = (bool) $academicYear->is_active;
+
+            // 1. Hapus tagihan (payment_bills) terkait tahun ajaran ini
+            \App\Models\PaymentBill::query()->where('academic_year_id', $yearId)->delete();
+
+            // 2. Hapus aturan tagihan (payment_bill_rules) terkait tahun ajaran ini
+            \App\Models\PaymentBillRule::query()->where('academic_year_id', $yearId)->delete();
+
+            // 3. Hapus data pivot riwayat santri (siswa_tahun_ajaran)
+            \App\Models\SiswaTahunAjaran::query()->where('academic_year_id', $yearId)->delete();
+
+            // 4. Hapus pembayaran & transaksi jika terkait tahun ajaran ini
+            if (Schema::hasColumn('pembayaran', 'academic_year_id')) {
+                \App\Models\Pembayaran::query()->where('academic_year_id', $yearId)->delete();
+            }
+            if (Schema::hasColumn('payment_transactions', 'academic_year_id')) {
+                \App\Models\PaymentTransaction::query()->where('academic_year_id', $yearId)->delete();
+            }
+
+            // 5. Null-kan foreign key pada tabel riwayat lain
+            if (Schema::hasTable('hafalan') && Schema::hasColumn('hafalan', 'academic_year_id')) {
+                DB::table('hafalan')->where('academic_year_id', $yearId)->update(['academic_year_id' => null]);
+            }
+            if (Schema::hasTable('penilaian') && Schema::hasColumn('penilaian', 'academic_year_id')) {
+                DB::table('penilaian')->where('academic_year_id', $yearId)->update(['academic_year_id' => null]);
+            }
+            if (Schema::hasTable('absensi') && Schema::hasColumn('absensi', 'academic_year_id')) {
+                DB::table('absensi')->where('academic_year_id', $yearId)->update(['academic_year_id' => null]);
+            }
+
+            // 6. Hapus semester yang berelasi
+            \App\Models\Semester::query()->where('academic_year_id', $yearId)->delete();
+
+            // 7. Hapus record tahun ajaran
+            $academicYear->delete();
+
+            // 8. Jika yang dihapus adalah tahun aktif, aktifkan tahun ajaran terbaru yang tersisa
+            if ($wasActive) {
+                $nextYear = AcademicYear::query()->orderByDesc('year_start')->orderByDesc('id')->first();
+                if ($nextYear) {
+                    $this->activate($nextYear);
+                }
+            }
+        });
+    }
 }

@@ -175,6 +175,31 @@ class AcademicPeriodController extends Controller
         ]);
     }
 
+    public function destroy(Request $request, AcademicYear $academicYear)
+    {
+        $actor = app(ActorResolver::class)->active($request);
+        if (!$actor || $actor->role !== 'admin') {
+            return $this->forbidden('Hanya admin yang dapat menghapus tahun ajaran');
+        }
+
+        $totalYears = AcademicYear::query()->count();
+        if ($totalYears <= 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak dapat menghapus satu-satunya tahun ajaran yang tersisa di sistem.',
+            ], 422);
+        }
+
+        $before = $academicYear->toArray();
+        $this->periodService->delete($academicYear);
+        app(AuditLogService::class)->record($request, 'academic_periods', 'delete', null, $before, null);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Tahun ajaran {$academicYear->name} beserta seluruh tagihan & data terkait berhasil dihapus secara bersih.",
+        ]);
+    }
+
     private function prepareActivePeriod(Request $request, AcademicYear $year): array
     {
         $fresh = $year->fresh('semesters');

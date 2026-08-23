@@ -354,6 +354,9 @@ export const api = {
   syncAcademicPeriodSiswa(id: number, data: ApiRecord = {}) {
     return request<ApiRecord>(`/academic-periods/${id}/sync-siswa`, { method: 'POST', body: JSON.stringify(data) });
   },
+  deleteAcademicPeriod(id: number) {
+    return request<{ message?: string }>(`/academic-periods/${id}`, { method: 'DELETE' });
+  },
   siswa(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>('/siswa', {}, params);
   },
