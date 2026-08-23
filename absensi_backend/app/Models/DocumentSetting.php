@@ -18,5 +18,6 @@ class DocumentSetting extends Model
         'payment_admin_title',
         'payment_signature_mode',
         'payment_signature_path',
+        'receipt_width',
     ];
 }

@@ -316,10 +316,11 @@ export function ReceiptPrintPage({ id }: { id: string }) {
             display: none !important;
           }
           .receipt-container {
-            width: 100% !important;
-            max-width: 100% !important;
+            width: ${paperWidth === '80mm' ? '76mm' : paperWidth === '100%' ? '100%' : '56mm'} !important;
+            max-width: ${paperWidth === '100%' ? '100%' : paperWidth === '80mm' ? '76mm' : '56mm'} !important;
             box-shadow: none !important;
             padding: 4px 6px !important;
+            font-size: ${paperWidth === '80mm' ? '12px' : paperWidth === '100%' ? '13px' : '10.5px'} !important;
           }
         }
       `}</style>
