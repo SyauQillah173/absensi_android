@@ -163,11 +163,9 @@ export function FinancePage() {
     setBillingStudentId(studentId);
     if (!silent) setBillingSummary(null);
     try {
-      const activeAcademic = academicPeriods.find((item) => item.is_active === true || item.status === 'Aktif') ?? academicPeriods[0];
       const result = await api.studentBillingSummary({
         user_id: session?.id ?? 0,
         siswa_id: studentId,
-        ...(activeAcademic?.id ? { academic_year_id: num(activeAcademic.id) } : {})
       });
       setBillingSummary(result.data && typeof result.data === 'object' ? (result.data as ApiRecord) : result);
     } catch (err) {
@@ -1307,15 +1305,28 @@ function StudentBillingPanel({
   const activeAcademic = availableYears.find((y) => y.is_active) ?? availableYears[0];
   const [selectedYearId, setSelectedYearId] = useState<number | 'all'>(activeAcademic ? activeAcademic.id : 'all');
 
+  // Keep selectedYearId synced when availableYears initializes or updates
+  useEffect(() => {
+    if (availableYears.length > 0) {
+      const active = availableYears.find((y) => y.is_active) ?? availableYears[0];
+      if (active && selectedYearId !== 'all') {
+        const stillExists = availableYears.some((y) => y.id === selectedYearId);
+        if (!stillExists) {
+          setSelectedYearId(active.id);
+        }
+      }
+    }
+  }, [availableYears]);
+
   const filteredGroups = useMemo(() => {
     if (selectedYearId === 'all') return groupsData;
     const selectedObj = availableYears.find((y) => y.id === selectedYearId);
-    const selectedName = selectedObj?.name.toLowerCase();
+    const selectedName = selectedObj?.name?.trim().toLowerCase();
 
     return groupsData.filter((group) => {
       if (group.academic_year_id && num(group.academic_year_id) === selectedYearId) return true;
-      const gName = str(group.tahun_ajaran || group.period_badge).toLowerCase();
-      if (selectedName && gName.includes(selectedName)) return true;
+      const gName = str(group.tahun_ajaran || group.period_badge).trim().toLowerCase();
+      if (selectedName && (gName === selectedName || gName.includes(selectedName) || selectedName.includes(gName))) return true;
       return false;
     });
   }, [groupsData, selectedYearId, availableYears]);
