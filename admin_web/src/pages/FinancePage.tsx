@@ -513,6 +513,7 @@ function DirectPaymentCashier({
   paymentMethods,
   academicPeriods,
   summaryData,
+  syncedAcademicYearId,
   onPaymentSuccess,
 }: {
   student: ApiRecord;
@@ -521,17 +522,32 @@ function DirectPaymentCashier({
   paymentMethods: ApiRecord[];
   academicPeriods: ApiRecord[];
   summaryData: ApiRecord | null;
+  syncedAcademicYearId?: number;
   onPaymentSuccess: () => Promise<void>;
 }) {
   const studentId = num(student.id);
   const currentStudentIdRef = useRef(studentId);
 
   const defaultAcademic = academicPeriods.find((item) => item.is_active === true) ?? academicPeriods[0];
-  const [academicYearId, setAcademicYearId] = useState(num(defaultAcademic?.id));
+  const [academicYearId, setAcademicYearId] = useState(num(syncedAcademicYearId || defaultAcademic?.id));
   const selectedAcademic = academicPeriods.find((item) => num(item.id) === academicYearId);
   const semesters = Array.isArray(selectedAcademic?.semesters) ? (selectedAcademic.semesters as ApiRecord[]) : [];
   const defaultSemester = semesters.find((s) => s.is_active === true || s.status === 'Aktif') ?? semesters[0];
   const [semesterId, setSemesterId] = useState<number | ''>(defaultSemester ? num(defaultSemester.id) : '');
+
+  // Synchronize when parent changes academic year
+  useEffect(() => {
+    if (syncedAcademicYearId && syncedAcademicYearId > 0) {
+      setAcademicYearId(syncedAcademicYearId);
+    }
+  }, [syncedAcademicYearId]);
+
+  // Update semester when academic year changes
+  useEffect(() => {
+    if (defaultSemester) {
+      setSemesterId(num(defaultSemester.id));
+    }
+  }, [academicYearId]);
 
   const [typeId, setTypeId] = useState(paymentTypes[0] ? num(paymentTypes[0].id) : 0);
   const selectedType = paymentTypes.find((row) => num(row.id) === typeId);
@@ -1231,6 +1247,102 @@ function StudentBillingPanel({
     }
   }
 
+  const availableYears = useMemo(() => {
+    const list: Array<{ id: number; name: string; is_active: boolean }> = [];
+    const seenNames = new Set<string>();
+
+    academicPeriods.forEach((ay) => {
+      const yName = str(ay.name || ay.tahun_ajaran || `Tahun ${ay.id}`);
+      if (yName && !seenNames.has(yName)) {
+        seenNames.add(yName);
+        list.push({
+          id: num(ay.id),
+          name: yName,
+          is_active: ay.is_active === true || ay.status === 'Aktif',
+        });
+      }
+    });
+
+    groupsData.forEach((g) => {
+      const gName = str(g.tahun_ajaran || g.period_badge || '');
+      if (gName && !seenNames.has(gName) && gName !== 'Semua Periode') {
+        seenNames.add(gName);
+        const matchingAy = academicPeriods.find((ay) => str(ay.name || ay.tahun_ajaran) === gName);
+        list.push({
+          id: matchingAy ? num(matchingAy.id) : num(g.academic_year_id) || list.length + 100,
+          name: gName,
+          is_active: matchingAy ? (matchingAy.is_active === true || matchingAy.status === 'Aktif') : false,
+        });
+      }
+    });
+
+    return list;
+  }, [academicPeriods, groupsData]);
+
+  const activeAcademic = availableYears.find((y) => y.is_active) ?? availableYears[0];
+  const [selectedYearId, setSelectedYearId] = useState<number | 'all'>(activeAcademic ? activeAcademic.id : 'all');
+
+  const filteredGroups = useMemo(() => {
+    if (selectedYearId === 'all') return groupsData;
+    const selectedObj = availableYears.find((y) => y.id === selectedYearId);
+    const selectedName = selectedObj?.name.toLowerCase();
+
+    return groupsData.filter((group) => {
+      if (group.academic_year_id && num(group.academic_year_id) === selectedYearId) return true;
+      const gName = str(group.tahun_ajaran || group.period_badge).toLowerCase();
+      if (selectedName && gName.includes(selectedName)) return true;
+      return false;
+    });
+  }, [groupsData, selectedYearId, availableYears]);
+
+  const currentTotals = useMemo(() => {
+    if (selectedYearId === 'all') {
+      return {
+        tagihan: num(totals?.total_tagihan ?? totals?.amount ?? 0),
+        dibayar: num(totals?.total_dibayar ?? totals?.paid_amount ?? 0),
+        kurang: num(totals?.total_kurang_bayar ?? totals?.remaining_amount ?? 0),
+        menunggu: num(totals?.total_menunggu ?? totals?.pending_amount ?? 0),
+      };
+    }
+
+    let tagihan = 0;
+    let dibayar = 0;
+    let kurang = 0;
+    let menunggu = 0;
+
+    filteredGroups.forEach((g) => {
+      const monthlyList = Array.isArray(g.monthly) ? (g.monthly as ApiRecord[]) : [];
+      const generalList = Array.isArray(g.general) ? (g.general as ApiRecord[]) : [];
+
+      monthlyList.forEach((mItem) => {
+        const months = Array.isArray(mItem.months) ? (mItem.months as ApiRecord[]) : [];
+        months.forEach((m) => {
+          if (m.is_billed) {
+            const amt = num(m.amount);
+            const paid = num(m.paid_amount);
+            const rem = num(m.remaining_amount);
+            tagihan += amt;
+            dibayar += paid;
+            kurang += rem;
+            if (m.status === 'Menunggu') menunggu += amt;
+          }
+        });
+      });
+
+      generalList.forEach((gen) => {
+        const amt = num(gen.amount ?? gen.amount_due);
+        const paid = num(gen.paid_amount);
+        const rem = num(gen.remaining_amount);
+        tagihan += amt;
+        dibayar += paid;
+        kurang += rem;
+        if (gen.status === 'Menunggu') menunggu += amt;
+      });
+    });
+
+    return { tagihan, dibayar, kurang, menunggu };
+  }, [selectedYearId, totals, filteredGroups]);
+
   return (
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-[280px_1fr] items-center">
@@ -1282,17 +1394,85 @@ function StudentBillingPanel({
 
       {summary ? (
         <>
+          {/* TAHUN AJARAN FILTER TABS */}
+          {availableYears.length > 0 && (
+            <div className="rounded-3xl bg-white p-4 shadow-sm border border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-black text-gray-500 uppercase flex items-center gap-1">
+                  <span>🎓 TAHUN AJARAN:</span>
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedYearId('all')}
+                    className={`rounded-xl px-3.5 py-1.5 text-xs font-black transition-all ${
+                      selectedYearId === 'all'
+                        ? 'bg-[#138F81] text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Semua Tahun ({availableYears.length})
+                  </button>
+                  {availableYears.map((ay) => {
+                    const isActive = ay.is_active;
+                    const isSelected = selectedYearId === ay.id;
+                    return (
+                      <button
+                        key={ay.id}
+                        type="button"
+                        onClick={() => setSelectedYearId(ay.id)}
+                        className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-black transition-all ${
+                          isSelected
+                            ? 'bg-[#138F81] text-white shadow-sm'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200/60'
+                        }`}
+                      >
+                        <span>{ay.name}</span>
+                        <span className={`rounded-full px-1.5 py-0.2 text-[9px] font-black ${
+                          isSelected
+                            ? 'bg-white text-teal-900'
+                            : isActive
+                            ? 'bg-teal-100 text-teal-800'
+                            : 'bg-gray-200 text-gray-600'
+                        }`}>
+                          {isActive ? 'Aktif' : 'Arsip'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {selectedYearId !== 'all' && (
+                <div className="text-xs font-bold text-teal-800 bg-teal-50 border border-teal-200 rounded-xl px-3 py-1.5">
+                  Filter: <span className="font-extrabold">{availableYears.find((y) => y.id === selectedYearId)?.name}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 4 SUMMARY STATS BOXES */}
           <div className="grid gap-3 md:grid-cols-4">
-            <SummaryBox title="Total Tagihan" value={totals?.total_tagihan ?? totals?.amount ?? 0} tone="blue" />
-            <SummaryBox title="Total Dibayar" value={totals?.total_dibayar ?? totals?.paid_amount ?? 0} tone="teal" />
-            <SummaryBox title="Kurang Bayar" value={totals?.total_kurang_bayar ?? totals?.remaining_amount ?? 0} tone="red" />
-            <SummaryBox title="Menunggu Verifikasi" value={totals?.total_menunggu ?? totals?.pending_amount ?? 0} tone="orange" />
+            <SummaryBox title="Total Tagihan" value={currentTotals.tagihan} tone="blue" />
+            <SummaryBox title="Total Dibayar" value={currentTotals.dibayar} tone="teal" />
+            <SummaryBox title="Kurang Bayar" value={currentTotals.kurang} tone="red" />
+            <SummaryBox title="Menunggu Verifikasi" value={currentTotals.menunggu} tone="orange" />
           </div>
 
-          {groupsData.length === 0 ? (
-            <div className="rounded-2xl bg-[#E1EFF7] p-8 text-center font-bold text-[#636E72]">Belum ada tagihan untuk santri ini.</div>
+          {filteredGroups.length === 0 ? (
+            <div className="rounded-3xl bg-white p-8 text-center font-bold text-gray-500 border border-gray-200 shadow-sm space-y-2">
+              <div className="text-2xl">📋</div>
+              <div>Tidak ada data tagihan untuk tahun ajaran yang dipilih.</div>
+              <button
+                type="button"
+                onClick={() => setSelectedYearId('all')}
+                className="inline-block rounded-xl bg-teal-50 hover:bg-teal-100 px-3.5 py-1.5 text-xs font-black text-[#138F81] transition-colors"
+              >
+                Lihat Semua Tahun Ajaran
+              </button>
+            </div>
           ) : (
-            groupsData.map((group, idx) => {
+            filteredGroups.map((group, idx) => {
               const groupMonthly = Array.isArray(group.monthly) ? (group.monthly as ApiRecord[]) : [];
               const groupGeneral = Array.isArray(group.general) ? (group.general as ApiRecord[]) : [];
               const periodTitle = str(group.tahun_ajaran ?? group.period_badge, '2025/2026');
@@ -1487,6 +1667,7 @@ function StudentBillingPanel({
               paymentMethods={paymentMethods}
               academicPeriods={academicPeriods}
               summaryData={summary}
+              syncedAcademicYearId={typeof selectedYearId === 'number' ? selectedYearId : undefined}
               onPaymentSuccess={onPaymentSuccess}
             />
           ) : null}
