@@ -1483,110 +1483,12 @@ function StudentBillingPanel({
             />
           ) : null}
 
-          {/* RIWAYAT SEMUA TRANSAKSI SANTRI (CETAK ULANG KAPAN SAJA) */}
+          {/* RIWAYAT SEMUA TRANSAKSI SANTRI (CETAK ULANG KAPAN SAJA & MULTI PILIH) */}
           {student && Array.isArray(summary?.transactions) && summary.transactions.length > 0 && (
-            <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
-              <div className="border-b-2 border-gray-200 pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div>
-                  <h3 className="text-sm font-black tracking-wider text-gray-800 uppercase flex items-center gap-2">
-                    <span>RIWAYAT SEMUA PEMBAYARAN SANTRI</span>
-                    <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-black text-gray-700">
-                      {summary.transactions.length} Transaksi Tercatat
-                    </span>
-                  </h3>
-                  <p className="text-[11px] font-medium text-gray-500 mt-0.5">
-                    Gunakan tabel ini jika ingin mencetak ulang struk pembayaran lama atau mengirim ulang WhatsApp ke wali santri.
-                  </p>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-gray-50 font-black text-gray-700 text-left border-b border-gray-200">
-                      <th className="py-2.5 px-3 w-10 text-center">No</th>
-                      <th className="py-2.5 px-3">Tanggal</th>
-                      <th className="py-2.5 px-3">No. Transaksi</th>
-                      <th className="py-2.5 px-3">Tipe Pembayaran / Item</th>
-                      <th className="py-2.5 px-3 text-right">Total Bayar</th>
-                      <th className="py-2.5 px-3 text-center">Metode</th>
-                      <th className="py-2.5 px-3 text-center">Status</th>
-                      <th className="py-2.5 px-3 text-center w-28">Cetak / WA</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(summary.transactions as ApiRecord[]).map((tx, idx) => {
-                      const items = Array.isArray(tx.items) ? (tx.items as ApiRecord[]) : [];
-                      const itemsText = items.map((it) => `${str(it.payment_type_name ?? it.name ?? 'Tagihan')}${it.period_month ? ` (${monthLabels[num(it.period_month)]})` : ''}`).join(', ') || str(tx.keterangan, 'Pembayaran Santri');
-                      const txId = num(tx.id);
-                      const isLunas = str(tx.status).toLowerCase() === 'lunas';
-
-                      return (
-                        <tr key={txId || idx} className="border-b border-gray-100 hover:bg-gray-50/60 transition-colors font-bold">
-                          <td className="py-3 px-3 text-center text-gray-500">{idx + 1}</td>
-                          <td className="py-3 px-3 text-gray-700 whitespace-nowrap">
-                            {str(tx.tanggal ?? tx.created_at ?? '-').slice(0, 10)}
-                          </td>
-                          <td className="py-3 px-3 font-extrabold text-teal-800 whitespace-nowrap">
-                            {str(tx.kode_transaksi ?? tx.invoice_number ?? `TRX-${txId}`)}
-                          </td>
-                          <td className="py-3 px-3 text-gray-800">
-                            <div>{itemsText}</div>
-                            {Boolean(tx.keterangan) ? (
-                              <div className="text-[11px] font-normal text-gray-500 italic truncate max-w-[200px]">
-                                {str(tx.keterangan)}
-                              </div>
-                            ) : null}
-                          </td>
-                          <td className="py-3 px-3 text-right font-black text-[#138F81] text-sm whitespace-nowrap">
-                            {formatMoney(tx.jumlah_total ?? tx.jumlah ?? tx.amount ?? 0)}
-                          </td>
-                          <td className="py-3 px-3 text-center whitespace-nowrap">
-                            <span className="inline-block rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-700">
-                              {str(tx.via ?? tx.payment_method_name ?? 'Tunai')}
-                            </span>
-                          </td>
-                          <td className="py-3 px-3 text-center whitespace-nowrap">
-                            <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-black ${
-                              isLunas ? 'bg-teal-100 text-teal-800' : 'bg-amber-100 text-amber-800'
-                            }`}>
-                              {str(tx.status ?? 'Lunas')}
-                            </span>
-                          </td>
-                          <td className="py-3 px-3 text-center">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => window.open(`/finance/print/${txId}`, '_blank', 'noopener,noreferrer')}
-                                className="rounded-lg bg-teal-50 hover:bg-teal-100 p-1.5 text-teal-800 font-bold transition-colors"
-                                title="Cetak Ulang Struk"
-                              >
-                                <Printer size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  try {
-                                    const res = await api.notifyWaPayment(txId);
-                                    alert(res.message || 'Pesan WhatsApp berhasil dikirim!');
-                                  } catch (err) {
-                                    alert(`Gagal mengirim WhatsApp: ${err instanceof Error ? err.message : 'Error'}`);
-                                  }
-                                }}
-                                className="rounded-lg bg-emerald-50 hover:bg-emerald-100 p-1.5 text-emerald-800 font-bold transition-colors"
-                                title="Kirim Ulang WA ke Wali"
-                              >
-                                <span className="text-[11px] font-black">WA</span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <StudentPaymentHistorySection
+              transactions={summary.transactions as ApiRecord[]}
+              student={student}
+            />
           )}
         </>
       ) : (
@@ -1606,6 +1508,376 @@ function StudentBillingPanel({
           }}
         />
       ) : null}
+    </div>
+  );
+}
+
+function StudentPaymentHistorySection({
+  transactions,
+  student,
+}: {
+  transactions: ApiRecord[];
+  student: ApiRecord;
+}) {
+  const [semesterFilter, setSemesterFilter] = useState<'all' | 'ganjil' | 'genap'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [isSendingWa, setIsSendingWa] = useState(false);
+
+  // Filter transactions based on semester & search
+  const filtered = useMemo(() => {
+    return transactions.filter((tx) => {
+      const txSem = str(tx.semester ?? '').toLowerCase();
+      const semMatch =
+        semesterFilter === 'all' ||
+        (semesterFilter === 'ganjil' && (txSem.includes('ganjil') || tx.semester_id === 1)) ||
+        (semesterFilter === 'genap' && (txSem.includes('genap') || tx.semester_id === 2));
+
+      if (!semMatch) return false;
+
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      const code = str(tx.kode_transaksi ?? tx.invoice_number ?? tx.transaction_code).toLowerCase();
+      const ket = str(tx.keterangan).toLowerCase();
+      const items = Array.isArray(tx.items) ? (tx.items as ApiRecord[]) : [];
+      const itemNames = items.map((it) => str(it.payment_type_name ?? it.nama ?? it.paymentType?.nama)).join(' ').toLowerCase();
+
+      return code.includes(q) || ket.includes(q) || itemNames.includes(q);
+    });
+  }, [transactions, semesterFilter, searchQuery]);
+
+  const totalFilteredAmount = useMemo(() => {
+    return filtered.reduce((sum, tx) => sum + num(tx.jumlah_total ?? tx.jumlah ?? tx.amount), 0);
+  }, [filtered]);
+
+  const totalAllAmount = useMemo(() => {
+    return transactions.reduce((sum, tx) => sum + num(tx.jumlah_total ?? tx.jumlah ?? tx.amount), 0);
+  }, [transactions]);
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filtered.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filtered.map((tx) => num(tx.id)).filter((id) => id > 0));
+    }
+  };
+
+  const isAllSelected = filtered.length > 0 && selectedIds.length === filtered.length;
+
+  const handleBatchPrint = () => {
+    if (selectedIds.length === 0) return;
+    window.open(`/finance/print/${selectedIds.join(',')}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleBatchWa = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      setIsSendingWa(true);
+      for (const id of selectedIds) {
+        await api.notifyWaPayment(id).catch(() => null);
+      }
+      alert(`✅ Berhasil mengirim WhatsApp untuk ${selectedIds.length} transaksi terpilih!`);
+    } catch (err) {
+      alert(`Gagal mengirim WhatsApp: ${err instanceof Error ? err.message : 'Error'}`);
+    } finally {
+      setIsSendingWa(false);
+    }
+  };
+
+  return (
+    <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
+      {/* HEADER & SUMMARY STATS */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b-2 border-gray-100 pb-4">
+        <div>
+          <h3 className="text-base font-black tracking-wide text-gray-800 uppercase flex items-center gap-2">
+            <span>RIWAYAT SEMUA PEMBAYARAN SANTRI</span>
+            <span className="rounded-full bg-teal-50 border border-teal-200 px-2.5 py-0.5 text-xs font-black text-teal-800">
+              {transactions.length} Transaksi Tercatat
+            </span>
+          </h3>
+          <p className="text-xs font-semibold text-gray-500 mt-1">
+            Gunakan tabel ini jika ingin mencetak ulang struk pembayaran lama atau mengirim ulang WhatsApp ke wali santri.
+          </p>
+        </div>
+
+        {/* STATS TOTAL BAYAR */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="rounded-2xl bg-gray-50 border border-gray-200 px-4 py-2 text-right">
+            <div className="text-[11px] font-bold text-gray-500 uppercase">Total Uang Masuk Santri</div>
+            <div className="text-base font-black text-[#138F81]">{formatMoney(totalAllAmount)}</div>
+          </div>
+          {semesterFilter !== 'all' && (
+            <div className="rounded-2xl bg-teal-50 border border-teal-200 px-4 py-2 text-right">
+              <div className="text-[11px] font-bold text-teal-700 uppercase">Total Filter ({semesterFilter})</div>
+              <div className="text-base font-black text-teal-900">{formatMoney(totalFilteredAmount)}</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* FILTER CONTROLS BAR */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-gray-50/80 p-3 rounded-2xl border border-gray-200">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-bold text-gray-500 mr-1">Filter Semester:</span>
+          <button
+            type="button"
+            onClick={() => setSemesterFilter('all')}
+            className={`rounded-xl px-3 py-1.5 text-xs font-black transition-all ${
+              semesterFilter === 'all'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+            }`}
+          >
+            Semua ({transactions.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setSemesterFilter('ganjil')}
+            className={`rounded-xl px-3 py-1.5 text-xs font-black transition-all ${
+              semesterFilter === 'ganjil'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+            }`}
+          >
+            🍂 Semester Ganjil (Jul - Des)
+          </button>
+          <button
+            type="button"
+            onClick={() => setSemesterFilter('genap')}
+            className={`rounded-xl px-3 py-1.5 text-xs font-black transition-all ${
+              semesterFilter === 'genap'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+            }`}
+          >
+            🌸 Semester Genap (Jan - Jun)
+          </button>
+        </div>
+
+        <div className="w-full sm:w-64">
+          <input
+            type="text"
+            className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-800 placeholder:font-normal placeholder:text-gray-400 focus:border-[#138F81] focus:outline-none"
+            placeholder="Cari no. trx / nama tagihan..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* BATCH ACTION BAR WHEN CHECKED */}
+      {selectedIds.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-teal-900 p-3.5 text-white shadow-md animate-in fade-in duration-200">
+          <div className="flex items-center gap-2 font-black text-xs text-teal-100">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#138F81] text-white text-xs">
+              ✓
+            </span>
+            <span>{selectedIds.length} transaksi pembayaran dipilih</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleBatchPrint}
+              className="flex items-center gap-1.5 rounded-xl bg-white hover:bg-teal-50 px-3.5 py-1.5 text-xs font-black text-[#138F81] shadow-sm transition-all"
+            >
+              <Printer size={14} />
+              Cetak Struk Terpilih ({selectedIds.length})
+            </button>
+
+            <button
+              type="button"
+              disabled={isSendingWa}
+              onClick={handleBatchWa}
+              className="flex items-center gap-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white shadow-sm transition-all disabled:opacity-50"
+            >
+              {isSendingWa ? <RefreshCw className="animate-spin" size={14} /> : null}
+              📲 Kirim WA Terpilih ({selectedIds.length})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedIds([])}
+              className="rounded-xl bg-teal-800 hover:bg-teal-700 px-3 py-1.5 text-xs font-bold text-teal-200 transition-colors"
+            >
+              Batal Pilih
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* SCROLLABLE TABLE (MIN 5 ROWS THEN SCROLL) */}
+      <div className="max-h-[360px] overflow-y-auto q-scrollbar rounded-2xl border border-gray-200 shadow-sm">
+        <table className="w-full min-w-[840px] border-collapse text-xs">
+          <thead className="sticky top-0 z-10 bg-gray-100 border-b border-gray-300 shadow-sm">
+            <tr className="font-black text-gray-700 text-left">
+              <th className="py-2.5 px-3 w-10 text-center">
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  onChange={toggleSelectAll}
+                  className="h-4 w-4 rounded border-gray-300 text-[#138F81] focus:ring-[#138F81] cursor-pointer"
+                  title="Pilih / Batal Pilih Semua"
+                />
+              </th>
+              <th className="py-2.5 px-2 w-10 text-center">No</th>
+              <th className="py-2.5 px-3 w-28">Tanggal</th>
+              <th className="py-2.5 px-3 w-36">No. Transaksi</th>
+              <th className="py-2.5 px-3">Tipe Pembayaran & Rincian Item</th>
+              <th className="py-2.5 px-3 w-36 text-center">Tahun & Semester</th>
+              <th className="py-2.5 px-3 text-right w-28">Total Bayar</th>
+              <th className="py-2.5 px-3 text-center w-20">Metode</th>
+              <th className="py-2.5 px-3 text-center w-20">Status</th>
+              <th className="py-2.5 px-3 text-center w-28">Cetak / WA</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 bg-white">
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={10} className="py-8 text-center text-gray-400 font-bold">
+                  Tidak ada transaksi yang cocok dengan filter.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((tx, idx) => {
+                const txId = num(tx.id);
+                const items = Array.isArray(tx.items) ? (tx.items as ApiRecord[]) : [];
+                const isSelected = selectedIds.includes(txId);
+                const isLunas = str(tx.status).toLowerCase() === 'lunas';
+
+                const txSem = str(tx.semester ?? '').toLowerCase();
+                const isGanjil = txSem.includes('ganjil') || tx.semester_id === 1;
+                const isGenap = txSem.includes('genap') || tx.semester_id === 2;
+                const semText = isGanjil ? 'Ganjil' : isGenap ? 'Genap' : str(tx.semester, 'Umum');
+                const thnAjaranText = str(tx.tahun_ajaran, '2025/2026');
+
+                return (
+                  <tr
+                    key={txId || idx}
+                    className={`transition-colors font-bold ${
+                      isSelected
+                        ? 'bg-teal-50/70 hover:bg-teal-100/70'
+                        : 'hover:bg-gray-50/80'
+                    }`}
+                  >
+                    <td className="py-2.5 px-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(txId)}
+                        className="h-4 w-4 rounded border-gray-300 text-[#138F81] focus:ring-[#138F81] cursor-pointer"
+                      />
+                    </td>
+                    <td className="py-2.5 px-2 text-center text-gray-500 font-semibold">{idx + 1}</td>
+                    <td className="py-2.5 px-3 text-gray-700 whitespace-nowrap">
+                      {str(tx.tanggal ?? tx.created_at ?? '-').slice(0, 10)}
+                    </td>
+                    <td className="py-2.5 px-3 font-extrabold text-teal-800 whitespace-nowrap">
+                      {str(tx.kode_transaksi ?? tx.invoice_number ?? `TRX-${txId}`)}
+                    </td>
+                    <td className="py-2.5 px-3 text-gray-800">
+                      {items.length > 0 ? (
+                        <div className="space-y-1">
+                          {items.map((it, itIdx) => {
+                            const pName = str(it.payment_type_name ?? it.nama ?? it.paymentType?.nama ?? it.name ?? 'Tagihan');
+                            const pMonth = num(it.period_month || it.paymentBill?.period_month);
+                            const mName = pMonth > 0 ? monthLabels[pMonth] : '';
+                            const itAmount = num(it.jumlah);
+                            return (
+                              <div key={itIdx} className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-extrabold text-gray-900">{pName}</span>
+                                {mName && (
+                                  <span className="rounded bg-teal-100 px-1.5 py-0.2 text-[10px] font-black text-teal-900">
+                                    Bulan {mName}
+                                  </span>
+                                )}
+                                {itAmount > 0 && items.length > 1 && (
+                                  <span className="text-[11px] font-bold text-gray-500">
+                                    ({formatMoney(itAmount)})
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="font-extrabold text-gray-900">{str(tx.jenis || tx.keterangan || 'Pembayaran Santri')}</div>
+                          {Boolean(tx.keterangan) && tx.keterangan !== tx.jenis ? (
+                            <div className="text-[11px] font-normal text-gray-500 italic truncate max-w-[220px]">
+                              {str(tx.keterangan)}
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                      <div className="text-[11px] font-black text-gray-700">{thnAjaranText}</div>
+                      <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-black ${
+                        isGanjil
+                          ? 'bg-teal-50 text-teal-800 border border-teal-200'
+                          : isGenap
+                          ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {semText}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-black text-[#138F81] text-sm whitespace-nowrap">
+                      {formatMoney(tx.jumlah_total ?? tx.jumlah ?? tx.amount ?? 0)}
+                    </td>
+                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                      <span className="inline-block rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-700">
+                        {str(tx.via ?? tx.payment_method_name ?? 'Tunai')}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                      <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-black ${
+                        isLunas ? 'bg-teal-100 text-teal-800' : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {str(tx.status ?? 'Lunas')}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => window.open(`/finance/print/${txId}`, '_blank', 'noopener,noreferrer')}
+                          className="rounded-lg bg-teal-50 hover:bg-teal-100 p-1.5 text-teal-800 font-bold transition-colors"
+                          title="Cetak Struk Transaksi Ini"
+                        >
+                          <Printer size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const res = await api.notifyWaPayment(txId);
+                              alert(res.message || 'Pesan WhatsApp berhasil dikirim!');
+                            } catch (err) {
+                              alert(`Gagal mengirim WhatsApp: ${err instanceof Error ? err.message : 'Error'}`);
+                            }
+                          }}
+                          className="rounded-lg bg-emerald-50 hover:bg-emerald-100 p-1.5 text-emerald-800 font-bold transition-colors"
+                          title="Kirim Ulang WA ke Wali"
+                        >
+                          <span className="text-[11px] font-black">WA</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
