@@ -204,6 +204,23 @@ export function AcademicPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!deletingYear?.id || isDeleting) return;
+    setIsDeleting(true);
+    setError('');
+    setNotice('');
+    try {
+      const res = await api.deleteAcademicPeriod(asNumber(deletingYear.id));
+      setNotice(res.message || `Tahun ajaran ${text(deletingYear.name)} berhasil dihapus.`);
+      setDeletingYear(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal menghapus tahun ajaran.');
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <section className="flex flex-wrap items-end justify-between gap-4">
