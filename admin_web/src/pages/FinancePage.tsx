@@ -38,7 +38,7 @@ const tabs = [
   { id: 'types', label: 'Tipe Bayar' },
   { id: 'methods', label: 'Metode' },
   { id: 'periods', label: 'Periode' },
-  { id: 'settings', label: 'Pengaturan' }
+  { id: 'settings', label: 'Pengaturan Struk' }
 ];
 
 function num(value: unknown): number {
@@ -778,7 +778,7 @@ function DirectPaymentCashier({
               )}
             </h3>
             <p className="text-[11px] font-medium text-gray-500 mt-0.5">
-              Daftar transaksi kasir untuk <span className="font-bold text-teal-800">{str(student.nama)}</span>. Data tetap tersimpan di sini selama sesi input.
+              Daftar transaksi untuk <span className="font-bold text-teal-800">{str(student.nama)}</span>
             </p>
           </div>
 
@@ -2070,6 +2070,15 @@ function DocumentSettingsPanel({ settings, onSaved }: { settings: ApiRecord | nu
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Sync settings when loaded from server
+  useEffect(() => {
+    if (settings) {
+      if (settings.receipt_width) setReceiptWidth(String(settings.receipt_width));
+      if (settings.payment_admin_name !== undefined) setPaymentAdminName(String(settings.payment_admin_name ?? ''));
+      if (settings.payment_admin_title !== undefined) setPaymentAdminTitle(String(settings.payment_admin_title ?? ''));
+    }
+  }, [settings]);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
@@ -2079,13 +2088,13 @@ function DocumentSettingsPanel({ settings, onSaved }: { settings: ApiRecord | nu
       await api.updateDocumentSettings({ 
         document_type: 'pembayaran',
         receipt_width: receiptWidth,
-        payment_admin_name: paymentAdminName,
-        payment_admin_title: paymentAdminTitle,
+        payment_admin_name: paymentAdminName.trim() || "MTS ASSA'ADAH II",
+        payment_admin_title: paymentAdminTitle.trim() || 'JL. MASJID KIYAI GEDE BUNGAH',
         payment_signature_mode: settings?.payment_signature_mode ?? 'kosong'
       });
       await onSaved();
-      setSuccess('Pengaturan berhasil disimpan');
-      setTimeout(() => setSuccess(''), 3000);
+      setSuccess('✅ Pengaturan judul struk & printer berhasil disimpan!');
+      setTimeout(() => setSuccess(''), 4000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal menyimpan pengaturan');
     } finally {
@@ -2093,48 +2102,190 @@ function DocumentSettingsPanel({ settings, onSaved }: { settings: ApiRecord | nu
     }
   }
 
+  const previewName = paymentAdminName.trim() || "MTS ASSA'ADAH II";
+  const previewAddress = paymentAdminTitle.trim() || 'JL. MASJID KIYAI GEDE BUNGAH';
+
   return (
-    <div className="max-w-xl space-y-6">
-      <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
-        <h2 className="text-xl font-extrabold text-[#2D3436] mb-4">Pengaturan Cetak Struk</h2>
-        <form onSubmit={submit} className="space-y-4">
-          <TextField 
-            label="Nama Aplikasi / Institusi di Struk" 
-            value={paymentAdminName} 
-            onChange={setPaymentAdminName} 
-            placeholder="Contoh: Pondok Pesantren XYZ"
-          />
-          <TextField 
-            label="Alamat / Keterangan di Struk" 
-            value={paymentAdminTitle} 
-            onChange={setPaymentAdminTitle} 
-            placeholder="Contoh: Jl. Merdeka No. 123"
-          />
-          <label className="block">
-            <span className="mb-2 block text-sm font-bold text-[#636E72]">Ukuran Kertas Printer</span>
-            <select
-              className="q-input"
-              value={receiptWidth}
-              onChange={(e) => setReceiptWidth(e.target.value)}
-            >
-              <option value="58mm">58mm (Printer Thermal Kecil)</option>
-              <option value="80mm">80mm (Printer Thermal Besar)</option>
-              <option value="100%">100% (Sesuai Kertas / A4)</option>
-            </select>
-          </label>
-          
-          {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
-          {success ? <div className="rounded-2xl bg-[#EAF4FF] px-4 py-3 text-sm font-bold text-[#2E86DE]">{success}</div> : null}
-          
-          <button
-            type="submit"
-            disabled={saving}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#138F81] px-4 py-3 text-sm font-bold text-white hover:bg-[#0F7A6E] disabled:opacity-50"
+    <div className="space-y-6">
+      <div className="border-b border-gray-200 pb-4">
+        <h2 className="text-xl font-extrabold text-[#2D3436]">Pengaturan Format & Judul Struk</h2>
+        <p className="text-xs font-semibold text-[#636E72] mt-1">
+          Ubah nama aplikasi/institusi, alamat, dan ukuran kertas printer yang tercetak pada struk kasir secara fleksibel tanpa edit kodingan.
+        </p>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-12 items-start">
+        {/* FORM SETTINGS */}
+        <div className="lg:col-span-7 rounded-3xl bg-white p-6 shadow-sm border border-gray-100 space-y-5">
+          <form onSubmit={submit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                Judul Struk / Nama Aplikasi & Lembaga
+              </label>
+              <input
+                type="text"
+                className="q-input font-bold"
+                value={paymentAdminName}
+                onChange={(e) => setPaymentAdminName(e.target.value)}
+                placeholder="Contoh: MTS ASSA'ADAH II / SISTEM INFORMASI PONDOK"
+                required
+              />
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                <span className="text-[11px] font-semibold text-gray-400">Contoh Cepat:</span>
+                <button
+                  type="button"
+                  onClick={() => setPaymentAdminName("MTS ASSA'ADAH II")}
+                  className="rounded-md bg-gray-100 hover:bg-gray-200 px-2 py-0.5 text-[11px] font-bold text-gray-700 transition-colors"
+                >
+                  MTS ASSA'ADAH II
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentAdminName('YAYASAN PONDOK PESANTREN QOMARUDDIN')}
+                  className="rounded-md bg-gray-100 hover:bg-gray-200 px-2 py-0.5 text-[11px] font-bold text-gray-700 transition-colors"
+                >
+                  PONDOK PESANTREN
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                Alamat / Kontak / Keterangan Baris Ke-2
+              </label>
+              <input
+                type="text"
+                className="q-input font-medium"
+                value={paymentAdminTitle}
+                onChange={(e) => setPaymentAdminTitle(e.target.value)}
+                placeholder="Contoh: JL. MASJID KIYAI GEDE BUNGAH (031) 3949818"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                Ukuran Printer & Format Kertas
+              </label>
+              <select
+                className="q-input font-bold text-gray-800"
+                value={receiptWidth}
+                onChange={(e) => setReceiptWidth(e.target.value)}
+              >
+                <option value="58mm">58mm (Printer Thermal Kasir Kecil / Bluetooth POS 58mm)</option>
+                <option value="80mm">80mm (Printer Thermal Kasir Besar / Desktop POS 80mm)</option>
+                <option value="100%">100% / A4 / A5 (Kertas Biasa / Inkjet / Laser Printer)</option>
+              </select>
+              <p className="mt-1 text-[11px] text-gray-500 font-medium">
+                💡 Struk otomatis auto-fit margin saat dicetak di printer apapun tanpa ada teks terpotong.
+              </p>
+            </div>
+
+            {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-xs font-bold text-[#D63031]">{error}</div> : null}
+            {success ? <div className="rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-xs font-black text-emerald-800">{success}</div> : null}
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#138F81] px-5 py-3.5 text-sm font-extrabold text-white hover:bg-[#0F7A6E] shadow-md shadow-[#138F81]/25 transition-all disabled:opacity-50"
+              >
+                {saving ? <RefreshCw className="animate-spin" size={18} /> : <Save size={18} />}
+                {saving ? 'Menyimpan...' : 'Simpan Pengaturan Struk'}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* REALTIME THERMAL PREVIEW */}
+        <div className="lg:col-span-5 rounded-3xl bg-gray-50 p-6 border border-gray-200 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black uppercase tracking-wider text-gray-600">
+              Live Preview Struk Thermal
+            </span>
+            <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-black text-teal-800">
+              {receiptWidth === '80mm' ? '80mm' : receiptWidth === '100%' ? 'A4/A5' : '58mm'}
+            </span>
+          </div>
+
+          <div
+            className="mx-auto rounded-xl bg-white p-3.5 shadow-md border border-gray-300 text-black font-mono leading-tight space-y-1.5 transition-all duration-300"
+            style={{
+              width: receiptWidth === '80mm' ? '100%' : receiptWidth === '100%' ? '100%' : '240px',
+              fontSize: '11px',
+            }}
           >
-            {saving ? <RefreshCw className="animate-spin" size={18} /> : <Save size={18} />}
-            Simpan Pengaturan
-          </button>
-        </form>
+            {/* KOP */}
+            <div className="text-center space-y-0.5">
+              <div className="font-extrabold text-[12px] uppercase tracking-wider break-words">{previewName}</div>
+              <div className="text-[10px] font-bold uppercase break-words">{previewAddress}</div>
+            </div>
+
+            <div className="border-b border-black border-dashed my-1" />
+
+            <div className="text-center font-black tracking-widest text-[11px] uppercase">
+              BUKTI PEMBAYARAN
+            </div>
+
+            <div className="border-b border-black border-dashed my-1" />
+
+            {/* METADATA */}
+            <div className="space-y-0.5 text-[10px]">
+              <div className="flex justify-between"><span>Tanggal</span><span>: 10-08-2026</span></div>
+              <div className="flex justify-between"><span>No. Trx</span><span className="font-bold">: TR-R95F5FF...</span></div>
+              <div className="flex justify-between"><span>Nama</span><span className="font-bold">: AHMAD ZAKI (240188)</span></div>
+              <div className="flex justify-between"><span>Kelas</span><span>: Sifir Awal A</span></div>
+              <div className="flex justify-between"><span>Thn Ajaran</span><span>: 2025/2026 (1)</span></div>
+            </div>
+
+            <div className="border-b-[1.5px] border-black my-1" />
+
+            {/* TABLE */}
+            <div className="flex justify-between font-extrabold text-[10px]">
+              <span>Uraian</span>
+              <span>Nominal</span>
+            </div>
+
+            <div className="border-b-[1.5px] border-black my-1" />
+
+            <div className="space-y-1 text-[10px]">
+              <div>
+                <div className="flex justify-between font-bold">
+                  <span>1. SPP 2025/2026 Bulan</span>
+                  <span>350.000</span>
+                </div>
+                <div className="pl-3 text-[9px]">Agustus</div>
+              </div>
+              <div>
+                <div className="flex justify-between font-bold">
+                  <span>2. Bayar Kitab Kuning</span>
+                  <span>120.000</span>
+                </div>
+                <div className="pl-3 text-[9px]">2025/2026 (Lunas)</div>
+              </div>
+            </div>
+
+            <div className="border-b border-black border-dashed my-1" />
+
+            <div className="flex justify-between font-black text-[11px]">
+              <span>TOTAL</span>
+              <span>470.000</span>
+            </div>
+
+            <div className="border-b-[1.5px] border-black my-1" />
+
+            <div className="mt-2 text-[10px]">
+              <div className="font-bold">Petugas</div>
+              <div className="h-6" />
+              <div className="font-bold uppercase underline">ADMIN MADRASAH</div>
+            </div>
+
+            <div className="mt-3 text-center text-[9px] space-y-0.5">
+              <div className="font-extrabold">*** TERIMA KASIH ***</div>
+              <div className="italic">Struk ini adalah bukti pembayaran yang sah</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

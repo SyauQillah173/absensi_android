@@ -11,7 +11,7 @@ export function ReceiptPrintPage({ id }: { id: string }) {
   const [transactions, setTransactions] = useState<ApiRecord[]>([]);
   const [settings, setSettings] = useState<ApiRecord | null>(null);
   const [loading, setLoading] = useState(true);
-  const [paperWidth, setPaperWidth] = useState<'58mm' | '80mm'>('58mm');
+  const [paperWidth, setPaperWidth] = useState<'58mm' | '80mm' | '100%'>('58mm');
 
   useEffect(() => {
     async function load() {
@@ -33,8 +33,8 @@ export function ReceiptPrintPage({ id }: { id: string }) {
         if (setRes && setRes.data) {
           const docData = setRes.data as ApiRecord;
           setSettings(docData);
-          if (docData.receipt_width === '80mm') {
-            setPaperWidth('80mm');
+          if (docData.receipt_width) {
+            setPaperWidth(docData.receipt_width as '58mm' | '80mm' | '100%');
           }
         }
       } catch (err) {
@@ -154,21 +154,22 @@ export function ReceiptPrintPage({ id }: { id: string }) {
   // Institution / Kop data
   const namaInstansi = str(settings?.payment_admin_name || "MTS ASSA'ADAH II");
   const alamatInstansi = str(settings?.payment_admin_title || 'JL. MASJID KIYAI GEDE BUNGAH');
-  const teleponInstansi = str(settings?.phone || '(031) 3949818');
+  const teleponInstansi = str(settings?.phone || '');
 
   return (
     <div className="min-h-screen bg-gray-100 p-2 sm:p-4 print:bg-white print:p-0">
       {/* Screen Control Bar (Hidden on Print) */}
       <div className="no-print mx-auto mb-4 flex max-w-md items-center justify-between gap-2 rounded-2xl bg-white p-3 shadow-md border border-gray-200 text-xs font-sans">
         <div className="flex items-center gap-2 font-bold text-gray-700">
-          <span>Lebar Printer:</span>
+          <span>Format Kertas:</span>
           <select
             value={paperWidth}
-            onChange={(e) => setPaperWidth(e.target.value as '58mm' | '80mm')}
+            onChange={(e) => setPaperWidth(e.target.value as '58mm' | '80mm' | '100%')}
             className="rounded-lg border border-gray-300 bg-gray-50 px-2.5 py-1 text-xs font-bold text-gray-800 focus:outline-none"
           >
             <option value="58mm">58mm (Standar POS)</option>
             <option value="80mm">80mm (Thermal Besar)</option>
+            <option value="100%">100% (Kertas Biasa / A4 / A5)</option>
           </select>
         </div>
         <button
@@ -184,9 +185,9 @@ export function ReceiptPrintPage({ id }: { id: string }) {
       <div
         className="receipt-container mx-auto bg-white p-3 text-black font-mono leading-tight shadow-lg print:shadow-none print:m-0 print:p-2"
         style={{
-          width: paperWidth === '80mm' ? '76mm' : '56mm',
-          maxWidth: '100%',
-          fontSize: paperWidth === '80mm' ? '12px' : '10.5px',
+          width: paperWidth === '80mm' ? '76mm' : paperWidth === '100%' ? '100%' : '56mm',
+          maxWidth: paperWidth === '100%' ? '680px' : '100%',
+          fontSize: paperWidth === '80mm' ? '12px' : paperWidth === '100%' ? '13px' : '10.5px',
         }}
       >
         {/* HEADER / KOP */}
