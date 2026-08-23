@@ -28,11 +28,15 @@ class DocumentSettingController extends Controller
             return $this->forbidden();
         }
 
+        if ($request->missing('user_id') && $actor) {
+            $request->merge(['user_id' => $actor->id]);
+        }
+
         $documentType = $request->input('document_type', 'nilai');
         $validated = $request->validate(
             $documentType === 'pembayaran'
                 ? [
-                    'user_id' => 'required|exists:users,id',
+                    'user_id' => 'nullable|exists:users,id',
                     'document_type' => 'nullable|in:nilai,pembayaran',
                     'payment_admin_name' => 'required|string|max:255',
                     'payment_admin_title' => 'required|string|max:255',
@@ -40,7 +44,7 @@ class DocumentSettingController extends Controller
                     'receipt_width' => 'nullable|string|max:20',
                 ]
                 : [
-                    'user_id' => 'required|exists:users,id',
+                    'user_id' => 'nullable|exists:users,id',
                     'document_type' => 'nullable|in:nilai,pembayaran',
                     'kepala_madin_nama' => 'required|string|max:255',
                     'jabatan' => 'required|string|max:255',

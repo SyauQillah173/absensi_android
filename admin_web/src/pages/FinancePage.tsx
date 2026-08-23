@@ -2063,6 +2063,7 @@ function StatusPicker({ value, onChange }: { value: string; onChange: (value: st
 }
 
 function DocumentSettingsPanel({ settings, onSaved }: { settings: ApiRecord | null; onSaved: () => Promise<void> }) {
+  const { session } = useAuth();
   const [receiptWidth, setReceiptWidth] = useState(String(settings?.receipt_width ?? '58mm'));
   const [paymentAdminName, setPaymentAdminName] = useState(String(settings?.payment_admin_name ?? ''));
   const [paymentAdminTitle, setPaymentAdminTitle] = useState(String(settings?.payment_admin_title ?? ''));
@@ -2086,6 +2087,7 @@ function DocumentSettingsPanel({ settings, onSaved }: { settings: ApiRecord | nu
     setSuccess('');
     try {
       await api.updateDocumentSettings({ 
+        user_id: session?.id ?? 1,
         document_type: 'pembayaran',
         receipt_width: receiptWidth,
         payment_admin_name: paymentAdminName.trim() || "MTS ASSA'ADAH II",
