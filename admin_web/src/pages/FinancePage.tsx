@@ -665,7 +665,9 @@ function DirectPaymentCashier({
     }
   }, [typeId, matchingGeneralBill, monthly, defaultNominal]);
 
-  const grossAmount = monthly ? selectedMonths.size * defaultNominal : num(customAmount || sisaKurangBayar || defaultNominal);
+  const grossAmount = monthly
+    ? Array.from(selectedMonths).reduce((sum, m) => sum + (monthStatusMap.get(m)?.amount || defaultNominal), 0)
+    : num(customAmount || sisaKurangBayar || defaultNominal);
 
   // Calculate discounts
   const totalPercentDiscount = Number(discountGuru || 0) + Number(discountYatim || 0) + Number(discountPrestasi || 0) + Number(discountTahfidz || 0);
@@ -724,11 +726,15 @@ function DirectPaymentCashier({
       };
 
       const payment_items = monthly
-        ? Array.from(selectedMonths).map((month) => ({
-            ...baseItem,
-            period_month: month,
-            jumlah: defaultNominal - Math.round(totalDiscount / (selectedMonths.size || 1)),
-          }))
+        ? Array.from(selectedMonths).map((month) => {
+            const mNominal = monthStatusMap.get(month)?.amount || defaultNominal;
+            const discPerMonth = Math.round(totalDiscount / (selectedMonths.size || 1));
+            return {
+              ...baseItem,
+              period_month: month,
+              jumlah: Math.max(0, mNominal - discPerMonth),
+            };
+          })
         : [{ ...baseItem, jumlah: netAmount }];
 
       const discountNotes: string[] = [];
@@ -2265,6 +2271,16 @@ function PaymentTypeModal({
     }
     return new Set(allMonths);
   });
+  const [monthAmounts, setMonthAmounts] = useState<Record<number, string>>(() => {
+    const raw = (row?.month_amounts || (row?.billRules && (row.billRules as any)[0]?.month_amounts) || {}) as Record<string, number>;
+    const res: Record<number, string> = {};
+    if (raw && typeof raw === 'object') {
+      Object.entries(raw).forEach(([k, v]) => {
+        if (v) res[Number(k)] = String(v);
+      });
+    }
+    return res;
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -2276,6 +2292,14 @@ function PaymentTypeModal({
     if (targetSemesterId === 0) {
       setAmount(String(row.nominal_default ?? ''));
       setBilledMonths(new Set(Array.isArray(row.billed_months) && row.billed_months.length > 0 ? row.billed_months.map(Number) : allMonths));
+      const sourceAmounts = (row.month_amounts || {}) as Record<string, number>;
+      const loaded: Record<number, string> = {};
+      if (sourceAmounts && typeof sourceAmounts === 'object') {
+        Object.entries(sourceAmounts).forEach(([k, v]) => {
+          if (v) loaded[Number(k)] = String(v);
+        });
+      }
+      setMonthAmounts(loaded);
       return;
     }
     const rulesArray = Array.isArray(row.bill_rules) ? row.bill_rules : (Array.isArray(row.billRules) ? row.billRules : []);
@@ -2283,9 +2307,18 @@ function PaymentTypeModal({
     if (rule) {
       setAmount(String(rule.nominal ?? row.nominal_default ?? ''));
       setBilledMonths(new Set(Array.isArray(rule.billed_months) && rule.billed_months.length > 0 ? rule.billed_months.map(Number) : (Array.isArray(row.billed_months) && row.billed_months.length > 0 ? row.billed_months.map(Number) : allMonths)));
+      const sourceAmounts = (rule.month_amounts || row.month_amounts || {}) as Record<string, number>;
+      const loaded: Record<number, string> = {};
+      if (sourceAmounts && typeof sourceAmounts === 'object') {
+        Object.entries(sourceAmounts).forEach(([k, v]) => {
+          if (v) loaded[Number(k)] = String(v);
+        });
+      }
+      setMonthAmounts(loaded);
     } else {
       setAmount(String(row.nominal_default ?? ''));
       setBilledMonths(new Set(Array.isArray(row.billed_months) && row.billed_months.length > 0 ? row.billed_months.map(Number) : allMonths));
+      setMonthAmounts({});
     }
   }, [targetSemesterId, row]);
 
@@ -2295,6 +2328,14 @@ function PaymentTypeModal({
     setError('');
     try {
       const period = paymentPeriods.find((item) => num(item.id) === periodId);
+      const customAmountsPayload: Record<number, number> = {};
+      Object.entries(monthAmounts).forEach(([k, v]) => {
+        const parsed = Number(String(v).replace(/\D/g, ''));
+        if (parsed > 0 && parsed !== num(amount)) {
+          customAmountsPayload[Number(k)] = parsed;
+        }
+      });
+
       const payload = {
         nama: name.trim(),
         nominal_default: num(amount),
@@ -2304,6 +2345,7 @@ function PaymentTypeModal({
         status,
         is_billed_to_all: isBilledToAll,
         billed_months: Array.from(billedMonths),
+        month_amounts: Object.keys(customAmountsPayload).length > 0 ? customAmountsPayload : null,
         target_semester_id: targetSemesterId > 0 ? targetSemesterId : null,
       };
       if (row?.id) await api.updatePaymentType(num(row.id), payload);
@@ -2346,50 +2388,145 @@ function PaymentTypeModal({
         </div>
 
         {paymentPeriods.find((item) => num(item.id) === periodId)?.code === 'bulanan' ? (
-          <div className="rounded-3xl bg-white p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-sm font-extrabold text-[#2D3436]">Bulan yang ditagihkan ({billedMonths.size} bulan)</p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setBilledMonths(new Set([7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6]))}
-                  className="rounded-lg bg-teal-50 px-2 py-1 text-xs font-bold text-[#138F81] hover:bg-teal-100"
-                >
-                  Pilih Semua (12 Bulan)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBilledMonths(new Set())}
-                  className="rounded-lg bg-gray-100 px-2 py-1 text-xs font-bold text-gray-600 hover:bg-gray-200"
-                >
-                  Kosongkan
-                </button>
+          <div className="rounded-3xl bg-white p-4 space-y-4 border border-gray-100 shadow-xs">
+            {/* TOGGLE BULAN DITAGIHKAN */}
+            <div>
+              <div className="mb-2.5 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-extrabold text-[#2D3436]">Bulan yang Ditagihkan ({billedMonths.size} bulan)</p>
+                  <p className="text-xs text-gray-500 font-medium">Pilih bulan mana saja yang dikenakan tagihan SPP</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBilledMonths(new Set([7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6]))}
+                    className="rounded-xl bg-teal-50 px-2.5 py-1.5 text-xs font-bold text-[#138F81] hover:bg-teal-100 transition-colors"
+                  >
+                    Semua (12 Bln)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBilledMonths(new Set())}
+                    className="rounded-xl bg-gray-100 px-2.5 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-200 transition-colors"
+                  >
+                    Kosongkan
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+                {[
+                  { v: 7, l: 'Jul' }, { v: 8, l: 'Agu' }, { v: 9, l: 'Sep' }, { v: 10, l: 'Okt' }, { v: 11, l: 'Nov' }, { v: 12, l: 'Des' },
+                  { v: 1, l: 'Jan' }, { v: 2, l: 'Feb' }, { v: 3, l: 'Mar' }, { v: 4, l: 'Apr' }, { v: 5, l: 'Mei' }, { v: 6, l: 'Jun' }
+                ].map((m) => {
+                  const selected = billedMonths.has(m.v);
+                  return (
+                    <button
+                      key={m.v}
+                      className={`rounded-xl py-2 text-xs font-black transition-all ${
+                        selected ? 'bg-[#138F81] text-white shadow-sm' : 'bg-[#F2F4F6] text-[#636E72] hover:bg-[#E2E8F0]'
+                      }`}
+                      onClick={() => setBilledMonths((current) => {
+                        const next = new Set(current);
+                        if (next.has(m.v)) next.delete(m.v);
+                        else next.add(m.v);
+                        return next;
+                      })}
+                      type="button"
+                    >
+                      {m.l} {selected ? '✓' : ''}
+                    </button>
+                  );
+                })}
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
-              {[
-                { v: 7, l: 'Jul' }, { v: 8, l: 'Agu' }, { v: 9, l: 'Sep' }, { v: 10, l: 'Okt' }, { v: 11, l: 'Nov' }, { v: 12, l: 'Des' },
-                { v: 1, l: 'Jan' }, { v: 2, l: 'Feb' }, { v: 3, l: 'Mar' }, { v: 4, l: 'Apr' }, { v: 5, l: 'Mei' }, { v: 6, l: 'Jun' }
-              ].map((m) => {
-                const selected = billedMonths.has(m.v);
-                return (
+
+            {/* CUSTOM NOMINAL PER BULAN */}
+            <div className="pt-3 border-t border-gray-100">
+              <div className="mb-2.5 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-extrabold text-[#2D3436] flex items-center gap-1.5">
+                    <span>⚙️ Atur Nominal Berbeda Per Bulan (Opsional)</span>
+                  </p>
+                  <p className="text-xs text-gray-500 font-medium">Kosongkan jika bulan tersebut memakai Nominal Default ({formatMoney(num(amount) || 0)})</p>
+                </div>
+                {Object.keys(monthAmounts).length > 0 && (
                   <button
-                    key={m.v}
-                    className={`rounded-xl py-2 text-xs font-bold transition-all ${
-                      selected ? 'bg-[#138F81] text-white shadow-sm' : 'bg-[#F2F4F6] text-[#636E72] hover:bg-[#E2E8F0]'
-                    }`}
-                    onClick={() => setBilledMonths((current) => {
-                      const next = new Set(current);
-                      if (next.has(m.v)) next.delete(m.v);
-                      else next.add(m.v);
-                      return next;
-                    })}
                     type="button"
+                    onClick={() => setMonthAmounts({})}
+                    className="rounded-xl bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 hover:bg-amber-100 transition-colors"
                   >
-                    {m.l} {selected ? '✓' : ''}
+                    Reset ke Default
                   </button>
-                );
-              })}
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-[280px] overflow-y-auto pr-1">
+                {[
+                  { v: 7, l: 'Juli', sem: 'Ganjil' },
+                  { v: 8, l: 'Agustus', sem: 'Ganjil' },
+                  { v: 9, l: 'September', sem: 'Ganjil' },
+                  { v: 10, l: 'Oktober', sem: 'Ganjil' },
+                  { v: 11, l: 'November', sem: 'Ganjil' },
+                  { v: 12, l: 'Desember', sem: 'Ganjil' },
+                  { v: 1, l: 'Januari', sem: 'Genap' },
+                  { v: 2, l: 'Februari', sem: 'Genap' },
+                  { v: 3, l: 'Maret', sem: 'Genap' },
+                  { v: 4, l: 'April', sem: 'Genap' },
+                  { v: 5, l: 'Mei', sem: 'Genap' },
+                  { v: 6, l: 'Juni', sem: 'Genap' },
+                ].map((m) => {
+                  const isBilled = billedMonths.has(m.v);
+                  const currentVal = monthAmounts[m.v] ?? '';
+                  const hasCustom = currentVal !== '' && Number(currentVal) !== num(amount);
+
+                  return (
+                    <div
+                      key={m.v}
+                      className={`rounded-2xl border p-2.5 transition-all ${
+                        !isBilled
+                          ? 'border-gray-100 bg-gray-50/60 opacity-60'
+                          : hasCustom
+                          ? 'border-amber-300 bg-amber-50/50 shadow-xs'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-black text-gray-800 flex items-center gap-1">
+                          <span>{m.l}</span>
+                          <span className="text-[10px] font-normal text-gray-500">({m.sem})</span>
+                        </span>
+                        {!isBilled ? (
+                          <span className="rounded-md bg-gray-200 px-1.5 py-0.5 text-[10px] font-bold text-gray-600">Libur</span>
+                        ) : hasCustom ? (
+                          <span className="rounded-md bg-amber-500 px-1.5 py-0.5 text-[10px] font-extrabold text-white">Khusus</span>
+                        ) : (
+                          <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">Default</span>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          disabled={!isBilled}
+                          placeholder={num(amount) > 0 ? formatMoney(num(amount)) : 'Rp 0'}
+                          value={currentVal ? formatMoney(Number(currentVal)).replace('Rp ', '') : ''}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/\D/g, '');
+                            setMonthAmounts((prev) => {
+                              const next = { ...prev };
+                              if (!raw) delete next[m.v];
+                              else next[m.v] = raw;
+                              return next;
+                            });
+                          }}
+                          className={`w-full rounded-xl border px-2.5 py-1.5 text-xs font-bold transition-all disabled:bg-gray-100 disabled:cursor-not-allowed ${
+                            hasCustom ? 'border-amber-400 bg-white text-amber-950 font-black focus:border-amber-500 focus:ring-1 focus:ring-amber-400' : 'border-gray-200 text-gray-800 focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81]'
+                          }`}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         ) : null}

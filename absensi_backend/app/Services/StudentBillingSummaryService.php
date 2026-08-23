@@ -229,7 +229,7 @@ class StudentBillingSummaryService
 
         // Always show all 12 academic months: Jul -> Jun
         $months = collect(self::ACADEMIC_MONTHS)
-            ->map(function (string $label, int $month) use ($byMonth, $paymentType, $billedMonths) {
+            ->map(function (string $label, int $month) use ($byMonth, $paymentType, $rule, $billedMonths) {
                 $row = $byMonth->get($month);
                 $isConfiguredToBill = in_array($month, $billedMonths, true);
                 
@@ -245,6 +245,8 @@ class StudentBillingSummaryService
                     $status = 'Libur';
                 }
 
+                $configuredAmount = app(\App\Services\PaymentBillService::class)->amountForMonth($paymentType, $rule, $month);
+
                 return [
                     'month' => $month,
                     'label' => $label,
@@ -252,8 +254,8 @@ class StudentBillingSummaryService
                     'is_paid' => $isPaid,
                     'is_billed' => $hasBill && $isConfiguredToBill,
                     'paid_amount' => (int) ($row['paid_amount'] ?? 0),
-                    'amount' => (int) ($row['amount'] ?? $paymentType?->nominal_default ?? 0),
-                    'remaining_amount' => (int) ($row['remaining_amount'] ?? ($isConfiguredToBill ? ($paymentType?->nominal_default ?? 0) : 0)),
+                    'amount' => (int) ($row['amount'] ?? $configuredAmount),
+                    'remaining_amount' => (int) ($row['remaining_amount'] ?? ($isConfiguredToBill ? $configuredAmount : 0)),
                     'bill_id' => $row['id'] ?? null,
                     'pembayaran_id' => $row['pembayaran_id'] ?? null,
                     'bill' => $row,

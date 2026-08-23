@@ -29,6 +29,7 @@ class PaymentBillRule extends Model
         'tahun_ajaran',
         'semester',
         'billed_months',
+        'month_amounts',
     ];
 
     protected $casts = [
@@ -37,6 +38,7 @@ class PaymentBillRule extends Model
         'is_active' => 'boolean',
         'notification_settings' => 'array',
         'billed_months' => 'array',
+        'month_amounts' => 'array',
     ];
 
     public function paymentType()

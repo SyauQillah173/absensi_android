@@ -597,7 +597,7 @@ class PaymentBillService
                         'period_month' => $month,
                         'period_label' => $periodLabel,
                         'title' => trim($paymentType->nama . ' ' . $periodLabel),
-                        'amount' => (int) ($rule->nominal ?: ($paymentType->nominal_default ?? 0)),
+                        'amount' => $this->amountForMonth($paymentType, $rule, (int) $month),
                         'due_date' => $dueDate,
                         'status' => $status,
                         'tahun_ajaran' => $academicYear->name,
@@ -1252,7 +1252,7 @@ class PaymentBillService
                     'period_month' => $month,
                     'period_label' => $periodLabel,
                     'title' => trim($paymentType->nama . ' ' . $periodLabel),
-                    'amount' => (int) ($rule->nominal ?: ($paymentType->nominal_default ?? 0)),
+                    'amount' => $this->amountForMonth($paymentType, $rule, (int) $month),
                     'due_date' => $dueDate->toDateString(),
                     'status' => $status,
                     'academic_year_id' => $academicYear->id,
@@ -1273,6 +1273,23 @@ class PaymentBillService
             );
         }
 
+        // Sinkronisasi nominal tagihan yang belum lunas sesuai custom nominal per bulan
+        $unpaidBills = PaymentBill::query()
+            ->where('payment_type_id', $paymentType->id)
+            ->where('academic_year_id', $academicYear->id)
+            ->where('semester_id', $targetSemesterId)
+            ->whereNotNull('period_month')
+            ->whereIn('status', ['Belum Lunas', 'Terlambat'])
+            ->whereDoesntHave('pembayaran')
+            ->get();
+
+        foreach ($unpaidBills as $unpaidBill) {
+            $correctAmount = $this->amountForMonth($paymentType, $rule, (int) $unpaidBill->period_month);
+            if ((int) $unpaidBill->amount !== (int) $correctAmount) {
+                $unpaidBill->update(['amount' => $correctAmount]);
+            }
+        }
+
         // Hapus tagihan yang bulannya di-uncheck HANYA pada semester ini
         $monthsToDelete = array_diff($all12Months, $monthsToBill);
 
@@ -1289,5 +1306,20 @@ class PaymentBillService
                 ->whereDoesntHave('pembayaran')
                 ->delete();
         }
+    }
+
+    public function amountForMonth(?PaymentType $paymentType, ?PaymentBillRule $rule, int $month): int
+    {
+        $monthAmounts = $rule?->month_amounts ?? $paymentType?->month_amounts ?? [];
+        if (is_array($monthAmounts)) {
+            if (isset($monthAmounts[$month]) && is_numeric($monthAmounts[$month]) && $monthAmounts[$month] > 0) {
+                return (int) $monthAmounts[$month];
+            }
+            if (isset($monthAmounts[(string) $month]) && is_numeric($monthAmounts[(string) $month]) && $monthAmounts[(string) $month] > 0) {
+                return (int) $monthAmounts[(string) $month];
+            }
+        }
+
+        return (int) ($rule?->nominal ?: ($paymentType?->nominal_default ?? 0));
     }
 }
