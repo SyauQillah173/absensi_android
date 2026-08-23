@@ -1,4 +1,4 @@
-import { CalendarDays, Check, CreditCard, Landmark, Plus, Printer, RefreshCw, Save, Trash2, WalletCards, X } from 'lucide-react';
+import { CalendarDays, Check, CreditCard, Download, Landmark, Plus, Printer, RefreshCw, Save, Trash2, WalletCards, X } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
@@ -155,6 +155,9 @@ export function FinancePage() {
   const activeAcademicYear = academicPeriods.find((item) => item.is_active === true || item.status === 'Aktif') ?? academicPeriods[0];
   const activeSemesters = Array.isArray(activeAcademicYear?.semesters) ? activeAcademicYear.semesters : [];
 
+  const [showExportModal, setShowExportModal] = useState(false);
+  const uniqueClasses = useMemo(() => Array.from(new Set(students.map((s) => str(s.kelas)).filter(Boolean))).sort(), [students]);
+
   async function openBilling(studentId = billingStudentId, silent = false) {
     if (!studentId) return;
     setBillingStudentId(studentId);
@@ -180,6 +183,15 @@ export function FinancePage() {
           <h1 className="text-3xl font-extrabold text-[#2D3436]">Keuangan</h1>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setShowExportModal(true)}
+            className="flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] hover:bg-[#0E7065] px-4 text-sm font-extrabold text-white shadow-sm transition-all"
+            title="Download Rekapitulasi Keuangan Excel (.xlsx)"
+          >
+            <Download size={17} />
+            <span>Export Rekap Excel</span>
+          </button>
           <button
             className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#138F81] ${isLoading ? 'is-loading' : ''}`}
             onClick={() => void load()}
@@ -224,6 +236,13 @@ export function FinancePage() {
           }}
         />
       ) : null}
+
+      <ExportRecapModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        academicPeriods={academicPeriods}
+        classes={uniqueClasses}
+      />
 
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
 
@@ -2843,5 +2862,202 @@ function PengeluaranModal({ row, onClose, onSaved }: { row: ApiRecord | null; on
         {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
       </form>
     </ModalForm>
+  );
+}
+
+function ExportRecapModal({
+  isOpen,
+  onClose,
+  academicPeriods,
+  classes,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  academicPeriods: ApiRecord[];
+  classes: string[];
+}) {
+  const activeAcademic = academicPeriods.find((ay) => ay.is_active === true || ay.status === 'Aktif') ?? academicPeriods[0];
+  const [tahunAjaran, setTahunAjaran] = useState<string>(activeAcademic ? str(activeAcademic.name || activeAcademic.tahun_ajaran) : '');
+  const [semester, setSemester] = useState<string>('');
+  const [kelas, setKelas] = useState<string>('');
+  const [status, setStatus] = useState<string>('Lunas');
+  const [tanggalMulai, setTanggalMulai] = useState<string>('');
+  const [tanggalAkhir, setTanggalAkhir] = useState<string>('');
+  const [isExporting, setIsExporting] = useState(false);
+
+  if (!isOpen) return null;
+
+  async function handleDownload() {
+    try {
+      setIsExporting(true);
+      await api.downloadPaymentRecapExcel({
+        tahun_ajaran: tahunAjaran,
+        semester: semester,
+        kelas: kelas,
+        status: status,
+        tanggal_mulai: tanggalMulai,
+        tanggal_akhir: tanggalAkhir,
+      });
+      onClose();
+    } catch (err) {
+      alert(`Gagal mengunduh Excel: ${err instanceof Error ? err.message : 'Error'}`);
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in">
+      <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl space-y-5 border border-gray-100">
+        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-teal-50 text-[#138F81]">
+              <Download size={20} />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-gray-800">Export Rekapitulasi Keuangan</h3>
+              <p className="text-xs text-gray-500 font-medium">Download spreadsheet Excel (.xlsx) dengan formula & 3 sheet terstruktur</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-4 text-xs font-bold text-gray-700">
+          {/* TAHUN AJARAN */}
+          <div>
+            <label className="mb-1 block text-gray-600">Pilih Tahun Ajaran</label>
+            <select
+              className="q-input font-bold"
+              value={tahunAjaran}
+              onChange={(e) => setTahunAjaran(e.target.value)}
+            >
+              <option value="">-- Semua Tahun Ajaran --</option>
+              {academicPeriods.map((ay) => (
+                <option key={num(ay.id)} value={str(ay.name || ay.tahun_ajaran)}>
+                  {str(ay.name || ay.tahun_ajaran)} {ay.is_active ? '(Aktif)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* SEMESTER */}
+          <div>
+            <label className="mb-1 block text-gray-600">Pilih Semester</label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setSemester('')}
+                className={`rounded-xl py-2 text-xs font-black transition-all ${
+                  semester === '' ? 'bg-[#138F81] text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Semua
+              </button>
+              <button
+                type="button"
+                onClick={() => setSemester('Ganjil')}
+                className={`rounded-xl py-2 text-xs font-black transition-all ${
+                  semester === 'Ganjil' ? 'bg-[#138F81] text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                🍂 Ganjil
+              </button>
+              <button
+                type="button"
+                onClick={() => setSemester('Genap')}
+                className={`rounded-xl py-2 text-xs font-black transition-all ${
+                  semester === 'Genap' ? 'bg-[#138F81] text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                🌸 Genap
+              </button>
+            </div>
+          </div>
+
+          {/* KELAS & STATUS */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-gray-600">Filter Kelas</label>
+              <select className="q-input" value={kelas} onChange={(e) => setKelas(e.target.value)}>
+                <option value="">Semua Kelas</option>
+                {classes.map((cName) => (
+                  <option key={cName} value={cName}>
+                    {cName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-gray-600">Status Pembayaran</label>
+              <select className="q-input" value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option value="">Semua Status</option>
+                <option value="Lunas">Lunas</option>
+                <option value="Belum Lunas">Belum Lunas</option>
+                <option value="Menunggu">Menunggu</option>
+              </select>
+            </div>
+          </div>
+
+          {/* RENTANG TANGGAL */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-gray-600">Dari Tanggal (Opsional)</label>
+              <input
+                type="date"
+                className="q-input"
+                value={tanggalMulai}
+                onChange={(e) => setTanggalMulai(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-gray-600">Sampai Tanggal (Opsional)</label>
+              <input
+                type="date"
+                className="q-input"
+                value={tanggalAkhir}
+                onChange={(e) => setTanggalAkhir(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* INFO FORMAT DOKUMEN */}
+          <div className="rounded-2xl bg-teal-50/80 border border-teal-200 p-3.5 text-[11px] text-teal-950 font-medium space-y-1">
+            <div className="font-extrabold text-teal-900 flex items-center gap-1.5">
+              <span>📊 Struktur Dokumen Excel Yang Dihasilkan:</span>
+            </div>
+            <ul className="list-disc pl-4 space-y-0.5 text-teal-900">
+              <li><b>Sheet 1 (Rincian Transaksi)</b>: Rekap seluruh transaksi detail dengan formula <code>=SUM()</code> otomatis</li>
+              <li><b>Sheet 2 (Rekap Per-Santri)</b>: Akumulasi total pembayaran per-santri dengan formula <code>=SUM()</code></li>
+              <li><b>Sheet 3 (Rekap Per-Tipe Tagihan)</b>: Breakdown per tipe SPP, Kitab, dll dengan formula <code>=SUM()</code></li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-2xl px-4 py-2.5 text-xs font-bold text-gray-500 hover:bg-gray-100 transition-colors"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            disabled={isExporting}
+            onClick={handleDownload}
+            className="flex items-center gap-2 rounded-2xl bg-[#138F81] hover:bg-[#0E7065] px-5 py-2.5 text-xs font-black text-white shadow-md transition-all disabled:opacity-50"
+          >
+            {isExporting ? <RefreshCw className="animate-spin" size={15} /> : <Download size={15} />}
+            {isExporting ? 'Membuat File Excel...' : 'Download Rekap Excel (.xlsx)'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

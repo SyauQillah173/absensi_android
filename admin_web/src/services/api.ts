@@ -723,6 +723,41 @@ export const api = {
   notifyWaPayment(id: number) {
     return request<ApiRecord>(`/pembayaran/transaksi/${id}/notify-wa`, { method: 'POST' });
   },
+  async downloadPaymentRecapExcel(params: Record<string, string | number | boolean>) {
+    const session = readSession();
+    const query = new URLSearchParams({
+      format: 'excel',
+      user_id: String(session?.id || ''),
+      ...Object.fromEntries(
+        Object.entries(params)
+          .filter(([_, v]) => v !== undefined && v !== null && v !== '')
+          .map(([k, v]) => [k, String(v)])
+      ),
+    });
+
+    const response = await fetch(`${apiBaseUrl()}/pembayaran/rekap-export?${query.toString()}`, {
+      headers: {
+        Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gagal mengunduh file Excel (${response.statusText})`);
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const yearText = String(params.tahun_ajaran || 'Semua').replace(/[/\\ ]/g, '-');
+    const semText = String(params.semester || 'Semua').replace(/[/\\ ]/g, '-');
+    link.download = `Rekap_Keuangan_${yearText}_${semText}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
   rekapAbsensiSholat(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord>('/absensi-sholat/rekap', {}, params);
   },

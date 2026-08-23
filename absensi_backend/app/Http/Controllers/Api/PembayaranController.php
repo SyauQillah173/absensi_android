@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Exports\RekapPembayaranExport;
 use App\Models\AdminPaymentSecuritySetting;
 use App\Models\DocumentSetting;
 use App\Models\PaymentTransaction;
@@ -28,6 +29,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Maatwebsite\Excel\Facades\Excel;
 
 class PembayaranController extends Controller
 {
@@ -541,7 +543,7 @@ class PembayaranController extends Controller
         }
 
         $request->validate([
-            'user_id' => 'required|exists:users,id',
+            'user_id' => 'nullable|exists:users,id',
             'kelas' => 'nullable|string',
             'class_id' => 'nullable|integer|exists:classes,id',
             'status' => 'nullable|in:Lunas,Belum Lunas,Menunggu',
@@ -552,9 +554,10 @@ class PembayaranController extends Controller
             'semester_id' => 'nullable|integer|exists:semesters,id',
             'tahun_ajaran' => 'nullable|string',
             'semester' => 'nullable|string',
+            'format' => 'nullable|in:excel,json',
         ]);
 
-        $transactions = $this->paymentHistoryService->getTransactions([
+        $filters = [
             'kelas' => $request->input('kelas'),
             'class_id' => $request->input('class_id'),
             'status' => $request->input('status'),
@@ -565,7 +568,19 @@ class PembayaranController extends Controller
             'semester_id' => $request->input('semester_id'),
             'tahun_ajaran' => $request->input('tahun_ajaran'),
             'semester' => $request->input('semester'),
-        ]);
+        ];
+
+        $transactions = $this->paymentHistoryService->getTransactions($filters);
+
+        // If Excel format requested (or default download)
+        if ($request->input('format') === 'excel' || $request->query('download') === 'excel' || !$request->wantsJson()) {
+            $docSetting = DocumentSetting::query()->first();
+            $sanitizedYear = str_replace(['/', '\\', ' '], '-', $request->input('tahun_ajaran') ?: 'Semua');
+            $sanitizedSem = str_replace(['/', '\\', ' '], '-', $request->input('semester') ?: 'Semua');
+            $fileName = "Rekap_Keuangan_{$sanitizedYear}_{$sanitizedSem}_" . now()->format('YmdHis') . '.xlsx';
+
+            return Excel::download(new RekapPembayaranExport($transactions, $filters, $docSetting), $fileName);
+        }
 
         $rows = $transactions
             ->map(fn (array $transaction) => $this->paymentHistoryService->mapReportRow($transaction))
@@ -590,14 +605,7 @@ class PembayaranController extends Controller
 
         return response()->json([
             'success' => true,
-            'filters' => [
-                'kelas' => $request->kelas,
-                'status' => $request->status,
-                'tanggal_mulai' => $request->tanggal_mulai,
-                'tanggal_akhir' => $request->tanggal_akhir,
-                'tahun_ajaran' => $request->tahun_ajaran,
-                'semester' => $request->semester,
-            ],
+            'filters' => $filters,
             'summary' => [
                 'total_transaksi' => $transactions->count(),
                 'total_siswa' => $transactions->pluck('siswa_id')->filter()->unique()->count(),
