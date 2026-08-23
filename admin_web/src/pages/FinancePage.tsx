@@ -1540,7 +1540,10 @@ function StudentPaymentHistorySection({
       const code = str(tx.kode_transaksi ?? tx.invoice_number ?? tx.transaction_code).toLowerCase();
       const ket = str(tx.keterangan).toLowerCase();
       const items = Array.isArray(tx.items) ? (tx.items as ApiRecord[]) : [];
-      const itemNames = items.map((it) => str(it.payment_type_name ?? it.nama ?? it.paymentType?.nama)).join(' ').toLowerCase();
+      const itemNames = items.map((it) => {
+        const pType = record(it.paymentType);
+        return str(it.payment_type_name ?? it.nama ?? pType.nama ?? it.name);
+      }).join(' ').toLowerCase();
 
       return code.includes(q) || ket.includes(q) || itemNames.includes(q);
     });
@@ -1785,8 +1788,10 @@ function StudentPaymentHistorySection({
                       {items.length > 0 ? (
                         <div className="space-y-1">
                           {items.map((it, itIdx) => {
-                            const pName = str(it.payment_type_name ?? it.nama ?? it.paymentType?.nama ?? it.name ?? 'Tagihan');
-                            const pMonth = num(it.period_month || it.paymentBill?.period_month);
+                            const pType = record(it.paymentType);
+                            const pBill = record(it.paymentBill);
+                            const pName = str(it.payment_type_name ?? it.nama ?? pType.nama ?? it.name ?? 'Tagihan');
+                            const pMonth = num(it.period_month || pBill.period_month);
                             const mName = pMonth > 0 ? monthLabels[pMonth] : '';
                             const itAmount = num(it.jumlah);
                             return (
