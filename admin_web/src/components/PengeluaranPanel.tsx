@@ -729,12 +729,12 @@ export function PengeluaranPanel({
                           {/* KEPERLUAN & PENERIMA */}
                           <td className="py-3 px-3.5">
                             <p className="font-extrabold text-gray-900">{str(row.judul)}</p>
-                            {row.dibayarkan_kepada && (
+                            {Boolean(row.dibayarkan_kepada) && (
                               <p className="text-[11px] text-gray-500 font-medium">
                                 Penerima: <span className="text-gray-700">{str(row.dibayarkan_kepada)}</span>
                               </p>
                             )}
-                            {row.keterangan && (
+                            {Boolean(row.keterangan) && (
                               <p className="text-[10px] text-gray-400 italic truncate max-w-[200px]">
                                 {str(row.keterangan)}
                               </p>
@@ -1116,7 +1116,7 @@ function ExpenseReceiptModal({
             <div>
               <span className="text-[11px] text-gray-500 block">Untuk Keperluan:</span>
               <span className="text-xs font-extrabold text-gray-900 block">{str(row.judul)}</span>
-              {row.keterangan && <span className="text-[10px] text-gray-500 block italic">({str(row.keterangan)})</span>}
+              {Boolean(row.keterangan) && <span className="text-[10px] text-gray-500 block italic">({str(row.keterangan)})</span>}
             </div>
 
             <div className="rounded-xl bg-gray-50 p-2.5 border border-gray-200 space-y-1 mt-2">

@@ -822,23 +822,26 @@ export const api = {
     return request(`/pengeluaran/${id}`, { method: 'DELETE' });
   },
   async exportPengeluaran(params: Record<string, string | number | boolean> = {}) {
-    const token = getToken();
-    const query = new URLSearchParams();
-    Object.entries(params).forEach(([k, v]) => {
-      if (v !== undefined && v !== null && v !== '') {
-        query.append(k, String(v));
-      }
+    const session = readSession();
+    const query = new URLSearchParams({
+      format: 'excel',
+      user_id: String(session?.id || ''),
+      ...Object.fromEntries(
+        Object.entries(params)
+          .filter(([_, v]) => v !== undefined && v !== null && v !== '')
+          .map(([k, v]) => [k, String(v)])
+      ),
     });
 
-    const response = await fetch(`${API_BASE_URL}/pengeluaran/export?${query.toString()}`, {
+    const response = await fetch(`${apiBaseUrl()}/pengeluaran/export?${query.toString()}`, {
       headers: {
-        Authorization: token ? `Bearer ${token}` : '',
         Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
       },
     });
 
     if (!response.ok) {
-      throw new Error(`Export pengeluaran gagal: ${response.statusText}`);
+      throw new Error(`Gagal mengunduh file Excel (${response.statusText})`);
     }
 
     const blob = await response.blob();

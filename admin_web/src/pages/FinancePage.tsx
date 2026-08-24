@@ -419,17 +419,7 @@ export function FinancePage() {
           }}
         />
       ) : null}
-      {modal === 'pengeluaran' ? (
-        <PengeluaranModal
-          row={editing}
-          onClose={() => setModal(null)}
-          onSaved={async () => {
-            setModal(null);
-            setEditing(null);
-            await load();
-          }}
-        />
-      ) : null}
+
     </div>
   );
 }
