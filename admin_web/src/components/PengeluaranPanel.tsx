@@ -339,28 +339,18 @@ export function PengeluaranPanel({
         </div>
 
         {/* CARD 3: SISA SALDO KAS BERSIH (NET) */}
-        <div className={`rounded-3xl p-5 shadow-xs border flex items-center gap-4 transition-all hover:shadow-md ${
-          stats.saldoKasBersih >= 0
-            ? 'bg-gradient-to-br from-teal-500/10 to-teal-600/5 border-teal-200'
-            : 'bg-gradient-to-br from-rose-500/10 to-rose-600/5 border-rose-200'
-        }`}>
-          <div className={`flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl ${
-            stats.saldoKasBersih >= 0 ? 'bg-[#138F81] text-white shadow-sm' : 'bg-rose-600 text-white shadow-sm'
-          }`}>
+        <div className="rounded-3xl bg-white p-5 shadow-xs border border-teal-100 flex items-center gap-4 transition-all hover:shadow-md">
+          <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-[#138F81]">
             <Wallet size={24} />
           </div>
           <div>
-            <p className={`text-[11px] font-bold tracking-wider uppercase ${
-              stats.saldoKasBersih >= 0 ? 'text-[#138F81]' : 'text-rose-700'
-            }`}>
+            <p className="text-[11px] font-bold tracking-wider text-[#138F81] uppercase">
               Sisa Saldo Kas Tersedia
             </p>
-            <p className={`text-xl font-black mt-0.5 ${
-              stats.saldoKasBersih >= 0 ? 'text-gray-900' : 'text-rose-700'
-            }`}>
+            <p className="text-xl font-black text-gray-900 mt-0.5">
               {formatMoney(stats.saldoKasBersih)}
             </p>
-            <p className="text-[11px] font-bold text-gray-500 mt-0.5">
+            <p className="text-[11px] font-bold text-teal-600 mt-0.5">
               {stats.saldoKasBersih >= 0 ? '✨ Kas Surplus & Siap Pakai' : '⚠️ Kas Defisit'}
             </p>
           </div>
