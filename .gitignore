@@ -38,6 +38,13 @@ PROPMT_*.md
 konteks_*.txt
 panduan_*.txt
 
+# Script Reset & Batch Testing Pribadi
+*.bat
+**/*.bat
+reset_*.bat
+reset_*.ps1
+reset_*.sh
+
 # Folder Asisten AI & Konfigurasi Pribadi
 .agents/
 .sixth/
