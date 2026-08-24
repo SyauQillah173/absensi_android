@@ -807,7 +807,7 @@ export const api = {
     return request<ApiRecord[]>('/notification-settings', { method: 'PUT', body: JSON.stringify({ settings }) });
   },
   pengeluaran(params?: Record<string, string | number | boolean>) {
-    return request<ApiRecord[]>('/pengeluaran', {}, params);
+    return request<{ data: ApiRecord[]; summary?: ApiRecord } | ApiRecord[]>('/pengeluaran', {}, params);
   },
   getPengeluaran(id: number) {
     return request<ApiRecord>(`/pengeluaran/${id}`);
@@ -820,5 +820,36 @@ export const api = {
   },
   deletePengeluaran(id: number) {
     return request(`/pengeluaran/${id}`, { method: 'DELETE' });
+  },
+  async exportPengeluaran(params: Record<string, string | number | boolean> = {}) {
+    const token = getToken();
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') {
+        query.append(k, String(v));
+      }
+    });
+
+    const response = await fetch(`${API_BASE_URL}/pengeluaran/export?${query.toString()}`, {
+      headers: {
+        Authorization: token ? `Bearer ${token}` : '',
+        Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Export pengeluaran gagal: ${response.statusText}`);
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const catText = String(params.kategori || 'Semua').replace(/[/\\ ]/g, '-');
+    link.download = `Rekap_Pengeluaran_${catText}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   }
 };

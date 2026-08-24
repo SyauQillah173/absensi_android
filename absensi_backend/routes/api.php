@@ -290,6 +290,7 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::delete('pembayaran/types/{type}', [PembayaranController::class, 'destroyType'])->middleware('permission:keuangan,delete');
 
         // PENGELUARAN
+        Route::get('pengeluaran/export', [PengeluaranController::class, 'export'])->middleware('permission:keuangan,view');
         Route::get('pengeluaran', [PengeluaranController::class, 'index'])->middleware('permission:keuangan,view');
         Route::get('pengeluaran/{id}', [PengeluaranController::class, 'show'])->middleware('permission:keuangan,view');
         Route::post('pengeluaran', [PengeluaranController::class, 'store'])->middleware('permission:keuangan,create');
