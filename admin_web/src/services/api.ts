@@ -473,10 +473,6 @@ export const api = {
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
   },
-  // PENGELUARAN
-  pengeluaran(params?: Record<string, string | number | boolean>) {
-    return request<ApiRecord>('/pengeluaran', {}, params);
-  },
   mataPelajaran(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>('/mata-pelajaran', {}, params);
   },
