@@ -16,9 +16,13 @@ import {
   Filter,
   Landmark,
   Plus,
+  PlusCircle,
   Printer,
   RefreshCw,
   Search,
+  Settings2,
+  SlidersHorizontal,
+  Sparkles,
   Tag,
   Trash2,
   TrendingDown,
@@ -69,6 +73,12 @@ function angkaTerbilang(angka: number): string {
   return angkaTerbilang(Math.floor(n / 1000000000000)) + ' Triliun ' + angkaTerbilang(n % 1000000000000);
 }
 
+export interface QuickExpensePresetItem {
+  id: string;
+  label: string;
+  cat: string;
+}
+
 const DEFAULT_CATEGORIES = [
   'Konsumsi & Dapur',
   'Operasional & Utilitas',
@@ -90,15 +100,30 @@ const FUND_SOURCES = [
   { id: 'Kas Yayasan / Bantuan', label: '🤝 Kas Yayasan / Bantuan', desc: 'Subsidi/bantuan yayasan' },
 ];
 
-const QUICK_TITLES = [
-  { label: 'Beras & Dapur', cat: 'Konsumsi & Dapur' },
-  { label: 'Listrik & Air PLN', cat: 'Operasional & Utilitas' },
-  { label: 'Honor Asatidz / Guru', cat: 'Honor & Gaji Asatidz' },
-  { label: 'ATK & Kertas Cetak', cat: 'ATK & Percetakan' },
-  { label: 'Perbaikan Gedung', cat: 'Perawatan Gedung' },
-  { label: 'Konsumsi Rapat / Tamu', cat: 'Konsumsi & Dapur' },
-  { label: 'Obat & Kebersihan', cat: 'Kesehatan & Kebersihan' },
+export const DEFAULT_QUICK_EXPENSES: QuickExpensePresetItem[] = [
+  { id: '1', label: 'Beras & Dapur', cat: 'Konsumsi & Dapur' },
+  { id: '2', label: 'Listrik & Air PLN', cat: 'Operasional & Utilitas' },
+  { id: '3', label: 'Honor Asatidz / Guru', cat: 'Honor & Gaji Asatidz' },
+  { id: '4', label: 'ATK & Kertas Cetak', cat: 'ATK & Percetakan' },
+  { id: '5', label: 'Perbaikan Gedung', cat: 'Perawatan Gedung' },
+  { id: '6', label: 'Konsumsi Rapat / Tamu', cat: 'Konsumsi & Dapur' },
+  { id: '7', label: 'Obat & Kebersihan', cat: 'Kesehatan & Kebersihan' },
 ];
+
+const STORAGE_KEY_EXPENSE_PRESETS = 'pesantren_quick_expense_presets_v2';
+
+function loadQuickExpensePresets(): QuickExpensePresetItem[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_EXPENSE_PRESETS);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {
+    // fallback
+  }
+  return DEFAULT_QUICK_EXPENSES;
+}
 
 export function PengeluaranPanel({
   rows,
@@ -110,6 +135,19 @@ export function PengeluaranPanel({
   onReload,
   showToast
 }: PengeluaranPanelProps) {
+  // --- QUICK PRESETS MASTER STATE ---
+  const [quickPresets, setQuickPresets] = useState<QuickExpensePresetItem[]>(() => loadQuickExpensePresets());
+  const [isPresetModalOpen, setIsPresetModalOpen] = useState(false);
+
+  const handleSavePresets = (newItems: QuickExpensePresetItem[]) => {
+    setQuickPresets(newItems);
+    try {
+      localStorage.setItem(STORAGE_KEY_EXPENSE_PRESETS, JSON.stringify(newItems));
+    } catch {
+      // ignore
+    }
+  };
+
   // --- FORM STATE ---
   const todayStr = new Date().toISOString().split('T')[0];
   const [tanggal, setTanggal] = useState(todayStr);
@@ -416,23 +454,45 @@ export function PengeluaranPanel({
           </span>
         </div>
 
-        {/* QUICK SUGGESTION CHIPS */}
-        <div className="rounded-2xl bg-gray-50/80 p-3 border border-gray-200/60">
-          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">⚡ Pilihan Cepat Keperluan:</p>
+        {/* QUICK SUGGESTION CHIPS WITH SETTINGS BUTTON */}
+        <div className="rounded-2xl bg-gray-50/90 p-3.5 border border-gray-200/70">
+          <div className="flex items-center justify-between gap-2 mb-2.5">
+            <span className="text-[11px] font-black text-gray-600 uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles size={14} className="text-amber-500" /> Pilihan Cepat Keperluan:
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsPresetModalOpen(true)}
+              className="flex items-center gap-1.5 rounded-xl bg-white hover:bg-teal-50 hover:text-teal-800 border border-gray-200 hover:border-teal-300 px-2.5 py-1 text-[11px] font-bold text-gray-700 transition-all shadow-2xs"
+            >
+              <Settings2 size={13} className="text-[#138F81]" />
+              <span>Atur Pilihan Cepat</span>
+              <span className="rounded-full bg-teal-100 px-1.5 py-0.2 text-[9px] font-black text-teal-800">
+                {quickPresets.length}
+              </span>
+            </button>
+          </div>
+
           <div className="flex flex-wrap gap-2">
-            {QUICK_TITLES.map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                onClick={() => {
-                  setJudul(item.label);
-                  setKategori(item.cat);
-                }}
-                className="rounded-xl bg-white hover:bg-teal-50 hover:text-teal-800 hover:border-teal-300 border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 transition-all shadow-2xs"
-              >
-                {item.label}
-              </button>
-            ))}
+            {quickPresets.length === 0 ? (
+              <p className="text-xs text-gray-400 font-medium italic">
+                Belum ada pilihan cepat. Klik tombol "Atur Pilihan Cepat" di atas untuk menambah.
+              </p>
+            ) : (
+              quickPresets.map((item) => (
+                <button
+                  key={item.id || item.label}
+                  type="button"
+                  onClick={() => {
+                    setJudul(item.label);
+                    setKategori(item.cat);
+                  }}
+                  className="rounded-xl bg-white hover:bg-teal-50 hover:text-teal-800 hover:border-teal-300 border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 transition-all shadow-2xs flex items-center gap-1.5"
+                >
+                  <span>{item.label}</span>
+                </button>
+              ))
+            )}
           </div>
         </div>
 
@@ -962,7 +1022,19 @@ export function PengeluaranPanel({
         />
       )}
 
-      {/* 6. DELETE CONFIRMATION DIALOG */}
+      {/* 6. MANAGE QUICK PRESETS MODAL */}
+      {isPresetModalOpen && (
+        <ManageExpenseQuickPresetsModal
+          isOpen={isPresetModalOpen}
+          onClose={() => setIsPresetModalOpen(false)}
+          presets={quickPresets}
+          onSave={handleSavePresets}
+          existingCategories={existingCategories}
+          showToast={showToast}
+        />
+      )}
+
+      {/* 7. DELETE CONFIRMATION DIALOG */}
       {deleteConfirmRow && (
         <ModalForm
           title="Konfirmasi Hapus Pengeluaran"
@@ -1401,6 +1473,253 @@ function ExportPengeluaranModal({
               <option key={f.id} value={f.id}>{f.id}</option>
             ))}
           </select>
+        </div>
+      </div>
+    </ModalForm>
+  );
+}
+
+// ==========================================
+// SUBCOMPONENT: MANAGE EXPENSE QUICK PRESETS MODAL
+// ==========================================
+function ManageExpenseQuickPresetsModal({
+  isOpen,
+  onClose,
+  presets,
+  onSave,
+  existingCategories,
+  showToast
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  presets: QuickExpensePresetItem[];
+  onSave: (items: QuickExpensePresetItem[]) => void;
+  existingCategories: string[];
+  showToast: (message: string, type?: 'success' | 'error') => void;
+}) {
+  const [items, setItems] = useState<QuickExpensePresetItem[]>(presets);
+  const [newLabel, setNewLabel] = useState('');
+  const [newCat, setNewCat] = useState(existingCategories[0] || 'Konsumsi & Dapur');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState('');
+  const [editCat, setEditCat] = useState('');
+
+  if (!isOpen) return null;
+
+  const handleAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLabel.trim()) {
+      showToast('Nama pilihan cepat tidak boleh kosong', 'error');
+      return;
+    }
+    const newItem: QuickExpensePresetItem = {
+      id: String(Date.now()),
+      label: newLabel.trim(),
+      cat: newCat.trim() || 'Konsumsi & Dapur'
+    };
+    const updated = [...items, newItem];
+    setItems(updated);
+    onSave(updated);
+    setNewLabel('');
+    showToast('✅ Pilihan cepat pengeluaran berhasil ditambahkan!', 'success');
+  };
+
+  const handleStartEdit = (item: QuickExpensePresetItem) => {
+    setEditingId(item.id);
+    setEditLabel(item.label);
+    setEditCat(item.cat);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editLabel.trim()) return;
+    const updated = items.map((it) => (it.id === editingId ? { ...it, label: editLabel.trim(), cat: editCat.trim() } : it));
+    setItems(updated);
+    onSave(updated);
+    setEditingId(null);
+    showToast('✅ Pilihan cepat pengeluaran berhasil diperbarui!', 'success');
+  };
+
+  const handleDelete = (id: string) => {
+    const updated = items.filter((it) => it.id !== id);
+    setItems(updated);
+    onSave(updated);
+    showToast('🗑️ Pilihan cepat pengeluaran berhasil dihapus', 'success');
+  };
+
+  const handleResetDefault = () => {
+    if (confirm('Kembalikan seluruh pilihan cepat pengeluaran ke daftar bawaan sistem?')) {
+      setItems(DEFAULT_QUICK_EXPENSES);
+      onSave(DEFAULT_QUICK_EXPENSES);
+      showToast('✨ Pilihan cepat pengeluaran telah direset ke default!', 'success');
+    }
+  };
+
+  return (
+    <ModalForm
+      title="⚙️ Master Data: Atur Pilihan Cepat Pengeluaran"
+      onClose={onClose}
+      footer={
+        <div className="flex items-center justify-between w-full">
+          <button
+            type="button"
+            onClick={handleResetDefault}
+            className="rounded-2xl bg-amber-50 hover:bg-amber-100 px-3.5 py-2 text-xs font-bold text-amber-800 border border-amber-200 transition-colors"
+          >
+            ↺ Reset ke Default
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-2xl bg-[#138F81] hover:bg-[#0F7A6E] px-6 py-2.5 text-xs font-black text-white shadow-sm transition-all"
+          >
+            Selesai
+          </button>
+        </div>
+      }
+    >
+      <div className="space-y-4 py-2">
+        <p className="text-xs text-gray-500 font-medium">
+          Daftar tombol pintas ini akan muncul pada menu <strong>Catat Kas Keluar / Pengeluaran</strong> untuk memudahkan bendahara mengisi keperluan operasional secara instan dengan 1x klik.
+        </p>
+
+        {/* FORM TAMBAH BARU */}
+        <form onSubmit={handleAdd} className="rounded-2xl bg-teal-50/60 border border-teal-200/80 p-3.5 space-y-3">
+          <div className="flex items-center gap-1.5 text-xs font-black text-teal-900">
+            <PlusCircle size={15} className="text-teal-700" />
+            <span>Tambah Pilihan Cepat Pengeluaran Baru</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">
+                Nama Keperluan / Judul <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                className="q-input text-xs font-bold bg-white"
+                placeholder="Contoh: Tagihan WiFi Indihome"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">
+                Kategori Otomatis
+              </label>
+              <select
+                className="q-input text-xs font-bold bg-white"
+                value={newCat}
+                onChange={(e) => setNewCat(e.target.value)}
+              >
+                {existingCategories.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-1">
+            <button
+              type="submit"
+              className="flex items-center gap-1.5 rounded-xl bg-[#138F81] hover:bg-[#0F7A6E] px-4 py-2 text-xs font-black text-white shadow-xs"
+            >
+              <Plus size={14} /> Tambah Ke Pilihan Cepat
+            </button>
+          </div>
+        </form>
+
+        {/* LIST EXISTING PRESETS */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs font-bold text-gray-700 uppercase px-1">
+            <span>Daftar Pilihan Cepat Aktif ({items.length})</span>
+          </div>
+
+          <div className="max-h-[300px] overflow-y-auto space-y-2 pr-1">
+            {items.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-400 text-xs font-bold">
+                Belum ada pilihan cepat. Tambahkan di formulir atas atau klik Reset ke Default.
+              </div>
+            ) : (
+              items.map((item, idx) => (
+                <div
+                  key={item.id || idx}
+                  className="rounded-2xl border border-gray-200 bg-white p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:border-teal-300 transition-all shadow-2xs"
+                >
+                  {editingId === item.id ? (
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        className="q-input text-xs font-bold"
+                        value={editLabel}
+                        onChange={(e) => setEditLabel(e.target.value)}
+                        placeholder="Nama keperluan..."
+                        autoFocus
+                      />
+                      <select
+                        className="q-input text-xs font-bold"
+                        value={editCat}
+                        onChange={(e) => setEditCat(e.target.value)}
+                      >
+                        {existingCategories.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-xs font-black text-gray-700">
+                        {idx + 1}
+                      </span>
+                      <div>
+                        <p className="text-xs font-black text-gray-900">{item.label}</p>
+                        <p className="text-[11px] font-bold text-teal-700">🏷️ {item.cat}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-1.5 self-end sm:self-center">
+                    {editingId === item.id ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handleSaveEdit}
+                          className="rounded-xl bg-[#138F81] px-3 py-1.5 text-xs font-black text-white hover:bg-[#0F7A6E] shadow-2xs"
+                        >
+                          Simpan
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingId(null)}
+                          className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-200"
+                        >
+                          Batal
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          title="Edit Pilihan Cepat"
+                          onClick={() => handleStartEdit(item)}
+                          className="rounded-xl bg-gray-100 hover:bg-teal-50 hover:text-teal-800 p-2 text-gray-600 transition-colors"
+                        >
+                          <Edit size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          title="Hapus Pilihan Cepat"
+                          onClick={() => handleDelete(item.id)}
+                          className="rounded-xl bg-rose-50 hover:bg-rose-100 p-2 text-rose-700 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
     </ModalForm>
