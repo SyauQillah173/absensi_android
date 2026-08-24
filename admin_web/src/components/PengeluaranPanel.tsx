@@ -621,15 +621,16 @@ export function PengeluaranPanel({
           </div>
 
           {/* FILTER TOOLBAR */}
-          <div className="space-y-3 rounded-2xl bg-gray-50/80 p-3.5 border border-gray-200/70">
-            {/* SEARCH & PERIOD PILLS */}
-            <div className="flex flex-col md:flex-row items-center gap-3">
-              <div className="relative w-full md:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+          <div className="space-y-3.5 rounded-3xl bg-gray-50/80 p-4 border border-gray-200/70">
+            {/* ROW 1: SEARCH BAR & PERIOD TABS */}
+            <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-3">
+              {/* SEARCH INPUT WITH CLEAN PADDING & NO OVERLAP */}
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                 <input
                   type="text"
-                  className="q-input pl-9 text-xs font-medium bg-white"
-                  placeholder="Cari judul, no trx, penerima..."
+                  className="w-full rounded-2xl border border-gray-200 bg-white py-2.5 pl-10 pr-9 text-xs font-semibold text-gray-800 placeholder:text-gray-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 transition-all shadow-2xs"
+                  placeholder="Cari judul keperluan, no transaksi OUT-..., nama penerima, petugas..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -637,7 +638,7 @@ export function PengeluaranPanel({
                   <button
                     type="button"
                     onClick={() => setSearch('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
                   >
                     <X size={14} />
                   </button>
@@ -645,22 +646,22 @@ export function PengeluaranPanel({
               </div>
 
               {/* PERIOD TABS */}
-              <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
+              <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                 {[
                   { id: 'today', l: 'Hari Ini' },
                   { id: 'this_month', l: 'Bulan Ini' },
                   { id: 'this_year', l: 'Tahun Ini' },
-                  { id: 'all', l: 'Semua' },
-                  { id: 'custom', l: 'Custom' },
+                  { id: 'all', l: 'Semua Periode' },
+                  { id: 'custom', l: '📅 Custom' },
                 ].map((tab) => (
                   <button
                     key={tab.id}
                     type="button"
                     onClick={() => setPeriodFilter(tab.id as any)}
-                    className={`rounded-xl px-3 py-1.5 text-xs font-extrabold transition-all ${
+                    className={`rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all ${
                       periodFilter === tab.id
                         ? 'bg-[#138F81] text-white shadow-xs'
-                        : 'bg-white text-gray-600 hover:bg-gray-200/80 border border-gray-200'
+                        : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200 shadow-2xs'
                     }`}
                   >
                     {tab.l}
@@ -669,24 +670,24 @@ export function PengeluaranPanel({
               </div>
             </div>
 
-            {/* CUSTOM DATE RANGE (IF ACTIVE) & DROPDOWN FILTERS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
+            {/* ROW 2: CUSTOM DATE RANGE (IF ACTIVE) & DROPDOWN FILTERS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-0.5">
               {periodFilter === 'custom' && (
                 <>
                   <div>
-                    <span className="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">Dari Tanggal:</span>
+                    <span className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Dari Tanggal:</span>
                     <input
                       type="date"
-                      className="q-input text-xs font-bold bg-white"
+                      className="w-full rounded-xl border border-gray-200 bg-white py-2 px-3 text-xs font-bold text-gray-800 focus:border-teal-500 focus:outline-none"
                       value={customStartDate}
                       onChange={(e) => setCustomStartDate(e.target.value)}
                     />
                   </div>
                   <div>
-                    <span className="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">Sampai Tanggal:</span>
+                    <span className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sampai Tanggal:</span>
                     <input
                       type="date"
-                      className="q-input text-xs font-bold bg-white"
+                      className="w-full rounded-xl border border-gray-200 bg-white py-2 px-3 text-xs font-bold text-gray-800 focus:border-teal-500 focus:outline-none"
                       value={customEndDate}
                       onChange={(e) => setCustomEndDate(e.target.value)}
                     />
@@ -695,9 +696,9 @@ export function PengeluaranPanel({
               )}
 
               <div className={periodFilter === 'custom' ? 'col-span-1' : 'col-span-2'}>
-                <span className="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">Filter Kategori:</span>
+                <span className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Filter Kategori:</span>
                 <select
-                  className="q-input text-xs font-bold bg-white text-gray-800"
+                  className="w-full rounded-xl border border-gray-200 bg-white py-2 px-3 text-xs font-bold text-gray-800 focus:border-teal-500 focus:outline-none"
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
                 >
@@ -711,9 +712,9 @@ export function PengeluaranPanel({
               </div>
 
               <div className={periodFilter === 'custom' ? 'col-span-1' : 'col-span-2'}>
-                <span className="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">Filter Sumber Dana:</span>
+                <span className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Filter Sumber Dana:</span>
                 <select
-                  className="q-input text-xs font-bold bg-white text-gray-800"
+                  className="w-full rounded-xl border border-gray-200 bg-white py-2 px-3 text-xs font-bold text-gray-800 focus:border-teal-500 focus:outline-none"
                   value={methodFilter}
                   onChange={(e) => setMethodFilter(e.target.value)}
                 >
