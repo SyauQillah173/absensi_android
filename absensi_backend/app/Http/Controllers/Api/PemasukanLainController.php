@@ -47,11 +47,14 @@ class PemasukanLainController extends Controller
         }
 
         // 4. Academic Period Filters
-        if ($request->filled('academic_year_id')) {
+        if ($request->filled('academic_year_id') && $request->academic_year_id !== 'all') {
             $query->where('academic_year_id', $request->academic_year_id);
         }
-        if ($request->filled('semester_id')) {
+        if ($request->filled('semester_id') && $request->semester_id !== 'all') {
             $query->where('semester_id', $request->semester_id);
+        }
+        if ($request->filled('year') && $request->year !== 'all') {
+            $query->whereYear('tanggal', $request->year);
         }
 
         // 5. Date Range Filter
@@ -257,6 +260,16 @@ class PemasukanLainController extends Controller
 
         if ($request->filled('sumber_dana') && $request->sumber_dana !== 'all') {
             $query->where('sumber_dana', $request->sumber_dana);
+        }
+
+        if ($request->filled('academic_year_id') && $request->academic_year_id !== 'all') {
+            $query->where('academic_year_id', $request->academic_year_id);
+        }
+        if ($request->filled('semester_id') && $request->semester_id !== 'all') {
+            $query->where('semester_id', $request->semester_id);
+        }
+        if ($request->filled('year') && $request->year !== 'all') {
+            $query->whereYear('tanggal', $request->year);
         }
 
         if ($request->filled('start_date')) {

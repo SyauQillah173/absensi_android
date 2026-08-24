@@ -340,6 +340,7 @@ export function FinancePage() {
           <PemasukanLainPanel
             rows={pemasukanLain}
             summaryData={pemasukanLainSummary}
+            academicPeriods={academicPeriods}
             userId={session?.id ?? 0}
             docSetting={documentSettings}
             onReload={load}
@@ -351,6 +352,7 @@ export function FinancePage() {
             rows={pengeluaran}
             summaryData={pengeluaranSummary}
             totalPemasukanFallback={totalHistory}
+            academicPeriods={academicPeriods}
             userId={session?.id ?? 0}
             docSetting={documentSettings}
             onReload={load}

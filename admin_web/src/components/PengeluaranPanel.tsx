@@ -35,6 +35,7 @@ interface PengeluaranPanelProps {
   rows: ApiRecord[];
   summaryData?: ApiRecord | null;
   totalPemasukanFallback?: number;
+  academicPeriods?: ApiRecord[];
   userId: number;
   docSetting?: ApiRecord | null;
   onReload: () => Promise<void>;
@@ -103,6 +104,7 @@ export function PengeluaranPanel({
   rows,
   summaryData,
   totalPemasukanFallback = 0,
+  academicPeriods = [],
   userId,
   docSetting,
   onReload,
@@ -123,6 +125,8 @@ export function PengeluaranPanel({
   // --- FILTER & SEARCH STATE ---
   const [search, setSearch] = useState('');
   const [periodFilter, setPeriodFilter] = useState<'today' | 'this_month' | 'this_year' | 'all' | 'custom'>('this_month');
+  const [academicYearFilter, setAcademicYearFilter] = useState('all');
+  const [calendarYearFilter, setCalendarYearFilter] = useState('all');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -145,6 +149,20 @@ export function PengeluaranPanel({
     return Array.from(set);
   }, [rows]);
 
+  // --- ALL UNIQUE CALENDAR YEARS IN DATA ---
+  const availableCalendarYears = useMemo(() => {
+    const years = new Set<string>();
+    const curYr = String(new Date().getFullYear());
+    years.add(curYr);
+    rows.forEach((r) => {
+      const d = String(r.tanggal || '').split('T')[0];
+      if (d.length >= 4) {
+        years.add(d.substring(0, 4));
+      }
+    });
+    return Array.from(years).sort().reverse();
+  }, [rows]);
+
   // --- FILTERED DATA COMPUTATION ---
   const filteredRows = useMemo(() => {
     const now = new Date();
@@ -155,7 +173,7 @@ export function PengeluaranPanel({
     return rows.filter((r) => {
       const rowDate = String(r.tanggal || '').split('T')[0];
 
-      // 1. Period Filter
+      // 1. Period Filter (Pills)
       if (periodFilter === 'today' && rowDate !== todayStr) return false;
       if (periodFilter === 'this_month' && !rowDate.startsWith(curMonthPrefix)) return false;
       if (periodFilter === 'this_year' && !rowDate.startsWith(String(curYear))) return false;
@@ -164,13 +182,24 @@ export function PengeluaranPanel({
         if (customEndDate && rowDate > customEndDate) return false;
       }
 
-      // 2. Category Filter
+      // 2. Academic Year Filter
+      if (academicYearFilter !== 'all') {
+        const rAyId = String(r.academic_year_id ?? (r.academicYear as ApiRecord)?.id ?? '');
+        if (rAyId !== academicYearFilter) return false;
+      }
+
+      // 3. Calendar Year Filter
+      if (calendarYearFilter !== 'all') {
+        if (!rowDate.startsWith(calendarYearFilter)) return false;
+      }
+
+      // 4. Category Filter
       if (categoryFilter !== 'all' && str(r.kategori) !== categoryFilter) return false;
 
-      // 3. Method Filter
+      // 5. Method Filter
       if (methodFilter !== 'all' && str(r.metode_pembayaran || 'Tunai') !== methodFilter) return false;
 
-      // 4. Search Query
+      // 6. Search Query
       if (search.trim()) {
         const query = search.toLowerCase();
         const j = str(r.judul).toLowerCase();
@@ -179,6 +208,7 @@ export function PengeluaranPanel({
         const no = str(r.no_transaksi).toLowerCase();
         const ket = str(r.keterangan).toLowerCase();
         const petugas = str((r.penginput as ApiRecord)?.name).toLowerCase();
+        const ayName = str((r.academicYear as ApiRecord)?.name).toLowerCase();
 
         return (
           j.includes(query) ||
@@ -186,13 +216,14 @@ export function PengeluaranPanel({
           p.includes(query) ||
           no.includes(query) ||
           ket.includes(query) ||
-          petugas.includes(query)
+          petugas.includes(query) ||
+          ayName.includes(query)
         );
       }
 
       return true;
     });
-  }, [rows, search, periodFilter, customStartDate, customEndDate, categoryFilter, methodFilter, todayStr]);
+  }, [rows, search, periodFilter, academicYearFilter, calendarYearFilter, customStartDate, customEndDate, categoryFilter, methodFilter, todayStr]);
 
   // --- STATS & TREASURY CASHFLOW COMPUTATION ---
   const stats = useMemo(() => {
@@ -672,12 +703,50 @@ export function PengeluaranPanel({
               )}
             </div>
 
-            {/* ROW 3: DROPDOWN FILTERS (KATEGORI & SUMBER DANA) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0.5">
+            {/* ROW 3: DROPDOWN FILTERS (TAHUN AJARAN, TAHUN KALENDER, KATEGORI, SUMBER DANA) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-0.5">
+              {/* TAHUN AJARAN */}
               <div>
-                <span className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Filter Kategori:</span>
+                <span className="block text-[10px] font-bold text-gray-500 uppercase mb-1">🎓 Tahun Ajaran:</span>
                 <select
-                  className="w-full rounded-xl border border-gray-200 bg-white py-2 px-3 text-xs font-bold text-gray-800 focus:border-teal-500 focus:outline-none shadow-2xs"
+                  className="w-full rounded-xl border border-gray-200 bg-white py-2 px-2.5 text-xs font-bold text-gray-800 focus:border-teal-500 focus:outline-none shadow-2xs"
+                  value={academicYearFilter}
+                  onChange={(e) => setAcademicYearFilter(e.target.value)}
+                >
+                  <option value="all">Semua Tahun Ajaran</option>
+                  {(academicPeriods || []).map((ap) => {
+                    const isActive = ap.is_active === true || ap.status === 'Aktif';
+                    return (
+                      <option key={num(ap.id)} value={String(ap.id)}>
+                        {str(ap.name ?? ap.tahun_ajaran)} {isActive ? '⭐ (Aktif)' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* TAHUN KALENDER */}
+              <div>
+                <span className="block text-[10px] font-bold text-gray-500 uppercase mb-1">📅 Tahun Kalender:</span>
+                <select
+                  className="w-full rounded-xl border border-gray-200 bg-white py-2 px-2.5 text-xs font-bold text-gray-800 focus:border-teal-500 focus:outline-none shadow-2xs"
+                  value={calendarYearFilter}
+                  onChange={(e) => setCalendarYearFilter(e.target.value)}
+                >
+                  <option value="all">Semua Tahun Kalender</option>
+                  {availableCalendarYears.map((yr) => (
+                    <option key={yr} value={yr}>
+                      Tahun {yr}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* KATEGORI */}
+              <div>
+                <span className="block text-[10px] font-bold text-gray-500 uppercase mb-1">🏷️ Filter Kategori:</span>
+                <select
+                  className="w-full rounded-xl border border-gray-200 bg-white py-2 px-2.5 text-xs font-bold text-gray-800 focus:border-teal-500 focus:outline-none shadow-2xs"
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
                 >
@@ -690,14 +759,15 @@ export function PengeluaranPanel({
                 </select>
               </div>
 
+              {/* SUMBER DANA */}
               <div>
-                <span className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Filter Sumber Dana:</span>
+                <span className="block text-[10px] font-bold text-gray-500 uppercase mb-1">🏛️ Sumber Dana:</span>
                 <select
-                  className="w-full rounded-xl border border-gray-200 bg-white py-2 px-3 text-xs font-bold text-gray-800 focus:border-teal-500 focus:outline-none shadow-2xs"
+                  className="w-full rounded-xl border border-gray-200 bg-white py-2 px-2.5 text-xs font-bold text-gray-800 focus:border-teal-500 focus:outline-none shadow-2xs"
                   value={methodFilter}
                   onChange={(e) => setMethodFilter(e.target.value)}
                 >
-                  <option value="all">Semua Sumber Dana / Metode</option>
+                  <option value="all">Semua Sumber Dana</option>
                   {FUND_SOURCES.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.id}
@@ -889,6 +959,8 @@ export function PengeluaranPanel({
           isOpen={isExportModalOpen}
           onClose={() => setIsExportModalOpen(false)}
           existingCategories={existingCategories}
+          academicPeriods={academicPeriods}
+          availableCalendarYears={availableCalendarYears}
         />
       )}
 
@@ -1203,13 +1275,19 @@ function ExportPengeluaranModal({
   isOpen,
   onClose,
   existingCategories,
+  academicPeriods = [],
+  availableCalendarYears = [],
 }: {
   isOpen: boolean;
   onClose: () => void;
   existingCategories: string[];
+  academicPeriods?: ApiRecord[];
+  availableCalendarYears?: string[];
 }) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [academicYearId, setAcademicYearId] = useState('all');
+  const [calendarYear, setCalendarYear] = useState('all');
   const [kategori, setKategori] = useState('all');
   const [metode, setMetode] = useState('all');
   const [isExporting, setIsExporting] = useState(false);
@@ -1222,6 +1300,8 @@ function ExportPengeluaranModal({
       await api.exportPengeluaran({
         start_date: startDate || '',
         end_date: endDate || '',
+        academic_year_id: academicYearId !== 'all' ? academicYearId : '',
+        year: calendarYear !== 'all' ? calendarYear : '',
         kategori: kategori !== 'all' ? kategori : '',
         metode_pembayaran: metode !== 'all' ? metode : '',
       });
@@ -1262,6 +1342,35 @@ function ExportPengeluaranModal({
             <p className="text-[11px] text-emerald-700 mt-0.5">
               File Excel berisi: <strong>1. Rincian Kas Keluar</strong>, <strong>2. Rekap Per Kategori</strong>, <strong>3. Rekap Bulanan</strong>, dan <strong>4. Buku Kas & Arus Kas (Pemasukan Santri vs Kas Keluar)</strong> lengkap dengan rumus SUM dan saldo mutasi otomatis.
             </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">🎓 Tahun Ajaran</label>
+            <select className="q-input font-bold" value={academicYearId} onChange={(e) => setAcademicYearId(e.target.value)}>
+              <option value="all">Semua Tahun Ajaran</option>
+              {academicPeriods.map((ap) => {
+                const isActive = ap.is_active === true || ap.status === 'Aktif';
+                return (
+                  <option key={num(ap.id)} value={String(ap.id)}>
+                    {str(ap.name ?? ap.tahun_ajaran)} {isActive ? '⭐ (Aktif)' : ''}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">📅 Tahun Kalender</label>
+            <select className="q-input font-bold" value={calendarYear} onChange={(e) => setCalendarYear(e.target.value)}>
+              <option value="all">Semua Tahun</option>
+              {availableCalendarYears.map((yr) => (
+                <option key={yr} value={yr}>
+                  Tahun {yr}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

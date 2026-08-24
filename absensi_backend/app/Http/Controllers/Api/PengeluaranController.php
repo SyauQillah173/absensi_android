@@ -45,12 +45,15 @@ class PengeluaranController extends Controller
             $query->where('metode_pembayaran', $request->metode_pembayaran);
         }
 
-        // 4. Academic Year & Semester Filter
-        if ($request->filled('academic_year_id')) {
+        // 4. Academic Year & Semester & Year Filter
+        if ($request->filled('academic_year_id') && $request->academic_year_id !== 'all') {
             $query->where('academic_year_id', $request->academic_year_id);
         }
-        if ($request->filled('semester_id')) {
+        if ($request->filled('semester_id') && $request->semester_id !== 'all') {
             $query->where('semester_id', $request->semester_id);
+        }
+        if ($request->filled('year') && $request->year !== 'all') {
+            $query->whereYear('tanggal', $request->year);
         }
 
         // 5. Date Range Filter
@@ -282,6 +285,16 @@ class PengeluaranController extends Controller
 
         if ($request->filled('metode_pembayaran') && $request->metode_pembayaran !== 'all') {
             $query->where('metode_pembayaran', $request->metode_pembayaran);
+        }
+
+        if ($request->filled('academic_year_id') && $request->academic_year_id !== 'all') {
+            $query->where('academic_year_id', $request->academic_year_id);
+        }
+        if ($request->filled('semester_id') && $request->semester_id !== 'all') {
+            $query->where('semester_id', $request->semester_id);
+        }
+        if ($request->filled('year') && $request->year !== 'all') {
+            $query->whereYear('tanggal', $request->year);
         }
 
         if ($request->filled('start_date')) {
