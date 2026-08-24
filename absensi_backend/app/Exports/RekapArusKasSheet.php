@@ -4,6 +4,7 @@ namespace App\Exports;
 
 use App\Models\DocumentSetting;
 use App\Models\Pembayaran;
+use App\Models\PemasukanLain;
 use App\Models\Pengeluaran;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -54,6 +55,16 @@ class RekapArusKasSheet implements FromCollection, ShouldAutoSize, WithTitle, Wi
                 }
                 $pembayaranList = $pembayaranQuery->with('siswa:id,nama,nis')->get();
 
+                // Fetch PemasukanLain
+                $pemasukanLainQuery = PemasukanLain::query();
+                if (!empty($this->filters['start_date'])) {
+                    $pemasukanLainQuery->whereDate('tanggal', '>=', $this->filters['start_date']);
+                }
+                if (!empty($this->filters['end_date'])) {
+                    $pemasukanLainQuery->whereDate('tanggal', '<=', $this->filters['end_date']);
+                }
+                $pemasukanLainList = $pemasukanLainQuery->get();
+
                 // Merge into unified cashflow ledger sorted by date
                 $ledger = collect();
 
@@ -64,6 +75,17 @@ class RekapArusKasSheet implements FromCollection, ShouldAutoSize, WithTitle, Wi
                         'uraian' => 'Pemasukan Siswa: ' . ($p->siswa?->nama ?? 'Santri') . ' (' . ($p->jenis ?? 'Pembayaran') . ')',
                         'kategori' => 'Pemasukan Santri',
                         'masuk' => (float) ($p->jumlah ?? 0),
+                        'keluar' => 0,
+                    ]);
+                }
+
+                foreach ($pemasukanLainList as $in) {
+                    $ledger->push([
+                        'tanggal' => $in->tanggal ? Carbon::parse($in->tanggal)->toDateString() : '',
+                        'no_trx' => $in->no_transaksi ?: ('IN-' . sprintf('%04d', $in->id)),
+                        'uraian' => 'Pemasukan Kas: ' . ($in->judul ?? '-') . ($in->diterima_dari ? ' (Dari: ' . $in->diterima_dari . ')' : ''),
+                        'kategori' => $in->kategori ?: 'Kas Masuk Lain',
+                        'masuk' => (float) ($in->jumlah ?? 0),
                         'keluar' => 0,
                     ]);
                 }
@@ -80,6 +102,8 @@ class RekapArusKasSheet implements FromCollection, ShouldAutoSize, WithTitle, Wi
                 }
 
                 $sortedLedger = $ledger->sortBy('tanggal')->values();
+
+                $totalPemasukanAll = (float) $pembayaranList->sum('jumlah') + (float) $pemasukanLainList->sum('jumlah');
 
                 // 1. KOP TITLE
                 $sheet->setCellValue('A1', strtoupper($instansi));
@@ -98,8 +122,8 @@ class RekapArusKasSheet implements FromCollection, ShouldAutoSize, WithTitle, Wi
                 $sheet->getStyle('A1:A4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
                 // 2. SUMMARY BOXES (Row 6 - 8)
-                $sheet->setCellValue('A6', 'TOTAL PEMASUKAN SISWA');
-                $sheet->setCellValue('B6', (float) $pembayaranList->sum('jumlah'));
+                $sheet->setCellValue('A6', 'TOTAL SELURUH PEMASUKAN KAS');
+                $sheet->setCellValue('B6', $totalPemasukanAll);
                 $sheet->setCellValue('A7', 'TOTAL PENGELUARAN KAS');
                 $sheet->setCellValue('B7', (float) $this->pengeluaran->sum('jumlah'));
                 $sheet->setCellValue('A8', 'SISA SALDO KAS BERSIH (NET)');

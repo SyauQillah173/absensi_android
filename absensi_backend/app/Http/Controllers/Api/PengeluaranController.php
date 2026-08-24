@@ -6,6 +6,7 @@ use App\Exports\RekapPengeluaranExport;
 use App\Http\Controllers\Controller;
 use App\Models\DocumentSetting;
 use App\Models\Pembayaran;
+use App\Models\PemasukanLain;
 use App\Models\Pengeluaran;
 use App\Services\AcademicPeriodService;
 use Carbon\Carbon;
@@ -75,15 +76,23 @@ class PengeluaranController extends Controller
         $totalPengeluaranAll = (int) Pengeluaran::sum('jumlah');
         $countTotal = $pengeluaranList->count();
 
-        // 7. Calculate Student Payments Inflow (Pemasukan Transaksi Siswa)
+        // 7. Calculate Treasury Inflow (Pemasukan Siswa + Pemasukan Sumber Dana Lain)
         $totalPemasukanSiswa = (int) Pembayaran::whereIn('status', ['Lunas', 'Menunggu Verifikasi'])->sum('jumlah');
         $totalPemasukanBulanIni = (int) Pembayaran::whereIn('status', ['Lunas', 'Menunggu Verifikasi'])->where('tanggal', 'like', "{$thisMonthStr}%")->sum('jumlah');
         $totalPemasukanHariIni = (int) Pembayaran::whereIn('status', ['Lunas', 'Menunggu Verifikasi'])->whereDate('tanggal', $todayStr)->sum('jumlah');
 
+        $totalPemasukanLain = (int) PemasukanLain::sum('jumlah');
+        $totalPemasukanLainBulanIni = (int) PemasukanLain::where('tanggal', 'like', "{$thisMonthStr}%")->sum('jumlah');
+        $totalPemasukanLainHariIni = (int) PemasukanLain::whereDate('tanggal', $todayStr)->sum('jumlah');
+
+        $totalSeluruhPemasukan = $totalPemasukanSiswa + $totalPemasukanLain;
+        $totalSeluruhPemasukanBulanIni = $totalPemasukanBulanIni + $totalPemasukanLainBulanIni;
+        $totalSeluruhPemasukanHariIni = $totalPemasukanHariIni + $totalPemasukanLainHariIni;
+
         // Net Cash Balance (Sisa Saldo Kas Bersih)
-        $saldoKasBersih = $totalPemasukanSiswa - $totalPengeluaranAll;
-        $saldoKasBulanIni = $totalPemasukanBulanIni - $totalThisMonth;
-        $saldoKasHariIni = $totalPemasukanHariIni - $totalToday;
+        $saldoKasBersih = $totalSeluruhPemasukan - $totalPengeluaranAll;
+        $saldoKasBulanIni = $totalSeluruhPemasukanBulanIni - $totalThisMonth;
+        $saldoKasHariIni = $totalSeluruhPemasukanHariIni - $totalToday;
 
         // Group by category for chart/breakdown
         $kategoriBreakdown = Pengeluaran::select('kategori', DB::raw('SUM(jumlah) as total_nominal'), DB::raw('COUNT(*) as total_transaksi'))
@@ -127,9 +136,11 @@ class PengeluaranController extends Controller
                 'total_this_month' => $totalThisMonth,
                 'total_pengeluaran_all' => $totalPengeluaranAll,
                 'total_count' => $countTotal,
-                'total_pemasukan' => $totalPemasukanSiswa,
-                'total_pemasukan_bulan_ini' => $totalPemasukanBulanIni,
-                'total_pemasukan_hari_ini' => $totalPemasukanHariIni,
+                'total_pemasukan' => $totalSeluruhPemasukan,
+                'total_pemasukan_siswa' => $totalPemasukanSiswa,
+                'total_pemasukan_lain' => $totalPemasukanLain,
+                'total_pemasukan_bulan_ini' => $totalSeluruhPemasukanBulanIni,
+                'total_pemasukan_hari_ini' => $totalSeluruhPemasukanHariIni,
                 'saldo_kas_bersih' => $saldoKasBersih,
                 'saldo_kas_bulan_ini' => $saldoKasBulanIni,
                 'saldo_kas_hari_ini' => $saldoKasHariIni,

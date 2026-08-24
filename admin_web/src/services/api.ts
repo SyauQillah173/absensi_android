@@ -426,6 +426,57 @@ export const api = {
   deleteMasterReferensi(id: number) {
     return request(`/master-referensi/${id}`, { method: 'DELETE' });
   },
+  // PEMASUKAN LAIN / SUMBER DANA KAS
+  pemasukanLain(params?: Record<string, string | number | boolean>) {
+    return request<ApiRecord>('/pemasukan-lain', {}, params);
+  },
+  createPemasukanLain(data: ApiRecord) {
+    return request<ApiRecord>('/pemasukan-lain', { method: 'POST', body: JSON.stringify(data) });
+  },
+  updatePemasukanLain(id: number, data: ApiRecord) {
+    return request<ApiRecord>(`/pemasukan-lain/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+  deletePemasukanLain(id: number) {
+    return request(`/pemasukan-lain/${id}`, { method: 'DELETE' });
+  },
+  async exportPemasukanLain(params: Record<string, string | number | boolean> = {}) {
+    const session = readSession();
+    const query = new URLSearchParams({
+      format: 'excel',
+      user_id: String(session?.id || ''),
+      ...Object.fromEntries(
+        Object.entries(params)
+          .filter(([_, v]) => v !== undefined && v !== null && v !== '')
+          .map(([k, v]) => [k, String(v)])
+      ),
+    });
+
+    const response = await fetch(`${apiBaseUrl()}/pemasukan-lain/export?${query.toString()}`, {
+      headers: {
+        Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gagal mengunduh file Excel (${response.statusText})`);
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const catText = String(params.kategori || 'Semua').replace(/[/\\ ]/g, '-');
+    link.download = `Rekap_Pemasukan_Kas_${catText}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
+  // PENGELUARAN
+  pengeluaran(params?: Record<string, string | number | boolean>) {
+    return request<ApiRecord>('/pengeluaran', {}, params);
+  },
   mataPelajaran(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>('/mata-pelajaran', {}, params);
   },

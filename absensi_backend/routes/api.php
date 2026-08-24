@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\PaymentMethodController;
 use App\Http\Controllers\Api\PaymentPeriodTypeController;
 use App\Http\Controllers\Api\PaymentTypeController;
 use App\Http\Controllers\Api\PembayaranController;
+use App\Http\Controllers\Api\PemasukanLainController;
 use App\Http\Controllers\Api\PengeluaranController;
 use App\Http\Controllers\Api\PenilaianController;
 use App\Http\Controllers\Api\PermissionController;
@@ -288,6 +289,14 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::post('payment-types', [PaymentTypeController::class, 'store'])->middleware('permission:keuangan,create');
         Route::put('payment-types/{paymentType}', [PaymentTypeController::class, 'update'])->middleware('permission:keuangan,update');
         Route::delete('pembayaran/types/{type}', [PembayaranController::class, 'destroyType'])->middleware('permission:keuangan,delete');
+
+        // PEMASUKAN LAIN / SUMBER DANA KAS
+        Route::get('pemasukan-lain/export', [PemasukanLainController::class, 'export'])->middleware('permission:keuangan,view');
+        Route::get('pemasukan-lain', [PemasukanLainController::class, 'index'])->middleware('permission:keuangan,view');
+        Route::get('pemasukan-lain/{id}', [PemasukanLainController::class, 'show'])->middleware('permission:keuangan,view');
+        Route::post('pemasukan-lain', [PemasukanLainController::class, 'store'])->middleware('permission:keuangan,create');
+        Route::put('pemasukan-lain/{id}', [PemasukanLainController::class, 'update'])->middleware('permission:keuangan,update');
+        Route::delete('pemasukan-lain/{id}', [PemasukanLainController::class, 'destroy'])->middleware('permission:keuangan,delete');
 
         // PENGELUARAN
         Route::get('pengeluaran/export', [PengeluaranController::class, 'export'])->middleware('permission:keuangan,view');

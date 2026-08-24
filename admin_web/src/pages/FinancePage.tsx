@@ -14,6 +14,7 @@ import { SegmentedTabs } from '../components/SegmentedTabs';
 import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { PengeluaranPanel } from '../components/PengeluaranPanel';
+import { PemasukanLainPanel } from '../components/PemasukanLainPanel';
 import { api, type ApiRecord, type PaymentFormPayload } from '../services/api';
 
 const monthLabels: Record<number, string> = {
@@ -35,6 +36,7 @@ const tabs = [
   { id: 'today', label: 'Hari Ini' },
   { id: 'history', label: 'Riwayat' },
   { id: 'student', label: 'Tagihan' },
+  { id: 'pemasukan_lain', label: 'Kas Masuk Lain' },
   { id: 'pengeluaran', label: 'Pengeluaran' },
   { id: 'types', label: 'Tipe Bayar' },
   { id: 'methods', label: 'Metode' },
@@ -92,6 +94,8 @@ export function FinancePage() {
   const [billingStudentId, setBillingStudentId] = useState<number>(0);
   const [billingSummary, setBillingSummary] = useState<ApiRecord | null>(null);
   const [chartData, setChartData] = useState<ApiRecord[]>([]);
+  const [pemasukanLain, setPemasukanLain] = useState<ApiRecord[]>([]);
+  const [pemasukanLainSummary, setPemasukanLainSummary] = useState<ApiRecord | null>(null);
   const [pengeluaran, setPengeluaran] = useState<ApiRecord[]>([]);
   const [pengeluaranSummary, setPengeluaranSummary] = useState<ApiRecord | null>(null);
   const [documentSettings, setDocumentSettings] = useState<ApiRecord | null>(null);
@@ -109,7 +113,7 @@ export function FinancePage() {
     if (!silent) setIsLoading(true);
     if (!silent) setError('');
     try {
-      const [todayResult, historyResult, typesResult, methodsResult, periodsResult, studentsResult, academicResult, chartResult, pengeluaranResult, documentSettingsResult] = await Promise.all([
+      const [todayResult, historyResult, typesResult, methodsResult, periodsResult, studentsResult, academicResult, chartResult, pengeluaranResult, pemasukanLainResult, documentSettingsResult] = await Promise.all([
         api.paymentToday(),
         api.paymentAll(),
         api.paymentTypes(),
@@ -119,6 +123,7 @@ export function FinancePage() {
         api.academicPeriods(),
         api.paymentChart(),
         api.pengeluaran(),
+        api.pemasukanLain(),
         api.documentSettings()
       ]);
       setToday(Array.isArray(todayResult.data) ? todayResult.data : []);
@@ -135,6 +140,13 @@ export function FinancePage() {
         setPengeluaranSummary((pengeluaranResult.summary as ApiRecord) ?? null);
       } else {
         setPengeluaran(Array.isArray(pengeluaranResult.data) ? pengeluaranResult.data : Array.isArray(pengeluaranResult) ? pengeluaranResult : []);
+      }
+
+      if (pemasukanLainResult && typeof pemasukanLainResult === 'object' && 'summary' in pemasukanLainResult) {
+        setPemasukanLain(Array.isArray(pemasukanLainResult.data) ? pemasukanLainResult.data : []);
+        setPemasukanLainSummary((pemasukanLainResult.summary as ApiRecord) ?? null);
+      } else {
+        setPemasukanLain(Array.isArray(pemasukanLainResult?.data) ? (pemasukanLainResult.data as ApiRecord[]) : Array.isArray(pemasukanLainResult) ? pemasukanLainResult : []);
       }
 
       setDocumentSettings(documentSettingsResult.data as ApiRecord);
@@ -322,6 +334,16 @@ export function FinancePage() {
                 setIsLoading(false);
               }
             }}
+          />
+        ) : null}
+        {!isLoading && activeTab === 'pemasukan_lain' ? (
+          <PemasukanLainPanel
+            rows={pemasukanLain}
+            summaryData={pemasukanLainSummary}
+            userId={session?.id ?? 0}
+            docSetting={documentSettings}
+            onReload={load}
+            showToast={showToast}
           />
         ) : null}
         {!isLoading && activeTab === 'pengeluaran' ? (
