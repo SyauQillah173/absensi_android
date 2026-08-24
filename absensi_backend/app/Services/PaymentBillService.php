@@ -682,68 +682,6 @@ class PaymentBillService
         return $createdOrTouched;
     }
 
-    public function recalculateBills(Collection $billIds): void
-    {
-        $billIds = $billIds->map(fn ($id) => (int) $id)->filter()->unique()->values();
-        if ($billIds->isEmpty()) {
-            return;
-        }
-
-        PaymentBill::query()
-            ->whereIn('id', $billIds)
-            ->get()
-            ->each(function (PaymentBill $bill) {
-                $payments = Pembayaran::query()
-                    ->where('payment_bill_id', $bill->id)
-                    ->whereIn('status', ['Lunas', 'Belum Lunas', 'Menunggu', 'Menunggu Verifikasi'])
-                    ->orderByDesc('tanggal')
-                    ->orderByDesc('id')
-                    ->get();
-
-                $receivedPayments = $payments->whereIn('status', ['Lunas', 'Belum Lunas']);
-                $paidAmount = (int) $receivedPayments->sum('jumlah');
-                $latestReceived = $receivedPayments->first();
-                if ($paidAmount >= (int) $bill->amount && $latestReceived) {
-                    $bill->update([
-                        'status' => 'Lunas',
-                        'payment_transaction_id' => $latestReceived->payment_transaction_id,
-                        'paid_at' => $latestReceived->tanggal,
-                    ]);
-                    return;
-                }
-
-                if ($paidAmount > 0 && $latestReceived) {
-                    $bill->update([
-                        'status' => $bill->due_date && $bill->due_date->lt(now()->startOfDay())
-                            ? 'Terlambat'
-                            : 'Belum Lunas',
-                        'payment_transaction_id' => $latestReceived->payment_transaction_id,
-                        'paid_at' => null,
-                    ]);
-                    return;
-                }
-
-                $pending = $payments->whereIn('status', ['Menunggu', 'Menunggu Verifikasi'])->first();
-                if ($pending) {
-                    $bill->update([
-                        'status' => 'Menunggu Verifikasi',
-                        'payment_transaction_id' => $pending->payment_transaction_id,
-                        'paid_at' => null,
-                    ]);
-                    return;
-                }
-
-                $status = $bill->due_date && $bill->due_date->lt(now()->startOfDay())
-                    ? 'Terlambat'
-                    : 'Belum Lunas';
-                $bill->update([
-                    'status' => $status,
-                    'payment_transaction_id' => null,
-                    'paid_at' => null,
-                ]);
-            });
-    }
-
     public function reconcilePaidBillsForStudent(int $siswaId): void
     {
         PaymentBill::query()
