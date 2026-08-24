@@ -46,7 +46,7 @@ class RekapArusKasSheet implements FromCollection, ShouldAutoSize, WithTitle, Wi
                 $periodeText = $this->filters['periode_label'] ?? 'Semua Periode';
 
                 // Fetch Pembayaran
-                $pembayaranQuery = Pembayaran::query()->whereIn('status', ['Lunas', 'Menunggu Verifikasi']);
+                $pembayaranQuery = Pembayaran::query()->whereNotIn('status', ['Dibatalkan', 'Batal']);
                 if (!empty($this->filters['start_date'])) {
                     $pembayaranQuery->whereDate('tanggal', '>=', $this->filters['start_date']);
                 }

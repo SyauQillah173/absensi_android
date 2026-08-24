@@ -189,6 +189,59 @@ class PaymentBillService
         return $createdOrTouched;
     }
 
+    public function recalculateBills($billIds): void
+    {
+        $ids = collect($billIds)->map(fn ($id) => (int) $id)->filter()->unique()->values();
+        if ($ids->isEmpty()) {
+            return;
+        }
+
+        PaymentBill::query()
+            ->whereIn('id', $ids)
+            ->get()
+            ->each(function (PaymentBill $bill) {
+                $payments = Pembayaran::query()
+                    ->where('payment_bill_id', $bill->id)
+                    ->whereNotIn('status', ['Dibatalkan', 'Batal'])
+                    ->orderByDesc('tanggal')
+                    ->orderByDesc('id')
+                    ->get();
+
+                $hasLunas = $payments->where('status', 'Lunas')->isNotEmpty();
+                $paidAmount = (int) $payments->sum('jumlah');
+                $latest = $payments->first();
+
+                if ($hasLunas || ($paidAmount >= (int) $bill->amount && $bill->amount > 0)) {
+                    $bill->update([
+                        'status' => 'Lunas',
+                        'payment_transaction_id' => $latest?->payment_transaction_id ?: $bill->payment_transaction_id,
+                        'paid_at' => $latest?->tanggal ?: now(),
+                        'updated_at' => now(),
+                    ]);
+                    return;
+                }
+
+                $hasPending = $payments->where('status', 'Menunggu')->isNotEmpty();
+                if ($hasPending) {
+                    $bill->update([
+                        'status' => 'Menunggu Verifikasi',
+                        'payment_transaction_id' => $latest?->payment_transaction_id ?: $bill->payment_transaction_id,
+                        'paid_at' => null,
+                        'updated_at' => now(),
+                    ]);
+                    return;
+                }
+
+                $isOverdue = $bill->due_date && Carbon::parse($bill->due_date)->lt(now()->startOfDay());
+                $bill->update([
+                    'status' => $paidAmount > 0 ? 'Belum Lunas' : ($isOverdue ? 'Terlambat' : 'Belum Lunas'),
+                    'payment_transaction_id' => $latest?->payment_transaction_id,
+                    'paid_at' => null,
+                    'updated_at' => now(),
+                ]);
+            });
+    }
+
     public function markBillsPaid(Collection $billIds, PaymentTransaction $transaction): void
     {
         $billIds = $billIds->map(fn ($id) => (int) $id)->filter()->unique()->values();
@@ -203,7 +256,7 @@ class PaymentBillService
             'updated_at' => now(),
         ];
         if ($transaction->status === 'Lunas') {
-            $payload['paid_at'] = now();
+            $payload['paid_at'] = $transaction->tanggal ? Carbon::parse($transaction->tanggal) : now();
         }
 
         PaymentBill::query()->whereIn('id', $billIds)->update($payload);

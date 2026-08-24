@@ -80,9 +80,9 @@ class PengeluaranController extends Controller
         $countTotal = $pengeluaranList->count();
 
         // 7. Calculate Treasury Inflow (Pemasukan Siswa + Pemasukan Sumber Dana Lain)
-        $totalPemasukanSiswa = (int) Pembayaran::whereIn('status', ['Lunas', 'Menunggu Verifikasi'])->sum('jumlah');
-        $totalPemasukanBulanIni = (int) Pembayaran::whereIn('status', ['Lunas', 'Menunggu Verifikasi'])->where('tanggal', 'like', "{$thisMonthStr}%")->sum('jumlah');
-        $totalPemasukanHariIni = (int) Pembayaran::whereIn('status', ['Lunas', 'Menunggu Verifikasi'])->whereDate('tanggal', $todayStr)->sum('jumlah');
+        $totalPemasukanSiswa = (int) Pembayaran::whereNotIn('status', ['Dibatalkan', 'Batal'])->sum('jumlah');
+        $totalPemasukanBulanIni = (int) Pembayaran::whereNotIn('status', ['Dibatalkan', 'Batal'])->where('tanggal', 'like', "{$thisMonthStr}%")->sum('jumlah');
+        $totalPemasukanHariIni = (int) Pembayaran::whereNotIn('status', ['Dibatalkan', 'Batal'])->whereDate('tanggal', $todayStr)->sum('jumlah');
 
         $totalPemasukanLain = (int) PemasukanLain::sum('jumlah');
         $totalPemasukanLainBulanIni = (int) PemasukanLain::where('tanggal', 'like', "{$thisMonthStr}%")->sum('jumlah');

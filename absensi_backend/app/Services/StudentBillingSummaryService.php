@@ -125,25 +125,27 @@ class StudentBillingSummaryService
         $formatted = $this->billService->formatBill($bill);
         $amount = (int) $bill->amount;
         $paidAmount = (int) $payments
-            ->whereIn('status', ['Lunas', 'Belum Lunas'])
+            ->whereNotIn('status', ['Dibatalkan', 'Batal'])
             ->sum('jumlah');
         $pendingAmount = (int) $payments
             ->where('status', 'Menunggu')
             ->sum('jumlah');
 
-        if ($bill->status === 'Lunas' && $paidAmount <= 0) {
-            $paidAmount = $amount;
-        }
+        $hasLunasPayment = $payments->where('status', 'Lunas')->isNotEmpty();
+        $isPaid = $bill->status === 'Lunas' || $hasLunasPayment || ($paidAmount >= $amount && $amount > 0);
 
-        $remaining = max(0, $amount - $paidAmount);
-        $isPaid = $paidAmount >= $amount && $amount > 0;
-        $status = $isPaid ? 'Lunas' : $bill->status;
         if ($isPaid) {
+            $status = 'Lunas';
             $remaining = 0;
+            $displayStatus = 'Lunas';
+            if ($paidAmount <= 0) {
+                $paidAmount = $amount;
+            }
+        } else {
+            $status = $bill->status;
+            $remaining = max(0, $amount - $paidAmount);
+            $displayStatus = $paidAmount > 0 ? 'Kurang Bayar' : $status;
         }
-        $displayStatus = $isPaid
-            ? 'Lunas'
-            : ($paidAmount > 0 ? 'Kurang Bayar' : $status);
 
         if (!$this->isMonthly($bill) && $displayStatus === 'Terlambat') {
             $displayStatus = 'Belum Lunas';

@@ -624,7 +624,7 @@ function DirectPaymentCashier({
 
   // Month Status Map for selected type
   const monthStatusMap = useMemo(() => {
-    const map = new Map<number, { isPaid: boolean; isHoliday: boolean; status: string; amount: number }>();
+    const map = new Map<number, { isPaid: boolean; isHoliday: boolean; status: string; amount: number; billId?: number }>();
     if (summaryData && typeId) {
       const groups = Array.isArray(summaryData.groups) ? (summaryData.groups as ApiRecord[]) : [];
       for (const group of groups) {
@@ -636,7 +636,13 @@ function DirectPaymentCashier({
             const st = str(m.status);
             const isPaid = m.is_paid === true || st.toLowerCase() === 'lunas';
             const isHoliday = st.toLowerCase() === 'libur';
-            map.set(mNo, { isPaid, isHoliday, status: st, amount: num(m.amount ?? selectedType?.nominal_default) });
+            map.set(mNo, {
+              isPaid,
+              isHoliday,
+              status: st,
+              amount: num(m.amount ?? selectedType?.nominal_default),
+              billId: num(m.bill_id) || undefined
+            });
           }
         }
       }
@@ -745,13 +751,21 @@ function DirectPaymentCashier({
         ? Array.from(selectedMonths).map((month) => {
             const mNominal = monthStatusMap.get(month)?.amount || defaultNominal;
             const discPerMonth = Math.round(totalDiscount / (selectedMonths.size || 1));
+            const mBillId = monthStatusMap.get(month)?.billId;
             return {
               ...baseItem,
               period_month: month,
+              payment_bill_id: mBillId || undefined,
               jumlah: Math.max(0, mNominal - discPerMonth),
+              status: 'Lunas',
             };
           })
-        : [{ ...baseItem, jumlah: netAmount }];
+        : [{
+            ...baseItem,
+            payment_bill_id: matchingGeneralBill?.id ? num(matchingGeneralBill.id) : undefined,
+            jumlah: netAmount,
+            status: 'Lunas',
+          }];
 
       const discountNotes: string[] = [];
       if (discountGuru > 0) discountNotes.push(`Diskon Guru: ${discountGuru}%`);

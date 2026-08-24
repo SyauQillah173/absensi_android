@@ -793,6 +793,10 @@ class PembayaranController extends Controller
             return 'Menunggu';
         }
 
+        if ($requestedStatus === 'Lunas') {
+            return 'Lunas';
+        }
+
         if ($amountDue > 0 && $amountPaid >= $amountDue) {
             return 'Lunas';
         }
