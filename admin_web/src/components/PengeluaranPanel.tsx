@@ -927,7 +927,6 @@ export function PengeluaranPanel({
             )}
           </div>
         </div>
-      </div>
 
       {/* 3. EDIT EXPENSE MODAL */}
       {editingRow && (

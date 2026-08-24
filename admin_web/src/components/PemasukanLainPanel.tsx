@@ -920,7 +920,6 @@ export function PemasukanLainPanel({
             )}
           </div>
         </div>
-      </div>
 
       {/* 3. EDIT INCOME MODAL */}
       {editingRow && (
