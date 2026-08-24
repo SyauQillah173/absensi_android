@@ -93,6 +93,7 @@ export function FinancePage() {
   const [billingSummary, setBillingSummary] = useState<ApiRecord | null>(null);
   const [chartData, setChartData] = useState<ApiRecord[]>([]);
   const [pengeluaran, setPengeluaran] = useState<ApiRecord[]>([]);
+  const [pengeluaranSummary, setPengeluaranSummary] = useState<ApiRecord | null>(null);
   const [documentSettings, setDocumentSettings] = useState<ApiRecord | null>(null);
   const [successTransaction, setSuccessTransaction] = useState<ApiRecord | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: number; type: 'transaction' | 'legacy'; title: string } | null>(null);
@@ -128,7 +129,14 @@ export function FinancePage() {
       setStudents(Array.isArray(studentsResult.data) ? studentsResult.data : []);
       setAcademicPeriods(Array.isArray(academicResult.data) ? academicResult.data : []);
       setChartData(Array.isArray(chartResult.data) ? chartResult.data : []);
-      setPengeluaran(Array.isArray(pengeluaranResult.data) ? pengeluaranResult.data : []);
+      
+      if (pengeluaranResult && typeof pengeluaranResult === 'object' && 'summary' in pengeluaranResult) {
+        setPengeluaran(Array.isArray(pengeluaranResult.data) ? pengeluaranResult.data : []);
+        setPengeluaranSummary((pengeluaranResult.summary as ApiRecord) ?? null);
+      } else {
+        setPengeluaran(Array.isArray(pengeluaranResult.data) ? pengeluaranResult.data : Array.isArray(pengeluaranResult) ? pengeluaranResult : []);
+      }
+
       setDocumentSettings(documentSettingsResult.data as ApiRecord);
     } catch (err) {
       if (!silent) setError(err instanceof Error ? err.message : 'Data keuangan gagal dimuat');
@@ -142,6 +150,7 @@ export function FinancePage() {
   }, []);
 
   const totalToday = useMemo(() => today.reduce((sum, row) => sum + num(row.jumlah), 0), [today]);
+  const totalHistory = useMemo(() => history.reduce((sum, row) => sum + num(row.jumlah), 0), [history]);
   const totalPengeluaranToday = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
     return pengeluaran
@@ -318,6 +327,8 @@ export function FinancePage() {
         {!isLoading && activeTab === 'pengeluaran' ? (
           <PengeluaranPanel
             rows={pengeluaran}
+            summaryData={pengeluaranSummary}
+            totalPemasukanFallback={totalHistory}
             userId={session?.id ?? 0}
             docSetting={documentSettings}
             onReload={load}

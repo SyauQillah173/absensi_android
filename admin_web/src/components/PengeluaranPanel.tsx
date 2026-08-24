@@ -1,22 +1,29 @@
 import React, { FormEvent, useMemo, useState } from 'react';
 import {
   AlertCircle,
+  ArrowDownLeft,
+  ArrowUpRight,
   CalendarDays,
   Check,
   CheckCircle2,
   ChevronRight,
+  Coins,
   CreditCard,
   Download,
   Edit,
   FileSpreadsheet,
   FileText,
   Filter,
+  Landmark,
   Plus,
   Printer,
   RefreshCw,
   Search,
   Tag,
   Trash2,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
   WalletCards,
   X
 } from 'lucide-react';
@@ -26,6 +33,8 @@ import { ModalForm } from './ModalForm';
 
 interface PengeluaranPanelProps {
   rows: ApiRecord[];
+  summaryData?: ApiRecord | null;
+  totalPemasukanFallback?: number;
   userId: number;
   docSetting?: ApiRecord | null;
   onReload: () => Promise<void>;
@@ -71,6 +80,15 @@ const DEFAULT_CATEGORIES = [
   'Lain-lain'
 ];
 
+const FUND_SOURCES = [
+  { id: 'Kas Pembayaran Siswa (Pemasukan Transaksi)', label: '📥 Kas Pembayaran Siswa (Pemasukan Transaksi)', desc: 'Menggunakan kas masuk dari pembayaran santri' },
+  { id: 'Kas Tunai Bendahara', label: '💵 Kas Tunai Bendahara', desc: 'Uang tunai di brankas kasir bendahara' },
+  { id: 'Transfer Bank BSI (Rekening Siswa)', label: '🏛️ Transfer Bank BSI (Rekening Siswa)', desc: 'Rekening penerimaan BSI' },
+  { id: 'Transfer Bank Mandiri', label: '🏛️ Transfer Bank Mandiri', desc: 'Rekening operasional Mandiri' },
+  { id: 'Kas Operasional / Petty Cash', label: '🏢 Kas Operasional / Petty Cash', desc: 'Dana kas kecil operasional harian' },
+  { id: 'Kas Yayasan / Bantuan', label: '🤝 Kas Yayasan / Bantuan', desc: 'Subsidi/bantuan yayasan' },
+];
+
 const QUICK_TITLES = [
   { label: 'Beras & Dapur', cat: 'Konsumsi & Dapur' },
   { label: 'Listrik & Air PLN', cat: 'Operasional & Utilitas' },
@@ -83,6 +101,8 @@ const QUICK_TITLES = [
 
 export function PengeluaranPanel({
   rows,
+  summaryData,
+  totalPemasukanFallback = 0,
   userId,
   docSetting,
   onReload,
@@ -96,7 +116,7 @@ export function PengeluaranPanel({
   const [customKategori, setCustomKategori] = useState('');
   const [nominal, setNominal] = useState('');
   const [dibayarkanKepada, setDibayarkanKepada] = useState('');
-  const [metodePembayaran, setMetodePembayaran] = useState('Tunai');
+  const [metodePembayaran, setMetodePembayaran] = useState('Kas Pembayaran Siswa (Pemasukan Transaksi)');
   const [keterangan, setKeterangan] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -174,13 +194,14 @@ export function PengeluaranPanel({
     });
   }, [rows, search, periodFilter, customStartDate, customEndDate, categoryFilter, methodFilter, todayStr]);
 
-  // --- STATS COMPUTATION ---
+  // --- STATS & TREASURY CASHFLOW COMPUTATION ---
   const stats = useMemo(() => {
     const now = new Date();
     const curYear = now.getFullYear();
     const curMonth = String(now.getMonth() + 1).padStart(2, '0');
     const curMonthPrefix = `${curYear}-${curMonth}`;
 
+    let totalPengeluaranAll = 0;
     let totalMonth = 0;
     let totalToday = 0;
     let totalFiltered = 0;
@@ -190,6 +211,8 @@ export function PengeluaranPanel({
       const rowDate = String(r.tanggal || '').split('T')[0];
       const amt = num(r.jumlah);
       const cat = str(r.kategori, 'Lain-lain');
+
+      totalPengeluaranAll += amt;
 
       if (rowDate.startsWith(curMonthPrefix)) {
         totalMonth += amt;
@@ -205,25 +228,20 @@ export function PengeluaranPanel({
       totalFiltered += num(r.jumlah);
     });
 
-    // Top Category
-    let topCatName = 'Belum Ada';
-    let topCatAmount = 0;
-    Object.entries(catMap).forEach(([c, a]) => {
-      if (a > topCatAmount) {
-        topCatAmount = a;
-        topCatName = c;
-      }
-    });
+    // Inflow from student payments
+    const totalPemasukanSiswa = num(summaryData?.total_pemasukan) || totalPemasukanFallback;
+    const saldoKasBersih = totalPemasukanSiswa - totalPengeluaranAll;
 
     return {
+      totalPemasukanSiswa,
+      totalPengeluaranAll,
+      saldoKasBersih,
       totalMonth,
       totalToday,
       totalFiltered,
       countFiltered: filteredRows.length,
-      topCatName,
-      topCatAmount
     };
-  }, [rows, filteredRows, todayStr]);
+  }, [rows, filteredRows, summaryData, totalPemasukanFallback, todayStr]);
 
   // --- HANDLE SUBMIT NEW EXPENSE ---
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -294,19 +312,61 @@ export function PengeluaranPanel({
 
   return (
     <div className="space-y-6">
-      {/* 1. TOP SUMMARY STATS */}
+      {/* 1. TOP SUMMARY: ARUS KAS PESANTREN (INFLOW VS OUTFLOW VS NET BALANCE) */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-3xl bg-white p-5 shadow-xs border border-gray-100 flex items-center gap-4 transition-all hover:shadow-md">
-          <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
-            <CreditCard size={24} />
+        {/* CARD 1: PEMASUKAN SISWA */}
+        <div className="rounded-3xl bg-white p-5 shadow-xs border border-emerald-100 flex items-center gap-4 transition-all hover:shadow-md">
+          <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+            <ArrowDownLeft size={24} />
           </div>
           <div>
-            <p className="text-[11px] font-bold tracking-wider text-gray-500 uppercase">Pengeluaran Bulan Ini</p>
-            <p className="text-xl font-black text-gray-900 mt-0.5">{formatMoney(stats.totalMonth)}</p>
-            <p className="text-[11px] font-medium text-rose-600 mt-0.5">📅 Total kas keluar bulan berjalan</p>
+            <p className="text-[11px] font-bold tracking-wider text-emerald-700 uppercase">Pemasukan Transaksi Siswa</p>
+            <p className="text-xl font-black text-emerald-900 mt-0.5">{formatMoney(stats.totalPemasukanSiswa)}</p>
+            <p className="text-[11px] font-semibold text-emerald-600 mt-0.5">📥 Sumber Kas Pembayaran Santri</p>
           </div>
         </div>
 
+        {/* CARD 2: TOTAL PENGELUARAN */}
+        <div className="rounded-3xl bg-white p-5 shadow-xs border border-rose-100 flex items-center gap-4 transition-all hover:shadow-md">
+          <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+            <ArrowUpRight size={24} />
+          </div>
+          <div>
+            <p className="text-[11px] font-bold tracking-wider text-rose-700 uppercase">Total Pengeluaran Kas</p>
+            <p className="text-xl font-black text-rose-900 mt-0.5">{formatMoney(stats.totalPengeluaranAll)}</p>
+            <p className="text-[11px] font-semibold text-rose-600 mt-0.5">📤 Akumulasi Kas Keluar Pesantren</p>
+          </div>
+        </div>
+
+        {/* CARD 3: SISA SALDO KAS BERSIH (NET) */}
+        <div className={`rounded-3xl p-5 shadow-xs border flex items-center gap-4 transition-all hover:shadow-md ${
+          stats.saldoKasBersih >= 0
+            ? 'bg-gradient-to-br from-teal-500/10 to-teal-600/5 border-teal-200'
+            : 'bg-gradient-to-br from-rose-500/10 to-rose-600/5 border-rose-200'
+        }`}>
+          <div className={`flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl ${
+            stats.saldoKasBersih >= 0 ? 'bg-[#138F81] text-white shadow-sm' : 'bg-rose-600 text-white shadow-sm'
+          }`}>
+            <Wallet size={24} />
+          </div>
+          <div>
+            <p className={`text-[11px] font-bold tracking-wider uppercase ${
+              stats.saldoKasBersih >= 0 ? 'text-[#138F81]' : 'text-rose-700'
+            }`}>
+              Sisa Saldo Kas Tersedia
+            </p>
+            <p className={`text-xl font-black mt-0.5 ${
+              stats.saldoKasBersih >= 0 ? 'text-gray-900' : 'text-rose-700'
+            }`}>
+              {formatMoney(stats.saldoKasBersih)}
+            </p>
+            <p className="text-[11px] font-bold text-gray-500 mt-0.5">
+              {stats.saldoKasBersih >= 0 ? '✨ Kas Surplus & Siap Pakai' : '⚠️ Kas Defisit'}
+            </p>
+          </div>
+        </div>
+
+        {/* CARD 4: PENGELUARAN HARI INI */}
         <div className="rounded-3xl bg-white p-5 shadow-xs border border-gray-100 flex items-center gap-4 transition-all hover:shadow-md">
           <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
             <CalendarDays size={24} />
@@ -314,31 +374,7 @@ export function PengeluaranPanel({
           <div>
             <p className="text-[11px] font-bold tracking-wider text-gray-500 uppercase">Pengeluaran Hari Ini</p>
             <p className="text-xl font-black text-gray-900 mt-0.5">{formatMoney(stats.totalToday)}</p>
-            <p className="text-[11px] font-medium text-amber-600 mt-0.5">⚡ Transaksi kas hari ini</p>
-          </div>
-        </div>
-
-        <div className="rounded-3xl bg-white p-5 shadow-xs border border-gray-100 flex items-center gap-4 transition-all hover:shadow-md">
-          <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-teal-600">
-            <Tag size={24} />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold tracking-wider text-gray-500 uppercase">Kategori Terbanyak</p>
-            <p className="text-sm font-black text-gray-900 truncate max-w-[150px] mt-0.5" title={stats.topCatName}>
-              {stats.topCatName}
-            </p>
-            <p className="text-[11px] font-bold text-teal-700 mt-0.5">{formatMoney(stats.topCatAmount)}</p>
-          </div>
-        </div>
-
-        <div className="rounded-3xl bg-white p-5 shadow-xs border border-gray-100 flex items-center gap-4 transition-all hover:shadow-md">
-          <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-            <WalletCards size={24} />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold tracking-wider text-gray-500 uppercase">Total Terfilter</p>
-            <p className="text-xl font-black text-emerald-800 mt-0.5">{formatMoney(stats.totalFiltered)}</p>
-            <p className="text-[11px] font-bold text-emerald-600 mt-0.5">{stats.countFiltered} catatan transaksi</p>
+            <p className="text-[11px] font-bold text-amber-700 mt-0.5">{stats.countFiltered} data difilter</p>
           </div>
         </div>
       </div>
@@ -352,7 +388,7 @@ export function PengeluaranPanel({
               <h3 className="text-base font-extrabold text-[#2D3436] flex items-center gap-2">
                 <span>📝</span> Catat Kas Keluar Baru
               </h3>
-              <p className="text-xs text-gray-500 font-medium mt-0.5">Input langsung pengeluaran pesantren tanpa popup</p>
+              <p className="text-xs text-gray-500 font-medium mt-0.5">Ambil dana dari pemasukan santri atau kas lainnya</p>
             </div>
             <span className="rounded-full bg-teal-50 px-2.5 py-1 text-[10px] font-black text-teal-700">
               Kasir Kas Keluar
@@ -380,6 +416,36 @@ export function PengeluaranPanel({
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3.5">
+            {/* SUMBER DANA / METODE PEMBAYARAN */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                Sumber Dana Kas <span className="text-teal-600">*</span>
+              </label>
+              <select
+                className="q-input font-extrabold text-teal-900 bg-teal-50/50 border-teal-200"
+                value={metodePembayaran}
+                onChange={(e) => setMetodePembayaran(e.target.value)}
+              >
+                {FUND_SOURCES.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+
+              {/* LIVE CASH BALANCE INDICATOR */}
+              {metodePembayaran.includes('Pembayaran Siswa') && (
+                <div className="mt-2 rounded-2xl bg-emerald-50 border border-emerald-200 p-2.5 flex items-center justify-between text-xs">
+                  <span className="font-bold text-emerald-800 flex items-center gap-1">
+                    <span>📥</span> Kas Masuk Santri:
+                  </span>
+                  <span className="font-black text-emerald-900">
+                    {formatMoney(stats.totalPemasukanSiswa)}
+                  </span>
+                </div>
+              )}
+            </div>
+
             {/* TANGGAL */}
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
@@ -508,31 +574,13 @@ export function PengeluaranPanel({
               />
             </div>
 
-            {/* METODE PEMBAYARAN / SUMBER DANA */}
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                Sumber Dana / Metode
-              </label>
-              <select
-                className="q-input font-bold text-gray-800"
-                value={metodePembayaran}
-                onChange={(e) => setMetodePembayaran(e.target.value)}
-              >
-                <option value="Tunai">Tunai / Kas Bendahara</option>
-                <option value="Transfer Bank BSI">Transfer Bank BSI</option>
-                <option value="Transfer Bank Mandiri">Transfer Bank Mandiri</option>
-                <option value="Transfer Bank BRI">Transfer Bank BRI</option>
-                <option value="Kas Kecil">Kas Kecil (Petty Cash)</option>
-              </select>
-            </div>
-
             {/* KETERANGAN */}
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
                 Catatan / Keterangan Tambahan
               </label>
               <textarea
-                className="q-input min-h-18 text-xs font-medium"
+                className="q-input min-h-16 text-xs font-medium"
                 placeholder="Keterangan rincian nota / kwitansi..."
                 value={keterangan}
                 onChange={(e) => setKeterangan(e.target.value)}
@@ -673,18 +721,18 @@ export function PengeluaranPanel({
               </div>
 
               <div className={periodFilter === 'custom' ? 'col-span-1' : 'col-span-2'}>
-                <span className="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">Filter Metode:</span>
+                <span className="block text-[10px] font-bold text-gray-500 uppercase mb-0.5">Filter Sumber Dana:</span>
                 <select
                   className="q-input text-xs font-bold bg-white text-gray-800"
                   value={methodFilter}
                   onChange={(e) => setMethodFilter(e.target.value)}
                 >
-                  <option value="all">Semua Metode / Sumber Dana</option>
-                  <option value="Tunai">Tunai / Kas Bendahara</option>
-                  <option value="Transfer Bank BSI">Transfer Bank BSI</option>
-                  <option value="Transfer Bank Mandiri">Transfer Bank Mandiri</option>
-                  <option value="Transfer Bank BRI">Transfer Bank BRI</option>
-                  <option value="Kas Kecil">Kas Kecil</option>
+                  <option value="all">Semua Sumber Dana / Metode</option>
+                  {FUND_SOURCES.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.id}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -700,7 +748,7 @@ export function PengeluaranPanel({
                     <th className="py-3 px-3.5">Keperluan / Judul</th>
                     <th className="py-3 px-3.5">Kategori</th>
                     <th className="py-3 px-3.5 text-right">Nominal (Rp)</th>
-                    <th className="py-3 px-3.5">Metode & Petugas</th>
+                    <th className="py-3 px-3.5">Sumber Dana & Petugas</th>
                     <th className="py-3 px-3.5 text-center">Aksi</th>
                   </tr>
                 </thead>
@@ -755,7 +803,9 @@ export function PengeluaranPanel({
 
                           {/* METODE & PETUGAS */}
                           <td className="py-3 px-3.5 whitespace-nowrap">
-                            <span className="block text-[11px] font-bold text-gray-800">{str(row.metode_pembayaran, 'Tunai')}</span>
+                            <span className="block text-[11px] font-bold text-teal-900 truncate max-w-[150px]" title={str(row.metode_pembayaran)}>
+                              {str(row.metode_pembayaran, 'Kas Pembayaran Siswa')}
+                            </span>
                             <span className="block text-[10px] text-gray-400">Oleh: {petugasName}</span>
                           </td>
 
@@ -917,7 +967,7 @@ function EditExpenseModal({
   const [tanggal, setTanggal] = useState(str(row.tanggal, new Date().toISOString().split('T')[0]));
   const [kategori, setKategori] = useState(str(row.kategori, 'Konsumsi & Dapur'));
   const [dibayarkanKepada, setDibayarkanKepada] = useState(str(row.dibayarkan_kepada, ''));
-  const [metodePembayaran, setMetodePembayaran] = useState(str(row.metode_pembayaran, 'Tunai'));
+  const [metodePembayaran, setMetodePembayaran] = useState(str(row.metode_pembayaran, 'Kas Pembayaran Siswa (Pemasukan Transaksi)'));
   const [keterangan, setKeterangan] = useState(str(row.keterangan, ''));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -999,13 +1049,11 @@ function EditExpenseModal({
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Metode</label>
+            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Sumber Dana Kas</label>
             <select className="q-input font-bold" value={metodePembayaran} onChange={(e) => setMetodePembayaran(e.target.value)}>
-              <option value="Tunai">Tunai / Kas Bendahara</option>
-              <option value="Transfer Bank BSI">Transfer Bank BSI</option>
-              <option value="Transfer Bank Mandiri">Transfer Bank Mandiri</option>
-              <option value="Transfer Bank BRI">Transfer Bank BRI</option>
-              <option value="Kas Kecil">Kas Kecil</option>
+              {FUND_SOURCES.map((f) => (
+                <option key={f.id} value={f.id}>{f.id}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -1040,7 +1088,6 @@ function ExpenseReceiptModal({
 }) {
   const instansiName = str(docSetting?.payment_admin_name, "MTS ASSA'ADAH II");
   const instansiAlamat = str(docSetting?.payment_admin_title, "JL. MASJID KIYAI GEDE BUNGAH GRESIK");
-  const receiptWidth = str(docSetting?.receipt_width, '58mm');
 
   const noTrx = str(row.no_transaksi, `OUT-${String(row.id).padStart(4, '0')}`);
   const tglFormatted = row.tanggal ? new Date(String(row.tanggal)).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-';
@@ -1101,8 +1148,8 @@ function ExpenseReceiptModal({
               <span className="font-bold text-teal-800">{str(row.kategori, 'Umum')}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Metode / Sumber Dana:</span>
-              <span className="font-bold text-gray-900">{str(row.metode_pembayaran, 'Tunai')}</span>
+              <span className="text-gray-500">Sumber Dana:</span>
+              <span className="font-bold text-teal-900">{str(row.metode_pembayaran, 'Kas Pembayaran Siswa')}</span>
             </div>
           </div>
 
@@ -1194,7 +1241,7 @@ function ExportPengeluaranModal({
 
   return (
     <ModalForm
-      title="Export Rekap Pengeluaran Kas (.xlsx)"
+      title="Export Rekap Pengeluaran & Arus Kas (.xlsx)"
       onClose={onClose}
       footer={
         <div className="flex justify-end gap-2">
@@ -1217,9 +1264,9 @@ function ExportPengeluaranModal({
         <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-3 flex items-start gap-2.5">
           <FileSpreadsheet className="text-emerald-700 shrink-0 mt-0.5" size={20} />
           <div className="text-xs text-emerald-900">
-            <p className="font-extrabold">Format Excel Multi-Sheet Lengkap</p>
+            <p className="font-extrabold">Format Excel 4-Sheet Multi-Laporan Lengkap</p>
             <p className="text-[11px] text-emerald-700 mt-0.5">
-              File Excel berisi 3 Sheet: <strong>Rincian Kas Keluar</strong>, <strong>Rekap Per Kategori</strong>, dan <strong>Rekap Bulanan</strong> lengkap dengan rumus SUM dan format rupiah otomatis.
+              File Excel berisi: <strong>1. Rincian Kas Keluar</strong>, <strong>2. Rekap Per Kategori</strong>, <strong>3. Rekap Bulanan</strong>, dan <strong>4. Buku Kas & Arus Kas (Pemasukan Santri vs Kas Keluar)</strong> lengkap dengan rumus SUM dan saldo mutasi otomatis.
             </p>
           </div>
         </div>
@@ -1246,14 +1293,12 @@ function ExportPengeluaranModal({
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Filter Metode Pembayaran</label>
+          <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Filter Sumber Dana</label>
           <select className="q-input font-bold" value={metode} onChange={(e) => setMetode(e.target.value)}>
-            <option value="all">Semua Metode</option>
-            <option value="Tunai">Tunai / Kas Bendahara</option>
-            <option value="Transfer Bank BSI">Transfer Bank BSI</option>
-            <option value="Transfer Bank Mandiri">Transfer Bank Mandiri</option>
-            <option value="Transfer Bank BRI">Transfer Bank BRI</option>
-            <option value="Kas Kecil">Kas Kecil</option>
+            <option value="all">Semua Sumber Dana</option>
+            {FUND_SOURCES.map((f) => (
+              <option key={f.id} value={f.id}>{f.id}</option>
+            ))}
           </select>
         </div>
       </div>

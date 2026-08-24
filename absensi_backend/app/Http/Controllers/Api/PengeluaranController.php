@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Exports\RekapPengeluaranExport;
 use App\Http\Controllers\Controller;
 use App\Models\DocumentSetting;
+use App\Models\Pembayaran;
 use App\Models\Pengeluaran;
 use App\Services\AcademicPeriodService;
 use Carbon\Carbon;
@@ -71,7 +72,18 @@ class PengeluaranController extends Controller
         $totalFiltered = (int) $pengeluaranList->sum('jumlah');
         $totalToday = (int) Pengeluaran::whereDate('tanggal', $todayStr)->sum('jumlah');
         $totalThisMonth = (int) Pengeluaran::where('tanggal', 'like', "{$thisMonthStr}%")->sum('jumlah');
+        $totalPengeluaranAll = (int) Pengeluaran::sum('jumlah');
         $countTotal = $pengeluaranList->count();
+
+        // 7. Calculate Student Payments Inflow (Pemasukan Transaksi Siswa)
+        $totalPemasukanSiswa = (int) Pembayaran::whereIn('status', ['Lunas', 'Menunggu Verifikasi'])->sum('jumlah');
+        $totalPemasukanBulanIni = (int) Pembayaran::whereIn('status', ['Lunas', 'Menunggu Verifikasi'])->where('tanggal', 'like', "{$thisMonthStr}%")->sum('jumlah');
+        $totalPemasukanHariIni = (int) Pembayaran::whereIn('status', ['Lunas', 'Menunggu Verifikasi'])->whereDate('tanggal', $todayStr)->sum('jumlah');
+
+        // Net Cash Balance (Sisa Saldo Kas Bersih)
+        $saldoKasBersih = $totalPemasukanSiswa - $totalPengeluaranAll;
+        $saldoKasBulanIni = $totalPemasukanBulanIni - $totalThisMonth;
+        $saldoKasHariIni = $totalPemasukanHariIni - $totalToday;
 
         // Group by category for chart/breakdown
         $kategoriBreakdown = Pengeluaran::select('kategori', DB::raw('SUM(jumlah) as total_nominal'), DB::raw('COUNT(*) as total_transaksi'))
@@ -113,7 +125,14 @@ class PengeluaranController extends Controller
                 'total_filtered' => $totalFiltered,
                 'total_today' => $totalToday,
                 'total_this_month' => $totalThisMonth,
+                'total_pengeluaran_all' => $totalPengeluaranAll,
                 'total_count' => $countTotal,
+                'total_pemasukan' => $totalPemasukanSiswa,
+                'total_pemasukan_bulan_ini' => $totalPemasukanBulanIni,
+                'total_pemasukan_hari_ini' => $totalPemasukanHariIni,
+                'saldo_kas_bersih' => $saldoKasBersih,
+                'saldo_kas_bulan_ini' => $saldoKasBulanIni,
+                'saldo_kas_hari_ini' => $saldoKasHariIni,
                 'kategori_breakdown' => $kategoriBreakdown,
                 'categories' => $allCategories,
             ],

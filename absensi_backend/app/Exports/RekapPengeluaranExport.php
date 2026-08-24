@@ -24,6 +24,7 @@ class RekapPengeluaranExport implements WithMultipleSheets
             new RekapPengeluaranDetailSheet($this->pengeluaran, $this->filters, $this->docSetting),
             new RekapPengeluaranKategoriSheet($this->pengeluaran, $this->filters),
             new RekapPengeluaranBulananSheet($this->pengeluaran, $this->filters),
+            new RekapArusKasSheet($this->pengeluaran, $this->filters, $this->docSetting),
         ];
     }
 }
