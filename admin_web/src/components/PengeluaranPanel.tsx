@@ -400,50 +400,52 @@ export function PengeluaranPanel({
         </div>
       </div>
 
-      {/* 2. MAIN WORKSPACE: TWO-COLUMN SIDE-BY-SIDE */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
-        {/* LEFT COLUMN: DIRECT INPUT FORM (4 / 12) */}
-        <div className="lg:col-span-4 rounded-3xl bg-white p-5 shadow-sm border border-gray-100 space-y-4">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-            <div>
-              <h3 className="text-base font-extrabold text-[#2D3436] flex items-center gap-2">
-                <span>📝</span> Catat Kas Keluar Baru
-              </h3>
-              <p className="text-xs text-gray-500 font-medium mt-0.5">Ambil dana dari pemasukan santri atau kas lainnya</p>
-            </div>
-            <span className="rounded-full bg-teal-50 px-2.5 py-1 text-[10px] font-black text-teal-700">
-              Kasir Kas Keluar
-            </span>
-          </div>
-
-          {/* QUICK SUGGESTION CHIPS */}
+      {/* 2. KOTAK ATAS: CATAT KAS KELUAR BARU (FULL WIDTH) */}
+      <div className="rounded-3xl bg-white p-5 sm:p-6 shadow-sm border border-gray-100 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-gray-100 pb-3.5">
           <div>
-            <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Pilihan Cepat Keperluan:</p>
-            <div className="flex flex-wrap gap-1.5">
-              {QUICK_TITLES.map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={() => {
-                    setJudul(item.label);
-                    setKategori(item.cat);
-                  }}
-                  className="rounded-lg bg-gray-50 hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200 border border-gray-200 px-2 py-1 text-[11px] font-bold text-gray-700 transition-colors"
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
+            <h3 className="text-base font-extrabold text-[#2D3436] flex items-center gap-2">
+              <span>📝</span> Catat Kas Keluar / Pengeluaran Baru
+            </h3>
+            <p className="text-xs text-gray-500 font-medium mt-0.5">
+              Ambil dana operasional dari kas pembayaran santri atau sumber dana kas lainnya
+            </p>
           </div>
+          <span className="self-start sm:self-auto rounded-full bg-teal-50 border border-teal-200 px-3 py-1 text-[11px] font-black text-teal-800">
+            Kasir Kas Keluar
+          </span>
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-3.5">
-            {/* SUMBER DANA / METODE PEMBAYARAN */}
+        {/* QUICK SUGGESTION CHIPS */}
+        <div className="rounded-2xl bg-gray-50/80 p-3 border border-gray-200/60">
+          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">⚡ Pilihan Cepat Keperluan:</p>
+          <div className="flex flex-wrap gap-2">
+            {QUICK_TITLES.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => {
+                  setJudul(item.label);
+                  setKategori(item.cat);
+                }}
+                className="rounded-xl bg-white hover:bg-teal-50 hover:text-teal-800 hover:border-teal-300 border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 transition-all shadow-2xs"
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+          {/* BARIS 1: 3 KOLOM (SUMBER DANA, TANGGAL, KATEGORI) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* SUMBER DANA */}
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
                 Sumber Dana Kas <span className="text-teal-600">*</span>
               </label>
               <select
-                className="q-input font-extrabold text-teal-900 bg-teal-50/50 border-teal-200"
+                className="w-full rounded-2xl border border-teal-200 bg-teal-50/60 p-2.5 text-xs font-extrabold text-teal-950 focus:border-teal-500 focus:outline-none shadow-2xs"
                 value={metodePembayaran}
                 onChange={(e) => setMetodePembayaran(e.target.value)}
               >
@@ -453,56 +455,29 @@ export function PengeluaranPanel({
                   </option>
                 ))}
               </select>
-
-              {/* LIVE CASH BALANCE INDICATOR */}
-              {metodePembayaran.includes('Pembayaran Siswa') && (
-                <div className="mt-2 rounded-2xl bg-emerald-50 border border-emerald-200 p-2.5 flex items-center justify-between text-xs">
-                  <span className="font-bold text-emerald-800 flex items-center gap-1">
-                    <span>📥</span> Kas Masuk Santri:
-                  </span>
-                  <span className="font-black text-emerald-900">
-                    {formatMoney(stats.totalPemasukanSiswa)}
-                  </span>
-                </div>
-              )}
             </div>
 
             {/* TANGGAL */}
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                Tanggal Pengeluaran
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                Tanggal Pengeluaran <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
-                className="q-input font-bold text-gray-800"
+                className="q-input font-bold text-gray-800 shadow-2xs"
                 value={tanggal}
                 onChange={(e) => setTanggal(e.target.value)}
                 required
               />
             </div>
 
-            {/* JUDUL / KEPERLUAN */}
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                Judul / Keperluan <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                className="q-input font-bold text-gray-900"
-                placeholder="Contoh: Pembelian Beras Dapur 50kg"
-                value={judul}
-                onChange={(e) => setJudul(e.target.value)}
-                required
-              />
-            </div>
-
             {/* KATEGORI */}
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
                 Kategori Pengeluaran
               </label>
               <select
-                className="q-input font-bold text-gray-800"
+                className="q-input font-bold text-gray-800 shadow-2xs"
                 value={kategori}
                 onChange={(e) => setKategori(e.target.value)}
               >
@@ -525,12 +500,47 @@ export function PengeluaranPanel({
                 />
               )}
             </div>
+          </div>
 
+          {/* BARIS 2: 2 KOLOM (JUDUL, DIBAYARKAN KEPADA) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* JUDUL */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                Judul / Keperluan Pengeluaran <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                className="q-input font-bold text-gray-900 shadow-2xs"
+                placeholder="Contoh: Pembelian Beras Dapur 50kg / Token Listrik"
+                value={judul}
+                onChange={(e) => setJudul(e.target.value)}
+                required
+              />
+            </div>
+
+            {/* DIBAYARKAN KEPADA */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                Dibayarkan Kepada / Penerima / Toko
+              </label>
+              <input
+                type="text"
+                className="q-input font-medium shadow-2xs"
+                placeholder="Contoh: Toko Beras Makmur / PLN Bungah / Ust. Fulan"
+                value={dibayarkanKepada}
+                onChange={(e) => setDibayarkanKepada(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* BARIS 3: 2 KOLOM (NOMINAL & KETERANGAN) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* NOMINAL */}
             <div>
-              <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
-                  Nominal (Rp) <span className="text-red-500">*</span>
+                  Nominal Pengeluaran (Rp) <span className="text-red-500">*</span>
                 </label>
                 {num(nominal) > 0 && (
                   <span className="text-xs font-extrabold text-rose-600">
@@ -540,7 +550,7 @@ export function PengeluaranPanel({
               </div>
               <input
                 type="text"
-                className="q-input text-lg font-black text-rose-600 tracking-wide"
+                className="q-input text-lg font-black text-rose-600 tracking-wide shadow-2xs"
                 placeholder="0"
                 value={nominal ? formatMoney(num(nominal)).replace('Rp ', '') : ''}
                 onChange={(e) => {
@@ -551,7 +561,7 @@ export function PengeluaranPanel({
               />
 
               {/* QUICK NOMINAL SHORTCUTS */}
-              <div className="mt-1.5 flex flex-wrap gap-1">
+              <div className="mt-2 flex flex-wrap gap-1.5">
                 {[
                   { l: '+50rb', v: 50000 },
                   { l: '+100rb', v: 100000 },
@@ -564,7 +574,7 @@ export function PengeluaranPanel({
                     key={btn.l}
                     type="button"
                     onClick={() => addNominal(btn.v)}
-                    className="rounded-md bg-gray-100 hover:bg-teal-100 hover:text-teal-800 px-2 py-0.5 text-[11px] font-bold text-gray-700 transition-colors"
+                    className="rounded-lg bg-gray-100 hover:bg-teal-100 hover:text-teal-800 px-2.5 py-1 text-xs font-bold text-gray-700 transition-colors shadow-2xs"
                   >
                     {btn.l}
                   </button>
@@ -573,7 +583,7 @@ export function PengeluaranPanel({
                   <button
                     type="button"
                     onClick={() => setNominal('')}
-                    className="rounded-md bg-rose-50 hover:bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700 transition-colors"
+                    className="rounded-lg bg-rose-50 hover:bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-700 transition-colors"
                   >
                     Reset
                   </button>
@@ -581,56 +591,45 @@ export function PengeluaranPanel({
               </div>
             </div>
 
-            {/* DIBAYARKAN KEPADA */}
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                Dibayarkan Kepada / Penerima
-              </label>
-              <input
-                type="text"
-                className="q-input font-medium"
-                placeholder="Contoh: Toko Beras Makmur / PLN Bungah"
-                value={dibayarkanKepada}
-                onChange={(e) => setDibayarkanKepada(e.target.value)}
-              />
-            </div>
-
             {/* KETERANGAN */}
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
                 Catatan / Keterangan Tambahan
               </label>
               <textarea
-                className="q-input min-h-16 text-xs font-medium"
-                placeholder="Keterangan rincian nota / kwitansi..."
+                className="q-input min-h-[78px] text-xs font-medium shadow-2xs"
+                placeholder="Keterangan rincian nota belanja, kwitansi, atau keperluan operasional..."
                 value={keterangan}
                 onChange={(e) => setKeterangan(e.target.value)}
               />
             </div>
+          </div>
 
+          <div className="flex justify-end pt-2 border-t border-gray-100">
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#138F81] px-5 py-3 text-sm font-extrabold text-white shadow-md shadow-[#138F81]/20 hover:bg-[#0F7A6E] transition-all disabled:opacity-50"
+              className="flex items-center justify-center gap-2 rounded-2xl bg-[#138F81] px-8 py-3.5 text-sm font-extrabold text-white shadow-md shadow-[#138F81]/20 hover:bg-[#0F7A6E] transition-all disabled:opacity-50"
             >
               {isSubmitting ? <RefreshCw className="animate-spin" size={18} /> : <CheckCircle2 size={18} />}
-              {isSubmitting ? 'Menyimpan Kas Keluar...' : 'Simpan Pengeluaran'}
+              {isSubmitting ? 'Menyimpan Pengeluaran Kas...' : 'Simpan Pengeluaran Kas'}
             </button>
-          </form>
-        </div>
+          </div>
+        </form>
+      </div>
 
-        {/* RIGHT COLUMN: TABLE & FILTER TOOLS (8 / 12) */}
-        <div className="lg:col-span-8 rounded-3xl bg-white p-5 shadow-sm border border-gray-100 space-y-4">
-          {/* HEADER & ACTION BUTTONS */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-100 pb-3">
-            <div>
-              <h3 className="text-base font-extrabold text-[#2D3436] flex items-center gap-2">
-                <span>📋</span> Riwayat & Data Pengeluaran Kas
-              </h3>
-              <p className="text-xs text-gray-500 font-medium mt-0.5">
-                Menampilkan <strong className="text-teal-700">{filteredRows.length}</strong> transaksi kas keluar
-              </p>
-            </div>
+      {/* 3. KOTAK BAWAH: RIWAYAT & DATA PENGELUARAN KAS (FULL WIDTH) */}
+      <div className="rounded-3xl bg-white p-5 sm:p-6 shadow-sm border border-gray-100 space-y-4">
+        {/* HEADER & ACTION BUTTONS */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-100 pb-3">
+          <div>
+            <h3 className="text-base font-extrabold text-[#2D3436] flex items-center gap-2">
+              <span>📋</span> Riwayat & Data Pengeluaran Kas
+            </h3>
+            <p className="text-xs text-gray-500 font-medium mt-0.5">
+              Menampilkan <strong className="text-teal-700">{filteredRows.length}</strong> transaksi kas keluar
+            </p>
+          </div>
 
             <div className="flex flex-wrap items-center gap-2">
               <button
