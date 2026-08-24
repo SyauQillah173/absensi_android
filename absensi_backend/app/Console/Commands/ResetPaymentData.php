@@ -44,11 +44,14 @@ class ResetPaymentData extends Command
             $candidateTables = [
                 'pembayaran',
                 'payment_bills',
+                'payment_bill_month_items',
                 'payment_bill_notifications',
                 'payment_bill_rule_student',
                 'payment_bill_rules',
                 'payment_transactions',
                 'payment_transaction_items',
+                'pemasukan_lain',
+                'pengeluaran',
             ];
 
             $existingTables = [];

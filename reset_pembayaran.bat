@@ -1,11 +1,11 @@
 @echo off
-title Reset Data Pembayaran & Tagihan
+title Reset Sistem Keuangan & Tagihan
 echo ====================================================
-echo    DIKI NOBITAKUN - RESET DATA PEMBAYARAN & TAGIHAN
+echo    DIKI NOBITAKUN - RESET SISTEM KEUANGAN LENGKAP
 echo ====================================================
 echo.
-echo Menjalankan reset database pembayaran...
+echo Menjalankan reset database transaksi keuangan...
 cd /d "%~dp0absensi_backend"
-php artisan payment:reset
+php artisan finance:reset
 echo.
 pause
