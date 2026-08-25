@@ -58,28 +58,55 @@ const siswaHeaders = [
   'nis',
   'nisn',
   'nama_lengkap_siswa',
+  'nama_santri',
+  'nama',
   'jenis_kelamin',
+  'jk',
+  'nik',
+  'no_kk',
   'nama_wali',
   'status_siswa',
+  'status_santri',
+  'status',
   'kelompok_belajar',
+  'kelas_sifir',
+  'kelas',
+  'sifir',
   'tempat_lahir',
   'tanggal_lahir',
   'alamat_lengkap',
+  'alamat',
   'kewarganegaraan',
   'provinsi',
   'kota',
+  'kabupaten',
+  'kab_kota',
   'kecamatan',
   'kelurahan',
+  'desa',
   'kode_pos',
   'no_hp_whatsapp',
+  'no_whatsapp',
+  'no_hp',
+  'no_telp',
   'email',
+  'email_siswa',
   'nama_ayah',
+  'nik_ayah',
+  'pekerjaan_ayah',
   'nama_ibu',
+  'nik_ibu',
+  'pekerjaan_ibu',
   'asal_sekolah',
+  'tahun_lulus',
   'tahun_akademik_masuk',
   'jenis_santri',
   'tanggal_masuk',
-  'catatan_lain'
+  'status_mondok',
+  'komplek',
+  'kamar',
+  'catatan_lain',
+  'catatan_santri'
 ];
 
 const fallbackMasterData: TemplateMasterData = {
@@ -772,28 +799,101 @@ export async function parseImportFile(file: File, type: ImportTemplateType, forc
 }
 
 export function exportRowsExcel(rows: ApiRecord[], fileName: string, title: string) {
-  const keys = Array.from(
-    rows.reduce((acc, row) => {
-      Object.keys(row).forEach((key) => acc.add(key));
-      return acc;
-    }, new Set<string>())
+  if (rows.length === 0) return;
+
+  const isSiswa = rows[0] && ('nis' in rows[0] || 'jenis_kelamin' in rows[0] || 'nama_wali' in rows[0]);
+
+  let exportCols: { key: string; label: string; width: number }[] = [];
+
+  if (isSiswa) {
+    exportCols = [
+      { key: 'nis', label: 'NIS', width: 14 },
+      { key: 'nama', label: 'Nama Lengkap Santri', width: 28 },
+      { key: 'jenis_kelamin', label: 'L/P', width: 8 },
+      { key: 'kelas', label: 'Kelas/Sifir', width: 18 },
+      { key: 'status', label: 'Status Santri', width: 14 },
+      { key: 'nik', label: 'NIK', width: 20 },
+      { key: 'no_kk', label: 'No. KK', width: 20 },
+      { key: 'tempat_lahir', label: 'Tempat Lahir', width: 18 },
+      { key: 'tanggal_lahir', label: 'Tanggal Lahir', width: 16 },
+      { key: 'alamat', label: 'Alamat', width: 30 },
+      { key: 'kelurahan', label: 'Desa/Kelurahan', width: 18 },
+      { key: 'kecamatan', label: 'Kecamatan', width: 18 },
+      { key: 'kota', label: 'Kabupaten/Kota', width: 20 },
+      { key: 'provinsi', label: 'Provinsi', width: 18 },
+      { key: 'nama_ayah', label: 'Nama Ayah', width: 22 },
+      { key: 'nik_ayah', label: 'NIK Ayah', width: 20 },
+      { key: 'pekerjaan_ayah', label: 'Pekerjaan Ayah', width: 20 },
+      { key: 'nama_ibu', label: 'Nama Ibu', width: 22 },
+      { key: 'nik_ibu', label: 'NIK Ibu', width: 20 },
+      { key: 'pekerjaan_ibu', label: 'Pekerjaan Ibu', width: 20 },
+      { key: 'no_whatsapp', label: 'No. WhatsApp/HP', width: 18 },
+      { key: 'nama_wali', label: 'Nama Wali', width: 22 },
+      { key: 'no_telepon_wali', label: 'No. Telepon Wali', width: 18 },
+      { key: 'asal_sekolah', label: 'Asal Sekolah', width: 24 },
+      { key: 'tahun_lulus', label: 'Tahun Lulus', width: 14 },
+      { key: 'status_mondok', label: 'Status Mondok', width: 16 },
+      { key: 'komplek', label: 'Komplek', width: 16 },
+      { key: 'kamar', label: 'Kamar', width: 16 },
+      { key: 'catatan_santri', label: 'Catatan', width: 25 },
+    ];
+  } else {
+    const rawKeys = Array.from(
+      rows.reduce((acc, row) => {
+        Object.keys(row).forEach((key) => {
+          if (!['id', 'created_at', 'updated_at', 'deleted_at', 'password'].includes(key)) {
+            acc.add(key);
+          }
+        });
+        return acc;
+      }, new Set<string>())
+    );
+    exportCols = rawKeys.map((key) => ({
+      key,
+      label: key.replace(/_/g, ' ').toUpperCase(),
+      width: Math.max(16, key.length + 4),
+    }));
+  }
+
+  const headerLabels = exportCols.map((c) => c.label);
+  const dataRows = rows.map((row) =>
+    exportCols.map((c) => {
+      const val = row[c.key];
+      if (val === null || val === undefined) return '';
+      if (typeof val === 'object') {
+        if (Array.isArray(val)) return val.map((v) => (typeof v === 'object' ? v.name || v.nama || JSON.stringify(v) : v)).join(', ');
+        return (val as ApiRecord).name || (val as ApiRecord).nama || '';
+      }
+      return String(val);
+    })
   );
-  const aoa = [[title], [`Dicetak: ${new Date().toLocaleString('id-ID')}`], [], keys, ...rows.map((row) => keys.map((key) => row[key] ?? ''))];
+
+  const aoa = [
+    [title],
+    [`Dicetak: ${new Date().toLocaleString('id-ID')} | Total Data: ${rows.length} Baris`],
+    [],
+    headerLabels,
+    ...dataRows,
+  ];
+
   const workbook = XLSX.utils.book_new();
   const worksheet = XLSX.utils.aoa_to_sheet(aoa);
-  worksheet['!cols'] = keys.map(() => ({ wch: 22 }));
+  worksheet['!cols'] = exportCols.map((c) => ({ wch: c.width }));
   worksheet['!freeze'] = { xSplit: 0, ySplit: 4 };
-  worksheet['!autofilter'] = { ref: `A4:${colName(Math.max(keys.length - 1, 0))}${rows.length + 4}` };
-  if (keys.length > 0) {
+  worksheet['!autofilter'] = { ref: `A4:${colName(Math.max(exportCols.length - 1, 0))}${rows.length + 4}` };
+
+  if (exportCols.length > 0) {
     worksheet['!merges'] = [
-      XLSX.utils.decode_range(`A1:${colName(keys.length - 1)}1`),
-      XLSX.utils.decode_range(`A2:${colName(keys.length - 1)}2`)
+      XLSX.utils.decode_range(`A1:${colName(exportCols.length - 1)}1`),
+      XLSX.utils.decode_range(`A2:${colName(exportCols.length - 1)}2`),
     ];
   }
+
   styleCell(worksheet, 'A1', styles.title);
   styleCell(worksheet, 'A2', styles.hint);
-  keys.forEach((_, index) => styleCell(worksheet, `${colName(index)}4`, styles.masterHeader));
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
+  exportCols.forEach((_, index) => styleCell(worksheet, `${colName(index)}4`, styles.masterHeader));
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Data Santri');
   XLSX.writeFile(workbook, fileName, { bookType: 'xlsx', cellStyles: true });
 }
 
@@ -824,34 +924,85 @@ function normalizeHeader(value: string): string {
     .replace(/^_|_$/g, '');
 }
 
+function normalizeImportDate(value: unknown): string {
+  if (!value) return '';
+  const str = String(value).trim();
+  if (!str) return '';
+
+  const numVal = Number(str);
+  if (!isNaN(numVal) && numVal > 1000 && numVal < 100000) {
+    const jsDate = new Date(Math.round((numVal - 25569) * 86400 * 1000));
+    if (!isNaN(jsDate.getTime())) {
+      return jsDate.toISOString().slice(0, 10);
+    }
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    return str;
+  }
+
+  const parts = str.split(/[/.-]/);
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      const y = parts[0];
+      const m = parts[1].padStart(2, '0');
+      const d = parts[2].padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    } else if (parts[2].length === 4) {
+      const d = parts[0].padStart(2, '0');
+      const m = parts[1].padStart(2, '0');
+      const y = parts[2];
+      return `${y}-${m}-${d}`;
+    }
+  }
+
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.toISOString().slice(0, 10);
+  }
+  return str;
+}
+
 function normalizeRow(data: ApiRecord, type: ImportTemplateType, forcedRole?: 'admin' | 'guru' | 'wali'): ApiRecord {
   if (type === 'siswa') {
     return {
       nis: data.nis ?? '',
       nisn: data.nisn ?? '',
-      nama: data.nama_lengkap_siswa ?? data.nama ?? '',
-      jenis_kelamin: normalizeGender(data.jenis_kelamin),
+      nik: data.nik ?? '',
+      no_kk: data.no_kk ?? data.kk ?? '',
+      nama: data.nama_lengkap_siswa ?? data.nama_santri ?? data.nama ?? '',
+      jenis_kelamin: normalizeGender(data.jenis_kelamin ?? data.jk),
       nama_wali: data.nama_wali ?? data.nama_wali_orang_tua ?? data.nama_wali_keluarga ?? '',
-      status: normalizeStatus(data.status_siswa ?? data.status),
+      status: normalizeStatus(data.status_siswa ?? data.status_santri ?? data.status),
       kelas: data.kelompok_belajar ?? data.kelas_sifir ?? data.kelas ?? data.sifir ?? '',
       tempat_lahir: data.tempat_lahir ?? '',
-      tanggal_lahir: data.tanggal_lahir ?? '',
+      tanggal_lahir: normalizeImportDate(data.tanggal_lahir),
       alamat: data.alamat_lengkap ?? data.alamat ?? '',
       kewarganegaraan: data.kewarganegaraan ?? 'Indonesia',
       provinsi: data.provinsi ?? '',
-      kota: data.kota ?? '',
+      kota: data.kota ?? data.kabupaten ?? data.kab_kota ?? '',
       kecamatan: data.kecamatan ?? '',
-      kelurahan: data.kelurahan ?? '',
+      kelurahan: data.kelurahan ?? data.desa ?? '',
       kode_pos: data.kode_pos ?? '',
-      no_whatsapp: data.no_hp_whatsapp ?? data.no_whatsapp ?? '',
-      no_telepon_wali: data.no_telepon_wali ?? data.no_hp_whatsapp ?? data.no_whatsapp ?? '',
+      no_whatsapp: data.no_hp_whatsapp ?? data.no_whatsapp ?? data.no_hp ?? data.no_telp ?? '',
+      no_telepon_wali: data.no_telepon_wali ?? data.no_hp_whatsapp ?? data.no_whatsapp ?? data.no_hp ?? '',
       email_siswa: data.email ?? data.email_siswa ?? '',
       nama_ayah: data.nama_ayah ?? '',
+      nik_ayah: data.nik_ayah ?? '',
+      pekerjaan_ayah: data.pekerjaan_ayah ?? '',
       nama_ibu: data.nama_ibu ?? '',
+      nik_ibu: data.nik_ibu ?? '',
+      pekerjaan_ibu: data.pekerjaan_ibu ?? '',
+      no_ayah: data.no_ayah ?? data.no_whatsapp_ayah ?? '',
+      no_ibu: data.no_ibu ?? data.no_whatsapp_ibu ?? '',
       asal_sekolah: data.asal_sekolah ?? '',
+      tahun_lulus: data.tahun_lulus ? String(data.tahun_lulus).slice(0, 4) : '',
       tahun_akademik_masuk: data.tahun_akademik_masuk ?? '',
       jenis_santri: data.jenis_santri ?? '',
-      tanggal_masuk: data.tanggal_masuk ?? '',
+      tanggal_masuk: normalizeImportDate(data.tanggal_masuk),
+      status_mondok: data.status_mondok ?? data.mondok ?? (data.kamar || data.komplek ? 'mondok' : ''),
+      komplek: data.komplek ?? '',
+      kamar: data.kamar ?? '',
       catatan_santri: data.catatan_lain ?? data.catatan_santri ?? ''
     };
   }

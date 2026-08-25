@@ -217,18 +217,50 @@ class SiswaController extends Controller
         ]);
 
         $imported = [];
+        $updated = [];
         $errors = [];
         $warnings = [];
+
+        $academicPeriodService = app(\App\Services\AcademicPeriodService::class);
+        $activePeriod = $academicPeriodService->active();
+        $academicYearId = $activePeriod['academic_year_id'];
+        $semesterId = $activePeriod['semester_id'];
+        $tahunAjaranName = $activePeriod['tahun_ajaran'];
+        $semesterName = $activePeriod['semester_label'];
+
+        $maxSiswaId = Siswa::max('id') ?? 0;
 
         foreach ($validated['rows'] as $index => $row) {
             $rowNumber = $index + 2;
             $payload = $this->prepareImportPayload($row);
             $rowWarnings = [];
 
+            // Auto-generate NIS if empty
+            if (empty($payload['nis'])) {
+                $payload['nis'] = 'QM' . date('y') . str_pad((string)($maxSiswaId + $index + 1), 4, '0', STR_PAD_LEFT);
+            }
+
+            // Check if existing student matches by NIK, NISN, NIS, or (Nama + Tanggal Lahir)
+            $existingStudent = null;
+            if (!empty($payload['nik'])) {
+                $existingStudent = Siswa::where('nik', $payload['nik'])->first();
+            }
+            if (!$existingStudent && !empty($payload['nisn'])) {
+                $existingStudent = Siswa::where('nisn', $payload['nisn'])->first();
+            }
+            if (!$existingStudent && !empty($row['nis'])) {
+                $existingStudent = Siswa::where('nis', $row['nis'])->first();
+            }
+            if (!$existingStudent && !empty($payload['nama']) && !empty($payload['tanggal_lahir'])) {
+                $existingStudent = Siswa::whereRaw('LOWER(TRIM(nama)) = ?', [strtolower(trim($payload['nama']))])
+                    ->where('tanggal_lahir', $payload['tanggal_lahir'])
+                    ->first();
+            }
+
             $validator = Validator::make(
                 $payload,
                 [
-                    'nis' => 'required|string|max:100|unique:siswa,nis',
+                    'nis' => 'required|string|max:100' . ($existingStudent ? '|unique:siswa,nis,' . $existingStudent->id : '|unique:siswa,nis'),
                     'nisn' => 'nullable|string|max:100',
                     'nama' => 'required|string|max:255',
                     'jenis_kelamin' => 'required|in:L,P',
@@ -288,18 +320,51 @@ class SiswaController extends Controller
             }
 
             try {
-                DB::transaction(function () use ($payload, &$imported) {
+                DB::transaction(function () use ($payload, $existingStudent, $academicYearId, $semesterId, $tahunAjaranName, $semesterName, &$imported, &$updated) {
                     $kelasLabel = $payload['kelas'] ?? null;
-                    $siswa = Siswa::create($payload);
+                    if ($existingStudent) {
+                        $updateData = array_filter($payload, fn($val) => $val !== null && $val !== '');
+                        $existingStudent->update($updateData);
+                        $siswa = $existingStudent;
+                        $updated[] = [
+                            'id' => $siswa->id,
+                            'nis' => $siswa->nis,
+                            'nama' => $siswa->nama,
+                            'kelas' => $siswa->kelas,
+                        ];
+                    } else {
+                        $siswa = Siswa::create($payload);
+                        $imported[] = [
+                            'id' => $siswa->id,
+                            'nis' => $siswa->nis,
+                            'nama' => $siswa->nama,
+                            'kelas' => $siswa->kelas,
+                        ];
+                    }
+
                     $this->syncKelompokBelajar($siswa, $kelasLabel);
                     $this->waliAccountService->syncForStudent($siswa);
 
-                    $imported[] = [
-                        'id' => $siswa->id,
-                        'nis' => $siswa->nis,
-                        'nama' => $siswa->nama,
-                        'kelas' => $siswa->kelas,
-                    ];
+                    if ($academicYearId) {
+                        SiswaTahunAjaran::updateOrCreate(
+                            [
+                                'siswa_id' => $siswa->id,
+                                'academic_year_id' => $academicYearId,
+                                'semester_id' => $semesterId,
+                            ],
+                            [
+                                'tahun_ajaran' => $tahunAjaranName,
+                                'semester' => $semesterName,
+                                'class_id' => $siswa->class_id,
+                                'kelas' => $siswa->kelas,
+                                'wali_id' => $siswa->wali_id,
+                                'student_status_id' => $siswa->student_status_id,
+                                'status_santri' => $siswa->status ?? 'Aktif',
+                                'is_active' => true,
+                                'synced_at' => now(),
+                            ]
+                        );
+                    }
                 });
 
                 foreach ($rowWarnings as $warning) {
@@ -321,17 +386,20 @@ class SiswaController extends Controller
             }
         }
 
+        $totalSuccess = count($imported) + count($updated);
+
         return response()->json([
             'success' => true,
-            'message' => count($imported) > 0
-                ? 'Import data siswa selesai'
+            'message' => $totalSuccess > 0
+                ? "Import data siswa selesai ({$totalSuccess} data diproses: " . count($imported) . " baru, " . count($updated) . " diperbarui)"
                 : 'Tidak ada data siswa yang berhasil diimport',
             'total_baris' => count($validated['rows']),
             'berhasil' => count($imported),
+            'diperbarui' => count($updated),
             'gagal' => count($errors),
             'errors' => $errors,
             'warnings' => $warnings,
-            'data' => $imported,
+            'data' => array_merge($imported, $updated),
         ]);
     }
 
@@ -553,14 +621,38 @@ class SiswaController extends Controller
             ?? null
         );
 
+        $tahunLulus = $this->cleanString($row['tahun_lulus'] ?? null);
+        if ($tahunLulus && strlen($tahunLulus) > 4) {
+            $tahunLulus = substr($tahunLulus, 0, 4);
+        }
+
+        $nik = $this->cleanString($row['nik'] ?? null);
+        if ($nik && strlen($nik) > 16) {
+            $nik = substr($nik, 0, 16);
+        }
+        $noKk = $this->cleanString($row['no_kk'] ?? $row['kk'] ?? null);
+        if ($noKk && strlen($noKk) > 16) {
+            $noKk = substr($noKk, 0, 16);
+        }
+        $nikAyah = $this->cleanString($row['nik_ayah'] ?? null);
+        if ($nikAyah && strlen($nikAyah) > 16) {
+            $nikAyah = substr($nikAyah, 0, 16);
+        }
+        $nikIbu = $this->cleanString($row['nik_ibu'] ?? null);
+        if ($nikIbu && strlen($nikIbu) > 16) {
+            $nikIbu = substr($nikIbu, 0, 16);
+        }
+
         return [
             'nis' => $this->cleanString($row['nis'] ?? null),
             'nisn' => $this->cleanString($row['nisn'] ?? null),
+            'nik' => $nik,
+            'no_kk' => $noKk,
             'nama' => $this->cleanString(
-                $row['nama'] ?? $row['nama_lengkap_siswa'] ?? null
+                $row['nama'] ?? $row['nama_lengkap_siswa'] ?? $row['nama_santri'] ?? null
             ),
             'jenis_kelamin' => $this->normalizeGender(
-                $row['jenis_kelamin'] ?? null
+                $row['jenis_kelamin'] ?? $row['jk'] ?? null
             ),
             'nama_wali' => $namaWali,
             'nama_wali_keluarga' => $namaWali,
@@ -568,10 +660,12 @@ class SiswaController extends Controller
                 $row['no_telepon_wali']
                 ?? $row['no_hp_whatsapp']
                 ?? $row['no_whatsapp']
+                ?? $row['no_hp']
+                ?? $row['no_telp']
                 ?? null
             ),
             'status' => $this->normalizeStatus(
-                $row['status'] ?? $row['status_siswa'] ?? null
+                $row['status'] ?? $row['status_siswa'] ?? $row['status_santri'] ?? null
             ),
             'kelas' => $kelasLabel,
             'tempat_lahir' => $this->cleanString($row['tempat_lahir'] ?? null),
@@ -589,22 +683,31 @@ class SiswaController extends Controller
                 $row['kewarganegaraan'] ?? 'Indonesia'
             ),
             'provinsi' => $this->cleanString($row['provinsi'] ?? null),
-            'kota' => $this->cleanString($row['kota'] ?? null),
+            'kota' => $this->cleanString($row['kota'] ?? $row['kabupaten'] ?? $row['kab_kota'] ?? null),
             'kecamatan' => $this->cleanString($row['kecamatan'] ?? null),
-            'kelurahan' => $this->cleanString($row['kelurahan'] ?? null),
+            'kelurahan' => $this->cleanString($row['kelurahan'] ?? $row['desa'] ?? null),
             'kode_pos' => $this->cleanString($row['kode_pos'] ?? null),
             'no_whatsapp' => $this->cleanString(
-                $row['no_whatsapp'] ?? $row['no_hp_whatsapp'] ?? null
+                $row['no_whatsapp'] ?? $row['no_hp_whatsapp'] ?? $row['no_hp'] ?? $row['no_telp'] ?? null
             ),
             'email_siswa' => $this->cleanString(
                 $row['email_siswa'] ?? $row['email'] ?? null
             ),
             'nama_ayah' => $this->cleanString($row['nama_ayah'] ?? null),
+            'nik_ayah' => $nikAyah,
             'nama_ibu' => $this->cleanString($row['nama_ibu'] ?? null),
+            'nik_ibu' => $nikIbu,
+            'no_ayah' => $this->cleanString($row['no_ayah'] ?? $row['no_whatsapp_ayah'] ?? null),
+            'no_ibu' => $this->cleanString($row['no_ibu'] ?? $row['no_whatsapp_ibu'] ?? null),
             'catatan_santri' => $this->cleanString(
                 $row['catatan_santri'] ?? $row['catatan_lain'] ?? null
             ),
             'asal_sekolah' => $this->cleanString($row['asal_sekolah'] ?? null),
+            'tahun_lulus' => $tahunLulus,
+            'anak_ke' => $this->cleanString($row['anak_ke'] ?? null),
+            'jml_saudara' => $this->cleanString($row['jml_saudara'] ?? $row['jumlah_saudara'] ?? null),
+            'tinggi_badan' => $this->cleanString($row['tinggi_badan'] ?? null),
+            'berat_badan' => $this->cleanString($row['berat_badan'] ?? null),
             'school_origin_id' => $this->cleanInt($row['school_origin_id'] ?? null),
             'previous_asal_sekolah' => $this->cleanString($row['previous_asal_sekolah'] ?? $row['sekolah_asal_sebelumnya'] ?? null),
             'previous_school_origin_id' => $this->cleanInt($row['previous_school_origin_id'] ?? null),
@@ -614,7 +717,7 @@ class SiswaController extends Controller
             'jenis_santri' => $this->cleanString($row['jenis_santri'] ?? null),
             'tanggal_masuk' => $this->normalizeDate($row['tanggal_masuk'] ?? null),
             'status_mondok' => $this->normalizeBoardingStatus(
-                $row['status_mondok'] ?? $row['mondok'] ?? null
+                $row['status_mondok'] ?? $row['mondok'] ?? (!empty($row['kamar']) || !empty($row['komplek']) ? 'mondok' : null)
             ),
             'boarding_room_id' => $this->cleanInt($row['boarding_room_id'] ?? null),
             'komplek' => $this->cleanString($row['komplek'] ?? $row['complex'] ?? null),
