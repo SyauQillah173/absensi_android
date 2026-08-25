@@ -675,43 +675,51 @@ function renderMobileCard(variant: MasterVariant, row: ApiRecord, actions: {
   const isUser = isUserVariant(variant);
   const title = isSiswa ? text(row.nama) : isUser ? text(row.name) : text(row.siswa_nama ?? row.nama);
   const subtitle = isSiswa
-    ? `${text(row.nis)} - ${text(row.nisn)} - ${text(row.kelas)}`
+    ? `${text(row.nis)} • ${text(row.kelas)}`
     : isUser
-      ? `${text(row.email)} - ${text(row.role)}`
-      : `${text(row.nis ?? record(row.siswa).nis)} - ${text(row.complex_name ?? row.komplek)} / ${text(row.room_name ?? row.kamar)}`;
+      ? `${text(row.email)} • ${text(row.role)}`
+      : `${text(row.nis ?? record(row.siswa).nis)} • ${text(row.complex_name ?? row.komplek)} / ${text(row.room_name ?? row.kamar)}`;
   const status = isSiswa || isUser ? text(row.status, 'Aktif') : row.is_active === false ? 'Nonaktif' : 'Aktif';
   return (
-    <article className="rounded-3xl bg-white p-4 shadow-sm shadow-black/5">
+    <article className="rounded-2xl bg-white p-4 shadow-sm border border-gray-100">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h3 className="break-words text-base font-extrabold text-[#2D3436]">{title}</h3>
-          <p className="mt-1 text-xs font-semibold leading-5 text-[#636E72]">{subtitle}</p>
+          <p className="mt-0.5 text-xs font-semibold text-[#636E72]">{subtitle}</p>
         </div>
-        <StatusBadge label={status} tone={statusTone(status)} />
+        {isSiswa ? (
+          <select
+            className={`h-7 rounded-lg border-0 px-2 text-xs font-extrabold cursor-pointer transition-colors ${
+              status === 'Aktif'
+                ? 'bg-[#E8F7F3] text-[#138F81]'
+                : status === 'Lulus'
+                  ? 'bg-[#EAF4FF] text-[#2E86DE]'
+                  : 'bg-[#FFF3E0] text-[#E8590C]'
+            }`}
+            value={status}
+            onChange={(e) => actions.onStatus(e.target.value)}
+          >
+            <option value="Aktif">● Aktif</option>
+            <option value="Nonaktif">● Nonaktif</option>
+            <option value="Lulus">● Lulus</option>
+          </select>
+        ) : (
+          <StatusBadge label={status} tone={statusTone(status)} />
+        )}
       </div>
       {isSiswa ? (
-        <div className="mt-3 grid gap-1 text-xs font-bold text-[#636E72]">
+        <div className="mt-2.5 flex items-center justify-between text-xs font-bold text-[#636E72]">
           <span>Wali: {text(row.wali_nama ?? row.nama_wali)}</span>
-          <label className="inline-flex items-center gap-2 text-[#138F81]">
-            <input type="checkbox" checked={actions.selected} onChange={actions.onSelect} />
-            Pilih siswa/santri
+          <label className="inline-flex items-center gap-1.5 text-[#138F81] cursor-pointer">
+            <input type="checkbox" checked={actions.selected} onChange={actions.onSelect} className="rounded" />
+            Pilih
           </label>
         </div>
       ) : null}
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-1.5 pt-2 border-t border-gray-50">
         <ActionButton icon={Eye} label="Detail" onClick={actions.onDetail} />
-        {(isSiswa || isUser) ? <ActionButton icon={Pencil} label="Edit" onClick={actions.onEdit} /> : null}
-        {isUser ? <ActionButton icon={KeyRound} label="Reset" onClick={actions.onReset} /> : null}
-        {isSiswa ? (
-          <>
-            <ActionButton icon={CheckCircle2} label="Aktif" onClick={() => actions.onStatus('Aktif')} />
-            <ActionButton icon={XCircle} label="Nonaktif" onClick={() => actions.onStatus('Nonaktif')} tone="warning" />
-            <ActionButton icon={GraduationCap} label="Lulus" onClick={() => actions.onStatus('Lulus')} tone="info" />
-          </>
-        ) : null}
-        {isUser ? (
-          <ActionButton icon={status === 'Aktif' ? XCircle : CheckCircle2} label={status === 'Aktif' ? 'Nonaktif' : 'Aktif'} onClick={() => actions.onStatus(status === 'Aktif' ? 'Nonaktif' : 'Aktif')} tone={status === 'Aktif' ? 'warning' : 'success'} />
-        ) : null}
+        {(isSiswa || isUser) ? <ActionButton icon={Pencil} label="Edit" onClick={actions.onEdit} tone="info" /> : null}
+        {isUser ? <ActionButton icon={KeyRound} label="Reset" onClick={actions.onReset} tone="warning" /> : null}
         {(isSiswa || isUser) ? <ActionButton icon={Trash2} label="Hapus" onClick={actions.onDelete} tone="danger" /> : null}
       </div>
     </article>
@@ -720,17 +728,17 @@ function renderMobileCard(variant: MasterVariant, row: ApiRecord, actions: {
 
 function ActionButton({ icon: Icon, label, onClick, tone = 'default' }: { icon: ComponentType<{ size?: number }>; label: string; onClick: () => void; tone?: 'default' | 'danger' | 'warning' | 'success' | 'info' }) {
   const color = tone === 'danger'
-    ? 'bg-[#FDECEC] text-[#D63031]'
+    ? 'bg-[#FDECEC] text-[#D63031] hover:bg-[#fbdada]'
     : tone === 'warning'
-      ? 'bg-[#FFF3E0] text-[#E8590C]'
+      ? 'bg-[#FFF3E0] text-[#E8590C] hover:bg-[#ffe6c9]'
       : tone === 'success'
-        ? 'bg-[#E8F7F3] text-[#138F81]'
+        ? 'bg-[#E8F7F3] text-[#138F81] hover:bg-[#d6f5ec]'
         : tone === 'info'
-          ? 'bg-[#EAF4FF] text-[#2E86DE]'
-          : 'bg-[#E1EFF7] text-[#138F81]';
+          ? 'bg-[#EAF4FF] text-[#2E86DE] hover:bg-[#d8ecff]'
+          : 'bg-[#E1EFF7] text-[#138F81] hover:bg-[#cbe6f7]';
   return (
-    <button className={`inline-flex min-h-10 items-center gap-2 rounded-2xl px-3 text-xs font-extrabold ${color}`} onClick={onClick} type="button">
-      <Icon size={14} /> {label}
+    <button className={`inline-flex h-8 items-center gap-1.5 rounded-xl px-2.5 text-xs font-extrabold transition-colors ${color}`} onClick={onClick} type="button">
+      <Icon size={13} /> {label}
     </button>
   );
 }
@@ -749,54 +757,115 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
   const actionColumn: DataColumn<ApiRecord> = {
     key: 'aksi',
     header: 'Aksi',
+    className: 'text-right w-[150px]',
     render: (row) => (
-      <div className="flex flex-wrap gap-2">
-        <ActionButton icon={Eye} label="Detail" onClick={() => callbacks.onDetail(row)} />
-        {(variant !== 'pondok') ? <ActionButton icon={Pencil} label="Edit" onClick={() => callbacks.onEdit(row)} /> : null}
-        {isUserVariant(variant) ? <ActionButton icon={KeyRound} label="Reset" onClick={() => callbacks.onReset(row)} /> : null}
-        {variant === 'siswa' ? (
-          <>
-            <ActionButton icon={CheckCircle2} label="Aktif" onClick={() => callbacks.onStatus(row, 'Aktif')} />
-            <ActionButton icon={XCircle} label="Nonaktif" onClick={() => callbacks.onStatus(row, 'Nonaktif')} tone="warning" />
-            <ActionButton icon={GraduationCap} label="Lulus" onClick={() => callbacks.onStatus(row, 'Lulus')} tone="info" />
-          </>
+      <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+        <button
+          className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#E1EFF7] px-2.5 text-xs font-extrabold text-[#138F81] hover:bg-[#cbe6f7] transition-colors"
+          onClick={() => callbacks.onDetail(row)}
+          type="button"
+          title="Detail Lengkap"
+        >
+          <Eye size={13} /> Detail
+        </button>
+        {variant !== 'pondok' ? (
+          <button
+            className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#EAF4FF] px-2.5 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors"
+            onClick={() => callbacks.onEdit(row)}
+            type="button"
+            title="Edit Data"
+          >
+            <Pencil size={13} /> Edit
+          </button>
         ) : null}
         {isUserVariant(variant) ? (
-          <ActionButton icon={text(row.status, 'Aktif') === 'Aktif' ? XCircle : CheckCircle2} label={text(row.status, 'Aktif') === 'Aktif' ? 'Nonaktif' : 'Aktif'} onClick={() => callbacks.onStatus(row, text(row.status, 'Aktif') === 'Aktif' ? 'Nonaktif' : 'Aktif')} tone={text(row.status, 'Aktif') === 'Aktif' ? 'warning' : 'success'} />
+          <button
+            className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#FFF3E0] px-2 text-xs font-extrabold text-[#E8590C] hover:bg-[#ffe6c9] transition-colors"
+            onClick={() => callbacks.onReset(row)}
+            type="button"
+            title="Reset Password"
+          >
+            <KeyRound size={13} />
+          </button>
         ) : null}
-        {(variant !== 'pondok') ? <ActionButton icon={Trash2} label="Hapus" onClick={() => callbacks.onDelete(row)} tone="danger" /> : null}
+        {variant !== 'pondok' ? (
+          <button
+            className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#FDECEC] text-[#D63031] hover:bg-[#fbdada] transition-colors"
+            onClick={() => callbacks.onDelete(row)}
+            type="button"
+            title="Hapus Data"
+          >
+            <Trash2 size={13} />
+          </button>
+        ) : null}
       </div>
     )
   };
 
   if (variant === 'guru' || variant === 'login-guru') {
     return [
-      { key: 'name', header: 'Nama Guru', render: (row) => <span className="font-extrabold">{text(row.name)}</span> },
-      { key: 'email', header: 'Email', render: (row) => text(row.email) },
-      { key: 'kode', header: 'Kode Guru', render: (row) => text(row.kode_guru ?? row.nis) },
-      { key: 'unit', header: 'Unit', render: (row) => Array.isArray(row.unit_kerja) ? row.unit_kerja.join(', ') : text(row.unit_kerja) },
-      { key: 'status', header: 'Status', render: (row) => <StatusBadge label={text(row.status, 'Aktif')} tone={statusTone(row.status)} /> },
+      { key: 'name', header: 'Nama Guru', render: (row) => <span className="font-extrabold text-[#2D3436]">{text(row.name)}</span> },
+      { key: 'email', header: 'Email', render: (row) => <span className="text-xs text-[#636E72]">{text(row.email)}</span> },
+      { key: 'kode', header: 'Kode Guru', render: (row) => <span className="font-mono text-xs">{text(row.kode_guru ?? row.nis)}</span> },
+      { key: 'unit', header: 'Unit', render: (row) => text(Array.isArray(row.unit_kerja) ? row.unit_kerja.join(', ') : row.unit_kerja) },
+      {
+        key: 'status',
+        header: 'Status',
+        className: 'w-[120px]',
+        render: (row) => (
+          <select
+            className={`h-7 rounded-lg border-0 px-2 text-xs font-extrabold cursor-pointer transition-colors ${
+              text(row.status, 'Aktif') === 'Aktif'
+                ? 'bg-[#E8F7F3] text-[#138F81]'
+                : 'bg-[#FFF3E0] text-[#E8590C]'
+            }`}
+            value={text(row.status, 'Aktif')}
+            onChange={(e) => callbacks.onStatus(row, e.target.value)}
+          >
+            <option value="Aktif">● Aktif</option>
+            <option value="Nonaktif">● Nonaktif</option>
+          </select>
+        )
+      },
       actionColumn
     ];
   }
   if (variant === 'users' || variant === 'login-admin' || variant === 'login-wali') {
     return [
-      { key: 'name', header: 'Nama User', render: (row) => <span className="font-extrabold">{text(row.name)}</span> },
-      { key: 'email', header: 'Email', render: (row) => text(row.email) },
-      { key: 'phone', header: 'No HP', render: (row) => text(row.no_hp) },
+      { key: 'name', header: 'Nama User', render: (row) => <span className="font-extrabold text-[#2D3436]">{text(row.name)}</span> },
+      { key: 'email', header: 'Email', render: (row) => <span className="text-xs text-[#636E72]">{text(row.email)}</span> },
+      { key: 'phone', header: 'No HP', render: (row) => <span className="text-xs">{text(row.no_hp)}</span> },
       { key: 'role', header: 'Role', render: (row) => <StatusBadge label={text(row.role)} tone={text(row.role) === 'admin' ? 'success' : 'info'} /> },
       { key: 'admin', header: 'Tipe Admin', render: (row) => text(row.admin_type) },
-      { key: 'status', header: 'Status', render: (row) => <StatusBadge label={text(row.status, 'Aktif')} tone={statusTone(row.status)} /> },
+      {
+        key: 'status',
+        header: 'Status',
+        className: 'w-[120px]',
+        render: (row) => (
+          <select
+            className={`h-7 rounded-lg border-0 px-2 text-xs font-extrabold cursor-pointer transition-colors ${
+              text(row.status, 'Aktif') === 'Aktif'
+                ? 'bg-[#E8F7F3] text-[#138F81]'
+                : 'bg-[#FFF3E0] text-[#E8590C]'
+            }`}
+            value={text(row.status, 'Aktif')}
+            onChange={(e) => callbacks.onStatus(row, e.target.value)}
+          >
+            <option value="Aktif">● Aktif</option>
+            <option value="Nonaktif">● Nonaktif</option>
+          </select>
+        )
+      },
       actionColumn
     ];
   }
   if (variant === 'pondok') {
     return [
-      { key: 'nama', header: 'Santri', render: (row) => <span className="font-extrabold">{text(row.siswa_nama ?? row.nama)}</span> },
-      { key: 'nis', header: 'NIS', render: (row) => text(row.nis ?? record(row.siswa).nis) },
+      { key: 'nama', header: 'Santri', render: (row) => <span className="font-extrabold text-[#2D3436]">{text(row.siswa_nama ?? row.nama)}</span> },
+      { key: 'nis', header: 'NIS', render: (row) => <span className="font-mono text-xs">{text(row.nis ?? record(row.siswa).nis)}</span> },
       { key: 'kelas', header: 'Kelas', render: (row) => text(row.kelas ?? record(row.siswa).kelas) },
-      { key: 'komplek', header: 'Komplek', render: (row) => text(row.complex_name ?? row.komplek ?? record(row.complex).name) },
-      { key: 'kamar', header: 'Kamar', render: (row) => text(row.room_name ?? row.kamar ?? record(row.room).name) },
+      { key: 'komplek', header: 'Komplek', render: (row) => <span className="font-bold text-[#138F81]">{text(row.complex_name ?? row.komplek ?? record(row.complex).name)}</span> },
+      { key: 'kamar', header: 'Kamar', render: (row) => <span className="font-bold text-[#2D3436]">{text(row.room_name ?? row.kamar ?? record(row.room).name)}</span> },
       { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.is_active === false ? 'Nonaktif' : 'Aktif'} tone={row.is_active === false ? 'danger' : 'success'} /> },
       actionColumn
     ];
@@ -805,16 +874,58 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
     {
       key: 'select',
       header: '',
+      className: 'w-10 text-center',
       render: (row) => (
-        <input type="checkbox" checked={callbacks.isSelected(num(row.id))} onChange={() => callbacks.onToggleSelect(num(row.id))} aria-label={`Pilih ${text(row.nama)}`} />
+        <input
+          type="checkbox"
+          checked={callbacks.isSelected(num(row.id))}
+          onChange={() => callbacks.onToggleSelect(num(row.id))}
+          aria-label={`Pilih ${text(row.nama)}`}
+          className="rounded border-gray-300 text-[#138F81] focus:ring-[#138F81] cursor-pointer"
+        />
       )
     },
-    { key: 'nama', header: 'Nama Siswa/Santri', render: (row) => <span className="font-extrabold">{text(row.nama)}</span> },
-    { key: 'nis', header: 'NIS', render: (row) => text(row.nis) },
-    { key: 'nisn', header: 'NISN', render: (row) => text(row.nisn) },
-    { key: 'kelas', header: 'Kelas', render: (row) => text(row.kelas) },
-    { key: 'wali', header: 'Wali', render: (row) => text(row.wali_nama ?? row.nama_wali) },
-    { key: 'status', header: 'Status', render: (row) => <StatusBadge label={text(row.status, 'Aktif')} tone={statusTone(row.status)} /> },
+    {
+      key: 'nama',
+      header: 'Nama Siswa/Santri',
+      className: 'min-w-[200px]',
+      render: (row) => (
+        <div>
+          <span className="font-extrabold text-[#2D3436] block leading-tight">{text(row.nama)}</span>
+          {row.komplek || row.kamar ? (
+            <span className="text-[11px] font-bold text-[#138F81] bg-[#E8F7F3] px-1.5 py-0.5 rounded-md mt-1 inline-block">
+              🏠 {text(row.komplek)} - {text(row.kamar)}
+            </span>
+          ) : null}
+        </div>
+      )
+    },
+    { key: 'nis', header: 'NIS', className: 'w-[110px]', render: (row) => <span className="font-mono text-xs font-bold text-[#636E72]">{text(row.nis)}</span> },
+    { key: 'nisn', header: 'NISN', className: 'w-[110px]', render: (row) => <span className="font-mono text-xs text-[#636E72]">{text(row.nisn)}</span> },
+    { key: 'kelas', header: 'Kelas', className: 'w-[100px]', render: (row) => <span className="text-xs font-semibold">{text(row.kelas)}</span> },
+    { key: 'wali', header: 'Wali', className: 'min-w-[130px]', render: (row) => <span className="text-xs font-semibold text-[#636E72]">{text(row.wali_nama ?? row.nama_wali)}</span> },
+    {
+      key: 'status',
+      header: 'Status',
+      className: 'w-[125px]',
+      render: (row) => (
+        <select
+          className={`h-7.5 rounded-xl border-0 px-2.5 py-0 text-xs font-extrabold cursor-pointer transition-colors ${
+            text(row.status, 'Aktif') === 'Aktif'
+              ? 'bg-[#E8F7F3] text-[#138F81] hover:bg-[#d6f5ec]'
+              : text(row.status) === 'Lulus'
+                ? 'bg-[#EAF4FF] text-[#2E86DE] hover:bg-[#d8ecff]'
+                : 'bg-[#FFF3E0] text-[#E8590C] hover:bg-[#ffe6c9]'
+          }`}
+          value={text(row.status, 'Aktif')}
+          onChange={(e) => callbacks.onStatus(row, e.target.value)}
+        >
+          <option value="Aktif">● Aktif</option>
+          <option value="Nonaktif">● Nonaktif</option>
+          <option value="Lulus">● Lulus</option>
+        </select>
+      )
+    },
     actionColumn
   ];
 }

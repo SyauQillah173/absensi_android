@@ -90,7 +90,7 @@ export function DataTable<T extends { id?: string | number }>({
                       {columns.map((column, columnIndex) => (
                         <td
                           key={column.key}
-                          className={`px-4 py-3 text-sm font-medium text-[#2D3436] ${
+                          className={`px-4 py-2.5 align-middle text-sm font-medium text-[#2D3436] ${
                             !renderExpandedRow && columnIndex === 0 ? 'rounded-l-2xl' : ''
                           } ${columnIndex === columns.length - 1 ? (isExpanded ? 'rounded-tr-2xl' : 'rounded-r-2xl') : ''} ${column.className ?? ''}`}
                         >
