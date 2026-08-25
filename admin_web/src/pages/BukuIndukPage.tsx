@@ -7,10 +7,11 @@ import { AcademicPage } from './AcademicPage';
 import { KelompokBelajarPage } from './KelompokBelajarPage';
 import { MasterReferensiPage } from './MasterReferensiPage';
 
-export type BukuIndukSection = 'ringkas' | 'siswa' | 'guru' | 'users' | 'referensi' | 'login-admin' | 'login-guru' | 'login-wali' | 'akademik' | 'kelompok' | 'pondok';
+export type BukuIndukSection = 'ringkas' | 'siswa' | 'alumni' | 'guru' | 'users' | 'referensi' | 'login-admin' | 'login-guru' | 'login-wali' | 'akademik' | 'kelompok' | 'pondok';
 
 const sections = [
   { id: 'siswa', label: 'Data Siswa/Santri' },
+  { id: 'alumni', label: 'Data Santri Alumni' },
   { id: 'guru', label: 'Data Guru' },
   { id: 'users', label: 'User Login' },
   { id: 'referensi', label: 'Data Referensi' },
@@ -30,9 +31,16 @@ const menuCards = [
   {
     id: 'siswa',
     title: 'Data Siswa/Santri',
-    subtitle: 'NIS, NISN, wali, status, kelas, dan data utama santri.',
+    subtitle: 'NIS, NISN, wali, status, kelas, dan data utama santri aktif.',
     icon: UsersRound,
     tone: 'text-[#2E86DE] bg-[#E8F3FF]'
+  },
+  {
+    id: 'alumni',
+    title: 'Data Santri Alumni',
+    subtitle: 'Daftar santri yang telah lulus madin, arsip kelulusan & alumni.',
+    icon: GraduationCap,
+    tone: 'text-[#6C5CE7] bg-[#F0ECFF]'
   },
   {
     id: 'guru',
@@ -97,6 +105,7 @@ const userLoginCards = [
 
 const parentSection: Partial<Record<BukuIndukSection, BukuIndukSection>> = {
   siswa: 'ringkas',
+  alumni: 'ringkas',
   guru: 'ringkas',
   users: 'ringkas',
   akademik: 'ringkas',
@@ -142,6 +151,7 @@ export function BukuIndukPage({ initialSection = 'ringkas', onSectionChange }: B
   );
 
   if (section === 'siswa') return <>{backHeader}<MasterDataPage variant="siswa" /></>;
+  if (section === 'alumni') return <>{backHeader}<MasterDataPage variant="alumni" /></>;
   if (section === 'guru') return <>{backHeader}<MasterDataPage variant="guru" /></>;
   if (section === 'login-admin') return <>{backHeader}<MasterDataPage variant="login-admin" /></>;
   if (section === 'login-guru') return <>{backHeader}<MasterDataPage variant="login-guru" /></>;

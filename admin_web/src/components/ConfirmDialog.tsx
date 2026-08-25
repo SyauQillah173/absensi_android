@@ -7,7 +7,7 @@ interface ConfirmDialogProps {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
-  tone?: 'danger' | 'warning';
+  tone?: 'danger' | 'warning' | 'info' | 'success';
   isBusy?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -43,6 +43,23 @@ export function ConfirmDialog({
   }, [isBusy, onCancel]);
 
   const danger = tone === 'danger';
+  const info = tone === 'info';
+  const success = tone === 'success';
+
+  const iconBg = danger
+    ? 'bg-[#FDECEC] text-[#D63031]'
+    : info
+      ? 'bg-[#F0ECFF] text-[#6C5CE7]'
+      : success
+        ? 'bg-[#E8F7F3] text-[#138F81]'
+        : 'bg-[#FFF3E0] text-[#E8590C]';
+
+  const confirmBtnBg = danger
+    ? 'bg-[#D63031]'
+    : info
+      ? 'bg-[#6C5CE7]'
+      : 'bg-[#138F81]';
+
   const dialog = (
     <div
       className="q-modal-backdrop fixed inset-0 z-[60] grid place-items-center overflow-hidden p-4"
@@ -55,7 +72,7 @@ export function ConfirmDialog({
       <section className="q-modal-panel w-full max-w-md rounded-[28px] bg-[#FFFDF7] p-5 shadow-2xl shadow-black/20">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className={`grid h-12 w-12 place-items-center rounded-2xl ${danger ? 'bg-[#FDECEC] text-[#D63031]' : 'bg-[#FFF3E0] text-[#E8590C]'}`}>
+            <span className={`grid h-12 w-12 place-items-center rounded-2xl ${iconBg}`}>
               <AlertTriangle size={22} />
             </span>
             <div>
@@ -72,7 +89,7 @@ export function ConfirmDialog({
             {cancelLabel}
           </button>
           <button
-            className={`min-h-11 rounded-2xl px-5 text-sm font-extrabold text-white disabled:opacity-60 ${danger ? 'bg-[#D63031]' : 'bg-[#138F81]'}`}
+            className={`min-h-11 rounded-2xl px-5 text-sm font-extrabold text-white disabled:opacity-60 ${confirmBtnBg}`}
             onClick={onConfirm}
             type="button"
             disabled={isBusy}

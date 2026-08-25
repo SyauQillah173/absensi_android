@@ -371,6 +371,60 @@ D. OPTIMASI TAMPILAN TABEL 100% LEBAR LAYAR (FULL RESPONSIVE):
    - Tombol aksi (Detail, Edit, Hapus) ditata horizontal dengan warna badge pastel modern dan ukuran kompak.
 
 ========================================================================================
+7. SISTEM KENAIKAN KELAS MADIN OTOMATIS & PEMISAHAN DATA ALUMNI SANTRI
+========================================================================================
+
+A. LATAR BELAKANG KEBUTUHAN:
+   - Di Pondok Pesantren Qomaruddin, setiap pergantian tahun ajaran baru, ratusan santri madin harus naik tingkat ke jenjang berikutnya.
+   - Melakukan kenaikan kelas manual (memilih santri satu per satu dengan centang) sangat rawan kesalahan manusia (human error), memakan waktu lama, dan melelahkan admin.
+   - Santri yang telah menyelesaikan jenjang tertinggi Madin (Sifir Sadis) wajib dinyatakan Lulus dan dipisahkan ke menu khusus "Data Santri Alumni" agar:
+     1. Data santri aktif dan santri baru tidak tercampur/amburadul dengan santri yang sudah lulus.
+     2. Laporan keuangan dan absensi santri aktif tidak terbebani atau crash akibat data santri alumni.
+     3. Riwayat (audit trail) jenjang kelas santri di tahun-tahun sebelumnya tetap tersimpan utuh di database.
+
+B. HIERARKI JENJANG KELAS MADIN (PROGRESSION MAPPING):
+   Tingkat 1: Sifir Awal   (Rombel: A PA, B PA, C PA, D PA, E PA, F PI, G PI, H PI, I PI, J PI)
+   Tingkat 2: Sifir Tsani  (Rombel: A PA .. J PI)
+   Tingkat 3: Sifir Tsalis (Rombel: A PA .. J PI)
+   Tingkat 4: Sifir Robi'  (Rombel: A PA .. J PI)
+   Tingkat 5: Sifir Khomis (Rombel: A PA .. J PI)
+   Tingkat 6: Sifir Sadis  (Rombel: A PA .. J PI) -> Tingkat Akhir / Kelulusan
+   Pasca 6  : Lulus (Status: Alumni)
+
+C. ARSITEKTUR & LOGIKA BACKEND (AcademicPeriodService.php):
+   1. Iterasi Santri Aktif:
+      Sistem mengambil seluruh santri dengan status 'Aktif' (`student_status_id = 1`).
+   2. Pemetaan Kenaikan Tingkat:
+      - Regex cerdas membedakan nama tingkat dan paralel rombel (misal: "Sifir Awal A PA").
+      - Jika santri berada di Sifir Awal s/d Sifir Khomis, tingkat dinaikkan 1 level (contoh: "Sifir Awal A PA" ➔ "Sifir Tsani A PA").
+      - Menghubungkan ID kelas baru (`class_id`) pada tabel `classes` jika tersedia.
+   3. Logika Kelulusan Santri Akhir (Sifir Sadis ➔ Alumni):
+      - Santri di Sifir Sadis otomatis diubah statusnya:
+        • `status = 'Lulus'`
+        • `student_status_id = 3` (Status Referensi: Lulus)
+        • `tahun_lulus = '2025'` (Mengambil tahun akhir periode akademik target)
+      - Santri yang lulus otomatis dilepas dari kelompok belajar aktif (`kelompok_belajar_siswa.is_active = false`) agar tidak membebani rombel aktif.
+   4. Snapshot Histori Akademik (`siswa_tahun_ajaran`):
+      - Setiap santri (baik yang naik kelas maupun yang lulus) dicatatkan snapshot historinya ke tabel `siswa_tahun_ajaran` dengan composite key `(siswa_id, academic_year_id, semester_id)`.
+      - Kolom yang disimpan: `class_id`, `status = 'promoted' / 'graduated'`, `kelompok_belajar_id`, `tahun_ajaran`, `semester`.
+      - Ini menjamin data historis masa lalu tidak tertimpa dan dapat diaudit sewaktu-waktu.
+
+D. INTEGRASI FRONTEND WEB ADMIN (AdminLayout, MasterDataPage & AcademicPage):
+   1. Menu Terpisah "Data Santri Alumni":
+      - Menu Master Data memiliki tab terpisah:
+        • "Data Siswa/Santri" -> Hanya memuat santri dengan status `Aktif`.
+        • "Data Santri Alumni" -> Khusus memuat santri dengan status `Lulus` (Alumni) beserta Tahun Kelulusan, Madin Terakhir, Wali, dan tombol "Pulihkan ke Aktif".
+   2. Tombol & Modal "🚀 Naik Kelas Otomatis" di Setting Akademik:
+      - Banner & tombol aksi cepat di halaman Setting Akademik.
+      - Membuka modal konfirmasi dengan penjelasan detail flow kenaikan & kelulusan.
+      - Sekali klik tombol "Ya, Proses Kenaikan Kelas Otomatis", seluruh siswa langsung naik kelas dan lulus secara otomatis tanpa manual checklist!
+   3. Fitur Pulihkan Santri Alumni ke Aktif (Restore Action):
+      - Jika ada santri yang kelulusannya perlu dibatalkan (misal: santri ingin mengulang / tabarrukan), Admin cukup menekan tombol "Pulihkan" pada Data Santri Alumni.
+      - Santri seketika kembali menjadi Santri Aktif (`status = 'Aktif'`, `student_status_id = 1`, `tahun_lulus = null`).
+   4. Pembagian Rombel Pasca Naik Kelas:
+      - Jika terdapat siswa yang berpindah kelas paralel atau penyesuaian jadwal guru, Admin cukup mengaturnya di menu "Kelompok Belajar" tanpa perlu merusak status kenaikan kelas.
+
+========================================================================================
 (Catatan ini diperbarui secara berkala sebagai modul belajar Fullstack Developer Pesantren)
 ========================================================================================
 

@@ -354,6 +354,9 @@ export const api = {
   syncAcademicPeriodSiswa(id: number, data: ApiRecord = {}) {
     return request<ApiRecord>(`/academic-periods/${id}/sync-siswa`, { method: 'POST', body: JSON.stringify(data) });
   },
+  autoPromoteAcademicPeriod(id: number) {
+    return request<ApiRecord>(`/academic-periods/${id}/auto-promote`, { method: 'POST' });
+  },
   deleteAcademicPeriod(id: number) {
     return request<{ message?: string }>(`/academic-periods/${id}`, { method: 'DELETE' });
   },
@@ -371,6 +374,9 @@ export const api = {
   },
   bulkUpdateSiswaStatus(ids: number[], status: 'Aktif' | 'Nonaktif' | 'Lulus', extra: ApiRecord = {}) {
     return request<ApiRecord>('/siswa/bulk-status', { method: 'POST', body: JSON.stringify({ ids, status, ...extra }) });
+  },
+  restoreAlumni(siswaId: number) {
+    return request<ApiRecord>(`/siswa/${siswaId}/restore-alumni`, { method: 'POST' });
   },
   importSiswa(rows: ApiRecord[]) {
     return importRowsInBatches('/siswa/import', rows);

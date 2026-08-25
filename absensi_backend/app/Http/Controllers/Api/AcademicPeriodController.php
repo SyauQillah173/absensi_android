@@ -175,6 +175,24 @@ class AcademicPeriodController extends Controller
         ]);
     }
 
+    public function autoPromote(Request $request, AcademicYear $academicYear)
+    {
+        $actor = app(ActorResolver::class)->active($request);
+        if (!$actor || $actor->role !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Hanya admin yang dapat memproses kenaikan kelas.'], 403);
+        }
+
+        $result = $this->periodService->autoPromoteAllStudents($academicYear, $actor->id);
+
+        app(AuditLogService::class)->record($request, 'academic_periods', 'auto_promote', $academicYear, null, $result);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Kenaikan kelas otomatis berhasil diproses untuk Tahun Ajaran {$academicYear->name}.",
+            'data' => $result,
+        ]);
+    }
+
     public function destroy(Request $request, AcademicYear $academicYear)
     {
         $actor = app(ActorResolver::class)->active($request);

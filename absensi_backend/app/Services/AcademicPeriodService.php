@@ -196,9 +196,10 @@ class AcademicPeriodService
 
                     // 3. Jika belum disinkronisasi, dan ini Semester Ganjil, dan dia bukan santri baru, MAKA NAIK KELAS!
                     if (!$existing && $currentSemesterCode === self::SEMESTER_GANJIL && $hasPreviousYear) {
-                        $student = $this->promoteStudent($student);
+                        $res = $this->promoteStudent($student, $academicYear);
+                        $student = $res['student'];
 
-                        if ($student->status === 'Lulus') {
+                        if ($res['status'] === 'Lulus') {
                             $summary['berhasil']++;
                             continue; // Langsung skip ke santri berikutnya karena dia sudah lulus
                         }
@@ -337,20 +338,144 @@ class AcademicPeriodService
     }
 
     // =========================================================================
-    // FITUR NAIK KELAS OTOMATIS
+    // FITUR NAIK KELAS MADIN OTOMATIS & KELULUSAN ALUMNI
     // =========================================================================
-    private function promoteStudent(Siswa $student): Siswa
+    public function autoPromoteAllStudents(AcademicYear $targetAcademicYear, ?int $actorId = null): array
     {
-        $currentClass = $student->kelas;
-        if (!$currentClass)
-            return $student;
+        $semester = $targetAcademicYear->semesters()->where('is_active', true)->first()
+            ?? $this->ensureSemester($targetAcademicYear, self::SEMESTER_GANJIL, true);
 
-        // 1. Peta Kenaikan Kelas Madin
+        $activeStatusId = app(ReferenceResolver::class)->studentStatusId('Aktif');
+        $lulusStatusId = app(ReferenceResolver::class)->studentStatusId('Lulus');
+
+        // Ambil seluruh santri aktif
+        $students = Siswa::query()
+            ->with(['kelasRef:id,name'])
+            ->where(function ($query) use ($activeStatusId) {
+                if ($activeStatusId) {
+                    $query->where('student_status_id', $activeStatusId);
+                }
+                $query->orWhere('status', 'Aktif');
+            })
+            ->orderBy('id')
+            ->get();
+
+        $promotedCount = 0;
+        $graduatedCount = 0;
+        $unassignedCount = 0;
+        $details = [];
+
+        DB::transaction(function () use (
+            $students,
+            $targetAcademicYear,
+            $semester,
+            $actorId,
+            $lulusStatusId,
+            &$promotedCount,
+            &$graduatedCount,
+            &$unassignedCount,
+            &$details
+        ) {
+            foreach ($students as $student) {
+                $oldClass = $student->kelasRef?->name ?? $student->kelas;
+                
+                // Jika santri belum memiliki kelas (santri baru/belum diatur)
+                if (empty($oldClass)) {
+                    $unassignedCount++;
+                    // Tetap simpan riwayat di tahun ajaran baru
+                    SiswaTahunAjaran::query()->updateOrCreate(
+                        [
+                            'siswa_id' => $student->id,
+                            'academic_year_id' => $targetAcademicYear->id,
+                            'semester_id' => $semester->id,
+                        ],
+                        [
+                            'tahun_ajaran' => $targetAcademicYear->name,
+                            'semester' => $semester->name,
+                            'class_id' => null,
+                            'kelas' => null,
+                            'wali_id' => $student->wali_id,
+                            'student_status_id' => $student->student_status_id,
+                            'status_santri' => 'Aktif',
+                            'is_active' => true,
+                            'synced_at' => now(),
+                            'created_by_user_id' => $actorId,
+                        ]
+                    );
+                    continue;
+                }
+
+                $promotionResult = $this->promoteStudent($student, $targetAcademicYear);
+
+                if ($promotionResult['status'] === 'Lulus') {
+                    $graduatedCount++;
+                    $details[] = [
+                        'siswa_id' => $student->id,
+                        'nama' => $student->nama,
+                        'nis' => $student->nis,
+                        'status' => 'Lulus (Alumni)',
+                        'old_class' => $oldClass,
+                        'new_class' => 'Alumni (' . ($student->tahun_lulus ?? date('Y')) . ')',
+                    ];
+                } else {
+                    $promotedCount++;
+                    $details[] = [
+                        'siswa_id' => $student->id,
+                        'nama' => $student->nama,
+                        'nis' => $student->nis,
+                        'status' => 'Naik Kelas',
+                        'old_class' => $oldClass,
+                        'new_class' => $student->kelas,
+                    ];
+
+                    // Catat riwayat di tahun ajaran baru
+                    SiswaTahunAjaran::query()->updateOrCreate(
+                        [
+                            'siswa_id' => $student->id,
+                            'academic_year_id' => $targetAcademicYear->id,
+                            'semester_id' => $semester->id,
+                        ],
+                        [
+                            'tahun_ajaran' => $targetAcademicYear->name,
+                            'semester' => $semester->name,
+                            'class_id' => $student->class_id,
+                            'kelas' => $student->kelas,
+                            'wali_id' => $student->wali_id,
+                            'student_status_id' => $student->student_status_id,
+                            'status_santri' => 'Aktif',
+                            'is_active' => true,
+                            'synced_at' => now(),
+                            'created_by_user_id' => $actorId,
+                        ]
+                    );
+                }
+            }
+        });
+
+        return [
+            'total_santri_diproses' => $students->count(),
+            'berhasil_naik_kelas' => $promotedCount,
+            'lulus_menjadi_alumni' => $graduatedCount,
+            'santri_baru_tanpa_kelas' => $unassignedCount,
+            'tahun_ajaran_target' => $targetAcademicYear->name,
+            'details' => $details,
+        ];
+    }
+
+    public function promoteStudent(Siswa $student, ?AcademicYear $targetAcademicYear = null): array
+    {
+        $currentClass = trim((string)($student->kelasRef?->name ?? $student->kelas));
+        if ($currentClass === '') {
+            return ['student' => $student, 'status' => 'NoClass'];
+        }
+
+        // 1. Peta Urutan Jenjang Madin Pesantren Qomaruddin
         $promotionMap = [
             'Sifir Awal' => 'Sifir Tsani',
             'Sifir Tsani' => 'Sifir Tsalis',
             'Sifir Tsalis' => "Sifir Robi'",
             'Sifir Robi\'' => 'Sifir Khomis',
+            "Sifir Robi'" => 'Sifir Khomis',
             'Sifir Khomis' => 'Sifir Sadis',
             'Sifir Sadis' => 'Lulus',
         ];
@@ -358,13 +483,13 @@ class AcademicPeriodService
         $newClass = null;
         $isLulus = false;
 
-        // 2. Deteksi kelas santri dan cari kelas lanjutannya
+        // 2. Deteksi kelas santri saat ini (menjaga huruf paralel PA/PI jika ada)
         foreach ($promotionMap as $old => $new) {
-            if (str_starts_with($currentClass, $old)) {
+            if (stripos($currentClass, $old) === 0) {
                 if ($new === 'Lulus') {
                     $isLulus = true;
                 } else {
-                    $newClass = str_replace($old, $new, $currentClass);
+                    $newClass = trim(preg_replace('/^' . preg_quote($old, '/') . '/i', $new, $currentClass));
                 }
                 break;
             }
@@ -372,23 +497,35 @@ class AcademicPeriodService
 
         // 3. Eksekusi Kenaikan / Kelulusan
         if ($isLulus) {
+            $lulusStatusId = app(ReferenceResolver::class)->studentStatusId('Lulus');
+            $graduationYear = $targetAcademicYear ? (string)$targetAcademicYear->year_start : date('Y');
+            
             $student->status = 'Lulus';
-            $student->student_status_id = app(\App\Services\ReferenceResolver::class)->studentStatusId('Lulus');
-            $student->tahun_lulus = date('Y');
-            $student->save();
-        } elseif ($newClass) {
-            $student->kelas = $newClass;
-            $student->class_id = app(\App\Services\ReferenceResolver::class)->classId($newClass, false);
+            $student->student_status_id = $lulusStatusId;
+            $student->tahun_lulus = substr($graduationYear, 0, 4);
             $student->save();
 
-            // Pindahkan juga data Kelompok Belajarnya (Pivot)
+            // Lepaskan dari kelompok belajar aktif
+            $student->kelompokBelajar()->detach();
+
+            return ['student' => $student, 'status' => 'Lulus'];
+        } elseif ($newClass) {
+            $classId = app(ReferenceResolver::class)->classId($newClass, true);
+
+            $student->kelas = $newClass;
+            $student->class_id = $classId;
+            $student->save();
+
+            // Pindahkan juga relasi Kelompok Belajar (Pivot) jika kelompok untuk kelas baru tersedia
             $kelompok = \App\Models\KelompokBelajar::where('nama', $newClass)->first();
             if ($kelompok) {
                 $student->kelompokBelajar()->sync([$kelompok->id]);
             }
+
+            return ['student' => $student, 'status' => 'Promoted', 'new_class' => $newClass];
         }
 
-        return $student;
+        return ['student' => $student, 'status' => 'Unchanged'];
     }
 
     public function delete(AcademicYear $academicYear): void

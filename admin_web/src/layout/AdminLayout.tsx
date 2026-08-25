@@ -77,6 +77,7 @@ const allMenu: MenuItem[] = [
     children: [
       { label: "Buku Induk", page: "master", masterSection: "ringkas" },
       { label: "Data Siswa/Santri", page: "master", masterSection: "siswa" },
+      { label: "Data Santri Alumni", page: "master", masterSection: "alumni" },
       { label: "Data Guru", page: "master", masterSection: "guru" },
       { label: "User Login", page: "master", masterSection: "users" },
       { label: "Data Referensi", page: "master", masterSection: "referensi" },

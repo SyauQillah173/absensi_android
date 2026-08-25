@@ -9,6 +9,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  RotateCcw,
   Search,
   Trash2,
   Upload,
@@ -28,7 +29,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { api, type ApiRecord, type ImportResult } from '../services/api';
 import { downloadImportTemplate, exportRowsExcel, parseImportFile, type ImportTemplateType } from '../utils/importTemplates';
 
-export type MasterVariant = 'siswa' | 'guru' | 'users' | 'login-admin' | 'login-guru' | 'login-wali' | 'pondok';
+export type MasterVariant = 'siswa' | 'alumni' | 'guru' | 'users' | 'login-admin' | 'login-guru' | 'login-wali' | 'pondok';
 type SiswaStatus = 'Aktif' | 'Nonaktif' | 'Lulus';
 type UserStatus = 'Aktif' | 'Nonaktif';
 
@@ -36,14 +37,18 @@ interface MasterDataPageProps {
   variant: MasterVariant;
 }
 
-
-
 const config = {
   siswa: {
-    title: 'Buku Induk - Data Siswa/Santri',
-    subtitle: 'Daftar siswa/santri dari backend yang sama dengan Android.',
+    title: 'Buku Induk - Data Siswa/Santri Aktif',
+    subtitle: 'Daftar seluruh siswa/santri aktif dan baru di Pondok Pesantren Qomaruddin.',
     search: 'Cari nama / NIS / NISN / kelas',
     icon: UsersRound
+  },
+  alumni: {
+    title: 'Buku Induk - Data Santri Alumni',
+    subtitle: 'Daftar santri yang telah lulus madin, arsip kelulusan & alumni pesantren.',
+    search: 'Cari nama / NIS / NISN / tahun lulus',
+    icon: GraduationCap
   },
   guru: {
     title: 'Data Guru',
@@ -135,6 +140,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
   const [detailTarget, setDetailTarget] = useState<ApiRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ApiRecord | null>(null);
   const [resetTarget, setResetTarget] = useState<ApiRecord | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<ApiRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -146,6 +152,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
   const importConfig = getImportConfig(variant);
   const userMode = isUserVariant(variant);
   const siswaMode = variant === 'siswa';
+  const alumniMode = variant === 'alumni';
   const isSiswaFormOpen = siswaForm !== null;
   const pondokMode = variant === 'pondok';
 
@@ -156,7 +163,9 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
     try {
       let result;
       if (variant === 'siswa') {
-        result = await api.siswa({ with_wali: 1 });
+        result = await api.siswa({ status: 'Aktif', with_wali: 1 });
+      } else if (variant === 'alumni') {
+        result = await api.siswa({ status: 'Lulus', with_wali: 1 });
       } else if (variant === 'guru' || variant === 'login-guru') {
         result = await api.users({ role: 'guru' });
       } else if (variant === 'login-admin') {
@@ -182,8 +191,6 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variant]);
 
-
-
   const filtered = useMemo(() => {
     const keyword = search.toLowerCase();
     return rows.filter((row) => {
@@ -199,19 +206,20 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
   const columns = useMemo(() => columnsFor(variant, {
     onDetail: setDetailTarget,
     onEdit: (row) => {
-      if (siswaMode) setSiswaForm(row);
+      if (siswaMode || alumniMode) setSiswaForm(row);
       else if (userMode) setUserForm(row);
       else setDetailTarget(row);
     },
     onReset: (row) => setResetTarget(row),
     onDelete: (row) => setDeleteTarget(row),
+    onRestore: (row) => setRestoreTarget(row),
     onStatus: (row, status) => {
-      if (siswaMode) void updateOneSiswaStatus(row, status as SiswaStatus);
+      if (siswaMode || alumniMode) void updateOneSiswaStatus(row, status as SiswaStatus);
       else if (userMode) void updateOneUserStatus(row, status as UserStatus);
     },
     isSelected: (id) => selectedIds.has(id),
     onToggleSelect: (id) => toggleSelected(id)
-  }), [variant, selectedIds, siswaMode, userMode]);
+  }), [variant, selectedIds, siswaMode, alumniMode, userMode]);
 
   function toggleSelected(id: number) {
     setSelectedIds((currentIds) => {
@@ -279,12 +287,28 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
 
 
 
+  async function restoreAlumniRecord() {
+    if (!restoreTarget?.id || isSaving) return;
+    setIsSaving(true);
+    setError('');
+    try {
+      await api.restoreAlumni(num(restoreTarget.id));
+      setNotice(`Santri ${text(restoreTarget.nama)} berhasil dipulihkan menjadi Santri Aktif.`);
+      setRestoreTarget(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal memulihkan data alumni.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function deleteRecord() {
     if (!deleteTarget?.id || isSaving) return;
     setIsSaving(true);
     setError('');
     try {
-      if (siswaMode) await api.deleteSiswa(num(deleteTarget.id));
+      if (siswaMode || alumniMode) await api.deleteSiswa(num(deleteTarget.id));
       else if (userMode) await api.deleteUser(num(deleteTarget.id));
       else throw new Error('Penghapusan data ini dikelola dari halaman khusus.');
       setDeleteTarget(null);
@@ -452,11 +476,19 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
       {notice ? <div className="rounded-2xl bg-[#E8F7F3] px-4 py-3 text-sm font-bold text-[#138F81]">{notice}</div> : null}
 
-      <div className="q-stat-grid grid gap-4 md:grid-cols-3">
-        <StatCard title="Total Data" value={rows.length} subtitle={`${filtered.length} data tampil`} icon={Icon} tone="teal" />
-        <StatCard title="Aktif" value={countStatus(rows, 'Aktif')} subtitle="Data status aktif" icon={Search} tone="blue" />
-        <StatCard title={siswaMode ? 'Lulus/Nonaktif' : 'Nonaktif'} value={siswaMode ? countStatus(rows, 'Lulus') + countStatus(rows, 'Nonaktif') : countStatus(rows, 'Nonaktif')} subtitle={siswaMode ? 'Data arsip dan nonaktif' : 'Data status nonaktif'} icon={UsersRound} tone="orange" />
-      </div>
+      {alumniMode ? (
+        <div className="q-stat-grid grid gap-4 md:grid-cols-3">
+          <StatCard title="Total Santri Alumni" value={rows.length} subtitle={`${filtered.length} alumni terdata`} icon={GraduationCap} tone="purple" />
+          <StatCard title="Alumni Laki-laki" value={rows.filter((r) => text(r.jenis_kelamin).toUpperCase() === 'L').length} subtitle="Santri Putra yang telah lulus" icon={UsersRound} tone="blue" />
+          <StatCard title="Alumni Perempuan" value={rows.filter((r) => text(r.jenis_kelamin).toUpperCase() === 'P').length} subtitle="Santri Putri yang telah lulus" icon={UsersRound} tone="orange" />
+        </div>
+      ) : (
+        <div className="q-stat-grid grid gap-4 md:grid-cols-3">
+          <StatCard title="Total Data" value={rows.length} subtitle={`${filtered.length} data tampil`} icon={Icon} tone="teal" />
+          <StatCard title="Aktif" value={countStatus(rows, 'Aktif')} subtitle="Data status aktif" icon={Search} tone="blue" />
+          <StatCard title={siswaMode ? 'Lulus/Nonaktif' : 'Nonaktif'} value={siswaMode ? countStatus(rows, 'Lulus') + countStatus(rows, 'Nonaktif') : countStatus(rows, 'Nonaktif')} subtitle={siswaMode ? 'Data arsip dan nonaktif' : 'Data status nonaktif'} icon={UsersRound} tone="orange" />
+        </div>
+      )}
 
       {siswaMode ? (
         <section className="q-panel p-4 sm:p-5">
@@ -580,6 +612,18 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
           onConfirm={() => void resetPassword()}
         />
       ) : null}
+
+      {restoreTarget ? (
+        <ConfirmDialog
+          title="Pulihkan Santri ke Status Aktif?"
+          message={`Santri ${text(restoreTarget.nama)} akan dipulihkan dari status Alumni dan kembali menjadi Santri Aktif sehingga dapat mengikuti kegiatan belajar mengajar kembali.`}
+          tone="info"
+          confirmLabel="Ya, Pulihkan ke Aktif"
+          isBusy={isSaving}
+          onCancel={() => setRestoreTarget(null)}
+          onConfirm={() => void restoreAlumniRecord()}
+        />
+      ) : null}
     </div>
   );
 }
@@ -632,14 +676,15 @@ function DetailModal({ row, variant, onClose }: { row: ApiRecord; variant: Maste
 }
 
 function detailEntries(row: ApiRecord, variant: MasterVariant): Array<[string, string]> {
-  if (variant === 'siswa') {
+  if (variant === 'siswa' || variant === 'alumni') {
     return [
       ['Nama', text(row.nama)],
       ['NIS', text(row.nis)],
       ['NISN', text(row.nisn)],
-      ['Kelas', text(row.kelas)],
+      ['Tahun Lulus', text(row.tahun_lulus, '-')],
+      ['Kelas / Madin', text(row.kelas)],
       ['Wali', text(row.wali_nama ?? row.nama_wali)],
-      ['Kontak Wali', text(row.no_telepon_wali)],
+      ['Kontak Wali', text(row.no_telepon_wali ?? row.no_whatsapp)],
       ['Status', text(row.status, 'Aktif')],
       ['Alamat', text(row.alamat)]
     ];
@@ -748,6 +793,7 @@ interface ColumnCallbacks {
   onEdit: (row: ApiRecord) => void;
   onReset: (row: ApiRecord) => void;
   onDelete: (row: ApiRecord) => void;
+  onRestore?: (row: ApiRecord) => void;
   onStatus: (row: ApiRecord, status: string) => void;
   isSelected: (id: number) => boolean;
   onToggleSelect: (id: number) => void;
@@ -917,6 +963,109 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
       },
       { key: 'status', header: 'Status', className: 'w-[120px]', render: (row) => <StatusBadge label={row.is_active === false ? 'Nonaktif' : 'Aktif'} tone={row.is_active === false ? 'danger' : 'success'} /> },
       actionColumn
+    ];
+  }
+  if (variant === 'alumni') {
+    return [
+      {
+        key: 'select',
+        header: '',
+        className: 'w-10 text-center px-2',
+        render: (row) => (
+          <input
+            type="checkbox"
+            checked={callbacks.isSelected(num(row.id))}
+            onChange={() => callbacks.onToggleSelect(num(row.id))}
+            aria-label={`Pilih ${text(row.nama)}`}
+            className="rounded border-gray-300 text-[#6C5CE7] focus:ring-[#6C5CE7] cursor-pointer"
+          />
+        )
+      },
+      {
+        key: 'nama',
+        header: 'Nama Santri Alumni',
+        render: (row) => (
+          <div className="py-0.5">
+            <span className="font-extrabold text-[#2D3436] text-sm block leading-tight">{text(row.nama)}</span>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-[#636E72]">
+              <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 font-bold">NIS: {text(row.nis)}</span>
+              {row.nisn ? (
+                <span className="font-mono bg-blue-50 px-1.5 py-0.5 rounded text-[#2E86DE] font-bold">NISN: {text(row.nisn)}</span>
+              ) : null}
+            </div>
+          </div>
+        )
+      },
+      {
+        key: 'tahun_lulus',
+        header: 'Tahun Kelulusan',
+        className: 'w-[140px]',
+        render: (row) => (
+          <span className="font-bold text-[#6C5CE7] bg-[#F0ECFF] px-2.5 py-1 rounded-xl text-xs inline-flex items-center gap-1">
+            🎓 {text(row.tahun_lulus, '-')}
+          </span>
+        )
+      },
+      {
+        key: 'kelas',
+        header: 'Madin Terakhir',
+        className: 'w-[140px]',
+        render: (row) => <span className="text-xs font-bold text-[#2D3436]">{text(row.kelas, 'Sifir Sadis')}</span>
+      },
+      {
+        key: 'wali',
+        header: 'Wali / Kontak',
+        className: 'w-[160px]',
+        render: (row) => {
+          const wali = text(row.wali_nama ?? row.nama_wali, '');
+          const hp = text(row.no_telepon_wali ?? row.no_whatsapp, '');
+          return (
+            <div className="text-xs">
+              <span className="font-bold text-[#2D3436] block">{wali || '-'}</span>
+              {hp && hp !== '-' ? <span className="text-[#636E72] font-mono text-[11px] block">{hp}</span> : null}
+            </div>
+          );
+        }
+      },
+      {
+        key: 'status',
+        header: 'Status',
+        className: 'w-[110px]',
+        render: () => <StatusBadge label="Lulus (Alumni)" tone="info" />
+      },
+      {
+        key: 'aksi',
+        header: 'Aksi',
+        className: 'text-right w-[190px]',
+        render: (row) => (
+          <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+            <button
+              className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#E1EFF7] px-2.5 text-xs font-extrabold text-[#138F81] hover:bg-[#cbe6f7] transition-colors"
+              onClick={() => callbacks.onDetail(row)}
+              type="button"
+              title="Detail Profil Alumni"
+            >
+              <Eye size={13} /> Detail
+            </button>
+            <button
+              className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#F0ECFF] px-2.5 text-xs font-extrabold text-[#6C5CE7] hover:bg-[#e2dbff] transition-colors"
+              onClick={() => callbacks.onRestore?.(row)}
+              type="button"
+              title="Pulihkan kembali menjadi Santri Aktif"
+            >
+              <RotateCcw size={13} /> Pulihkan
+            </button>
+            <button
+              className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#FDECEC] text-[#D63031] hover:bg-[#fbdada] transition-colors"
+              onClick={() => callbacks.onDelete(row)}
+              type="button"
+              title="Hapus Data"
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
+        )
+      }
     ];
   }
   return [

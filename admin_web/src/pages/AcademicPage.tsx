@@ -1,4 +1,4 @@
-import { CalendarDays, CheckCircle2, Pencil, Plus, RefreshCw, RotateCw, Trash2 } from 'lucide-react';
+import { CalendarDays, CheckCircle2, GraduationCap, Pencil, Plus, RefreshCw, RotateCw, Sparkles, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { DataTable, type DataColumn } from '../components/DataTable';
 import { ModalForm } from '../components/ModalForm';
@@ -36,6 +36,8 @@ export function AcademicPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deletingYear, setDeletingYear] = useState<ApiRecord | null>(null);
+  const [autoPromoteTarget, setAutoPromoteTarget] = useState<ApiRecord | null>(null);
+  const [isPromoting, setIsPromoting] = useState(false);
   const [syncingId, setSyncingId] = useState<number | null>(null);
   const [form, setForm] = useState<AcademicFormState | null>(null);
   const [error, setError] = useState('');
@@ -76,6 +78,15 @@ export function AcademicPage() {
           const activeSemester = normalizeSemester(row.active_semester);
           return (
             <div className="flex flex-wrap gap-2">
+              <button
+                className="q-soft-action rounded-xl bg-[#F0ECFF] px-3 py-2 text-xs font-extrabold text-[#6C5CE7] hover:bg-[#e2dbff] disabled:opacity-60 transition-colors inline-flex items-center gap-1"
+                onClick={() => setAutoPromoteTarget(row)}
+                type="button"
+                disabled={isSaving || isPromoting}
+                title="Naikkan semua santri madin secara otomatis & luluskan santri tingkat akhir"
+              >
+                <Sparkles size={13} /> Naik Kelas Otomatis
+              </button>
               <button className="q-soft-action rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-extrabold text-[#2E86DE]" onClick={() => openForm(row)} type="button">
                 <Pencil size={14} className="inline" /> Edit
               </button>
@@ -99,7 +110,7 @@ export function AcademicPage() {
                 className="q-soft-action rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-extrabold text-[#D63031] hover:bg-[#FCD8D8] disabled:opacity-60 transition-colors"
                 onClick={() => setDeletingYear(row)}
                 type="button"
-                disabled={isSaving || isDeleting}
+                disabled={isSaving || isDeleting || isPromoting}
               >
                 <Trash2 size={14} className="inline" /> Hapus
               </button>
@@ -108,7 +119,7 @@ export function AcademicPage() {
         }
       }
     ],
-    [isSaving, isDeleting, syncingId]
+    [isSaving, isDeleting, isPromoting, syncingId]
   );
 
   function openForm(year?: ApiRecord) {
@@ -204,6 +215,26 @@ export function AcademicPage() {
     }
   }
 
+  async function handleAutoPromote() {
+    if (!autoPromoteTarget?.id || isPromoting) return;
+    setIsPromoting(true);
+    setError('');
+    setNotice('');
+    try {
+      const result = await api.autoPromoteAcademicPeriod(asNumber(autoPromoteTarget.id));
+      const payload = (result.data && typeof result.data === 'object' ? result.data : {}) as ApiRecord;
+      setNotice(
+        `Kenaikan kelas otomatis berhasil! Total santri diproses: ${payload.total_processed ?? 0}, Naik Kelas: ${payload.promoted ?? 0}, Lulus (Alumni): ${payload.graduated ?? 0}. Data santri yang lulus telah dipindahkan ke Data Santri Alumni.`
+      );
+      setAutoPromoteTarget(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Kenaikan kelas otomatis gagal diproses.');
+    } finally {
+      setIsPromoting(false);
+    }
+  }
+
   async function handleDelete() {
     if (!deletingYear?.id || isDeleting) return;
     setIsDeleting(true);
@@ -227,7 +258,7 @@ export function AcademicPage() {
         <div>
           <p className="text-sm font-bold text-[#636E72]">Buku Induk</p>
           <h1 className="text-3xl font-extrabold text-[#2D3436]">Setting Akademik</h1>
-          <p className="text-sm font-semibold text-[#636E72]">Tahun ajaran, semester aktif, dan sinkronisasi santri memakai backend Android yang sama.</p>
+          <p className="text-sm font-semibold text-[#636E72]">Tahun ajaran, kenaikan kelas otomatis madin, dan sinkronisasi santri memakai backend Android yang sama.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button className="q-refresh-button inline-flex min-h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#138F81]" onClick={() => void load()} type="button" disabled={isLoading}>
@@ -247,6 +278,29 @@ export function AcademicPage() {
         <StatCard title="Jumlah Tahun Ajaran" value={years.length} subtitle="Riwayat akademik tersimpan" icon={CheckCircle2} tone="blue" />
         <StatCard title="Semester Aktif" value={text(active?.semester_label ?? active?.semester, '-')} subtitle="Ganjil/Genap tidak menimpa arsip" icon={RotateCw} tone="orange" />
       </div>
+
+      {activeAcademicYear ? (
+        <section className="q-panel p-5 bg-gradient-to-r from-[#F0ECFF] via-[#E8F3FF] to-[#E8F7F3] border border-[#6C5CE7]/20 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="max-w-2xl">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#6C5CE7] text-white text-xs font-black uppercase tracking-wider mb-2">
+                <Sparkles size={13} /> Fitur Otomatisasi Akademik
+              </span>
+              <h2 className="text-lg font-black text-[#2D3436]">Kenaikan Kelas Madin & Pemisahan Alumni Otomatis</h2>
+              <p className="mt-1 text-xs sm:text-sm font-semibold text-[#636E72] leading-relaxed">
+                Tahun Ajaran <span className="font-extrabold text-[#2D3436]">{text(activeAcademicYear.name)}</span> sedang aktif. Anda dapat menaikkan seluruh siswa madin 1 tingkat sekaligus secara otomatis tanpa perlu dipilih satu per satu. Siswa tingkat akhir (Sifir Sadis) otomatis lulus dan dipindahkan ke Data Santri Alumni agar data rapi dan tidak bercampur.
+              </p>
+            </div>
+            <button
+              className="q-soft-action inline-flex min-h-12 items-center gap-2 rounded-2xl bg-[#6C5CE7] px-6 text-sm font-extrabold text-white shadow-lg shadow-[#6C5CE7]/25 hover:bg-[#5b4cc4] transition-colors"
+              onClick={() => setAutoPromoteTarget(activeAcademicYear)}
+              type="button"
+            >
+              <Sparkles size={16} /> Jalankan Naik Kelas Otomatis
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       <section className="q-panel p-4 sm:p-6">
         <DataTable rows={years} columns={columns} emptyText={isLoading ? 'Memuat tahun ajaran...' : 'Belum ada tahun ajaran.'} minWidth="860px" />
@@ -321,6 +375,79 @@ export function AcademicPage() {
                 ))}
               </div>
             </div>
+          </div>
+        </ModalForm>
+      ) : null}
+
+      {autoPromoteTarget ? (
+        <ModalForm
+          title="🚀 Kenaikan Kelas Otomatis & Pemisahan Alumni"
+          onClose={() => !isPromoting && setAutoPromoteTarget(null)}
+          footer={
+            <div className="flex w-full justify-end gap-2">
+              <button
+                type="button"
+                disabled={isPromoting}
+                onClick={() => setAutoPromoteTarget(null)}
+                className="rounded-2xl border border-gray-200 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-100"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isPromoting}
+                onClick={() => void handleAutoPromote()}
+                className="rounded-2xl bg-[#6C5CE7] px-6 py-2.5 text-sm font-black text-white shadow-lg shadow-[#6C5CE7]/30 hover:bg-[#5b4cc4] disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                {isPromoting ? (
+                  <>
+                    <RefreshCw className="animate-spin" size={16} /> Memproses Kenaikan Kelas...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} /> Ya, Proses Kenaikan Kelas Otomatis
+                  </>
+                )}
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-[#6C5CE7]/30 bg-[#F0ECFF] p-4 text-[#2D3436]">
+              <p className="text-sm font-extrabold text-[#6C5CE7]">
+                Konfirmasi Kenaikan Kelas untuk Periode: {text(autoPromoteTarget.name)}
+              </p>
+              <p className="mt-2 text-xs font-semibold text-[#636E72] leading-relaxed">
+                Sistem akan memproses seluruh data siswa madin aktif secara otomatis dengan aturan pesantren:
+              </p>
+              <div className="mt-3 space-y-2 text-xs font-bold text-[#2D3436]">
+                <div className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-purple-100">
+                  <span className="text-base">📈</span>
+                  <div>
+                    <span className="font-extrabold text-[#138F81]">Siswa Kelas 1 s/d 5 (Sifir Awal - Sifir Khomis):</span>
+                    <p className="text-[11px] font-medium text-[#636E72] mt-0.5">Otomatis naik 1 tingkat (Awal ➔ Tsani ➔ Tsalis ➔ Robi' ➔ Khomis ➔ Sadis) dengan menjaga rombel paralel yang ada.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-purple-100">
+                  <span className="text-base">🎓</span>
+                  <div>
+                    <span className="font-extrabold text-[#6C5CE7]">Siswa Tingkat Akhir (Sifir Sadis):</span>
+                    <p className="text-[11px] font-medium text-[#636E72] mt-0.5">Otomatis dinyatakan <b className="text-[#6C5CE7]">LULUS</b> dan langsung dipisahkan masuk ke menu <b className="text-[#2D3436]">Data Santri Alumni</b> agar tidak tercampur dengan siswa aktif maupun siswa baru.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-purple-100">
+                  <span className="text-base">🗂️</span>
+                  <div>
+                    <span className="font-extrabold text-[#2E86DE]">Audit Trail & Keamanan Data:</span>
+                    <p className="text-[11px] font-medium text-[#636E72] mt-0.5">Riwayat kelas dan tagihan semester lama tersimpan rapi di tabel snapshot riwayat sehingga data tidak hilang, amburadul, ataupun crash.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs font-bold text-[#636E72] bg-gray-50 border border-gray-200 rounded-xl p-3">
+              💡 <b>Catatan Admin:</b> Setelah kenaikan kelas otomatis berhasil, jika ada santri yang berpindah kelompok atau rombel paralel baru, Admin cukup mengatur pembagian kelompok di menu <b>Kelompok Belajar</b>.
+            </p>
           </div>
         </ModalForm>
       ) : null}

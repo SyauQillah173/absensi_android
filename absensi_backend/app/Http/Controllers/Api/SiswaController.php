@@ -593,6 +593,23 @@ class SiswaController extends Controller
         ]);
     }
 
+    public function restoreAlumni(Request $request, Siswa $siswa)
+    {
+        $activeStatusId = app(ReferenceResolver::class)->studentStatusId('Aktif');
+        $siswa->update([
+            'status' => 'Aktif',
+            'student_status_id' => $activeStatusId,
+            'tahun_lulus' => null,
+        ]);
+        $this->waliAccountService->syncForStudent($siswa);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Santri {$siswa->nama} berhasil dipulihkan menjadi Santri Aktif.",
+            'data' => $siswa->fresh(),
+        ]);
+    }
+
     // Upload dokumen akta atau foto santri (Shielded against RCE / webshell upload)
     public function uploadFile(Request $request)
     {

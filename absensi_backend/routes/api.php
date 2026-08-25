@@ -197,10 +197,12 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::post('academic-periods/{academicYear}/activate', [AcademicPeriodController::class, 'activate'])->middleware('permission:buku_induk,update');
         Route::post('academic-periods/{academicYear}/semester', [AcademicPeriodController::class, 'semester'])->middleware('permission:buku_induk,update');
         Route::post('academic-periods/{academicYear}/sync-siswa', [AcademicPeriodController::class, 'syncSiswa'])->middleware('permission:buku_induk,update');
+        Route::post('academic-periods/{academicYear}/auto-promote', [AcademicPeriodController::class, 'autoPromote'])->middleware('permission:buku_induk,update');
         Route::delete('academic-periods/{academicYear}', [AcademicPeriodController::class, 'destroy'])->middleware('permission:buku_induk,delete');
 
         Route::post('siswa/import', [SiswaController::class, 'import'])->middleware('permission:buku_induk,create');
         Route::post('siswa/bulk-status', [SiswaController::class, 'bulkStatus'])->middleware('permission:buku_induk,update');
+        Route::post('siswa/{siswa}/restore-alumni', [SiswaController::class, 'restoreAlumni'])->middleware('permission:buku_induk,update');
         Route::post('siswa', [SiswaController::class, 'store'])->middleware('permission:buku_induk,create');
         Route::put('siswa/{siswa}', [SiswaController::class, 'update'])->middleware('permission:buku_induk,update');
         Route::delete('siswa/{siswa}', [SiswaController::class, 'destroy'])->middleware('permission:buku_induk,delete');
