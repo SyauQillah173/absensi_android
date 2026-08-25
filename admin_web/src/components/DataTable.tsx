@@ -24,7 +24,7 @@ export function DataTable<T extends { id?: string | number }>({
   columns,
   rows,
   emptyText = 'Belum ada data.',
-  minWidth = '720px',
+  minWidth = '100%',
   maxHeight = '520px',
   mobileRender,
   renderExpandedRow,

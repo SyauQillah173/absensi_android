@@ -538,7 +538,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
         {isLoading ? (
           <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-bold text-[#636E72]">Memuat data...</div>
         ) : (
-          <DataTable rows={filtered} columns={columns} emptyText="Data belum tersedia." mobileRender={(row) => renderMobileCard(variant, row, {
+          <DataTable rows={filtered} columns={columns} emptyText="Data belum tersedia." minWidth="100%" mobileRender={(row) => renderMobileCard(variant, row, {
             selected: selectedIds.has(num(row.id)),
             onSelect: () => toggleSelected(num(row.id)),
             onDetail: () => setDetailTarget(row),
@@ -757,7 +757,7 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
   const actionColumn: DataColumn<ApiRecord> = {
     key: 'aksi',
     header: 'Aksi',
-    className: 'text-right w-[150px]',
+    className: 'text-right w-[140px]',
     render: (row) => (
       <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
         <button
@@ -804,10 +804,25 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
 
   if (variant === 'guru' || variant === 'login-guru') {
     return [
-      { key: 'name', header: 'Nama Guru', render: (row) => <span className="font-extrabold text-[#2D3436]">{text(row.name)}</span> },
-      { key: 'email', header: 'Email', render: (row) => <span className="text-xs text-[#636E72]">{text(row.email)}</span> },
-      { key: 'kode', header: 'Kode Guru', render: (row) => <span className="font-mono text-xs">{text(row.kode_guru ?? row.nis)}</span> },
-      { key: 'unit', header: 'Unit', render: (row) => text(Array.isArray(row.unit_kerja) ? row.unit_kerja.join(', ') : row.unit_kerja) },
+      {
+        key: 'name',
+        header: 'Nama Guru',
+        render: (row) => (
+          <div>
+            <span className="font-extrabold text-[#2D3436] text-sm block leading-tight">{text(row.name)}</span>
+            <div className="mt-1 flex items-center gap-2 text-xs text-[#636E72]">
+              <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded font-bold">Kode: {text(row.kode_guru ?? row.nis)}</span>
+              {row.email ? <span>{text(row.email)}</span> : null}
+            </div>
+          </div>
+        )
+      },
+      {
+        key: 'unit',
+        header: 'Unit Kerja',
+        className: 'w-[180px]',
+        render: (row) => <span className="text-xs font-bold text-[#636E72]">{text(Array.isArray(row.unit_kerja) ? row.unit_kerja.join(', ') : row.unit_kerja)}</span>
+      },
       {
         key: 'status',
         header: 'Status',
@@ -832,11 +847,28 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
   }
   if (variant === 'users' || variant === 'login-admin' || variant === 'login-wali') {
     return [
-      { key: 'name', header: 'Nama User', render: (row) => <span className="font-extrabold text-[#2D3436]">{text(row.name)}</span> },
-      { key: 'email', header: 'Email', render: (row) => <span className="text-xs text-[#636E72]">{text(row.email)}</span> },
-      { key: 'phone', header: 'No HP', render: (row) => <span className="text-xs">{text(row.no_hp)}</span> },
-      { key: 'role', header: 'Role', render: (row) => <StatusBadge label={text(row.role)} tone={text(row.role) === 'admin' ? 'success' : 'info'} /> },
-      { key: 'admin', header: 'Tipe Admin', render: (row) => text(row.admin_type) },
+      {
+        key: 'name',
+        header: 'Pengguna',
+        render: (row) => (
+          <div>
+            <span className="font-extrabold text-[#2D3436] text-sm block leading-tight">{text(row.name)}</span>
+            <span className="text-xs text-[#636E72] mt-0.5 block">{text(row.email)}</span>
+          </div>
+        )
+      },
+      { key: 'phone', header: 'No HP', className: 'w-[140px]', render: (row) => <span className="text-xs font-mono">{text(row.no_hp)}</span> },
+      {
+        key: 'role',
+        header: 'Role & Akses',
+        className: 'w-[160px]',
+        render: (row) => (
+          <div className="flex items-center gap-1.5">
+            <StatusBadge label={text(row.role)} tone={text(row.role) === 'admin' ? 'success' : 'info'} />
+            {row.admin_type ? <span className="text-[11px] font-bold text-[#636E72] bg-gray-100 px-1.5 py-0.5 rounded">{text(row.admin_type)}</span> : null}
+          </div>
+        )
+      },
       {
         key: 'status',
         header: 'Status',
@@ -861,12 +893,29 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
   }
   if (variant === 'pondok') {
     return [
-      { key: 'nama', header: 'Santri', render: (row) => <span className="font-extrabold text-[#2D3436]">{text(row.siswa_nama ?? row.nama)}</span> },
-      { key: 'nis', header: 'NIS', render: (row) => <span className="font-mono text-xs">{text(row.nis ?? record(row.siswa).nis)}</span> },
-      { key: 'kelas', header: 'Kelas', render: (row) => text(row.kelas ?? record(row.siswa).kelas) },
-      { key: 'komplek', header: 'Komplek', render: (row) => <span className="font-bold text-[#138F81]">{text(row.complex_name ?? row.komplek ?? record(row.complex).name)}</span> },
-      { key: 'kamar', header: 'Kamar', render: (row) => <span className="font-bold text-[#2D3436]">{text(row.room_name ?? row.kamar ?? record(row.room).name)}</span> },
-      { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.is_active === false ? 'Nonaktif' : 'Aktif'} tone={row.is_active === false ? 'danger' : 'success'} /> },
+      {
+        key: 'nama',
+        header: 'Santri & NIS',
+        render: (row) => (
+          <div>
+            <span className="font-extrabold text-[#2D3436] text-sm block leading-tight">{text(row.siswa_nama ?? row.nama)}</span>
+            <span className="font-mono text-[11px] font-bold text-[#636E72] mt-0.5 block">NIS: {text(row.nis ?? record(row.siswa).nis)}</span>
+          </div>
+        )
+      },
+      {
+        key: 'komplek',
+        header: 'Komplek Asrama',
+        className: 'w-[160px]',
+        render: (row) => <span className="font-bold text-[#138F81] text-xs bg-[#E8F7F3] px-2 py-1 rounded-lg inline-block">{text(row.complex_name ?? row.komplek ?? record(row.complex).name)}</span>
+      },
+      {
+        key: 'kamar',
+        header: 'Kamar Asrama',
+        className: 'w-[160px]',
+        render: (row) => <span className="font-bold text-[#2D3436] text-xs bg-gray-100 px-2 py-1 rounded-lg inline-block">{text(row.room_name ?? row.kamar ?? record(row.room).name)}</span>
+      },
+      { key: 'status', header: 'Status', className: 'w-[120px]', render: (row) => <StatusBadge label={row.is_active === false ? 'Nonaktif' : 'Aktif'} tone={row.is_active === false ? 'danger' : 'success'} /> },
       actionColumn
     ];
   }
@@ -874,7 +923,7 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
     {
       key: 'select',
       header: '',
-      className: 'w-10 text-center',
+      className: 'w-10 text-center px-2',
       render: (row) => (
         <input
           type="checkbox"
@@ -887,23 +936,46 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
     },
     {
       key: 'nama',
-      header: 'Nama Siswa/Santri',
-      className: 'min-w-[200px]',
+      header: 'Nama Siswa / Santri',
       render: (row) => (
-        <div>
-          <span className="font-extrabold text-[#2D3436] block leading-tight">{text(row.nama)}</span>
-          {row.komplek || row.kamar ? (
-            <span className="text-[11px] font-bold text-[#138F81] bg-[#E8F7F3] px-1.5 py-0.5 rounded-md mt-1 inline-block">
-              🏠 {text(row.komplek)} - {text(row.kamar)}
-            </span>
-          ) : null}
+        <div className="py-0.5">
+          <span className="font-extrabold text-[#2D3436] text-sm block leading-tight">{text(row.nama)}</span>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-[#636E72]">
+            <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 font-bold">NIS: {text(row.nis)}</span>
+            {row.komplek || row.kamar ? (
+              <span className="font-bold text-[#138F81] bg-[#E8F7F3] px-1.5 py-0.5 rounded">
+                🏠 {text(row.komplek)} - {text(row.kamar)}
+              </span>
+            ) : null}
+          </div>
         </div>
       )
     },
-    { key: 'nis', header: 'NIS', className: 'w-[110px]', render: (row) => <span className="font-mono text-xs font-bold text-[#636E72]">{text(row.nis)}</span> },
-    { key: 'nisn', header: 'NISN', className: 'w-[110px]', render: (row) => <span className="font-mono text-xs text-[#636E72]">{text(row.nisn)}</span> },
-    { key: 'kelas', header: 'Kelas', className: 'w-[100px]', render: (row) => <span className="text-xs font-semibold">{text(row.kelas)}</span> },
-    { key: 'wali', header: 'Wali', className: 'min-w-[130px]', render: (row) => <span className="text-xs font-semibold text-[#636E72]">{text(row.wali_nama ?? row.nama_wali)}</span> },
+    {
+      key: 'kelas',
+      header: 'Kelas / Madin',
+      className: 'w-[130px]',
+      render: (row) => (
+        <span className={`text-xs font-bold px-2 py-1 rounded-lg inline-block ${row.kelas ? 'bg-[#EAF4FF] text-[#2E86DE]' : 'text-gray-400'}`}>
+          {text(row.kelas, 'Belum diatur')}
+        </span>
+      )
+    },
+    {
+      key: 'wali',
+      header: 'Wali / Kontak',
+      className: 'w-[160px]',
+      render: (row) => {
+        const wali = text(row.wali_nama ?? row.nama_wali, '');
+        const hp = text(row.no_telepon_wali ?? row.no_whatsapp, '');
+        return (
+          <div className="text-xs">
+            <span className="font-bold text-[#2D3436] block">{wali || '-'}</span>
+            {hp && hp !== '-' ? <span className="text-[#636E72] font-mono text-[11px] block">{hp}</span> : null}
+          </div>
+        );
+      }
+    },
     {
       key: 'status',
       header: 'Status',
