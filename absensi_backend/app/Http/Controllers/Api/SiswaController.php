@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\BoardingRoom;
 use App\Models\KelompokBelajar;
+use App\Models\SantriPondok;
 use App\Models\Siswa;
 use App\Models\SiswaTahunAjaran;
 use App\Services\AuditLogService;
@@ -196,6 +197,7 @@ class SiswaController extends Controller
         $siswa = DB::transaction(function () use ($validated) {
             $siswa = Siswa::create($validated);
             $this->syncKelompokBelajar($siswa, $validated['kelas'] ?? null);
+            $this->syncSantriPondok($siswa);
             $this->waliAccountService->syncForStudent($siswa);
 
             return $siswa->fresh();
@@ -343,6 +345,7 @@ class SiswaController extends Controller
                     }
 
                     $this->syncKelompokBelajar($siswa, $kelasLabel);
+                    $this->syncSantriPondok($siswa);
                     $this->waliAccountService->syncForStudent($siswa);
 
                     if ($academicYearId) {
@@ -517,6 +520,7 @@ class SiswaController extends Controller
         $siswa = DB::transaction(function () use ($validated, $siswa) {
             $siswa->update($validated);
             $this->syncKelompokBelajar($siswa, $validated['kelas'] ?? $siswa->kelas);
+            $this->syncSantriPondok($siswa);
             $this->waliAccountService->syncForStudent($siswa);
 
             return $siswa->fresh();
@@ -738,6 +742,11 @@ class SiswaController extends Controller
             'transportasi' => $this->cleanString($row['transportasi'] ?? null),
             'golongan_darah' => $this->cleanString($row['golongan_darah'] ?? null),
         ];
+
+        $payload = $this->normalizeBoardingFields($payload);
+        $payload = $this->mirrorGuardianFromParent($payload);
+
+        return $payload;
     }
 
     private function syncKelompokBelajar(Siswa $siswa, ?string $kelasLabel): void
@@ -760,6 +769,28 @@ class SiswaController extends Controller
             if ($siswa->kelas !== $kelompok->nama) {
                 $siswa->update(['kelas' => $kelompok->nama]);
             }
+        }
+    }
+
+    private function syncSantriPondok(Siswa $siswa): void
+    {
+        if ($siswa->status_mondok === 'mondok' && $siswa->boarding_room_id) {
+            $room = BoardingRoom::find($siswa->boarding_room_id);
+            if ($room) {
+                SantriPondok::updateOrCreate(
+                    ['siswa_id' => $siswa->id],
+                    [
+                        'boarding_complex_id' => $room->boarding_complex_id,
+                        'boarding_room_id' => $room->id,
+                        'status' => $siswa->status ?? 'Aktif',
+                        'is_resident' => true,
+                        'participates_prayer' => true,
+                        'started_at' => now(),
+                    ]
+                );
+            }
+        } elseif ($siswa->status_mondok === 'tidak_mondok') {
+            SantriPondok::where('siswa_id', $siswa->id)->delete();
         }
     }
 
