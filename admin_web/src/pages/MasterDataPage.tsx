@@ -942,6 +942,9 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
           <span className="font-extrabold text-[#2D3436] text-sm block leading-tight">{text(row.nama)}</span>
           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-[#636E72]">
             <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 font-bold">NIS: {text(row.nis)}</span>
+            {row.nisn ? (
+              <span className="font-mono bg-blue-50 px-1.5 py-0.5 rounded text-[#2E86DE] font-bold">NISN: {text(row.nisn)}</span>
+            ) : null}
             {row.komplek || row.kamar ? (
               <span className="font-bold text-[#138F81] bg-[#E8F7F3] px-1.5 py-0.5 rounded">
                 🏠 {text(row.komplek)} - {text(row.kamar)}

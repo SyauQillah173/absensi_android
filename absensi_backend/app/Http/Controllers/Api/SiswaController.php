@@ -237,9 +237,9 @@ class SiswaController extends Controller
             $payload = $this->prepareImportPayload($row);
             $rowWarnings = [];
 
-            // Auto-generate NIS if empty
+            // Auto-generate numeric NIS if empty
             if (empty($payload['nis'])) {
-                $payload['nis'] = 'QM' . date('y') . str_pad((string)($maxSiswaId + $index + 1), 4, '0', STR_PAD_LEFT);
+                $payload['nis'] = date('y') . str_pad((string)($maxSiswaId + $index + 1), 4, '0', STR_PAD_LEFT);
             }
 
             // Check if existing student matches by NIK, NISN, NIS, or (Nama + Tanggal Lahir)
