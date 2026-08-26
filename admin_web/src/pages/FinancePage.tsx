@@ -389,7 +389,7 @@ export function FinancePage() {
 
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
           title="Total Pembayaran Santri"
           value={formatMoney(totalPembayaranSiswa)}
@@ -420,28 +420,28 @@ export function FinancePage() {
         />
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-teal-100 bg-white/90 p-3 shadow-xs">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="flex items-center gap-1.5 text-xs font-black text-[#2D3436]">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-100 bg-white/95 p-3.5 shadow-xs">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <span className="flex items-center gap-2 text-xs font-black text-gray-800">
             <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal-400 opacity-75"></span>
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-teal-500"></span>
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
             </span>
             <span>Realtime Hari Ini :</span>
           </span>
-          <span className="rounded-xl bg-teal-50 border border-teal-200 px-3 py-1 text-xs font-black text-teal-800">
+          <span className="rounded-xl bg-emerald-50 border border-emerald-200/80 px-3 py-1 text-xs font-black text-emerald-800 shadow-2xs">
             Masuk Hari Ini: {formatMoney(totalMasukHariIni)} ({countMasukHariIni} transaksi)
           </span>
-          <span className="rounded-xl bg-rose-50 border border-rose-200 px-3 py-1 text-xs font-black text-rose-800">
+          <span className="rounded-xl bg-rose-50 border border-rose-200/80 px-3 py-1 text-xs font-black text-rose-800 shadow-2xs">
             Keluar Hari Ini: {formatMoney(totalKeluarHariIni)}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-[#636E72]">Tahun Ajaran:</span>
+          <span className="text-xs font-bold text-gray-500">Tahun Ajaran:</span>
           <select
             value={selectedAcademicYearId || (activeAcademicYear ? Number(activeAcademicYear.id) : 0)}
             onChange={(e) => setSelectedAcademicYearId(Number(e.target.value))}
-            className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-[#2D3436] shadow-xs focus:border-[#138F81] focus:outline-none"
+            className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-800 shadow-xs focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] focus:outline-none"
           >
             {academicPeriods.map((period) => (
               <option key={num(period.id)} value={num(period.id)}>
