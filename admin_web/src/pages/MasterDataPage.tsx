@@ -163,7 +163,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
     try {
       let result;
       if (variant === 'siswa') {
-        result = await api.siswa({ status: 'Aktif', with_wali: 1 });
+        result = await api.siswa({ with_wali: 1 });
       } else if (variant === 'alumni') {
         result = await api.siswa({ status: 'Lulus', with_wali: 1 });
       } else if (variant === 'guru' || variant === 'login-guru') {
@@ -194,7 +194,14 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
   const filtered = useMemo(() => {
     const keyword = search.toLowerCase();
     return rows.filter((row) => {
-      if (siswaMode && statusFilter !== 'Semua' && text(row.status, 'Aktif') !== statusFilter) return false;
+      if (siswaMode) {
+        const rowStatus = text(row.status, 'Aktif');
+        if (statusFilter === 'Semua') {
+          if (rowStatus === 'Lulus') return false;
+        } else if (rowStatus !== statusFilter) {
+          return false;
+        }
+      }
       const haystack = JSON.stringify(row).toLowerCase();
       return keyword ? haystack.includes(keyword) : true;
     });
@@ -484,9 +491,15 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
         </div>
       ) : (
         <div className="q-stat-grid grid gap-4 md:grid-cols-3">
-          <StatCard title="Total Data" value={rows.length} subtitle={`${filtered.length} data tampil`} icon={Icon} tone="teal" />
+          <StatCard
+            title={siswaMode ? 'Total Santri' : 'Total Data'}
+            value={siswaMode ? rows.filter((r) => text(r.status, 'Aktif') !== 'Lulus').length : rows.length}
+            subtitle={`${filtered.length} ${siswaMode ? 'santri' : 'data'} tampil`}
+            icon={Icon}
+            tone="teal"
+          />
           <StatCard title="Aktif" value={countStatus(rows, 'Aktif')} subtitle="Data status aktif" icon={Search} tone="blue" />
-          <StatCard title={siswaMode ? 'Lulus/Nonaktif' : 'Nonaktif'} value={siswaMode ? countStatus(rows, 'Lulus') + countStatus(rows, 'Nonaktif') : countStatus(rows, 'Nonaktif')} subtitle={siswaMode ? 'Data arsip dan nonaktif' : 'Data status nonaktif'} icon={UsersRound} tone="orange" />
+          <StatCard title="Nonaktif" value={countStatus(rows, 'Nonaktif')} subtitle="Data status nonaktif" icon={UsersRound} tone="orange" />
         </div>
       )}
 

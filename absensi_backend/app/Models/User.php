@@ -118,10 +118,24 @@ class User extends Authenticatable
     {
         static::saving(function (User $user): void {
             $resolver = app(ReferenceResolver::class);
-            $user->role_id = $user->role_id ?: $resolver->roleId($user->role);
-            $user->user_status_id = $user->user_status_id ?: $resolver->userStatusId($user->status);
-            $user->role = $resolver->nameById('roles', $user->role_id, 'code') ?? $user->role;
-            $user->status = $resolver->nameById('user_statuses', $user->user_status_id) ?? $user->status;
+
+            if ($user->isDirty('role_id') && $user->role_id) {
+                $user->role = $resolver->nameById('roles', $user->role_id, 'code') ?? $user->role;
+            } elseif ($user->isDirty('role') || !$user->role_id) {
+                $user->role_id = $resolver->roleId($user->role) ?? $user->role_id;
+                $user->role = $resolver->nameById('roles', $user->role_id, 'code') ?? $user->role;
+            }
+
+            if ($user->isDirty('user_status_id') && $user->user_status_id) {
+                $user->status = $resolver->nameById('user_statuses', $user->user_status_id) ?? $user->status;
+            } elseif ($user->isDirty('status') || !$user->user_status_id) {
+                $statusId = $resolver->userStatusId($user->status);
+                if ($statusId) {
+                    $user->user_status_id = $statusId;
+                    $user->status = $resolver->nameById('user_statuses', $statusId) ?? $user->status;
+                }
+            }
+
             if ($user->role === 'admin') {
                 $user->admin_type = $user->admin_type ?: 'utama';
             } elseif ($user->role === 'guru') {

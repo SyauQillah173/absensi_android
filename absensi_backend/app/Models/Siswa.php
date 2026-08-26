@@ -144,31 +144,149 @@ class Siswa extends Model
     {
         static::saving(function (Siswa $siswa): void {
             $resolver = app(ReferenceResolver::class);
-            $siswa->class_id = $siswa->class_id ?: $resolver->classId($siswa->kelas, false);
-            $siswa->student_status_id = $siswa->student_status_id ?: $resolver->studentStatusId($siswa->status);
-            $siswa->academic_year_id = $siswa->academic_year_id ?: $resolver->academicYearId($siswa->tahun_akademik_masuk);
-            $siswa->student_type_id = $siswa->student_type_id ?: $resolver->studentTypeId($siswa->jenis_santri);
-            $siswa->school_origin_id = $siswa->school_origin_id ?: $resolver->schoolOriginId($siswa->asal_sekolah);
-            $siswa->previous_school_origin_id = $siswa->previous_school_origin_id
-                ?: $resolver->schoolOriginId($siswa->previous_asal_sekolah);
 
-            $siswa->province_id = $siswa->province_id ?: $resolver->provinceId($siswa->provinsi);
-            $siswa->city_id = $siswa->city_id ?: $resolver->cityId($siswa->kota, $siswa->province_id);
-            $siswa->district_id = $siswa->district_id ?: $resolver->districtId($siswa->kecamatan, $siswa->city_id);
-            $siswa->village_id = $siswa->village_id ?: $resolver->villageId($siswa->kelurahan, $siswa->district_id);
+            // 1. Status Sync
+            if ($siswa->isDirty('student_status_id') && $siswa->student_status_id) {
+                $siswa->status = $resolver->studentStatusName($siswa->student_status_id) ?? $siswa->status;
+            } elseif ($siswa->isDirty('status') || !$siswa->student_status_id) {
+                $statusId = $resolver->studentStatusId($siswa->status);
+                if ($statusId) {
+                    $siswa->student_status_id = $statusId;
+                    $siswa->status = $resolver->studentStatusName($statusId) ?? $siswa->status;
+                }
+            }
 
-            $siswa->father_education_id = $siswa->father_education_id ?: $resolver->educationLevelId($siswa->pendidikan_ayah);
-            $siswa->mother_education_id = $siswa->mother_education_id ?: $resolver->educationLevelId($siswa->pendidikan_ibu);
-            $siswa->father_occupation_id = $siswa->father_occupation_id ?: $resolver->occupationId($siswa->pekerjaan_ayah);
-            $siswa->mother_occupation_id = $siswa->mother_occupation_id ?: $resolver->occupationId($siswa->pekerjaan_ibu);
-            $siswa->guardian_occupation_id = $siswa->guardian_occupation_id ?: $resolver->occupationId($siswa->pekerjaan_wali_keluarga);
-            $siswa->father_income_id = $siswa->father_income_id ?: $resolver->incomeRangeId($siswa->penghasilan_ayah);
-            $siswa->mother_income_id = $siswa->mother_income_id ?: $resolver->incomeRangeId($siswa->penghasilan_ibu);
-            $siswa->guardian_relationship_id = $siswa->guardian_relationship_id ?: $resolver->guardianRelationshipId($siswa->wali_sama_dengan);
-            $siswa->residence_type_id = $siswa->residence_type_id ?: $resolver->residenceTypeId($siswa->tempat_tinggal);
-            $siswa->transport_mode_id = $siswa->transport_mode_id ?: $resolver->transportModeId($siswa->transportasi);
-            $siswa->blood_type_id = $siswa->blood_type_id ?: $resolver->bloodTypeId($siswa->golongan_darah);
+            // 2. Class / Madin Sync
+            if ($siswa->isDirty('class_id') && $siswa->class_id) {
+                $siswa->kelas = $resolver->className($siswa->class_id) ?? $siswa->kelas;
+            } elseif ($siswa->isDirty('kelas') || !$siswa->class_id) {
+                $classId = $resolver->classId($siswa->kelas, false);
+                if ($classId) {
+                    $siswa->class_id = $classId;
+                    $siswa->kelas = $resolver->className($classId) ?? $siswa->kelas;
+                }
+            }
 
+            // 3. Academic Year Sync
+            if ($siswa->isDirty('academic_year_id') && $siswa->academic_year_id) {
+                $siswa->tahun_akademik_masuk = $resolver->academicYearName($siswa->academic_year_id) ?? $siswa->tahun_akademik_masuk;
+            } elseif ($siswa->isDirty('tahun_akademik_masuk') || !$siswa->academic_year_id) {
+                $siswa->academic_year_id = $resolver->academicYearId($siswa->tahun_akademik_masuk) ?? $siswa->academic_year_id;
+            }
+
+            // 4. Student Type Sync
+            if ($siswa->isDirty('student_type_id') && $siswa->student_type_id) {
+                $siswa->jenis_santri = $resolver->nameById('student_types', $siswa->student_type_id) ?? $siswa->jenis_santri;
+            } elseif ($siswa->isDirty('jenis_santri') || !$siswa->student_type_id) {
+                $siswa->student_type_id = $resolver->studentTypeId($siswa->jenis_santri) ?? $siswa->student_type_id;
+            }
+
+            // 5. School Origin Sync
+            if ($siswa->isDirty('school_origin_id') && $siswa->school_origin_id) {
+                $siswa->asal_sekolah = $resolver->schoolOriginName($siswa->school_origin_id) ?? $siswa->asal_sekolah;
+            } elseif ($siswa->isDirty('asal_sekolah') || !$siswa->school_origin_id) {
+                $siswa->school_origin_id = $resolver->schoolOriginId($siswa->asal_sekolah) ?? $siswa->school_origin_id;
+            }
+
+            if ($siswa->isDirty('previous_school_origin_id') && $siswa->previous_school_origin_id) {
+                $siswa->previous_asal_sekolah = $resolver->schoolOriginName($siswa->previous_school_origin_id) ?? $siswa->previous_asal_sekolah;
+            } elseif ($siswa->isDirty('previous_asal_sekolah') || !$siswa->previous_school_origin_id) {
+                $siswa->previous_school_origin_id = $resolver->schoolOriginId($siswa->previous_asal_sekolah) ?? $siswa->previous_school_origin_id;
+            }
+
+            // 6. Region Sync
+            if ($siswa->isDirty('province_id') && $siswa->province_id) {
+                $siswa->provinsi = $resolver->nameById('provinces', $siswa->province_id) ?? $siswa->provinsi;
+            } elseif ($siswa->isDirty('provinsi') || !$siswa->province_id) {
+                $siswa->province_id = $resolver->provinceId($siswa->provinsi) ?? $siswa->province_id;
+            }
+
+            if ($siswa->isDirty('city_id') && $siswa->city_id) {
+                $siswa->kota = $resolver->nameById('cities', $siswa->city_id) ?? $siswa->kota;
+            } elseif ($siswa->isDirty('kota') || !$siswa->city_id) {
+                $siswa->city_id = $resolver->cityId($siswa->kota, $siswa->province_id) ?? $siswa->city_id;
+            }
+
+            if ($siswa->isDirty('district_id') && $siswa->district_id) {
+                $siswa->kecamatan = $resolver->nameById('districts', $siswa->district_id) ?? $siswa->kecamatan;
+            } elseif ($siswa->isDirty('kecamatan') || !$siswa->district_id) {
+                $siswa->district_id = $resolver->districtId($siswa->kecamatan, $siswa->city_id) ?? $siswa->district_id;
+            }
+
+            if ($siswa->isDirty('village_id') && $siswa->village_id) {
+                $siswa->kelurahan = $resolver->nameById('villages', $siswa->village_id) ?? $siswa->kelurahan;
+            } elseif ($siswa->isDirty('kelurahan') || !$siswa->village_id) {
+                $siswa->village_id = $resolver->villageId($siswa->kelurahan, $siswa->district_id) ?? $siswa->village_id;
+            }
+
+            // 7. Parent & Other References
+            if ($siswa->isDirty('father_education_id') && $siswa->father_education_id) {
+                $siswa->pendidikan_ayah = $resolver->nameById('education_levels', $siswa->father_education_id) ?? $siswa->pendidikan_ayah;
+            } elseif ($siswa->isDirty('pendidikan_ayah') || !$siswa->father_education_id) {
+                $siswa->father_education_id = $resolver->educationLevelId($siswa->pendidikan_ayah) ?? $siswa->father_education_id;
+            }
+
+            if ($siswa->isDirty('mother_education_id') && $siswa->mother_education_id) {
+                $siswa->pendidikan_ibu = $resolver->nameById('education_levels', $siswa->mother_education_id) ?? $siswa->pendidikan_ibu;
+            } elseif ($siswa->isDirty('pendidikan_ibu') || !$siswa->mother_education_id) {
+                $siswa->mother_education_id = $resolver->educationLevelId($siswa->pendidikan_ibu) ?? $siswa->mother_education_id;
+            }
+
+            if ($siswa->isDirty('father_occupation_id') && $siswa->father_occupation_id) {
+                $siswa->pekerjaan_ayah = $resolver->nameById('occupations', $siswa->father_occupation_id) ?? $siswa->pekerjaan_ayah;
+            } elseif ($siswa->isDirty('pekerjaan_ayah') || !$siswa->father_occupation_id) {
+                $siswa->father_occupation_id = $resolver->occupationId($siswa->pekerjaan_ayah) ?? $siswa->father_occupation_id;
+            }
+
+            if ($siswa->isDirty('mother_occupation_id') && $siswa->mother_occupation_id) {
+                $siswa->pekerjaan_ibu = $resolver->nameById('occupations', $siswa->mother_occupation_id) ?? $siswa->pekerjaan_ibu;
+            } elseif ($siswa->isDirty('pekerjaan_ibu') || !$siswa->mother_occupation_id) {
+                $siswa->mother_occupation_id = $resolver->occupationId($siswa->pekerjaan_ibu) ?? $siswa->mother_occupation_id;
+            }
+
+            if ($siswa->isDirty('guardian_occupation_id') && $siswa->guardian_occupation_id) {
+                $siswa->pekerjaan_wali_keluarga = $resolver->nameById('occupations', $siswa->guardian_occupation_id) ?? $siswa->pekerjaan_wali_keluarga;
+            } elseif ($siswa->isDirty('pekerjaan_wali_keluarga') || !$siswa->guardian_occupation_id) {
+                $siswa->guardian_occupation_id = $resolver->occupationId($siswa->pekerjaan_wali_keluarga) ?? $siswa->guardian_occupation_id;
+            }
+
+            if ($siswa->isDirty('father_income_id') && $siswa->father_income_id) {
+                $siswa->penghasilan_ayah = $resolver->nameById('income_ranges', $siswa->father_income_id) ?? $siswa->penghasilan_ayah;
+            } elseif ($siswa->isDirty('penghasilan_ayah') || !$siswa->father_income_id) {
+                $siswa->father_income_id = $resolver->incomeRangeId($siswa->penghasilan_ayah) ?? $siswa->father_income_id;
+            }
+
+            if ($siswa->isDirty('mother_income_id') && $siswa->mother_income_id) {
+                $siswa->penghasilan_ibu = $resolver->nameById('income_ranges', $siswa->mother_income_id) ?? $siswa->penghasilan_ibu;
+            } elseif ($siswa->isDirty('penghasilan_ibu') || !$siswa->mother_income_id) {
+                $siswa->mother_income_id = $resolver->incomeRangeId($siswa->penghasilan_ibu) ?? $siswa->mother_income_id;
+            }
+
+            if ($siswa->isDirty('guardian_relationship_id') && $siswa->guardian_relationship_id) {
+                $siswa->wali_sama_dengan = $resolver->nameById('guardian_relationships', $siswa->guardian_relationship_id) ?? $siswa->wali_sama_dengan;
+            } elseif ($siswa->isDirty('wali_sama_dengan') || !$siswa->guardian_relationship_id) {
+                $siswa->guardian_relationship_id = $resolver->guardianRelationshipId($siswa->wali_sama_dengan) ?? $siswa->guardian_relationship_id;
+            }
+
+            if ($siswa->isDirty('residence_type_id') && $siswa->residence_type_id) {
+                $siswa->tempat_tinggal = $resolver->nameById('residence_types', $siswa->residence_type_id) ?? $siswa->tempat_tinggal;
+            } elseif ($siswa->isDirty('tempat_tinggal') || !$siswa->residence_type_id) {
+                $siswa->residence_type_id = $resolver->residenceTypeId($siswa->tempat_tinggal) ?? $siswa->residence_type_id;
+            }
+
+            if ($siswa->isDirty('transport_mode_id') && $siswa->transport_mode_id) {
+                $siswa->transportasi = $resolver->nameById('transport_modes', $siswa->transport_mode_id) ?? $siswa->transportasi;
+            } elseif ($siswa->isDirty('transportasi') || !$siswa->transport_mode_id) {
+                $siswa->transport_mode_id = $resolver->transportModeId($siswa->transportasi) ?? $siswa->transport_mode_id;
+            }
+
+            if ($siswa->isDirty('blood_type_id') && $siswa->blood_type_id) {
+                $siswa->golongan_darah = $resolver->nameById('blood_types', $siswa->blood_type_id) ?? $siswa->golongan_darah;
+            } elseif ($siswa->isDirty('golongan_darah') || !$siswa->blood_type_id) {
+                $siswa->blood_type_id = $resolver->bloodTypeId($siswa->golongan_darah) ?? $siswa->blood_type_id;
+            }
+
+            // 8. Boarding Room
             if ($siswa->boarding_room_id) {
                 $room = BoardingRoom::query()
                     ->with('complex:id,name')
@@ -176,27 +294,6 @@ class Siswa extends Model
                 $siswa->kamar = $room?->name ?? $siswa->kamar;
                 $siswa->komplek = $room?->complex?->name ?? $siswa->komplek;
             }
-
-            $siswa->kelas = $resolver->className($siswa->class_id) ?? $siswa->kelas;
-            $siswa->status = $resolver->studentStatusName($siswa->student_status_id) ?? $siswa->status;
-            $siswa->asal_sekolah = $resolver->schoolOriginName($siswa->school_origin_id) ?? $siswa->asal_sekolah;
-            $siswa->previous_asal_sekolah = $resolver->schoolOriginName($siswa->previous_school_origin_id) ?? $siswa->previous_asal_sekolah;
-            $siswa->provinsi = $resolver->nameById('provinces', $siswa->province_id) ?? $siswa->provinsi;
-            $siswa->kota = $resolver->nameById('cities', $siswa->city_id) ?? $siswa->kota;
-            $siswa->kecamatan = $resolver->nameById('districts', $siswa->district_id) ?? $siswa->kecamatan;
-            $siswa->kelurahan = $resolver->nameById('villages', $siswa->village_id) ?? $siswa->kelurahan;
-            $siswa->jenis_santri = $resolver->nameById('student_types', $siswa->student_type_id) ?? $siswa->jenis_santri;
-            $siswa->pendidikan_ayah = $resolver->nameById('education_levels', $siswa->father_education_id) ?? $siswa->pendidikan_ayah;
-            $siswa->pendidikan_ibu = $resolver->nameById('education_levels', $siswa->mother_education_id) ?? $siswa->pendidikan_ibu;
-            $siswa->pekerjaan_ayah = $resolver->nameById('occupations', $siswa->father_occupation_id) ?? $siswa->pekerjaan_ayah;
-            $siswa->pekerjaan_ibu = $resolver->nameById('occupations', $siswa->mother_occupation_id) ?? $siswa->pekerjaan_ibu;
-            $siswa->pekerjaan_wali_keluarga = $resolver->nameById('occupations', $siswa->guardian_occupation_id) ?? $siswa->pekerjaan_wali_keluarga;
-            $siswa->penghasilan_ayah = $resolver->nameById('income_ranges', $siswa->father_income_id) ?? $siswa->penghasilan_ayah;
-            $siswa->penghasilan_ibu = $resolver->nameById('income_ranges', $siswa->mother_income_id) ?? $siswa->penghasilan_ibu;
-            $siswa->wali_sama_dengan = $resolver->nameById('guardian_relationships', $siswa->guardian_relationship_id) ?? $siswa->wali_sama_dengan;
-            $siswa->tempat_tinggal = $resolver->nameById('residence_types', $siswa->residence_type_id) ?? $siswa->tempat_tinggal;
-            $siswa->transportasi = $resolver->nameById('transport_modes', $siswa->transport_mode_id) ?? $siswa->transportasi;
-            $siswa->golongan_darah = $resolver->nameById('blood_types', $siswa->blood_type_id) ?? $siswa->golongan_darah;
         });
     }
 }
