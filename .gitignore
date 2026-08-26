@@ -66,6 +66,9 @@ reset_*.sh
 *.swp
 .DS_Store
 Thumbs.db
+~$*
+scratch_*.php
+**/*.tmp
 migrate_working_dir/
 
 # ==========================================
@@ -78,6 +81,7 @@ migrate_working_dir/
 absensi_backend/storage/logs/*.log
 absensi_backend/.tmp/
 absensi_backend/test_*.php
+absensi_backend/scratch_*.php
 
 # ==========================================
 # 5. WHATSAPP BOT SESSIONS & CACHE

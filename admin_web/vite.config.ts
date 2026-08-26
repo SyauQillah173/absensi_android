@@ -8,12 +8,15 @@ export default defineConfig({
     sourcemap: false, // Mematikan source map agar kode asli TypeScript tidak bisa dibongkar di browser DevTools
     minify: 'esbuild', // Minifikasi & pengaburan kode (obfuscation) secara intensif
     cssMinify: true,
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom'],
-          icons: ['lucide-react']
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-icons': ['lucide-react'],
+          'vendor-excel': ['xlsx-js-style', 'jszip'],
+          'vendor-charts': ['recharts'],
+          'vendor-qr': ['qrcode']
         }
       }
     }
