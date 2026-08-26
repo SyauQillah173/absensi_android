@@ -21,14 +21,6 @@ body {
   overflow-x: hidden;
 }
 
-html.q-dark-root,
-body.q-dark-body {
-  background:
-    radial-gradient(circle at top left, rgba(19, 143, 129, 0.22), transparent 30%),
-    radial-gradient(circle at top right, rgba(255, 220, 128, 0.14), transparent 28%),
-    linear-gradient(135deg, #132c2d 0%, #17393a 48%, #20332c 100%);
-}
-
 button,
 input,
 select,
@@ -245,102 +237,6 @@ button:disabled {
   background: #138f81;
 }
 
-.theme-dark {
-  color: #f5fbf8;
-  background:
-    radial-gradient(circle at top left, rgba(19, 143, 129, 0.22), transparent 30%),
-    radial-gradient(circle at top right, rgba(255, 220, 128, 0.14), transparent 28%),
-    linear-gradient(135deg, #132c2d 0%, #17393a 48%, #20332c 100%);
-}
-
-.theme-dark header,
-.theme-dark aside,
-.theme-dark .q-card,
-.theme-dark .q-dropdown,
-.theme-dark .q-modal-panel {
-  border: 1px solid rgba(224, 246, 238, 0.08);
-  background: rgba(31, 58, 58, 0.92) !important;
-  color: #f7fbfc;
-  box-shadow: 0 22px 54px rgba(5, 19, 20, 0.28);
-}
-
-.theme-dark .q-panel,
-.theme-dark .dashboard-mini-tile {
-  background: rgba(61, 91, 91, 0.78);
-}
-
-.theme-dark .q-input {
-  background: rgba(19, 44, 45, 0.72);
-  color: #f7fbfc;
-  border-color: rgba(225, 239, 247, 0.12);
-}
-
-.theme-dark .q-input::placeholder {
-  color: #a9bec4;
-}
-
-.theme-dark h1,
-.theme-dark h2,
-.theme-dark p,
-.theme-dark td,
-.theme-dark th,
-.theme-dark span {
-  border-color: rgba(225, 239, 247, 0.14);
-}
-
-.theme-dark .text-\[\#2D3436\],
-.theme-dark .text-slate-800,
-.theme-dark .text-slate-700 {
-  color: #f7fbfc !important;
-}
-
-.theme-dark .text-\[\#636E72\],
-.theme-dark .text-slate-500,
-.theme-dark .text-slate-400 {
-  color: #b8cbd0 !important;
-}
-
-.theme-dark .bg-white {
-  background: rgba(61, 91, 91, 0.9) !important;
-}
-
-.theme-dark .bg-slate-50,
-.theme-dark .bg-\[\#F8FDFD\] {
-  background: rgba(31, 58, 58, 0.92) !important;
-}
-
-.theme-dark .border-slate-200 {
-  border-color: rgba(225, 239, 247, 0.12) !important;
-}
-
-.theme-dark .border-slate-100 {
-  border-color: rgba(225, 239, 247, 0.08) !important;
-}
-
-.theme-dark .bg-\[\#138F81\]\/5 {
-  background: rgba(19, 143, 129, 0.15) !important;
-}
-
-.theme-dark .bg-\[\#FFFDF7\] {
-  background: rgba(31, 58, 58, 0.92) !important;
-}
-
-.theme-dark .bg-\[\#E1EFF7\] {
-  background: rgba(61, 91, 91, 0.85) !important;
-}
-
-.theme-dark .q-menu-item:hover {
-  background: rgba(109, 197, 184, 0.18) !important;
-}
-
-.theme-dark .q-refresh-button,
-.theme-dark .q-soft-action {
-  color: #8de2d6 !important;
-}
-
-.theme-dark .q-card:hover {
-  box-shadow: 0 28px 66px rgba(5, 19, 20, 0.38);
-}
 
 @keyframes qDropdownIn {
   from {

@@ -11,9 +11,7 @@ import {
   LogOut,
   Menu,
   MessageCircle,
-  Moon,
   ShieldCheck,
-  Sun,
   X,
   UserCog,
   UserRound,
@@ -141,9 +139,6 @@ export function AdminLayout({
   const [openGroups, setOpenGroups] = useState<
     Partial<Record<PageKey, boolean>>
   >({ master: true });
-  const [darkMode, setDarkMode] = useState(
-    () => localStorage.getItem("qomaruddin_admin_theme") === "dark",
-  );
 
   const loadNotifications = useCallback(async (showLoading = false) => {
     if (showLoading) setNotificationsLoading(true);
@@ -195,16 +190,6 @@ export function AdminLayout({
     };
   }, [loadNotifications]);
 
-  useEffect(() => {
-    localStorage.setItem("qomaruddin_admin_theme", darkMode ? "dark" : "light");
-    document.documentElement.classList.toggle("q-dark-root", darkMode);
-    document.body.classList.toggle("q-dark-body", darkMode);
-
-    return () => {
-      document.documentElement.classList.remove("q-dark-root");
-      document.body.classList.remove("q-dark-body");
-    };
-  }, [darkMode]);
 
   useEffect(() => {
     function handleEscape(event: KeyboardEvent) {
@@ -352,7 +337,7 @@ export function AdminLayout({
 
   return (
     <div
-      className={`q-app-shell min-h-screen bg-[#FFDC80] p-4 lg:p-6 ${darkMode ? "theme-dark" : "theme-light"}`}
+      className="q-app-shell min-h-screen bg-[#FFDC80] p-4 lg:p-6 theme-light"
     >
       <div className="mx-auto flex max-w-360 gap-6">
         <div className="hidden shrink-0 lg:block">{nav}</div>
@@ -500,16 +485,6 @@ export function AdminLayout({
                   </div>
                 ) : null}
               </div>
-              <button
-                className="q-icon-button grid h-10 w-10 place-items-center rounded-2xl bg-[#E1EFF7] text-[#138F81]"
-                onClick={() => setDarkMode((value) => !value)}
-                type="button"
-                aria-label={
-                  darkMode ? "Aktifkan mode siang" : "Aktifkan mode malam"
-                }
-              >
-                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
-              </button>
               <div className="relative">
                 <button
                   className="q-profile-button flex min-h-10 items-center gap-3 rounded-2xl bg-[#2D3436] px-3 py-2 text-white"
