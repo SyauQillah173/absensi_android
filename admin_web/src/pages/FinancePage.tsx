@@ -1,4 +1,21 @@
-import { CalendarDays, Check, CreditCard, Download, Landmark, Plus, Printer, RefreshCw, Save, Trash2, WalletCards, X } from 'lucide-react';
+import {
+  ArrowDownCircle,
+  CalendarDays,
+  Check,
+  Coins,
+  CreditCard,
+  Download,
+  Landmark,
+  Plus,
+  Printer,
+  RefreshCw,
+  Save,
+  ShieldCheck,
+  Trash2,
+  TrendingUp,
+  WalletCards,
+  X
+} from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
@@ -43,6 +60,14 @@ const tabs = [
   { id: 'periods', label: 'Periode' },
   { id: 'settings', label: 'Pengaturan Struk' }
 ];
+
+function getLocalTodayString(): string {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 function num(value: unknown): number {
   const result = Number(value ?? 0);
@@ -93,6 +118,8 @@ export function FinancePage() {
   const [editing, setEditing] = useState<ApiRecord | null>(null);
   const [billingStudentId, setBillingStudentId] = useState<number>(0);
   const [billingSummary, setBillingSummary] = useState<ApiRecord | null>(null);
+  const [financialSummary, setFinancialSummary] = useState<ApiRecord | null>(null);
+  const [selectedAcademicYearId, setSelectedAcademicYearId] = useState<number>(0);
   const [chartData, setChartData] = useState<ApiRecord[]>([]);
   const [pemasukanLain, setPemasukanLain] = useState<ApiRecord[]>([]);
   const [pemasukanLainSummary, setPemasukanLainSummary] = useState<ApiRecord | null>(null);
@@ -128,6 +155,9 @@ export function FinancePage() {
       ]);
       setToday(Array.isArray(todayResult.data) ? todayResult.data : []);
       setHistory(Array.isArray(historyResult.data) ? historyResult.data : []);
+      if (todayResult.financial_summary || historyResult.financial_summary) {
+        setFinancialSummary(((todayResult.financial_summary || historyResult.financial_summary) as ApiRecord) ?? null);
+      }
       setPaymentTypes(Array.isArray(typesResult.data) ? typesResult.data : []);
       setPaymentMethods(Array.isArray(methodsResult.data) ? methodsResult.data : []);
       setPaymentPeriods(Array.isArray(periodsResult.data) ? periodsResult.data : []);
@@ -161,21 +191,114 @@ export function FinancePage() {
     void load();
   }, []);
 
+  const activeAcademicYear = academicPeriods.find((item) => item.is_active === true || item.status === 'Aktif') ?? academicPeriods[0];
+  const activeSemesters = Array.isArray(activeAcademicYear?.semesters) ? activeAcademicYear.semesters : [];
+
+  const currentAcademicYear = academicPeriods.find((item) => Number(item.id) === selectedAcademicYearId) ?? activeAcademicYear;
+  const currentAcademicYearName = currentAcademicYear?.name || 'Tahun Ini';
+
+  // 1. Total Pembayaran Siswa Tahun Ajaran Aktif (Akumulasi 1 Tahun / 2 Semester)
+  const totalPembayaranSiswa = useMemo(() => {
+    if (financialSummary?.total_pembayaran_siswa !== undefined && (!selectedAcademicYearId || selectedAcademicYearId === Number(activeAcademicYear?.id))) {
+      return num(financialSummary.total_pembayaran_siswa);
+    }
+    return history
+      .filter((row) => {
+        const isThisYear = !currentAcademicYear || Number(row.academic_year_id) === Number(currentAcademicYear.id) || String(row.tahun_ajaran) === String(currentAcademicYear.name);
+        const isNotCanceled = String(row.status).toLowerCase() !== 'dibatalkan' && String(row.status).toLowerCase() !== 'batal';
+        return isThisYear && isNotCanceled;
+      })
+      .reduce((sum, row) => sum + num(row.jumlah), 0);
+  }, [financialSummary, history, currentAcademicYear, selectedAcademicYearId, activeAcademicYear]);
+
+  const countPembayaranSiswa = useMemo(() => {
+    if (financialSummary?.count_transaksi_siswa !== undefined && (!selectedAcademicYearId || selectedAcademicYearId === Number(activeAcademicYear?.id))) {
+      return num(financialSummary.count_transaksi_siswa);
+    }
+    return history.filter((row) => {
+      const isThisYear = !currentAcademicYear || Number(row.academic_year_id) === Number(currentAcademicYear.id) || String(row.tahun_ajaran) === String(currentAcademicYear.name);
+      return isThisYear && String(row.status).toLowerCase() !== 'dibatalkan' && String(row.status).toLowerCase() !== 'batal';
+    }).length;
+  }, [financialSummary, history, currentAcademicYear, selectedAcademicYearId, activeAcademicYear]);
+
+  // 2. Total Kas Masuk Lain (Tahun Ajaran Aktif)
+  const totalKasMasukLain = useMemo(() => {
+    if (financialSummary?.total_kas_masuk_lain !== undefined && (!selectedAcademicYearId || selectedAcademicYearId === Number(activeAcademicYear?.id))) {
+      return num(financialSummary.total_kas_masuk_lain);
+    }
+    return pemasukanLain
+      .filter((row) => !currentAcademicYear || Number(row.academic_year_id) === Number(currentAcademicYear.id))
+      .reduce((sum, row) => sum + num(row.jumlah), 0);
+  }, [financialSummary, pemasukanLain, currentAcademicYear, selectedAcademicYearId, activeAcademicYear]);
+
+  const countKasMasukLain = useMemo(() => {
+    if (financialSummary?.count_kas_masuk_lain !== undefined && (!selectedAcademicYearId || selectedAcademicYearId === Number(activeAcademicYear?.id))) {
+      return num(financialSummary.count_kas_masuk_lain);
+    }
+    return pemasukanLain.filter((row) => !currentAcademicYear || Number(row.academic_year_id) === Number(currentAcademicYear.id)).length;
+  }, [financialSummary, pemasukanLain, currentAcademicYear, selectedAcademicYearId, activeAcademicYear]);
+
+  // 3. Total Pengeluaran Kas (Tahun Ajaran Aktif)
+  const totalPengeluaranTahunIni = useMemo(() => {
+    if (financialSummary?.total_pengeluaran !== undefined && (!selectedAcademicYearId || selectedAcademicYearId === Number(activeAcademicYear?.id))) {
+      return num(financialSummary.total_pengeluaran);
+    }
+    return pengeluaran
+      .filter((row) => !currentAcademicYear || Number(row.academic_year_id) === Number(currentAcademicYear.id))
+      .reduce((sum, row) => sum + num(row.jumlah), 0);
+  }, [financialSummary, pengeluaran, currentAcademicYear, selectedAcademicYearId, activeAcademicYear]);
+
+  const countPengeluaranTahunIni = useMemo(() => {
+    if (financialSummary?.count_pengeluaran !== undefined && (!selectedAcademicYearId || selectedAcademicYearId === Number(activeAcademicYear?.id))) {
+      return num(financialSummary.count_pengeluaran);
+    }
+    return pengeluaran.filter((row) => !currentAcademicYear || Number(row.academic_year_id) === Number(currentAcademicYear.id)).length;
+  }, [financialSummary, pengeluaran, currentAcademicYear, selectedAcademicYearId, activeAcademicYear]);
+
+  // 4. Saldo Kas Bersih (Surplus / Sisa Kas Keseluruhan)
+  const totalPemasukanKeseluruhan = totalPembayaranSiswa + totalKasMasukLain;
+  const saldoKasBersih = totalPemasukanKeseluruhan - totalPengeluaranTahunIni;
+
+  // Realtime Hari Ini
+  const localToday = getLocalTodayString();
+  const totalMasukHariIni = useMemo(() => {
+    if (financialSummary?.total_masuk_hari_ini !== undefined) {
+      return num(financialSummary.total_masuk_hari_ini);
+    }
+    const sTrx = today.reduce((sum, row) => sum + num(row.jumlah), 0);
+    const pLain = pemasukanLain
+      .filter((row) => String(row.tanggal).startsWith(localToday) || String(row.created_at).startsWith(localToday))
+      .reduce((sum, row) => sum + num(row.jumlah), 0);
+    return sTrx + pLain;
+  }, [financialSummary, today, pemasukanLain, localToday]);
+
+  const countMasukHariIni = useMemo(() => {
+    if (financialSummary?.count_masuk_hari_ini !== undefined) {
+      return num(financialSummary.count_masuk_hari_ini);
+    }
+    return today.length;
+  }, [financialSummary, today]);
+
+  const totalKeluarHariIni = useMemo(() => {
+    if (financialSummary?.total_keluar_hari_ini !== undefined) {
+      return num(financialSummary.total_keluar_hari_ini);
+    }
+    return pengeluaran
+      .filter((row) => String(row.tanggal).startsWith(localToday) || String(row.created_at).startsWith(localToday))
+      .reduce((sum, row) => sum + num(row.jumlah), 0);
+  }, [financialSummary, pengeluaran, localToday]);
+
   const totalToday = useMemo(() => today.reduce((sum, row) => sum + num(row.jumlah), 0), [today]);
   const totalHistory = useMemo(() => history.reduce((sum, row) => sum + num(row.jumlah), 0), [history]);
   const totalPengeluaranToday = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
     return pengeluaran
-      .filter((row) => String(row.tanggal).startsWith(todayStr))
+      .filter((row) => String(row.tanggal).startsWith(localToday) || String(row.created_at).startsWith(localToday))
       .reduce((sum, row) => sum + num(row.jumlah), 0);
-  }, [pengeluaran]);
+  }, [pengeluaran, localToday]);
 
   const activeMethods = paymentMethods.filter((method) => method.is_active !== false);
   const activePeriods = paymentPeriods.filter((period) => period.is_active !== false);
   const activeTypes = paymentTypes.filter((type) => String(type.status ?? 'Aktif') === 'Aktif');
-  
-  const activeAcademicYear = academicPeriods.find((item) => item.is_active === true || item.status === 'Aktif') ?? academicPeriods[0];
-  const activeSemesters = Array.isArray(activeAcademicYear?.semesters) ? activeAcademicYear.semesters : [];
 
   const [showExportModal, setShowExportModal] = useState(false);
   const uniqueClasses = useMemo(() => Array.from(new Set(students.map((s) => str(s.kelas)).filter(Boolean))).sort(), [students]);
@@ -267,10 +390,66 @@ export function FinancePage() {
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
 
       <div className="grid gap-4 md:grid-cols-4">
-        <StatCard title="Total Masuk Hari Ini" value={formatMoney(totalToday)} subtitle={`${today.length} transaksi hari ini`} icon={WalletCards} tone="teal" />
-        <StatCard title="Total Keluar Hari Ini" value={formatMoney(totalPengeluaranToday)} subtitle={`Pengeluaran hari ini`} icon={WalletCards} tone="red" />
-        <StatCard title="Tipe Pembayaran Aktif" value={activeTypes.length} subtitle={`${paymentTypes.length} master tagihan`} icon={Landmark} tone="orange" />
-        <StatCard title="Metode Aktif" value={activeMethods.length} subtitle={`${paymentMethods.length} metode tersimpan`} icon={CreditCard} tone="blue" />
+        <StatCard
+          title="Total Pembayaran Santri"
+          value={formatMoney(totalPembayaranSiswa)}
+          subtitle={`${countPembayaranSiswa} transaksi (${currentAcademicYearName})`}
+          icon={WalletCards}
+          tone="teal"
+        />
+        <StatCard
+          title="Total Kas Masuk Lain"
+          value={formatMoney(totalKasMasukLain)}
+          subtitle={`${countKasMasukLain} transaksi (${currentAcademicYearName})`}
+          icon={Landmark}
+          tone="blue"
+        />
+        <StatCard
+          title="Total Pengeluaran Kas"
+          value={formatMoney(totalPengeluaranTahunIni)}
+          subtitle={`${countPengeluaranTahunIni} pengeluaran (${currentAcademicYearName})`}
+          icon={ArrowDownCircle}
+          tone="red"
+        />
+        <StatCard
+          title="Saldo Kas Bersih"
+          value={formatMoney(saldoKasBersih)}
+          subtitle={`Surplus Kas (${currentAcademicYearName})`}
+          icon={ShieldCheck}
+          tone={saldoKasBersih >= 0 ? 'teal' : 'red'}
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-teal-100 bg-white/90 p-3 shadow-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-1.5 text-xs font-black text-[#2D3436]">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal-400 opacity-75"></span>
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-teal-500"></span>
+            </span>
+            <span>Realtime Hari Ini :</span>
+          </span>
+          <span className="rounded-xl bg-teal-50 border border-teal-200 px-3 py-1 text-xs font-black text-teal-800">
+            Masuk Hari Ini: {formatMoney(totalMasukHariIni)} ({countMasukHariIni} transaksi)
+          </span>
+          <span className="rounded-xl bg-rose-50 border border-rose-200 px-3 py-1 text-xs font-black text-rose-800">
+            Keluar Hari Ini: {formatMoney(totalKeluarHariIni)}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-[#636E72]">Tahun Ajaran:</span>
+          <select
+            value={selectedAcademicYearId || (activeAcademicYear ? Number(activeAcademicYear.id) : 0)}
+            onChange={(e) => setSelectedAcademicYearId(Number(e.target.value))}
+            className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-[#2D3436] shadow-xs focus:border-[#138F81] focus:outline-none"
+          >
+            {academicPeriods.map((period) => (
+              <option key={num(period.id)} value={num(period.id)}>
+                {str(period.name)} {period.is_active ? '(Aktif)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <section className="q-card p-5 mb-5">
@@ -785,7 +964,7 @@ function DirectPaymentCashier({
         payment_method_id: methodId,
         jumlah: netAmount,
         keterangan: discountNotes.length > 0 ? discountNotes.join(' | ') : undefined,
-        tanggal: new Date().toISOString().slice(0, 10),
+        tanggal: getLocalTodayString(),
         status: 'Lunas',
         academic_year_id: academicYearId || undefined,
         semester_id: semesterId || undefined,

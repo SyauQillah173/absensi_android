@@ -187,7 +187,13 @@ class PaymentHistoryService
             'items.paymentBill:id,title,period_label,due_date,status',
         ]);
 
-        if (!empty($filters['tanggal'])) {
+        if (!empty($filters['today_or_created_today'])) {
+            $today = $filters['today_or_created_today'];
+            $query->where(function ($q) use ($today) {
+                $q->whereDate('tanggal', $today)
+                  ->orWhereDate('created_at', $today);
+            });
+        } elseif (!empty($filters['tanggal'])) {
             $query->whereDate('tanggal', $filters['tanggal']);
         }
 
@@ -236,7 +242,13 @@ class PaymentHistoryService
             ])
             ->whereNull('payment_transaction_id');
 
-        if (!empty($filters['tanggal'])) {
+        if (!empty($filters['today_or_created_today'])) {
+            $today = $filters['today_or_created_today'];
+            $query->where(function ($q) use ($today) {
+                $q->whereDate('tanggal', $today)
+                  ->orWhereDate('created_at', $today);
+            });
+        } elseif (!empty($filters['tanggal'])) {
             $query->whereDate('tanggal', $filters['tanggal']);
         }
 

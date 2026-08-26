@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Exports\RekapPembayaranExport;
+use App\Models\AcademicYear;
 use App\Models\AdminPaymentSecuritySetting;
 use App\Models\DocumentSetting;
 use App\Models\PaymentTransaction;
 use App\Models\PaymentBill;
 use App\Models\Pembayaran;
+use App\Models\PemasukanLain;
 use App\Models\Pengeluaran;
 use App\Models\PaymentType;
 use App\Models\Siswa;
@@ -67,6 +69,10 @@ class PembayaranController extends Controller
 
     public function index(Request $request)
     {
+        $activeYear = AcademicYear::where('is_active', true)->first();
+        $targetYearId = $request->filled('academic_year_id') ? (int) $request->input('academic_year_id') : $activeYear?->id;
+        $targetYearName = $request->input('tahun_ajaran') ?: $activeYear?->name;
+
         $filters = [
             'tanggal' => $request->input('tanggal'),
             'status' => $request->input('status'),
@@ -81,15 +87,19 @@ class PembayaranController extends Controller
             'limit' => $request->integer('limit') ?: null,
         ];
 
-        if (!$request->has('semua') && !$request->filled('tanggal') && !$request->filled('siswa_id')) {
-            $filters['tanggal'] = now()->toDateString();
+        if ($request->boolean('today') || (!$request->has('semua') && !$request->filled('tanggal') && !$request->filled('siswa_id') && !$request->filled('academic_year_id'))) {
+            $filters['today_or_created_today'] = now()->toDateString();
         }
 
         $data = $this->paymentHistoryService->getTransactions($filters);
 
+        // Realtime Financial Summary for Active Academic Year (or requested Academic Year)
+        $summary = $this->calculateFinancialSummary($targetYearId, $targetYearName);
+
         return response()->json([
             'success' => true,
-            'total_hari_ini' => (int) $data->sum('jumlah'),
+            'financial_summary' => $summary,
+            'total_hari_ini' => $summary['total_masuk_hari_ini'],
             'jumlah_transaksi' => $data->count(),
             'data' => $data->values(),
         ]);
@@ -244,6 +254,14 @@ class PembayaranController extends Controller
         $periodPayload = $paymentItems
             ->map(fn ($item) => collect($item)->only(['academic_year_id', 'semester_id', 'tahun_ajaran', 'semester'])->all())
             ->first(fn ($item) => !empty($item['academic_year_id']) || !empty($item['tahun_ajaran']), []);
+
+        if (empty($periodPayload['academic_year_id'])) {
+            $activeYear = AcademicYear::where('is_active', true)->first();
+            if ($activeYear) {
+                $periodPayload['academic_year_id'] = $activeYear->id;
+                $periodPayload['tahun_ajaran'] = $periodPayload['tahun_ajaran'] ?? $activeYear->name;
+            }
+        }
 
         $transaction = DB::transaction(function () use ($actor, $validated, $paymentItems, $siswa, $atasNama, $total, $securitySetting, $periodPayload, $transactionStatus, $transactionStatusId) {
             $transaction = PaymentTransaction::query()->create([
@@ -1161,6 +1179,106 @@ class PembayaranController extends Controller
             'success' => false,
             'message' => $message,
         ], 403);
+    }
+
+    private function calculateFinancialSummary(?int $academicYearId, ?string $academicYearName): array
+    {
+        $activeYear = $academicYearId ? AcademicYear::find($academicYearId) : AcademicYear::where('is_active', true)->first();
+        $yearId = $activeYear?->id ?? $academicYearId;
+        $yearName = $activeYear?->name ?? $academicYearName;
+
+        // 1. Total Pembayaran Santri (Akumulasi 1 Tahun Ajaran / 2 Semester)
+        $trxQuery = PaymentTransaction::query()->whereNotIn('status', ['Dibatalkan', 'Batal']);
+        if ($yearId) {
+            $trxQuery->where(function ($q) use ($yearId, $yearName) {
+                $q->where('academic_year_id', $yearId);
+                if ($yearName) {
+                    $q->orWhere('tahun_ajaran', $yearName);
+                }
+            });
+        }
+        $totalSiswa = (int) $trxQuery->sum('jumlah_total');
+        $countSiswa = $trxQuery->count();
+
+        // Plus legacy payments (jika ada data legacy sebelum migrasi)
+        $legacyQuery = Pembayaran::query()->whereNull('payment_transaction_id')->whereNotIn('status', ['Dibatalkan', 'Batal']);
+        if ($yearId) {
+            $legacyQuery->where(function ($q) use ($yearId, $yearName) {
+                $q->where('academic_year_id', $yearId);
+                if ($yearName) {
+                    $q->orWhere('tahun_ajaran', $yearName);
+                }
+            });
+        }
+        $totalSiswa += (int) $legacyQuery->sum('jumlah');
+        $countSiswa += $legacyQuery->count();
+
+        // 2. Total Kas Masuk Lain (Infaq, Donasi, dll per Tahun Ajaran)
+        $kasLainQuery = PemasukanLain::query();
+        if ($yearId) {
+            $kasLainQuery->where('academic_year_id', $yearId);
+        }
+        $totalKasLain = (int) $kasLainQuery->sum('jumlah');
+        $countKasLain = $kasLainQuery->count();
+
+        // 3. Total Pengeluaran Kas (Tahun Ajaran)
+        $pengeluaranQuery = Pengeluaran::query();
+        if ($yearId) {
+            $pengeluaranQuery->where('academic_year_id', $yearId);
+        }
+        $totalPengeluaran = (int) $pengeluaranQuery->sum('jumlah');
+        $countPengeluaran = $pengeluaranQuery->count();
+
+        // 4. Total Keseluruhan Pemasukan & Saldo Kas Bersih
+        $totalKeseluruhanPemasukan = $totalSiswa + $totalKasLain;
+        $saldoKasBersih = $totalKeseluruhanPemasukan - $totalPengeluaran;
+
+        // 5. Realtime Hari Ini (WIB)
+        $todayDate = now()->toDateString();
+        $totalMasukSiswaHariIni = (int) PaymentTransaction::whereNotIn('status', ['Dibatalkan', 'Batal'])
+            ->where(function ($q) use ($todayDate) {
+                $q->whereDate('tanggal', $todayDate)->orWhereDate('created_at', $todayDate);
+            })->sum('jumlah_total');
+
+        $totalMasukKasLainHariIni = (int) PemasukanLain::where(function ($q) use ($todayDate) {
+            $q->whereDate('tanggal', $todayDate)->orWhereDate('created_at', $todayDate);
+        })->sum('jumlah');
+
+        $totalMasukHariIni = $totalMasukSiswaHariIni + $totalMasukKasLainHariIni;
+
+        $countMasukHariIni = PaymentTransaction::whereNotIn('status', ['Dibatalkan', 'Batal'])
+            ->where(function ($q) use ($todayDate) {
+                $q->whereDate('tanggal', $todayDate)->orWhereDate('created_at', $todayDate);
+            })->count() + PemasukanLain::where(function ($q) use ($todayDate) {
+                $q->whereDate('tanggal', $todayDate)->orWhereDate('created_at', $todayDate);
+            })->count();
+
+        $totalKeluarHariIni = (int) Pengeluaran::where(function ($q) use ($todayDate) {
+            $q->whereDate('tanggal', $todayDate)->orWhereDate('created_at', $todayDate);
+        })->sum('jumlah');
+
+        $countKeluarHariIni = Pengeluaran::where(function ($q) use ($todayDate) {
+            $q->whereDate('tanggal', $todayDate)->orWhereDate('created_at', $todayDate);
+        })->count();
+
+        return [
+            'academic_year_id' => $yearId,
+            'academic_year_name' => $yearName ?? 'Semua',
+            'total_pembayaran_siswa' => $totalSiswa,
+            'count_transaksi_siswa' => $countSiswa,
+            'total_kas_masuk_lain' => $totalKasLain,
+            'count_kas_masuk_lain' => $countKasLain,
+            'total_pengeluaran' => $totalPengeluaran,
+            'count_pengeluaran' => $countPengeluaran,
+            'total_keseluruhan_pemasukan' => $totalKeseluruhanPemasukan,
+            'saldo_kas_bersih' => $saldoKasBersih,
+            'total_masuk_hari_ini' => $totalMasukHariIni,
+            'total_masuk_siswa_hari_ini' => $totalMasukSiswaHariIni,
+            'total_masuk_kas_lain_hari_ini' => $totalMasukKasLainHariIni,
+            'count_masuk_hari_ini' => $countMasukHariIni,
+            'total_keluar_hari_ini' => $totalKeluarHariIni,
+            'count_keluar_hari_ini' => $countKeluarHariIni,
+        ];
     }
 
     private function paymentDocumentSetting(): ?array
