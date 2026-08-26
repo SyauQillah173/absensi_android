@@ -412,7 +412,7 @@ export function FinancePage() {
           tone="red"
         />
         <StatCard
-          title="Saldo Kas Bersih"
+          title="Total Saldo Kas Bersih"
           value={formatMoney(saldoKasBersih)}
           subtitle={`Surplus Kas (${currentAcademicYearName})`}
           icon={ShieldCheck}

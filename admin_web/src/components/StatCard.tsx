@@ -39,27 +39,29 @@ export function StatCard({ title, value, valueTitle, subtitle, icon: Icon, tone 
     : 'text-2xl sm:text-3xl font-extrabold';
 
   return (
-    <section className="q-card q-stat-card flex flex-col justify-between min-h-[120px] p-4 sm:p-5 rounded-3xl border border-gray-100/90 bg-white shadow-xs hover:shadow-md transition-all duration-200">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="q-stat-title text-[11px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 line-clamp-2 leading-tight">
+    <section className="q-card q-stat-card flex flex-col justify-between p-4 sm:p-5 rounded-3xl border border-gray-100/90 bg-white shadow-xs hover:shadow-md transition-all duration-200">
+      <div>
+        <div className="flex items-start justify-between gap-3">
+          <p className="q-stat-title text-[11px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 line-clamp-2 leading-tight min-h-[32px] flex items-center">
             {title}
           </p>
-          <div className="mt-2 flex items-baseline">
-            <p
-              className={`q-stat-value tracking-tight text-gray-900 leading-none whitespace-nowrap overflow-visible ${valueFontSize}`}
-              title={valueTitle ?? valueStr}
-            >
-              {value}
-            </p>
+          <div className={`q-stat-icon grid h-10 w-10 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-2xl shadow-xs transition-transform duration-200 group-hover:scale-105 ${toneMap[tone] || toneMap.teal}`}>
+            <Icon size={20} className="shrink-0" />
           </div>
         </div>
-        <div className={`q-stat-icon grid h-10 w-10 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-2xl shadow-xs transition-transform duration-200 group-hover:scale-105 ${toneMap[tone] || toneMap.teal}`}>
-          <Icon size={20} className="shrink-0" />
+
+        <div className="mt-2 flex items-baseline">
+          <p
+            className={`q-stat-value tracking-tight text-gray-900 leading-none whitespace-nowrap overflow-visible ${valueFontSize}`}
+            title={valueTitle ?? valueStr}
+          >
+            {value}
+          </p>
         </div>
       </div>
+
       {subtitle ? (
-        <p className={`q-stat-subtitle mt-3 text-xs font-bold leading-tight ${subtitleToneMap[tone] || 'text-[#138F81]'}`}>
+        <p className={`q-stat-subtitle mt-3.5 text-xs font-bold leading-tight ${subtitleToneMap[tone] || 'text-[#138F81]'}`}>
           {subtitle}
         </p>
       ) : null}
