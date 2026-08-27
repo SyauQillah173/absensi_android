@@ -806,108 +806,93 @@ export async function parseImportFile(file: File, type: ImportTemplateType, forc
   return parsed;
 }
 
-export function exportRowsExcel(rows: ApiRecord[], fileName: string, title: string) {
+export function exportRowsExcel(rows: ApiRecord[], fileName: string, title: string, variant?: string) {
   if (rows.length === 0) return;
 
   const first = rows[0] || {};
-  const isSiswa = 'nis' in first && ('jenis_kelamin' in first || 'nama_wali' in first || 'kelas' in first) && first.role !== 'wali';
-  const isGuru = first.role === 'guru' || 'kode_guru' in first || 'unit_kerja' in first;
-  const isWali = first.role === 'wali' || 'nama_santri' in first || 'nis_santri' in first;
-  const isAdmin = first.role === 'admin' || 'admin_type' in first;
+  const isGuru = variant === 'guru' || variant === 'login-guru' || first.role === 'guru' || (Boolean(first.kode_guru) && first.role !== 'wali');
+  const isWali = variant === 'login-wali' || first.role === 'wali' || Boolean(first.nama_santri) || Boolean(first.nis_santri);
+  const isAdmin = variant === 'login-admin' || (first.role === 'admin' && !isGuru && !isWali);
+  const isSiswa = !isGuru && !isWali && !isAdmin;
 
-  let exportCols: { key: string; label: string; width: number }[] = [];
+  let exportCols: { key: string; label: string; width: number; getValue?: (row: ApiRecord) => string }[] = [];
 
-  if (isSiswa) {
+  if (isGuru) {
     exportCols = [
-      { key: 'nis', label: 'NIS', width: 14 },
-      { key: 'nama', label: 'Nama Lengkap Santri', width: 28 },
-      { key: 'jenis_kelamin', label: 'L/P', width: 8 },
-      { key: 'kelas', label: 'Kelas/Sifir', width: 18 },
-      { key: 'status', label: 'Status Santri', width: 14 },
-      { key: 'nik', label: 'NIK', width: 20 },
-      { key: 'no_kk', label: 'No. KK', width: 20 },
-      { key: 'tempat_lahir', label: 'Tempat Lahir', width: 18 },
-      { key: 'tanggal_lahir', label: 'Tanggal Lahir', width: 16 },
-      { key: 'alamat', label: 'Alamat', width: 30 },
-      { key: 'kelurahan', label: 'Desa/Kelurahan', width: 18 },
-      { key: 'kecamatan', label: 'Kecamatan', width: 18 },
-      { key: 'kota', label: 'Kabupaten/Kota', width: 20 },
-      { key: 'provinsi', label: 'Provinsi', width: 18 },
-      { key: 'kode_pos', label: 'Kode Pos', width: 12 },
-      { key: 'nama_ayah', label: 'Nama Ayah', width: 22 },
-      { key: 'nik_ayah', label: 'NIK Ayah', width: 20 },
-      { key: 'pekerjaan_ayah', label: 'Pekerjaan Ayah', width: 20 },
-      { key: 'nama_ibu', label: 'Nama Ibu', width: 22 },
-      { key: 'nik_ibu', label: 'NIK Ibu', width: 20 },
-      { key: 'pekerjaan_ibu', label: 'Pekerjaan Ibu', width: 20 },
-      { key: 'no_whatsapp', label: 'No. WhatsApp/HP', width: 18 },
-      { key: 'nama_wali', label: 'Nama Wali', width: 22 },
-      { key: 'no_telepon_wali', label: 'No. Telepon Wali', width: 18 },
-      { key: 'asal_sekolah', label: 'Asal Sekolah', width: 24 },
-      { key: 'tahun_lulus', label: 'Tahun Lulus', width: 14 },
-      { key: 'status_mondok', label: 'Status Mondok', width: 16 },
-      { key: 'komplek', label: 'Komplek', width: 20 },
-      { key: 'kamar', label: 'Kamar', width: 24 },
-      { key: 'catatan_santri', label: 'Catatan', width: 28 },
-    ];
-  } else if (isGuru) {
-    exportCols = [
-      { key: 'name', label: 'Nama Lengkap Guru', width: 28 },
-      { key: 'kode_guru', label: 'Kode Guru / NIP', width: 18 },
-      { key: 'email', label: 'Username / Email Login', width: 28 },
-      { key: 'password_display', label: 'Kata Sandi Login', width: 22 },
-      { key: 'password_display_label', label: 'Status Sandi', width: 20 },
-      { key: 'status', label: 'Status Akun', width: 14 },
-      { key: 'no_hp', label: 'No. WhatsApp / HP', width: 18 },
-      { key: 'unit_kerja', label: 'Unit Kerja / Sekolah', width: 25 },
-      { key: 'kategori_guru', label: 'Kategori Pengajar', width: 20 },
-      { key: 'alamat', label: 'Alamat', width: 30 },
+      { key: 'name', label: 'Nama Lengkap Guru', width: 28, getValue: (r) => String(r.name || r.nama || '-') },
+      { key: 'kode_guru', label: 'Kode Guru / NIP', width: 18, getValue: (r) => String(r.kode_guru || r.nis || '-') },
+      { key: 'email', label: 'Username / Email Login', width: 28, getValue: (r) => String(r.email || r.kode_guru || r.name || '-') },
+      { key: 'password_display', label: 'Kata Sandi Login', width: 22, getValue: (r) => String(r.password_display || (r.password_changed_at ? 'Sudah Diganti User' : 'guru12345')) },
+      { key: 'password_display_label', label: 'Status Sandi', width: 20, getValue: (r) => String(r.password_display_label || (r.password_changed_at ? 'Password Privat' : 'Password Default')) },
+      { key: 'status', label: 'Status Akun', width: 14, getValue: (r) => String(r.status || 'Aktif') },
+      { key: 'no_hp', label: 'No. WhatsApp / HP', width: 18, getValue: (r) => String(r.no_hp || '-') },
+      { key: 'unit_kerja', label: 'Unit Kerja / Sekolah', width: 24, getValue: (r) => Array.isArray(r.unit_kerja) ? r.unit_kerja.join(', ') : String(r.unit_kerja || '-') },
+      { key: 'kategori_guru', label: 'Kategori Pengajar', width: 20, getValue: (r) => Array.isArray(r.kategori_guru) ? r.kategori_guru.join(', ') : String(r.kategori_guru || '-') },
+      { key: 'alamat', label: 'Alamat', width: 28, getValue: (r) => String(r.alamat || '-') },
     ];
   } else if (isWali) {
     exportCols = [
-      { key: 'nama_santri', label: 'Nama Santri Terhubung', width: 28 },
-      { key: 'nis_santri', label: 'NIS Santri', width: 16 },
-      { key: 'kelas_santri', label: 'Kelas Madin', width: 18 },
-      { key: 'komplek_santri', label: 'Komplek Asrama', width: 20 },
-      { key: 'kamar_santri', label: 'Kamar Asrama', width: 20 },
-      { key: 'name', label: 'Nama Akun Wali', width: 24 },
-      { key: 'email', label: 'Email / Username Wali', width: 26 },
-      { key: 'password_display', label: 'Kata Sandi Default', width: 22 },
-      { key: 'password_display_label', label: 'Status Sandi', width: 20 },
-      { key: 'no_hp', label: 'No. WhatsApp / HP', width: 18 },
-      { key: 'status', label: 'Status Akun', width: 14 },
+      { key: 'nama_santri', label: 'Nama Santri Terhubung', width: 28, getValue: (r) => String(r.nama_santri || r.nama || r.name || '-') },
+      { key: 'nis_santri', label: 'NIS Santri', width: 16, getValue: (r) => String(r.nis_santri || r.nis || '-') },
+      { key: 'kelas_santri', label: 'Kelas Madin', width: 18, getValue: (r) => String(r.kelas_santri || r.kelas || '-') },
+      { key: 'komplek_santri', label: 'Komplek Asrama', width: 20, getValue: (r) => String(r.komplek_santri || r.komplek || '-') },
+      { key: 'kamar_santri', label: 'Kamar Asrama', width: 20, getValue: (r) => String(r.kamar_santri || r.kamar || '-') },
+      { key: 'name', label: 'Nama Akun / Wali', width: 24, getValue: (r) => String(r.wali_nama || r.nama_wali || r.name || '-') },
+      { key: 'email', label: 'Username / Identitas Login', width: 28, getValue: (r) => String(r.nama_santri || r.nama || r.nis_santri || r.nis || r.email || r.name || '-') },
+      { key: 'password_display', label: 'Kata Sandi Default', width: 22, getValue: (r) => String(r.password_display || (r.password_changed_at ? 'Sudah Diganti User' : 'siswa12345')) },
+      { key: 'password_display_label', label: 'Status Sandi', width: 20, getValue: (r) => String(r.password_display_label || (r.password_changed_at ? 'Password Privat' : 'Password Default')) },
+      { key: 'no_hp', label: 'No. WhatsApp / HP', width: 18, getValue: (r) => String(r.no_telepon_wali || r.no_whatsapp || r.no_hp || '-') },
+      { key: 'status', label: 'Status Akun', width: 14, getValue: (r) => String(r.status || 'Aktif') },
     ];
   } else if (isAdmin) {
     exportCols = [
-      { key: 'name', label: 'Nama Lengkap Admin', width: 26 },
-      { key: 'admin_type', label: 'Tipe Admin', width: 18 },
-      { key: 'email', label: 'Username / Email Login', width: 28 },
-      { key: 'password_display', label: 'Kata Sandi Login', width: 22 },
-      { key: 'password_display_label', label: 'Status Sandi', width: 20 },
-      { key: 'status', label: 'Status Akun', width: 14 },
-      { key: 'no_hp', label: 'No. WhatsApp / HP', width: 18 },
+      { key: 'name', label: 'Nama Lengkap Admin', width: 26, getValue: (r) => String(r.name || '-') },
+      { key: 'admin_type', label: 'Tipe Admin', width: 18, getValue: (r) => String(r.admin_type || 'Utama') },
+      { key: 'email', label: 'Username / Email Login', width: 28, getValue: (r) => String(r.email || r.name || '-') },
+      { key: 'password_display', label: 'Kata Sandi Login', width: 22, getValue: (r) => String(r.password_display || (r.password_changed_at ? 'Sudah Diganti User' : 'admin12345')) },
+      { key: 'password_display_label', label: 'Status Sandi', width: 20, getValue: (r) => String(r.password_display_label || (r.password_changed_at ? 'Password Privat' : 'Password Default')) },
+      { key: 'status', label: 'Status Akun', width: 14, getValue: (r) => String(r.status || 'Aktif') },
+      { key: 'no_hp', label: 'No. WhatsApp / HP', width: 18, getValue: (r) => String(r.no_hp || '-') },
     ];
   } else {
-    const rawKeys = Array.from(
-      rows.reduce((acc, row) => {
-        Object.keys(row).forEach((key) => {
-          if (!['id', 'created_at', 'updated_at', 'deleted_at', 'password', 'password_default_encrypted', 'password_current_encrypted'].includes(key)) {
-            acc.add(key);
-          }
-        });
-        return acc;
-      }, new Set<string>())
-    );
-    exportCols = rawKeys.map((key) => ({
-      key,
-      label: key.replace(/_/g, ' ').toUpperCase(),
-      width: Math.max(16, key.length + 4),
-    }));
+    exportCols = [
+      { key: 'nis', label: 'NIS', width: 14, getValue: (r) => String(r.nis || '-') },
+      { key: 'nama', label: 'Nama Lengkap Santri', width: 28, getValue: (r) => String(r.nama || r.name || '-') },
+      { key: 'jenis_kelamin', label: 'L/P', width: 8, getValue: (r) => String(r.jenis_kelamin || '-') },
+      { key: 'kelas', label: 'Kelas/Sifir', width: 18, getValue: (r) => String(r.kelas || '-') },
+      { key: 'status', label: 'Status Santri', width: 14, getValue: (r) => String(r.status || 'Aktif') },
+      { key: 'nik', label: 'NIK', width: 20, getValue: (r) => String(r.nik || '-') },
+      { key: 'no_kk', label: 'No. KK', width: 20, getValue: (r) => String(r.no_kk || '-') },
+      { key: 'tempat_lahir', label: 'Tempat Lahir', width: 18, getValue: (r) => String(r.tempat_lahir || '-') },
+      { key: 'tanggal_lahir', label: 'Tanggal Lahir', width: 16, getValue: (r) => String(r.tanggal_lahir || '-') },
+      { key: 'alamat', label: 'Alamat', width: 30, getValue: (r) => String(r.alamat || '-') },
+      { key: 'kelurahan', label: 'Desa/Kelurahan', width: 18, getValue: (r) => String(r.kelurahan || '-') },
+      { key: 'kecamatan', label: 'Kecamatan', width: 18, getValue: (r) => String(r.kecamatan || '-') },
+      { key: 'kota', label: 'Kabupaten/Kota', width: 20, getValue: (r) => String(r.kota || '-') },
+      { key: 'provinsi', label: 'Provinsi', width: 18, getValue: (r) => String(r.provinsi || '-') },
+      { key: 'kode_pos', label: 'Kode Pos', width: 12, getValue: (r) => String(r.kode_pos || '-') },
+      { key: 'nama_ayah', label: 'Nama Ayah', width: 22, getValue: (r) => String(r.nama_ayah || '-') },
+      { key: 'nik_ayah', label: 'NIK Ayah', width: 20, getValue: (r) => String(r.nik_ayah || '-') },
+      { key: 'pekerjaan_ayah', label: 'Pekerjaan Ayah', width: 20, getValue: (r) => String(r.pekerjaan_ayah || '-') },
+      { key: 'nama_ibu', label: 'Nama Ibu', width: 22, getValue: (r) => String(r.nama_ibu || '-') },
+      { key: 'nik_ibu', label: 'NIK Ibu', width: 20, getValue: (r) => String(r.nik_ibu || '-') },
+      { key: 'pekerjaan_ibu', label: 'Pekerjaan Ibu', width: 20, getValue: (r) => String(r.pekerjaan_ibu || '-') },
+      { key: 'no_whatsapp', label: 'No. WhatsApp/HP', width: 18, getValue: (r) => String(r.no_whatsapp || '-') },
+      { key: 'nama_wali', label: 'Nama Wali', width: 22, getValue: (r) => String(r.nama_wali || r.wali_nama || '-') },
+      { key: 'no_telepon_wali', label: 'No. Telepon Wali', width: 18, getValue: (r) => String(r.no_telepon_wali || '-') },
+      { key: 'asal_sekolah', label: 'Asal Sekolah', width: 24, getValue: (r) => String(r.asal_sekolah || '-') },
+      { key: 'tahun_lulus', label: 'Tahun Lulus', width: 14, getValue: (r) => String(r.tahun_lulus || '-') },
+      { key: 'status_mondok', label: 'Status Mondok', width: 16, getValue: (r) => String(r.status_mondok || '-') },
+      { key: 'komplek', label: 'Komplek', width: 20, getValue: (r) => String(r.komplek || '-') },
+      { key: 'kamar', label: 'Kamar', width: 24, getValue: (r) => String(r.kamar || '-') },
+      { key: 'catatan_santri', label: 'Catatan', width: 28, getValue: (r) => String(r.catatan_santri || '-') },
+    ];
   }
 
   const headerLabels = exportCols.map((c) => c.label);
   const dataRows = rows.map((row) =>
     exportCols.map((c) => {
+      if (c.getValue) return c.getValue(row);
       const val = row[c.key];
       if (val === null || val === undefined) return '';
       if (typeof val === 'object') {

@@ -172,7 +172,24 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
       } else if (variant === 'login-admin') {
         result = await api.users({ role: 'admin' });
       } else if (variant === 'login-wali') {
-        result = await api.users({ role: 'wali' });
+        const res = await api.siswa({ with_wali: 1 });
+        const list = (Array.isArray(res.data) ? res.data : []).map((s) => ({
+          ...s,
+          id: s.id,
+          name: s.wali_nama || s.nama_wali || `Wali ${s.nama}`,
+          nama_santri: s.nama,
+          nis_santri: s.nis,
+          kelas_santri: s.kelas,
+          komplek_santri: s.komplek,
+          kamar_santri: s.kamar,
+          login_identifier: s.nama,
+          password_display: 'siswa12345',
+          password_display_label: 'Password Default',
+          role: 'wali',
+          no_hp: s.no_telepon_wali || s.no_whatsapp || s.no_hp || '-',
+          status: s.status || 'Aktif',
+        }));
+        result = { data: list };
       } else if (variant === 'users') {
         result = await api.users();
       } else {
@@ -409,7 +426,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
       setError('Belum ada data yang bisa diexport.');
       return;
     }
-    exportRowsExcel(filtered, `${variant.replace(/-/g, '_')}_qomaruddin.xlsx`, `EXPORT ${current.title.toUpperCase()}`);
+    exportRowsExcel(filtered, `${variant.replace(/-/g, '_')}_qomaruddin.xlsx`, `EXPORT ${current.title.toUpperCase()}`, variant);
   }
 
   async function handleFileSelected(file?: File) {
@@ -1059,7 +1076,66 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
       actionColumn
     ];
   }
-  if (variant === 'users' || variant === 'login-admin' || variant === 'login-wali') {
+  if (variant === 'login-wali') {
+    return [
+      {
+        key: 'santri',
+        header: 'Santri & Kelas',
+        render: (row) => (
+          <div>
+            <span className="font-extrabold text-[#2D3436] text-sm block leading-tight">{text(row.nama_santri || row.nama)}</span>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[#636E72]">
+              <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded font-bold">NIS: {text(row.nis_santri || row.nis)}</span>
+              <span>Kelas: {text(row.kelas_santri || row.kelas)}</span>
+              {row.kamar_santri || row.kamar ? <span className="text-[11px] bg-teal-50 text-teal-800 px-1.5 py-0.5 rounded">Asrama: {text(row.kamar_santri || row.kamar)}</span> : null}
+            </div>
+          </div>
+        )
+      },
+      {
+        key: 'wali',
+        header: 'Wali & Kontak',
+        className: 'w-[200px]',
+        render: (row) => (
+          <div>
+            <span className="font-bold text-[#2D3436] text-xs block">{text(row.name || row.wali_nama || row.nama_wali)}</span>
+            <span className="text-xs font-mono text-[#636E72] mt-0.5 block">{text(row.no_hp || row.no_telepon_wali || row.no_whatsapp)}</span>
+          </div>
+        )
+      },
+      {
+        key: 'password',
+        header: 'Kata Sandi Default',
+        className: 'w-[160px]',
+        render: (row) => (
+          <span className="font-mono font-bold text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-lg">
+            {text(row.password_display, 'siswa12345')}
+          </span>
+        )
+      },
+      {
+        key: 'status',
+        header: 'Status',
+        className: 'w-[120px]',
+        render: (row) => (
+          <select
+            className={`h-7 rounded-lg border-0 px-2 text-xs font-extrabold cursor-pointer transition-colors ${
+              text(row.status, 'Aktif') === 'Aktif'
+                ? 'bg-[#E8F7F3] text-[#138F81]'
+                : 'bg-[#FFF3E0] text-[#E8590C]'
+            }`}
+            value={text(row.status, 'Aktif')}
+            onChange={(e) => callbacks.onStatus(row, e.target.value)}
+          >
+            <option value="Aktif">● Aktif</option>
+            <option value="Nonaktif">● Nonaktif</option>
+          </select>
+        )
+      },
+      actionColumn
+    ];
+  }
+  if (variant === 'users' || variant === 'login-admin') {
     return [
       {
         key: 'name',
