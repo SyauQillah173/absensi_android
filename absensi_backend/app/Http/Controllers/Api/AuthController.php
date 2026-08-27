@@ -29,7 +29,7 @@ class AuthController extends Controller
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             if (!$user) {
-                Hash::check('dummy_password_for_timing_protection', '$2y$10$abcdefghijklmnopqrstuv.dummyhashforprotection0000000000');
+                Hash::check('dummy_password_for_timing_protection', '$2y$10$e8w.xL9YfUqZqK7r4U0g5eYdO9l5Q6Z1M8pW2kK9r4U0g5eYdO9l5');
             }
             return response()->json([
                 'success' => false,
@@ -164,9 +164,11 @@ class AuthController extends Controller
     private function findUserByIdentifier(string $identifier): ?User
     {
         $identifier = trim($identifier);
+        $lowerId = strtolower($identifier);
 
-        $user = User::where('email', $identifier)
-            ->orWhere('name', $identifier)
+        $user = User::whereRaw('LOWER(email) = ?', [$lowerId])
+            ->orWhereRaw('LOWER(name) = ?', [$lowerId])
+            ->orWhereRaw('LOWER(kode_guru) = ?', [$lowerId])
             ->orWhere('nis', $identifier)
             ->orWhere('nisn', $identifier)
             ->first();

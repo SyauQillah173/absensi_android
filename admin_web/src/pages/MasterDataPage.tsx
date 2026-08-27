@@ -191,8 +191,29 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variant]);
 
+  const statusCounts = useMemo(() => {
+    let aktif = 0;
+    let nonaktif = 0;
+    let lulus = 0;
+    let totalSiswa = 0;
+    let maleAlumni = 0;
+    let femaleAlumni = 0;
+
+    for (const r of rows) {
+      const s = String(r.status ?? 'Aktif').toLowerCase();
+      const jk = String(r.jenis_kelamin ?? '').toUpperCase();
+      if (s === 'aktif') aktif++;
+      else if (s === 'nonaktif') nonaktif++;
+      else if (s === 'lulus') lulus++;
+      if (s !== 'lulus') totalSiswa++;
+      if (jk === 'L') maleAlumni++;
+      else if (jk === 'P') femaleAlumni++;
+    }
+    return { total: rows.length, totalSiswa, aktif, nonaktif, lulus, maleAlumni, femaleAlumni };
+  }, [rows]);
+
   const filtered = useMemo(() => {
-    const keyword = search.toLowerCase();
+    const keyword = search.trim().toLowerCase();
     return rows.filter((row) => {
       if (siswaMode) {
         const rowStatus = text(row.status, 'Aktif');
@@ -202,8 +223,32 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
           return false;
         }
       }
-      const haystack = JSON.stringify(row).toLowerCase();
-      return keyword ? haystack.includes(keyword) : true;
+      if (!keyword) return true;
+
+      // Fast field-based search avoiding expensive JSON.stringify
+      const name = String(row.nama ?? row.name ?? '').toLowerCase();
+      const nis = String(row.nis ?? '').toLowerCase();
+      const nisn = String(row.nisn ?? '').toLowerCase();
+      const kelas = String(row.kelas ?? '').toLowerCase();
+      const email = String(row.email ?? '').toLowerCase();
+      const kode = String(row.kode_guru ?? '').toLowerCase();
+      const komplek = String(row.komplek ?? '').toLowerCase();
+      const kamar = String(row.kamar ?? '').toLowerCase();
+      const asal = String(row.asal_sekolah ?? '').toLowerCase();
+      const wali = String(row.wali_nama ?? row.nama_wali ?? '').toLowerCase();
+
+      return (
+        name.includes(keyword) ||
+        nis.includes(keyword) ||
+        nisn.includes(keyword) ||
+        kelas.includes(keyword) ||
+        email.includes(keyword) ||
+        kode.includes(keyword) ||
+        komplek.includes(keyword) ||
+        kamar.includes(keyword) ||
+        asal.includes(keyword) ||
+        wali.includes(keyword)
+      );
     });
   }, [rows, search, siswaMode, statusFilter]);
 
@@ -485,21 +530,21 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
 
       {alumniMode ? (
         <div className="q-stat-grid grid gap-4 md:grid-cols-3">
-          <StatCard title="Total Santri Alumni" value={rows.length} subtitle={`${filtered.length} alumni terdata`} icon={GraduationCap} tone="purple" />
-          <StatCard title="Alumni Laki-laki" value={rows.filter((r) => text(r.jenis_kelamin).toUpperCase() === 'L').length} subtitle="Santri Putra yang telah lulus" icon={UsersRound} tone="blue" />
-          <StatCard title="Alumni Perempuan" value={rows.filter((r) => text(r.jenis_kelamin).toUpperCase() === 'P').length} subtitle="Santri Putri yang telah lulus" icon={UsersRound} tone="orange" />
+          <StatCard title="Total Santri Alumni" value={statusCounts.total} subtitle={`${filtered.length} alumni terdata`} icon={GraduationCap} tone="purple" />
+          <StatCard title="Alumni Laki-laki" value={statusCounts.maleAlumni} subtitle="Santri Putra yang telah lulus" icon={UsersRound} tone="blue" />
+          <StatCard title="Alumni Perempuan" value={statusCounts.femaleAlumni} subtitle="Santri Putri yang telah lulus" icon={UsersRound} tone="orange" />
         </div>
       ) : (
         <div className="q-stat-grid grid gap-4 md:grid-cols-3">
           <StatCard
             title={siswaMode ? 'Total Santri' : 'Total Data'}
-            value={siswaMode ? rows.filter((r) => text(r.status, 'Aktif') !== 'Lulus').length : rows.length}
+            value={siswaMode ? statusCounts.totalSiswa : statusCounts.total}
             subtitle={`${filtered.length} ${siswaMode ? 'santri' : 'data'} tampil`}
             icon={Icon}
             tone="teal"
           />
-          <StatCard title="Aktif" value={countStatus(rows, 'Aktif')} subtitle="Data status aktif" icon={Search} tone="blue" />
-          <StatCard title="Nonaktif" value={countStatus(rows, 'Nonaktif')} subtitle="Data status nonaktif" icon={UsersRound} tone="orange" />
+          <StatCard title="Aktif" value={statusCounts.aktif} subtitle="Data status aktif" icon={Search} tone="blue" />
+          <StatCard title="Nonaktif" value={statusCounts.nonaktif} subtitle="Data status nonaktif" icon={UsersRound} tone="orange" />
         </div>
       )}
 
