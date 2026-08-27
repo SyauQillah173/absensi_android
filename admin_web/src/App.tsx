@@ -20,6 +20,7 @@ const WhatsAppBotPage = lazy(() => import('./pages/WhatsAppBotPage').then((m) =>
 const AccountPage = lazy(() => import('./pages/AccountPage').then((m) => ({ default: m.AccountPage })));
 const ReceiptPrintPage = lazy(() => import('./pages/ReceiptPrintPage').then((m) => ({ default: m.ReceiptPrintPage })));
 const ExpensePrintPage = lazy(() => import('./pages/ExpensePrintPage').then((m) => ({ default: m.ExpensePrintPage })));
+const WaliPortalPage = lazy(() => import('./pages/WaliPortalPage').then((m) => ({ default: m.WaliPortalPage })));
 
 function PageLoader() {
   return (
@@ -31,7 +32,7 @@ function PageLoader() {
 }
 
 function AdminShell() {
-  const { isAuthenticated, canView } = useAuth();
+  const { isAuthenticated, canView, session } = useAuth();
   const [activePage, setActivePage] = useState<PageKey>('dashboard');
   const [masterSection, setMasterSection] = useState<BukuIndukSection>('ringkas');
   const [absensiTarget, setAbsensiTarget] = useState<(AbsensiNavigationTarget & { key: number }) | undefined>();
@@ -40,6 +41,15 @@ function AdminShell() {
     return (
       <Suspense fallback={<PageLoader />}>
         <LoginPage />
+      </Suspense>
+    );
+  }
+
+  // Khusus role Wali Santri, tampilkan langsung Portal Wali yang modern & realtime
+  if (session?.role === 'wali') {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <WaliPortalPage />
       </Suspense>
     );
   }

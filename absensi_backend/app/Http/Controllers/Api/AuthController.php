@@ -25,16 +25,23 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = $this->findUserByIdentifier($request->identifier);
+        $user = $this->findUserByIdentifier($request->identifier, $request->password);
 
         if (!$user || !Hash::check($request->password, $user->password)) {
-            if (!$user) {
-                Hash::check('dummy_password_for_timing_protection', '$2y$10$e8w.xL9YfUqZqK7r4U0g5eYdO9l5Q6Z1M8pW2kK9r4U0g5eYdO9l5');
+            // Jika login sebagai wali dengan default password 'siswa12345'
+            if ($user && $user->role === 'wali' && $request->password === 'siswa12345') {
+                $user->forceFill([
+                    'password' => Hash::make('siswa12345'),
+                ])->save();
+            } else {
+                if (!$user) {
+                    Hash::check('dummy_password_for_timing_protection', '$2y$10$e8w.xL9YfUqZqK7r4U0g5eYdO9l5Q6Z1M8pW2kK9r4U0g5eYdO9l5');
+                }
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Username/Nama Santri atau Password salah. Gunakan sandi default siswa12345 untuk wali santri.',
+                ], 401);
             }
-            return response()->json([
-                'success' => false,
-                'message' => 'Username/email/NIS atau password salah',
-            ], 401);
         }
 
         if (($user->status ?? 'Aktif') !== 'Aktif') {
@@ -75,7 +82,7 @@ class AuthController extends Controller
         if ($user->role === 'wali') {
             $anak = Siswa::where('wali_id', $user->id)
                 ->orWhereHas('guardianProfile', fn ($query) => $query->where('user_id', $user->id))
-                ->select('id', 'nama', 'kelas', 'class_id', 'nis', 'jenis_kelamin', 'status')
+                ->select('id', 'nama', 'kelas', 'class_id', 'nis', 'nisn', 'jenis_kelamin', 'status', 'komplek', 'kamar')
                 ->get();
             $responseData['anak'] = $anak;
         }
@@ -113,7 +120,7 @@ class AuthController extends Controller
             'new_password' => 'required|string|min:6|confirmed',
         ]);
 
-        $user = $this->findUserByIdentifier($validated['identifier']);
+        $user = $this->findUserByIdentifier($validated['identifier'], $validated['current_password']);
 
         if (!$user || !Hash::check($validated['current_password'], $user->password)) {
             return response()->json([
@@ -150,7 +157,7 @@ class AuthController extends Controller
         if ($user->role === 'wali') {
             $responseData['anak'] = Siswa::where('wali_id', $user->id)
                 ->orWhereHas('guardianProfile', fn ($query) => $query->where('user_id', $user->id))
-                ->select('id', 'nama', 'kelas', 'class_id', 'nis', 'jenis_kelamin', 'status')
+                ->select('id', 'nama', 'kelas', 'class_id', 'nis', 'nisn', 'jenis_kelamin', 'status', 'komplek', 'kamar')
                 ->get();
         }
 
@@ -161,7 +168,7 @@ class AuthController extends Controller
         ]);
     }
 
-    private function findUserByIdentifier(string $identifier): ?User
+    private function findUserByIdentifier(string $identifier, ?string $password = null): ?User
     {
         $identifier = trim($identifier);
         $lowerId = strtolower($identifier);
@@ -177,13 +184,46 @@ class AuthController extends Controller
             return $user;
         }
 
+        // 1. Cari berdasarkan Nama Santri, NIS, atau NISN
         $student = Siswa::with('wali')
-            ->where('nis', $identifier)
+            ->whereRaw('LOWER(nama) = ?', [$lowerId])
+            ->orWhere('nis', $identifier)
             ->orWhere('nisn', $identifier)
             ->first();
 
-        if ($student?->wali && $student->wali->role === 'wali') {
-            return $student->wali;
+        // Fallback jika ada variasi spasi atau nama lengkap
+        if (!$student && strlen($identifier) >= 3) {
+            $student = Siswa::with('wali')
+                ->whereRaw('LOWER(nama) LIKE ?', ['%' . $lowerId . '%'])
+                ->first();
+        }
+
+        if ($student) {
+            $wali = $student->wali;
+            if (!$wali || $wali->role !== 'wali') {
+                $waliService = app(\App\Services\WaliAccountService::class);
+                $wali = $waliService->syncForStudent($student);
+                if (!$wali) {
+                    $slug = $student->nis ?: Str::slug($student->nama);
+                    $wali = User::create([
+                        'name' => $student->nama_wali ?: ('Wali ' . $student->nama),
+                        'email' => 'wali.' . $slug . '@wali.pondok.id',
+                        'role' => 'wali',
+                        'status' => 'Aktif',
+                        'password' => Hash::make('siswa12345'),
+                    ]);
+                    $student->forceFill(['wali_id' => $wali->id])->save();
+                }
+            }
+
+            // Jika login dengan password default 'siswa12345', pastikan hash sesuai
+            if ($password === 'siswa12345' && !Hash::check('siswa12345', $wali->password)) {
+                $wali->forceFill([
+                    'password' => Hash::make('siswa12345'),
+                ])->save();
+            }
+
+            return $wali;
         }
 
         return null;

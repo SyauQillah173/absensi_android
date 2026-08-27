@@ -22,6 +22,7 @@ export interface UserSession {
   status?: string;
   permissions?: ApiRecord;
   token: string;
+  anak?: ApiRecord[];
 }
 
 export interface PaymentFormPayload {
@@ -149,7 +150,7 @@ function authUploadHeaders(): HeadersInit {
 function sessionFromData(data: ApiRecord, token: string): UserSession {
   return {
     id: Number(data.id ?? 0),
-    name: String(data.name ?? 'Admin'),
+    name: String(data.name ?? 'Pengguna'),
     email: data.email ? String(data.email) : undefined,
     no_hp: data.no_hp ? String(data.no_hp) : undefined,
     nis: data.nis ? String(data.nis) : undefined,
@@ -159,6 +160,7 @@ function sessionFromData(data: ApiRecord, token: string): UserSession {
     admin_type: data.admin_type ? String(data.admin_type) : null,
     status: data.status ? String(data.status) : undefined,
     permissions: data.permissions && typeof data.permissions === 'object' ? (data.permissions as ApiRecord) : undefined,
+    anak: Array.isArray(data.anak) ? (data.anak as ApiRecord[]) : undefined,
     token
   };
 }
@@ -269,14 +271,18 @@ export const api = {
     const data = payload.data as ApiRecord;
     const token = String(payload.token ?? '');
     const session = sessionFromData(data, token);
-    if (session.role !== 'admin') {
-      throw new Error('Web admin hanya untuk Admin Utama dan Bendahara.');
+    if (!['admin', 'wali', 'guru'].includes(session.role)) {
+      throw new Error('Role akun tidak dikenali.');
     }
     writeSession(session);
     try {
       const profile = await this.profile();
       const profileData = (profile.data && typeof profile.data === 'object' ? profile.data : {}) as ApiRecord;
-      const enriched = { ...sessionFromData(profileData, token), admin_type: session.admin_type ?? null };
+      const enriched = {
+        ...sessionFromData(profileData, token),
+        admin_type: session.admin_type ?? null,
+        anak: session.anak ?? (Array.isArray(profileData.anak) ? (profileData.anak as ApiRecord[]) : undefined)
+      };
       writeSession(enriched);
       return enriched;
     } catch {
@@ -907,5 +913,47 @@ export const api = {
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
+  },
+
+  // --- WALI / ORANG TUA PORTAL API ---
+  waliAnak() {
+    return request<ApiRecord[]>('/wali/anak');
+  },
+  waliBiodata(siswaId: number) {
+    return request<ApiRecord>(`/wali/biodata?siswa_id=${siswaId}`);
+  },
+  waliAbsensi(siswaId: number, params?: { bulan?: number; tahun?: number }) {
+    const q = new URLSearchParams({ siswa_id: String(siswaId) });
+    if (params?.bulan) q.set('bulan', String(params.bulan));
+    if (params?.tahun) q.set('tahun', String(params.tahun));
+    return request<ApiRecord>(`/wali/absensi?${q.toString()}`);
+  },
+  waliAbsensiSholat(siswaId: number, params?: { bulan?: number; tahun?: number }) {
+    const q = new URLSearchParams({ siswa_id: String(siswaId) });
+    if (params?.bulan) q.set('bulan', String(params.bulan));
+    if (params?.tahun) q.set('tahun', String(params.tahun));
+    return request<ApiRecord>(`/wali/absensi/sholat?${q.toString()}`);
+  },
+  waliAbsensiNgaji(siswaId: number, params?: { bulan?: number; tahun?: number }) {
+    const q = new URLSearchParams({ siswa_id: String(siswaId) });
+    if (params?.bulan) q.set('bulan', String(params.bulan));
+    if (params?.tahun) q.set('tahun', String(params.tahun));
+    return request<ApiRecord>(`/wali/absensi/ngaji?${q.toString()}`);
+  },
+  waliPembayaran(siswaId: number, params?: { academic_year_id?: number; semester_id?: number; tahun_ajaran?: string; semester?: string }) {
+    const q = new URLSearchParams({ siswa_id: String(siswaId) });
+    if (params?.academic_year_id) q.set('academic_year_id', String(params.academic_year_id));
+    if (params?.semester_id) q.set('semester_id', String(params.semester_id));
+    if (params?.tahun_ajaran) q.set('tahun_ajaran', String(params.tahun_ajaran));
+    if (params?.semester) q.set('semester', String(params.semester));
+    return request<ApiRecord>(`/wali/pembayaran?${q.toString()}`);
+  },
+  waliNilai(siswaId: number, params?: { academic_year_id?: number; semester_id?: number; tahun_ajaran?: string; semester?: string }) {
+    const q = new URLSearchParams({ siswa_id: String(siswaId) });
+    if (params?.academic_year_id) q.set('academic_year_id', String(params.academic_year_id));
+    if (params?.semester_id) q.set('semester_id', String(params.semester_id));
+    if (params?.tahun_ajaran) q.set('tahun_ajaran', String(params.tahun_ajaran));
+    if (params?.semester) q.set('semester', String(params.semester));
+    return request<ApiRecord>(`/wali/nilai?${q.toString()}`);
   }
 };
