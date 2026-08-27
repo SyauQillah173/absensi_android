@@ -22,11 +22,11 @@ class AbsensiController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Absensi::with('siswa');
+        $query = Absensi::with(['siswa', 'mataPelajaran', 'actor', 'jadwal']);
 
-        if ($request->has('tanggal')) {
+        if ($request->filled('tanggal') && $request->tanggal !== 'all') {
             $query->where('tanggal', $request->tanggal);
-        } else {
+        } elseif (!$request->has('tanggal')) {
             $query->where('tanggal', now()->toDateString());
         }
 

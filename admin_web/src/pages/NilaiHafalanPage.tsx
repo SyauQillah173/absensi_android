@@ -345,13 +345,23 @@ export function NilaiHafalanPage() {
     }
   ];
 
+  const isMadrasah = session?.role === 'admin' && String(session?.admin_type || '').toLowerCase() === 'madrasah';
+
+  const visibleNilaiColumns = useMemo(() => {
+    return isMadrasah ? nilaiColumns.filter((c) => c.key !== 'aksi') : nilaiColumns;
+  }, [isMadrasah, nilaiColumns]);
+
+  const visibleHafalanColumns = useMemo(() => {
+    return isMadrasah ? hafalanColumns.filter((c) => c.key !== 'aksi') : hafalanColumns;
+  }, [isMadrasah, hafalanColumns]);
+
   return (
     <div className="space-y-6">
       <section className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-bold text-[#636E72]">Nilai dan Hafalan</p>
-          <h1 className="text-3xl font-extrabold text-[#2D3436]">Nilai Ujian / Hafalan</h1>
-          <p className="text-sm font-semibold text-[#636E72]">Input dan rekap penilaian memakai backend yang sama dengan Android.</p>
+          <h1 className="text-3xl font-extrabold text-[#2D3436]">{isMadrasah ? 'Monitoring Nilai & Hafalan' : 'Nilai Ujian / Hafalan'}</h1>
+          <p className="text-sm font-semibold text-[#636E72]">{isMadrasah ? 'Pemantauan rekapitulasi nilai ujian dan setoran hafalan santri secara realtime.' : 'Input dan rekap penilaian memakai backend yang sama dengan Android.'}</p>
         </div>
         <button
           className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#138F81] ${isLoading ? 'is-loading' : ''}`}
@@ -368,15 +378,15 @@ export function NilaiHafalanPage() {
       {notice ? <div className="rounded-2xl bg-[#E8F7F3] px-4 py-3 text-sm font-bold text-[#138F81]">{notice}</div> : null}
 
       <div className="grid gap-4 md:grid-cols-3">
-        <StatCard title="Total Nilai" value={nilaiRows.length} subtitle={`Rata-rata ${nilaiAverage}`} icon={GraduationCap} tone="blue" />
-        <StatCard title="Total Hafalan" value={hafalanRows.length} subtitle="Setoran tersimpan" icon={BookCheck} tone="teal" />
-        <StatCard title="Mapel Aktif" value={mapelRows.length} subtitle="Master mata pelajaran" icon={FileSpreadsheet} tone="orange" />
+        <StatCard title="Total Nilai Ujian" value={nilaiRows.length} subtitle={`${filteredNilai.length} data tampil`} icon={GraduationCap} tone="teal" />
+        <StatCard title="Rata-rata Nilai" value={nilaiAverage} subtitle="Rata-rata nilai santri" icon={BookCheck} tone="blue" />
+        <StatCard title="Setoran Hafalan" value={hafalanRows.length} subtitle={`${filteredHafalan.length} setoran santri`} icon={FileSpreadsheet} tone="orange" />
       </div>
 
       <SegmentedTabs
         tabs={[
-          { id: 'nilai', label: 'Nilai Pelajaran' },
-          { id: 'hafalan', label: 'Hafalan' }
+          { id: 'nilai', label: 'Rekap Nilai' },
+          { id: 'hafalan', label: 'Setoran Hafalan' }
         ]}
         active={activeTab}
         onChange={(id) => setActiveTab(id as TabKey)}
@@ -389,23 +399,25 @@ export function NilaiHafalanPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <button className="q-soft-action inline-flex min-h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-extrabold text-[#138F81]" onClick={exportCurrentRows} type="button">
-              <Download size={17} /> Export
+              <Download size={17} /> Export Excel
             </button>
-            <button
-              className="q-soft-action inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white"
-              onClick={() => (activeTab === 'nilai' ? openNilaiForm() : openHafalanForm())}
-              type="button"
-            >
-              <Plus size={17} /> {activeTab === 'nilai' ? 'Tambah Nilai' : 'Tambah Hafalan'}
-            </button>
+            {!isMadrasah ? (
+              <button
+                className="q-soft-action inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white"
+                onClick={() => (activeTab === 'nilai' ? openNilaiForm() : openHafalanForm())}
+                type="button"
+              >
+                <Plus size={17} /> {activeTab === 'nilai' ? 'Tambah Nilai' : 'Tambah Hafalan'}
+              </button>
+            ) : null}
           </div>
         </div>
         {isLoading ? (
           <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-bold text-[#636E72]">Memuat data...</div>
         ) : activeTab === 'nilai' ? (
-          <DataTable rows={filteredNilai} columns={nilaiColumns} emptyText="Belum ada data nilai." />
+          <DataTable rows={filteredNilai} columns={visibleNilaiColumns} emptyText="Belum ada data nilai." />
         ) : (
-          <DataTable rows={filteredHafalan} columns={hafalanColumns} emptyText="Belum ada data hafalan." />
+          <DataTable rows={filteredHafalan} columns={visibleHafalanColumns} emptyText="Belum ada data hafalan." />
         )}
       </section>
 

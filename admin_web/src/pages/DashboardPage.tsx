@@ -186,6 +186,8 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
   const sholat = dashboard?.absensi_sholat as ApiRecord | undefined;
   const ngaji = dashboard?.absensi_ngaji as ApiRecord | undefined;
   const absensi = dashboard?.absensi as ApiRecord | undefined;
+  const isMadrasah = session?.role === 'admin' && String(session?.admin_type || '').toLowerCase() === 'madrasah';
+
   const latestMadin = Array.isArray(absensi?.per_kelas) ? (absensi.per_kelas as ApiRecord[]) : [];
   const latestPrayer = Array.isArray(sholat?.aktivitas) ? (sholat.aktivitas as ApiRecord[]) : [];
   const latestNgaji = Array.isArray(ngaji?.aktivitas) ? (ngaji.aktivitas as ApiRecord[]) : [];
@@ -193,9 +195,9 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
     ...latestMadin.map((item) => ({
       ...item,
       activity_title: 'Absensi Madin/Diniyah',
-      activity_detail: [item.kelas, item.mapel].filter(Boolean).join(' • '),
+      activity_detail: [item.kelas, item.mapel, item.diinput_oleh ? `Oleh: ${item.diinput_oleh}` : ''].filter(Boolean).join(' • '),
       activity_target: {
-        tab: 'madin-input',
+        tab: (isMadrasah ? 'log-realtime' : 'madin-input') as AbsensiNavigationTarget['tab'],
         classId: Number(item.class_id ?? 0),
         mapelId: Number(item.mapel_id ?? 0),
         jadwalId: Number(item.jadwal_id ?? 0)
@@ -204,14 +206,14 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
     ...latestNgaji.map((item) => ({
       ...item,
       activity_title: 'Absensi Ngaji Kitab',
-      activity_detail: [item.sesi, item.kitab, item.pengajar].filter(Boolean).join(' • '),
-      activity_target: { tab: 'ngaji' } satisfies AbsensiNavigationTarget
+      activity_detail: [item.sesi, item.kitab, item.pengajar ? `Oleh: ${item.pengajar}` : ''].filter(Boolean).join(' • '),
+      activity_target: { tab: (isMadrasah ? 'log-realtime' : 'ngaji') as AbsensiNavigationTarget['tab'] } satisfies AbsensiNavigationTarget
     })),
     ...latestPrayer.map((item) => ({
       ...item,
       activity_title: "Absensi Jama'ah Sholat",
       activity_detail: [item.jenis_sholat, item.komplek, item.kamar].filter(Boolean).join(' • '),
-      activity_target: { tab: 'sholat' } satisfies AbsensiNavigationTarget
+      activity_target: { tab: (isMadrasah ? 'log-realtime' : 'sholat') as AbsensiNavigationTarget['tab'] } satisfies AbsensiNavigationTarget
     }))
   ].sort((left, right) => activityTimestamp(right) - activityTimestamp(left));
   const showAbsensi = canView('absensi');
@@ -279,8 +281,8 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
     <div className="space-y-6">
       <section className="q-page-heading flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-sm font-bold text-[#636E72]">Yayasan Pondok Qomaruddin</p>
-          <h1 className="text-3xl font-extrabold text-[#2D3436]">Dashboard Overview</h1>
+          <p className="text-sm font-bold text-[#636E72]">{isMadrasah ? 'Monitoring & Pemantauan' : 'Yayasan Pondok Qomaruddin'}</p>
+          <h1 className="text-3xl font-extrabold text-[#2D3436]">{isMadrasah ? 'Dashboard Pemantauan Absensi' : 'Dashboard Overview'}</h1>
         </div>
         <button
           className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#138F81] ${isLoading ? 'is-loading' : ''}`}

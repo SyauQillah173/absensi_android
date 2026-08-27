@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!menuKey) return true;
       if (isMainAdmin) return true;
       if (isMadrasah) {
-        return ['dashboard', 'absensi', 'mata_pelajaran', 'jadwal', 'nilai', 'account'].includes(menuKey);
+        return ['dashboard', 'absensi', 'nilai', 'account'].includes(menuKey);
       }
       if (isTreasurer) {
         return ['dashboard', 'keuangan', 'account'].includes(menuKey);

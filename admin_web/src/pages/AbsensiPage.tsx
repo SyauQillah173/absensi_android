@@ -27,7 +27,9 @@ import { api, type ApiRecord } from '../services/api';
 import { exportMadinRekapExcel, exportPrayerRekapExcel } from '../utils/excel';
 import { NgajiKitabSection } from './NgajiKitabSection';
 
-export type AbsensiTab = 'madin-input' | 'sholat' | 'ngaji' | 'rekap-sholat' | 'madin' | 'jenis-sholat';
+import { RealtimeAttendanceLog } from '../components/RealtimeAttendanceLog';
+
+export type AbsensiTab = 'log-realtime' | 'madin-input' | 'sholat' | 'ngaji' | 'rekap-sholat' | 'madin' | 'jenis-sholat';
 export interface AbsensiNavigationTarget {
   tab: AbsensiTab;
   classId?: number;
@@ -38,6 +40,7 @@ type PrayerStatus = '' | 'M' | 'I' | 'S';
 type MadinStatus = '' | 'Hadir' | 'Izin' | 'Sakit' | 'Alfa';
 
 const tabs = [
+  { id: 'log-realtime', label: '⚡ Log Realtime' },
   { id: 'madin-input', label: 'Absensi Madin' },
   { id: 'sholat', label: "Jama'ah Sholat" },
   { id: 'ngaji', label: 'Ngaji Kitab' },
@@ -109,18 +112,47 @@ function statusTone(status: PrayerStatus | MadinStatus | string): 'success' | 'w
 }
 
 export function AbsensiPage({ initialTarget }: { initialTarget?: AbsensiNavigationTarget }) {
-  const [activeTab, setActiveTab] = useState<AbsensiTab>(initialTarget?.tab ?? 'madin-input');
+  const { session } = useAuth();
+  const isMadrasah = session?.role === 'admin' && String(session?.admin_type || '').toLowerCase() === 'madrasah';
+
+  const availableTabs = useMemo(() => {
+    if (isMadrasah) {
+      return [
+        { id: 'log-realtime', label: '⚡ Log Realtime Absensi' },
+        { id: 'madin', label: '📊 Rekap Madin' },
+        { id: 'rekap-sholat', label: "🕌 Rekap Sholat" },
+        { id: 'ngaji', label: '📖 Rekap Ngaji' }
+      ];
+    }
+    return tabs;
+  }, [isMadrasah]);
+
+  const [activeTab, setActiveTab] = useState<AbsensiTab>(() => {
+    if (initialTarget?.tab) return initialTarget.tab;
+    return 'log-realtime';
+  });
+
+  useEffect(() => {
+    if (isMadrasah && !['log-realtime', 'madin', 'rekap-sholat', 'ngaji'].includes(activeTab)) {
+      setActiveTab('log-realtime');
+    }
+  }, [isMadrasah, activeTab]);
 
   return (
     <div className="q-page-enter space-y-6">
       <section>
-        <p className="text-sm font-bold text-[#636E72]">Absensi</p>
-        <h1 className="text-3xl font-extrabold text-[#2D3436]">Absensi Madin & Jama'ah Sholat</h1>
-        <p className="text-sm font-semibold text-[#636E72]">Input, rekap, dan master absensi memakai backend yang sama dengan Android.</p>
+        <p className="text-sm font-bold text-[#636E72]">{isMadrasah ? 'Pemantauan & Monitoring' : 'Absensi'}</p>
+        <h1 className="text-3xl font-extrabold text-[#2D3436]">{isMadrasah ? 'Monitoring Absensi Realtime' : "Absensi Madin & Jama'ah Sholat"}</h1>
+        <p className="text-sm font-semibold text-[#636E72]">
+          {isMadrasah
+            ? 'Pemantauan riwayat kehadiran santri dan ustadz secara realtime lengkap dengan jam detik, mata pelajaran, dan status kehadiran.'
+            : 'Input, rekap, dan master absensi memakai backend yang sama dengan Android.'}
+        </p>
       </section>
 
-      <SegmentedTabs tabs={tabs} active={activeTab} onChange={(id) => setActiveTab(id as AbsensiTab)} />
+      <SegmentedTabs tabs={availableTabs} active={activeTab} onChange={(id) => setActiveTab(id as AbsensiTab)} />
 
+      {activeTab === 'log-realtime' ? <RealtimeAttendanceLog /> : null}
       {activeTab === 'madin-input' ? <MadinInput initialTarget={initialTarget} /> : null}
       {activeTab === 'sholat' ? <PrayerInput /> : null}
       {activeTab === 'ngaji' ? <NgajiKitabSection /> : null}
