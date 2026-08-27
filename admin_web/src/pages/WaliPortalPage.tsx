@@ -14,6 +14,7 @@ import {
   HeartHandshake,
   HelpCircle,
   Home,
+  KeyRound,
   LogOut,
   MapPin,
   MessageCircle,
@@ -21,6 +22,7 @@ import {
   Receipt,
   RefreshCw,
   School,
+  ShieldAlert,
   ShieldCheck,
   Sparkles,
   TrendingUp,
@@ -46,6 +48,12 @@ export function WaliPortalPage() {
   const [absensiSubTab, setAbsensiSubTab] = useState<AbsensiSubTab>('madin');
   const [keuanganSubTab, setKeuanganSubTab] = useState<KeuanganSubTab>('tagihan');
   const [nilaiSubTab, setNilaiSubTab] = useState<NilaiSubTab>('akademik');
+
+  // Change password and security warning states
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [securityWarningDismissed, setSecurityWarningDismissed] = useState(() => {
+    return session?.id ? sessionStorage.getItem(`dismissed_wali_pwd_warning_${session.id}`) === 'true' : false;
+  });
 
   // Multi-child list
   const [childrenList, setChildrenList] = useState<ApiRecord[]>(() => {
@@ -239,11 +247,20 @@ export function WaliPortalPage() {
             </div>
 
             {/* USER & LOGOUT */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <div className="hidden md:block text-right">
                 <p className="text-xs font-bold text-slate-700">{session?.name || 'Wali Santri'}</p>
                 <p className="text-[10px] text-teal-700 font-semibold">Akses Wali (Read-Only)</p>
               </div>
+              <button
+                type="button"
+                onClick={() => setIsChangePasswordOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold text-[#138F81] bg-[#138F81]/10 border border-[#138F81]/20 rounded-xl hover:bg-[#138F81]/20 transition-colors shadow-2xs"
+                title="Ganti Kata Sandi Akun"
+              >
+                <KeyRound size={14} />
+                <span className="hidden sm:inline">Ganti Sandi</span>
+              </button>
               <button
                 type="button"
                 onClick={() => logout()}
@@ -260,6 +277,47 @@ export function WaliPortalPage() {
 
       {/* HERO SECTION / SANTRI SELECTOR */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-5 sm:mt-6 space-y-6">
+        {/* NON-MANDATORY SECURITY WARNING BANNER */}
+        {session?.must_change_password && !securityWarningDismissed && (
+          <div className="rounded-3xl bg-amber-50/95 border border-amber-200 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-2xl bg-amber-100 text-amber-800 shrink-0">
+                <ShieldAlert size={22} />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-amber-950 flex items-center gap-2">
+                  Rekomendasi Keamanan Akun
+                  <span className="text-[10px] bg-amber-200 text-amber-900 font-extrabold px-2 py-0.5 rounded-full">
+                    Sandi Bawaan
+                  </span>
+                </h4>
+                <p className="text-xs text-amber-800 font-medium mt-0.5 leading-relaxed">
+                  Akun Anda saat ini masih menggunakan kata sandi default (<code className="bg-amber-100/80 px-1.5 py-0.5 rounded font-mono font-bold text-amber-900">siswa12345</code>). Demi privasi dan keamanan data santri, kami sarankan untuk membuat kata sandi baru.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsChangePasswordOpen(true)}
+                className="px-3.5 py-2 text-xs font-black rounded-xl bg-amber-800 text-white hover:bg-amber-900 transition-all shadow-xs"
+              >
+                🔒 Ganti Sandi Sekarang
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (session?.id) sessionStorage.setItem(`dismissed_wali_pwd_warning_${session.id}`, 'true');
+                  setSecurityWarningDismissed(true);
+                }}
+                className="px-3 py-2 text-xs font-bold rounded-xl text-amber-800 bg-amber-100 hover:bg-amber-200 transition-all"
+              >
+                Nanti Saja
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* MULTI CHILD SWITCHER (IF > 1) */}
         {childrenList.length > 1 && (
           <div className="flex flex-wrap items-center gap-2 p-3 bg-white rounded-2xl border border-slate-200 shadow-xs">
@@ -1064,6 +1122,168 @@ export function WaliPortalPage() {
           </>
         )}
       </main>
+
+      {/* CHANGE PASSWORD MODAL */}
+      {isChangePasswordOpen && (
+        <WaliChangePasswordModal
+          identifier={studentNis !== '-' ? studentNis : studentName !== 'Santri' ? studentName : session?.email || session?.name || 'siswa'}
+          onClose={() => setIsChangePasswordOpen(false)}
+          onSuccess={() => {
+            if (session?.id) sessionStorage.setItem(`dismissed_wali_pwd_warning_${session.id}`, 'true');
+            setSecurityWarningDismissed(true);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function WaliChangePasswordModal({
+  identifier,
+  onClose,
+  onSuccess,
+}: {
+  identifier: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [currentPassword, setCurrentPassword] = useState('siswa12345');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      setError('Kata sandi baru minimal 6 karakter.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Konfirmasi kata sandi baru tidak cocok.');
+      return;
+    }
+
+    setIsSaving(true);
+    setError('');
+    try {
+      await api.changePassword({
+        identifier,
+        current_password: currentPassword,
+        new_password: newPassword,
+        new_password_confirmation: confirmPassword,
+      });
+      setSuccess('Kata sandi berhasil diperbarui!');
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal mengganti kata sandi. Cek kembali password lama/default Anda.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+      <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-teal-50 text-[#138F81]">
+              <KeyRound size={18} />
+            </div>
+            <div>
+              <h3 className="text-sm font-black text-slate-800">Ganti Kata Sandi</h3>
+              <p className="text-[11px] text-slate-400 font-semibold truncate max-w-[220px]">Login: {identifier}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+          >
+            <XCircle size={18} />
+          </button>
+        </div>
+
+        {error && (
+          <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold">
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
+            ✓ {success}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
+          <div>
+            <label className="font-bold text-slate-600 block mb-1">
+              Kata Sandi Saat Ini / Default
+            </label>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="siswa12345"
+              required
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 font-mono text-xs focus:ring-2 focus:ring-[#138F81]/20 outline-none"
+            />
+            <span className="text-[10px] text-slate-400 mt-1 block">
+              Default awal akun wali santri adalah: <code className="font-bold text-slate-600">siswa12345</code>
+            </span>
+          </div>
+
+          <div>
+            <label className="font-bold text-slate-600 block mb-1">
+              Kata Sandi Baru
+            </label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Minimal 6 karakter"
+              required
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-mono text-xs focus:ring-2 focus:ring-[#138F81]/20 outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="font-bold text-slate-600 block mb-1">
+              Konfirmasi Kata Sandi Baru
+            </label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Ulangi kata sandi baru"
+              required
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-mono text-xs focus:ring-2 focus:ring-[#138F81]/20 outline-none"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-bold rounded-xl text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="px-4 py-2 text-xs font-extrabold rounded-xl bg-[#138F81] text-white hover:bg-[#0f766a] disabled:opacity-50 transition-colors"
+            >
+              {isSaving ? 'Menyimpan...' : 'Simpan Kata Sandi'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

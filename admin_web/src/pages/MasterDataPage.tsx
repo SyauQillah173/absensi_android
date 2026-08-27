@@ -140,6 +140,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
   const [detailTarget, setDetailTarget] = useState<ApiRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ApiRecord | null>(null);
   const [resetTarget, setResetTarget] = useState<ApiRecord | null>(null);
+  const [resetSuccess, setResetSuccess] = useState<ApiRecord | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<ApiRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -379,9 +380,11 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
     setError('');
     try {
       const result = await api.resetUserPassword(num(resetTarget.id));
-      const temporaryPassword = text(record(result.data).temporary_password ?? record(result.data).password, '');
-      setNotice(temporaryPassword ? `Password sementara: ${temporaryPassword}` : 'Password akun berhasil direset.');
+      const resData = record(result.data);
+      setResetSuccess(resData);
       setResetTarget(null);
+      setNotice(`Password akun ${text(resData.name || resetTarget.name)} berhasil direset ke password default.`);
+      await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Password gagal direset.');
     } finally {
@@ -661,14 +664,18 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
 
       {resetTarget ? (
         <ConfirmDialog
-          title="Reset Password?"
-          message={`Password ${text(resetTarget.name)} akan diganti menjadi password sementara baru.`}
+          title="Reset Password ke Default?"
+          message={`Password akun ${text(resetTarget.name)} akan direset kembali ke password default sistem (${resetTarget.role === 'guru' ? 'guru12345' : resetTarget.role === 'wali' ? 'siswa12345' : 'admin12345'}).`}
           tone="warning"
-          confirmLabel="Reset"
+          confirmLabel="Ya, Reset Password"
           isBusy={isSaving}
           onCancel={() => setResetTarget(null)}
           onConfirm={() => void resetPassword()}
         />
+      ) : null}
+
+      {resetSuccess ? (
+        <ResetSuccessModal data={resetSuccess} onClose={() => setResetSuccess(null)} />
       ) : null}
 
       {restoreTarget ? (
@@ -683,6 +690,109 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
         />
       ) : null}
     </div>
+  );
+}
+
+function ResetSuccessModal({ data, onClose }: { data: ApiRecord; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const name = text(data.name, 'Pengguna');
+  const role = text(data.role, 'User').toUpperCase();
+  const loginId = text(data.email || data.name, '-');
+  const password = text(data.password || data.password_default || data.temporary_password, 'siswa12345');
+  const phone = text(data.no_hp, '');
+
+  const shareText = `*AKUN LOGIN PESANTREN QOMARUDDIN*\n` +
+    `Nama: ${name}\n` +
+    `Role: ${role}\n` +
+    `Username / Login: ${loginId}\n` +
+    `Password Default: ${password}\n\n` +
+    `Akses Web: https://absensi-android.vercel.app\n` +
+    `Catatan: Silakan segera ganti kata sandi setelah berhasil masuk untuk keamanan akun.`;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(shareText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    } catch {
+      // clipboard fallback
+    }
+  };
+
+  const cleanPhone = phone.replace(/\D/g, '');
+  const waUrl = cleanPhone
+    ? `https://api.whatsapp.com/send?phone=${cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone}&text=${encodeURIComponent(shareText)}`
+    : null;
+
+  return (
+    <ModalForm title="Password Berhasil Direset" onClose={onClose}>
+      <div className="space-y-4">
+        <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 text-center">
+          <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-2 font-black text-xl">
+            🔑
+          </div>
+          <h4 className="text-base font-black text-emerald-950">Reset Password Berhasil!</h4>
+          <p className="text-xs text-emerald-700 font-medium mt-0.5">
+            Password akun telah dikembalikan ke password default sistem.
+          </p>
+        </div>
+
+        <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4 space-y-3 text-xs">
+          <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+            <span className="text-slate-500 font-semibold">Nama Akun:</span>
+            <span className="font-extrabold text-slate-800 text-sm">{name}</span>
+          </div>
+          <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+            <span className="text-slate-500 font-semibold">Role / Hak Akses:</span>
+            <span className="font-extrabold text-slate-800 bg-slate-200 px-2 py-0.5 rounded">{role}</span>
+          </div>
+          <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+            <span className="text-slate-500 font-semibold">Username / Login:</span>
+            <span className="font-extrabold text-slate-800 font-mono">{loginId}</span>
+          </div>
+          <div className="pt-1">
+            <span className="text-slate-500 font-bold block mb-1.5">Password Default Baru:</span>
+            <div className="flex items-center justify-between bg-white border-2 border-[#138F81] rounded-xl px-3 py-2">
+              <span className="font-mono text-base font-black text-[#138F81] tracking-wider">{password}</span>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="px-2.5 py-1 text-xs font-bold rounded-lg bg-[#138F81] text-white hover:bg-[#0f766a] transition-all"
+              >
+                {copied ? '✓ Tersalin' : 'Salin'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 pt-2">
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-slate-800 text-white font-extrabold text-xs hover:bg-slate-900 transition-all"
+          >
+            📋 {copied ? 'Format Info Login Berhasil Disalin!' : 'Salin Format Pesan Login'}
+          </button>
+          {waUrl && (
+            <a
+              href={waUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-white font-extrabold text-xs hover:bg-emerald-700 transition-all text-center"
+            >
+              📲 Kirim ke WhatsApp User ({phone})
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-2 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs hover:bg-slate-200 transition-all"
+          >
+            Tutup
+          </button>
+        </div>
+      </div>
+    </ModalForm>
   );
 }
 

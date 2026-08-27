@@ -23,6 +23,7 @@ export interface UserSession {
   permissions?: ApiRecord;
   token: string;
   anak?: ApiRecord[];
+  must_change_password?: boolean;
 }
 
 export interface PaymentFormPayload {
@@ -161,6 +162,7 @@ function sessionFromData(data: ApiRecord, token: string): UserSession {
     status: data.status ? String(data.status) : undefined,
     permissions: data.permissions && typeof data.permissions === 'object' ? (data.permissions as ApiRecord) : undefined,
     anak: Array.isArray(data.anak) ? (data.anak as ApiRecord[]) : undefined,
+    must_change_password: Boolean(data.must_change_password),
     token
   };
 }
@@ -388,7 +390,7 @@ export const api = {
     return importRowsInBatches('/siswa/import', rows);
   },
   users(params?: Record<string, string | number | boolean>) {
-    return request<ApiRecord[]>('/users', {}, params);
+    return request<ApiRecord[]>('/users', {}, { include_passwords: 1, ...params });
   },
   createUser(data: ApiRecord) {
     return request<ApiRecord>('/users', { method: 'POST', body: JSON.stringify(data) });

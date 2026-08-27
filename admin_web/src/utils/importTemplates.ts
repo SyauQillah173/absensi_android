@@ -809,7 +809,11 @@ export async function parseImportFile(file: File, type: ImportTemplateType, forc
 export function exportRowsExcel(rows: ApiRecord[], fileName: string, title: string) {
   if (rows.length === 0) return;
 
-  const isSiswa = rows[0] && ('nis' in rows[0] || 'jenis_kelamin' in rows[0] || 'nama_wali' in rows[0]);
+  const first = rows[0] || {};
+  const isSiswa = 'nis' in first && ('jenis_kelamin' in first || 'nama_wali' in first || 'kelas' in first) && first.role !== 'wali';
+  const isGuru = first.role === 'guru' || 'kode_guru' in first || 'unit_kerja' in first;
+  const isWali = first.role === 'wali' || 'nama_santri' in first || 'nis_santri' in first;
+  const isAdmin = first.role === 'admin' || 'admin_type' in first;
 
   let exportCols: { key: string; label: string; width: number }[] = [];
 
@@ -846,11 +850,48 @@ export function exportRowsExcel(rows: ApiRecord[], fileName: string, title: stri
       { key: 'kamar', label: 'Kamar', width: 24 },
       { key: 'catatan_santri', label: 'Catatan', width: 28 },
     ];
+  } else if (isGuru) {
+    exportCols = [
+      { key: 'name', label: 'Nama Lengkap Guru', width: 28 },
+      { key: 'kode_guru', label: 'Kode Guru / NIP', width: 18 },
+      { key: 'email', label: 'Username / Email Login', width: 28 },
+      { key: 'password_display', label: 'Kata Sandi Login', width: 22 },
+      { key: 'password_display_label', label: 'Status Sandi', width: 20 },
+      { key: 'status', label: 'Status Akun', width: 14 },
+      { key: 'no_hp', label: 'No. WhatsApp / HP', width: 18 },
+      { key: 'unit_kerja', label: 'Unit Kerja / Sekolah', width: 25 },
+      { key: 'kategori_guru', label: 'Kategori Pengajar', width: 20 },
+      { key: 'alamat', label: 'Alamat', width: 30 },
+    ];
+  } else if (isWali) {
+    exportCols = [
+      { key: 'nama_santri', label: 'Nama Santri Terhubung', width: 28 },
+      { key: 'nis_santri', label: 'NIS Santri', width: 16 },
+      { key: 'kelas_santri', label: 'Kelas Madin', width: 18 },
+      { key: 'komplek_santri', label: 'Komplek Asrama', width: 20 },
+      { key: 'kamar_santri', label: 'Kamar Asrama', width: 20 },
+      { key: 'name', label: 'Nama Akun Wali', width: 24 },
+      { key: 'email', label: 'Email / Username Wali', width: 26 },
+      { key: 'password_display', label: 'Kata Sandi Default', width: 22 },
+      { key: 'password_display_label', label: 'Status Sandi', width: 20 },
+      { key: 'no_hp', label: 'No. WhatsApp / HP', width: 18 },
+      { key: 'status', label: 'Status Akun', width: 14 },
+    ];
+  } else if (isAdmin) {
+    exportCols = [
+      { key: 'name', label: 'Nama Lengkap Admin', width: 26 },
+      { key: 'admin_type', label: 'Tipe Admin', width: 18 },
+      { key: 'email', label: 'Username / Email Login', width: 28 },
+      { key: 'password_display', label: 'Kata Sandi Login', width: 22 },
+      { key: 'password_display_label', label: 'Status Sandi', width: 20 },
+      { key: 'status', label: 'Status Akun', width: 14 },
+      { key: 'no_hp', label: 'No. WhatsApp / HP', width: 18 },
+    ];
   } else {
     const rawKeys = Array.from(
       rows.reduce((acc, row) => {
         Object.keys(row).forEach((key) => {
-          if (!['id', 'created_at', 'updated_at', 'deleted_at', 'password'].includes(key)) {
+          if (!['id', 'created_at', 'updated_at', 'deleted_at', 'password', 'password_default_encrypted', 'password_current_encrypted'].includes(key)) {
             acc.add(key);
           }
         });
@@ -902,7 +943,8 @@ export function exportRowsExcel(rows: ApiRecord[], fileName: string, title: stri
   styleCell(worksheet, 'A2', styles.hint);
   exportCols.forEach((_, index) => styleCell(worksheet, `${colName(index)}4`, styles.masterHeader));
 
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Data Santri');
+  const sheetName = isGuru ? 'Data Login Guru' : isWali ? 'Data Login Wali' : isAdmin ? 'Data Login Admin' : isSiswa ? 'Data Santri' : 'Export Data';
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
   XLSX.writeFile(workbook, fileName, { bookType: 'xlsx', cellStyles: true });
 }
 

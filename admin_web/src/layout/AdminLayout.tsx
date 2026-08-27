@@ -139,6 +139,9 @@ export function AdminLayout({
   const [openGroups, setOpenGroups] = useState<
     Partial<Record<PageKey, boolean>>
   >({ master: true });
+  const [guruWarningDismissed, setGuruWarningDismissed] = useState(() => {
+    return session?.id ? sessionStorage.getItem(`dismissed_guru_pwd_warning_${session.id}`) === 'true' : false;
+  });
 
   const loadNotifications = useCallback(async (showLoading = false) => {
     if (showLoading) setNotificationsLoading(true);
@@ -550,6 +553,45 @@ export function AdminLayout({
               </div>
             </div>
           </header>
+          {session?.role === 'guru' && session?.must_change_password && !guruWarningDismissed && (
+            <div className="mb-5 rounded-3xl bg-amber-50/95 border border-amber-200 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-2xl bg-amber-100 text-amber-800 shrink-0">
+                  <ShieldCheck size={22} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-amber-950 flex items-center gap-2">
+                    Pemberitahuan Keamanan Akun Pengajar
+                    <span className="text-[10px] bg-amber-200 text-amber-900 font-extrabold px-2 py-0.5 rounded-full">
+                      Sandi Default (guru12345)
+                    </span>
+                  </h4>
+                  <p className="text-xs text-amber-800 font-medium mt-0.5 leading-relaxed">
+                    Akun Anda saat ini masih menggunakan kata sandi bawaan sistem (<code className="bg-amber-100/80 px-1.5 py-0.5 rounded font-mono font-bold text-amber-900">guru12345</code>). Demi keamanan akun dan data madrasah, Anda disarankan untuk membuat kata sandi baru.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onNavigate('account')}
+                  className="px-3.5 py-2 text-xs font-black rounded-xl bg-amber-800 text-white hover:bg-amber-900 transition-all shadow-xs"
+                >
+                  🔒 Ganti Sandi Sekarang
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (session?.id) sessionStorage.setItem(`dismissed_guru_pwd_warning_${session.id}`, 'true');
+                    setGuruWarningDismissed(true);
+                  }}
+                  className="px-3 py-2 text-xs font-bold rounded-xl text-amber-800 bg-amber-100 hover:bg-amber-200 transition-all"
+                >
+                  Nanti Saja
+                </button>
+              </div>
+            </div>
+          )}
           <section key={activePage} className="q-page-enter">
             {children}
           </section>

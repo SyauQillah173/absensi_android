@@ -83,6 +83,19 @@ class UserManagementController extends Controller
         $users = $query->get()->map(function (User $user) use ($viewerCanSeePasswords) {
             $row = $user->toArray();
 
+            if ($user->role === 'wali') {
+                $children = \App\Models\Siswa::where('wali_id', $user->id)
+                    ->orWhereHas('guardianProfile', fn ($q) => $q->where('user_id', $user->id))
+                    ->select('id', 'nama', 'nis', 'kelas', 'komplek', 'kamar', 'status')
+                    ->get();
+                $row['anak'] = $children;
+                $row['nama_santri'] = $children->pluck('nama')->filter()->join(', ');
+                $row['nis_santri'] = $children->pluck('nis')->filter()->join(', ');
+                $row['kelas_santri'] = $children->pluck('kelas')->filter()->join(', ');
+                $row['komplek_santri'] = $children->pluck('komplek')->filter()->join(', ');
+                $row['kamar_santri'] = $children->pluck('kamar')->filter()->join(', ');
+            }
+
             if ($viewerCanSeePasswords) {
                 $row = [
                     ...$row,
@@ -204,15 +217,20 @@ class UserManagementController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Password user berhasil direset.',
+            'message' => "Password akun {$user->name} berhasil direset ke password default ($plainPassword).",
             'data' => [
                 'id' => $user->id,
                 'name' => $user->name,
+                'email' => $user->email,
                 'role' => $user->role,
                 'admin_type' => $user->admin_type,
+                'kode_guru' => $user->kode_guru,
+                'no_hp' => $user->no_hp,
                 'password' => $plainPassword,
+                'temporary_password' => $plainPassword,
                 'password_display' => $plainPassword,
-                'password_display_label' => 'Password Reset Admin',
+                'password_default' => $plainPassword,
+                'password_display_label' => 'Password Default',
                 'password_changed_at' => null,
             ],
         ]);
@@ -532,27 +550,28 @@ class UserManagementController extends Controller
 
     private function buildPasswordDisplayMeta(User $user): array
     {
-        $defaultPassword = $this->decryptOperationalPassword($user->password_default_encrypted);
+        $defaultFallback = match ($user->role) {
+            'guru' => 'guru12345',
+            'wali' => 'siswa12345',
+            'admin' => 'admin12345',
+            default => 'user12345',
+        };
 
         if ($user->password_changed_at) {
             return [
                 'password_display' => 'Sudah diganti user',
                 'password_display_label' => 'Password Privat',
+                'password_default' => $defaultFallback,
                 'password_changed_at' => $user->password_changed_at?->toIso8601String(),
             ];
         }
 
-        if ($defaultPassword !== null && $defaultPassword !== '') {
-            return [
-                'password_display' => $defaultPassword,
-                'password_display_label' => 'Password Default',
-                'password_changed_at' => null,
-            ];
-        }
+        $defaultPassword = $this->decryptOperationalPassword($user->password_default_encrypted) ?: $defaultFallback;
 
         return [
-            'password_display' => 'Belum tercatat',
-            'password_display_label' => 'Password Belum Tercatat',
+            'password_display' => $defaultPassword,
+            'password_display_label' => 'Password Default',
+            'password_default' => $defaultPassword,
             'password_changed_at' => null,
         ];
     }
@@ -572,13 +591,11 @@ class UserManagementController extends Controller
 
     private function generateTemporaryPassword(User $user): string
     {
-        $prefix = match ($user->role) {
-            'guru' => 'Guru',
-            'wali' => 'Wali',
-            'admin' => 'Admin',
-            default => 'User',
+        return match ($user->role) {
+            'guru' => 'guru12345',
+            'wali' => 'siswa12345',
+            'admin' => 'admin12345',
+            default => 'user12345',
         };
-
-        return $prefix . random_int(100000, 999999);
     }
 }
