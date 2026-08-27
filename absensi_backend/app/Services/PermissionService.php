@@ -207,7 +207,7 @@ class PermissionService
         $viewDefaults = [
             'admin_bendahara' => ['dashboard', 'keuangan'],
             'admin_pondok' => ['dashboard', 'buku_induk', 'absensi'],
-            'admin_absensi' => ['dashboard', 'absensi'],
+            'admin_absensi' => ['dashboard', 'absensi', 'nilai'],
             'admin_akademik' => ['dashboard', 'buku_induk', 'mata_pelajaran', 'ruang_sifir', 'nilai'],
             'admin_lainnya' => ['dashboard'],
             'guru' => ['dashboard', 'absensi', 'mata_pelajaran', 'nilai', 'data_diri_guru', 'materi_kegiatan', 'ruang_sifir'],
