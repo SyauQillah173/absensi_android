@@ -51,7 +51,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<AuthContextValue>(() => {
     const adminType = (session?.admin_type || 'utama').toLowerCase();
-    const isMainAdmin = session?.role === 'admin' && (!adminType || adminType === 'utama');
+    const isMainAdmin = session?.role === 'admin' && (!adminType || ['utama', 'it', 'pengurus'].includes(adminType));
+    const isTreasurer = session?.role === 'admin' && ['bendahara', 'keuangan', 'bendahara_1', 'bendahara_2'].includes(adminType);
+    const isMadrasah = session?.role === 'admin' && ['madrasah', 'absensi', 'kepala_madrasah'].includes(adminType);
     const byKey = (session?.permissions && typeof session.permissions === 'object'
       ? (session.permissions.by_key as ApiRecord | undefined)
       : undefined) ?? {};
@@ -59,15 +61,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const canView = (menuKey: string) => {
       if (!menuKey) return true;
       if (isMainAdmin) return true;
+      if (isMadrasah) {
+        return ['dashboard', 'absensi', 'mata_pelajaran', 'jadwal', 'nilai', 'account'].includes(menuKey);
+      }
+      if (isTreasurer) {
+        return ['dashboard', 'keuangan', 'account'].includes(menuKey);
+      }
       const permission = byKey[menuKey];
       if (permission && typeof permission === 'object') {
         const row = permission as ApiRecord;
         const enabled = row.is_enabled === true || row.is_enabled === 1 || row.is_enabled === '1';
         const view = row.can_view === true || row.can_view === 1 || row.can_view === '1';
         return enabled && view;
-      }
-      if (session?.role === 'admin' && adminType === 'bendahara') {
-        return ['dashboard', 'keuangan'].includes(menuKey);
       }
       return session?.role === 'admin';
     };
@@ -76,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       session,
       isAuthenticated: Boolean(session?.token),
       isMainAdmin,
-      isTreasurer: session?.role === 'admin' && adminType === 'bendahara',
+      isTreasurer,
       canView,
       refreshProfile,
       login,

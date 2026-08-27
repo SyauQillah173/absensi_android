@@ -206,8 +206,12 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
                           <select className="q-input" name="admin_type" value={String(form.admin_type || (form.role === 'admin' ? 'utama' : 'umum'))} onChange={handleChange} disabled={readOnly}>
                             {form.role === 'admin' ? (
                               <>
+                                <option value="it">Admin IT (Super Admin & Full Stack)</option>
+                                <option value="pengurus">Admin Pengurus (Akses Penuh)</option>
+                                <option value="madrasah">Admin Madrasah (Pemantau Absensi Realtime)</option>
+                                <option value="bendahara_2">Admin Bendahara 2 (Kasir Santri)</option>
+                                <option value="keuangan">Admin Keuangan 1 (Bendahara Utama)</option>
                                 <option value="utama">Admin Utama (Akses Penuh)</option>
-                                <option value="bendahara">Admin Bendahara (Keuangan)</option>
                                 <option value="akademik">Admin Akademik (Pelajaran & Nilai)</option>
                                 <option value="pondok">Admin Pondok (Asrama & Santri)</option>
                                 <option value="absensi">Admin Absensi (Rekap & Kehadiran)</option>

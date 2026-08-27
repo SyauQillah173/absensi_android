@@ -175,6 +175,8 @@ class AuthController extends Controller
 
         $user = User::whereRaw('LOWER(email) = ?', [$lowerId])
             ->orWhereRaw('LOWER(name) = ?', [$lowerId])
+            ->orWhereRaw('LOWER(SPLIT_PART(email, \'@\', 1)) = ?', [$lowerId])
+            ->orWhereRaw('LOWER(REPLACE(name, \' \', \'\')) = ?', [str_replace(' ', '', $lowerId)])
             ->orWhereRaw('LOWER(kode_guru) = ?', [$lowerId])
             ->orWhere('nis', $identifier)
             ->orWhere('nisn', $identifier)

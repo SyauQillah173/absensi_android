@@ -318,6 +318,21 @@ export function FinancePage() {
     }
   }
 
+  const isBendahara2 = session?.role === 'admin' && String(session?.admin_type || '').toLowerCase() === 'bendahara_2';
+
+  const visibleTabs = useMemo(() => {
+    if (isBendahara2) {
+      return tabs.filter((t) => ['today', 'history', 'student'].includes(t.id));
+    }
+    return tabs;
+  }, [isBendahara2]);
+
+  useEffect(() => {
+    if (isBendahara2 && !['today', 'history', 'student'].includes(activeTab)) {
+      setActiveTab('today');
+    }
+  }, [isBendahara2, activeTab]);
+
   return (
     <div className="space-y-6">
       <section className="flex flex-wrap items-end justify-between gap-4">
@@ -479,7 +494,7 @@ export function FinancePage() {
         </div>
       </section>
 
-      <SegmentedTabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
+      <SegmentedTabs tabs={visibleTabs} active={activeTab} onChange={setActiveTab} />
 
       <section className="q-panel p-4 sm:p-6">
         {isLoading ? <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-bold text-[#636E72]">Memuat data keuangan...</div> : null}

@@ -39,7 +39,7 @@ class PermissionController extends Controller
     {
         $validated = $request->validate([
             'permissions' => 'required|array',
-            'permissions.*.role' => ['required', Rule::in(['admin_bendahara', 'admin_akademik', 'admin_pondok', 'admin_absensi', 'admin_lainnya', 'guru', 'wali'])],
+            'permissions.*.role' => ['required', Rule::in(['admin_bendahara', 'admin_bendahara_2', 'admin_akademik', 'admin_pondok', 'admin_absensi', 'admin_lainnya', 'guru', 'wali'])],
             'permissions.*.menu_key' => 'required|string|exists:app_menus,key',
             'permissions.*.can_view' => 'required|boolean',
             'permissions.*.can_create' => 'required|boolean',

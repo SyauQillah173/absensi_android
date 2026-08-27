@@ -314,13 +314,23 @@ class PermissionService
 
     private function isSuperAdmin(User $user): bool
     {
-        return $user->role === 'admin' && (($user->admin_type ?: 'utama') === 'utama');
+        return $user->role === 'admin' && in_array(($user->admin_type ?: 'utama'), ['utama', 'it', 'pengurus'], true);
     }
 
     private function effectiveRole(User $user): string
     {
         if ($user->role === 'admin') {
-            return 'admin_' . ($user->admin_type ?: 'utama');
+            $type = strtolower($user->admin_type ?: 'utama');
+            if (in_array($type, ['it', 'pengurus', 'utama'], true)) {
+                return 'admin_utama';
+            }
+            if (in_array($type, ['keuangan', 'bendahara', 'bendahara_1'], true)) {
+                return 'admin_bendahara';
+            }
+            if (in_array($type, ['madrasah', 'absensi', 'kepala_madrasah'], true)) {
+                return 'admin_absensi';
+            }
+            return 'admin_' . $type;
         }
 
         if ($user->role === 'guru') {
@@ -336,6 +346,7 @@ class PermissionService
         return [
             'admin_utama',
             'admin_bendahara',
+            'admin_bendahara_2',
             'admin_akademik',
             'admin_pondok',
             'admin_absensi',
