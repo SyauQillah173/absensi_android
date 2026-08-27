@@ -67,6 +67,15 @@ reset_*.sh
 *.xlsx
 *.xls
 *.csv
+**/*.xlsx
+**/*.xls
+**/*.csv
+*.docx
+*.doc
+*.pdf
+**/*.docx
+**/*.doc
+**/*.pdf
 .DS_Store
 Thumbs.db
 ~$*
