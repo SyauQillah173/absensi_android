@@ -418,7 +418,7 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
               {/* TIER FILTER PILLS */}
               <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-1 rounded-xl">
                 {[
-                  { id: 'all', label: 'Semua' },
+                  { id: 'all', label: 'Semua (70)' },
                   { id: 'top10', label: 'Top 10' },
                   { id: 'Awal', label: 'Awal' },
                   { id: 'Tsani', label: 'Tsani' },
@@ -448,7 +448,12 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={filteredClasses}
-                  margin={{ top: 10, right: 10, left: -20, bottom: 25 }}
+                  margin={{
+                    top: 10,
+                    right: 10,
+                    left: -20,
+                    bottom: selectedClassTier === 'all' ? 5 : 20
+                  }}
                 >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis
@@ -456,9 +461,13 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
                     axisLine={false}
                     tickLine={false}
                     interval={0}
-                    angle={-25}
-                    textAnchor="end"
-                    tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
+                    angle={selectedClassTier === 'all' ? 0 : -20}
+                    textAnchor={selectedClassTier === 'all' ? 'middle' : 'end'}
+                    tick={
+                      selectedClassTier === 'all'
+                        ? false
+                        : { fontSize: 10, fill: '#475569', fontWeight: 700 }
+                    }
                   />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
                   <RechartsTooltip cursor={{ fill: '#f8fafc' }} content={<CustomClassTooltip />} />
@@ -466,16 +475,21 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
                     dataKey="value"
                     fill="#138F81"
                     radius={[6, 6, 0, 0]}
-                    maxBarSize={45}
+                    maxBarSize={selectedClassTier === 'all' ? 14 : 45}
                   />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs font-bold text-slate-500 pt-2 border-t border-slate-100">
+          <div className="flex flex-wrap items-center justify-between text-xs font-bold text-slate-500 pt-2 border-t border-slate-100 gap-2">
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-sm bg-[#138F81] inline-block" /> Total Siswa per Rombel
+              {selectedClassTier === 'all' && (
+                <span className="text-[11px] font-medium text-slate-400 italic pl-1">
+                  (Arahkan kursor ke batang grafik untuk melihat nama kelas)
+                </span>
+              )}
             </span>
             <span>Total {rawClasses.length} Rombel Kelas Madin</span>
           </div>
@@ -487,21 +501,20 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
         {/* CHART 3: SEBARAN SANTRI PER KOMPLEK / ASRAMA */}
         <section className="q-card p-5 lg:col-span-6 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <div className="min-w-0">
                 <h2 className="text-base font-black text-slate-800 flex items-center gap-2">
-                  <Building2 size={18} className="text-[#138F81]" />
-                  Sebaran Santri per Komplek Asrama
+                  <Building2 size={18} className="text-[#138F81] shrink-0" />
+                  <span>Sebaran Santri per Komplek Asrama</span>
                 </h2>
                 <p className="text-xs font-semibold text-slate-500">
                   Distribusi santri mukim di setiap komplek/asrama pondok
                 </p>
               </div>
-              <div className="text-right">
-                <span className="text-xs font-black text-teal-800 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-xl">
-                  {totalMondok} Santri Mukim
-                </span>
-              </div>
+              <span className="inline-flex items-center gap-1.5 text-xs font-black text-teal-900 bg-teal-50 border border-teal-200 px-3 py-1.5 rounded-xl shrink-0 whitespace-nowrap shadow-2xs">
+                <span className="h-2 w-2 rounded-full bg-[#138F81]" />
+                {totalMondok.toLocaleString('id-ID')} Santri Mukim
+              </span>
             </div>
 
             {/* HORIZONTAL / COMPACT BAR CHART FOR ASRAMA */}
@@ -515,7 +528,7 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
                   <BarChart
                     layout="vertical"
                     data={komplekData}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    margin={{ top: 5, right: 30, left: 15, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                     <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
@@ -524,11 +537,11 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
                       type="category"
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 11, fill: '#334155', fontWeight: 700 }}
-                      width={100}
+                      tick={{ fontSize: 11, fill: '#1e293b', fontWeight: 800 }}
+                      width={120}
                     />
                     <RechartsTooltip cursor={{ fill: '#f8fafc' }} content={<CustomPondokTooltip />} />
-                    <Bar dataKey="value" radius={[0, 6, 6, 0]} maxBarSize={22}>
+                    <Bar dataKey="value" radius={[0, 6, 6, 0]} maxBarSize={24}>
                       {komplekData.map((_, index) => (
                         <Cell
                           key={`komplek-cell-${index}`}
@@ -551,17 +564,18 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
         {/* CHART 4: TOP KAMAR ASRAMA DENGAN PENGHUNI TERBANYAK */}
         <section className="q-card p-5 lg:col-span-6 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <div className="min-w-0">
                 <h2 className="text-base font-black text-slate-800 flex items-center gap-2">
-                  <DoorOpen size={18} className="text-[#138F81]" />
-                  Top Kamar Asrama Terpadat
+                  <DoorOpen size={18} className="text-[#138F81] shrink-0" />
+                  <span>Top Kamar Asrama Terpadat</span>
                 </h2>
                 <p className="text-xs font-semibold text-slate-500">
                   Daftar kamar dengan jumlah santri penghuni terbanyak
                 </p>
               </div>
-              <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-xl">
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl shrink-0 whitespace-nowrap">
+                <Home size={13} className="text-slate-500" />
                 {totalKamar} Total Kamar
               </span>
             </div>
@@ -577,27 +591,30 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
                   const val = Number(room.value || 0);
                   const cap = Number(room.capacity || 0);
                   const pct = cap > 0 ? Math.min(100, Math.round((val / cap) * 100)) : null;
+                  const roomTitle = String(room.kamar ?? room.name ?? '-');
+                  const komplekTitle = String(room.komplek ?? 'Umum');
 
                   return (
                     <div
                       key={idx}
                       className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 hover:bg-teal-50/50 transition-colors"
+                      title={`${roomTitle} (${komplekTitle}): ${val} Santri`}
                     >
                       <div className="min-w-0 pr-2">
                         <div className="flex items-center gap-1.5">
-                          <span className="grid h-5 w-5 place-items-center rounded-md bg-white border border-slate-200 text-[10px] font-black text-slate-700">
+                          <span className="grid h-5 w-5 place-items-center rounded-md bg-white border border-slate-200 text-[10px] font-black text-slate-700 shrink-0">
                             {idx + 1}
                           </span>
-                          <span className="font-extrabold text-slate-800 text-xs truncate">
-                            {String(room.kamar ?? room.name ?? '-')}
+                          <span className="font-extrabold text-slate-800 text-xs truncate max-w-[130px]">
+                            {roomTitle}
                           </span>
                         </div>
-                        <p className="text-[10px] text-slate-500 font-semibold pl-6 truncate">
-                          {String(room.komplek ?? 'Umum')}
+                        <p className="text-[10px] text-slate-500 font-semibold pl-6 truncate max-w-[130px]">
+                          {komplekTitle}
                         </p>
                       </div>
 
-                      <div className="text-right whitespace-nowrap">
+                      <div className="text-right whitespace-nowrap shrink-0">
                         <span className="text-xs font-black text-teal-800 bg-white border border-teal-200 px-2 py-0.5 rounded-lg shadow-2xs">
                           {val} Santri
                         </span>
