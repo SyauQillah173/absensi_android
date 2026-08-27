@@ -91,21 +91,38 @@ export function DataPondokPage() {
   }, []);
 
   const filteredSantri = useMemo(() => {
-    const keyword = search.toLowerCase();
+    const keyword = search.trim().toLowerCase();
     if (!keyword) return santri;
-    return santri.filter((row) => JSON.stringify(row).toLowerCase().includes(keyword));
+    return santri.filter((row) => {
+      const nama = String(record(row.siswa).nama ?? row.nama ?? '').toLowerCase();
+      const nis = String(record(row.siswa).nis ?? row.nis ?? '').toLowerCase();
+      const kamar = String(record(row.kamar).name ?? row.kamar_nama ?? row.kamar ?? '').toLowerCase();
+      const komplek = String(record(row.komplek).name ?? row.komplek_nama ?? row.komplek ?? '').toLowerCase();
+      return nama.includes(keyword) || nis.includes(keyword) || kamar.includes(keyword) || komplek.includes(keyword);
+    });
   }, [santri, search]);
 
   const filteredComplexes = useMemo(() => {
-    const keyword = search.toLowerCase();
+    const keyword = search.trim().toLowerCase();
     if (!keyword) return complexes;
-    return complexes.filter((row) => JSON.stringify(row).toLowerCase().includes(keyword));
+    return complexes.filter((row) => {
+      const name = String(row.name ?? row.nama ?? '').toLowerCase();
+      const code = String(row.code ?? row.kode ?? '').toLowerCase();
+      const gender = String(row.gender ?? '').toLowerCase();
+      return name.includes(keyword) || code.includes(keyword) || gender.includes(keyword);
+    });
   }, [complexes, search]);
 
   const filteredRooms = useMemo(() => {
-    const keyword = search.toLowerCase();
+    const keyword = search.trim().toLowerCase();
     if (!keyword) return rooms;
-    return rooms.filter((row) => JSON.stringify(row).toLowerCase().includes(keyword));
+    return rooms.filter((r) => {
+      const row = r as ApiRecord;
+      const name = String(row.name ?? row.nama ?? '').toLowerCase();
+      const code = String(row.code ?? row.kode ?? '').toLowerCase();
+      const komplek = String(record(row.complex).name ?? row.komplek ?? '').toLowerCase();
+      return name.includes(keyword) || code.includes(keyword) || komplek.includes(keyword);
+    });
   }, [rooms, search]);
 
   async function updateSantriStatus(row: ApiRecord, status: 'Aktif' | 'Nonaktif') {
@@ -537,10 +554,16 @@ function AssignSantriForm({
   );
 
   const availableStudents = useMemo(() => {
-    const keyword = search.toLowerCase();
+    const keyword = search.trim().toLowerCase();
     return students
       .filter((student) => !activeSantriIds.has(num(student.id)))
-      .filter((student) => (!keyword ? true : JSON.stringify(student).toLowerCase().includes(keyword)));
+      .filter((student) => {
+        if (!keyword) return true;
+        const nama = String(student.nama ?? student.name ?? '').toLowerCase();
+        const nis = String(student.nis ?? '').toLowerCase();
+        const kelas = String(student.kelas ?? '').toLowerCase();
+        return nama.includes(keyword) || nis.includes(keyword) || kelas.includes(keyword);
+      });
   }, [activeSantriIds, search, students]);
 
   function toggle(id: number) {

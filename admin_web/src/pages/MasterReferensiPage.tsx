@@ -41,11 +41,15 @@ export function MasterReferensiPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    const keyword = search.toLowerCase();
+    const keyword = search.trim().toLowerCase();
     return rows.filter((row) => {
       if (kategoriFilter !== 'Semua' && String(row.kategori) !== kategoriFilter) return false;
-      const haystack = JSON.stringify(row).toLowerCase();
-      return keyword ? haystack.includes(keyword) : true;
+      if (!keyword) return true;
+      const kategori = String(row.kategori ?? '').toLowerCase();
+      const nilai = String(row.nilai ?? '').toLowerCase();
+      const kode = String(row.kode ?? '').toLowerCase();
+      const keterangan = String(row.keterangan ?? '').toLowerCase();
+      return kategori.includes(keyword) || nilai.includes(keyword) || kode.includes(keyword) || keterangan.includes(keyword);
     });
   }, [rows, search, kategoriFilter]);
 

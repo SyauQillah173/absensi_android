@@ -17,6 +17,10 @@ function asNumber(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function record(value: unknown): ApiRecord {
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as ApiRecord) : {};
+}
+
 interface KelompokFormState {
   id?: number;
   nama: string;
@@ -79,9 +83,15 @@ export function KelompokBelajarPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    const keyword = search.toLowerCase();
+    const keyword = search.trim().toLowerCase();
     if (!keyword) return rows;
-    return rows.filter((row) => JSON.stringify(row).toLowerCase().includes(keyword));
+    return rows.filter((row) => {
+      const nama = String(row.nama ?? '').toLowerCase();
+      const kategori = String(row.kategori ?? '').toLowerCase();
+      const sifir = String(row.sifir ?? '').toLowerCase();
+      const pembina = String(record(row.pembina).name ?? row.nama_pembina ?? '').toLowerCase();
+      return nama.includes(keyword) || kategori.includes(keyword) || sifir.includes(keyword) || pembina.includes(keyword);
+    });
   }, [rows, search]);
 
   const detailStudents = useMemo(() => (Array.isArray(detail?.siswa) ? (detail.siswa as ApiRecord[]) : []), [detail]);

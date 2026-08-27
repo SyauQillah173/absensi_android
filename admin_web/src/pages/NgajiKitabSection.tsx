@@ -243,9 +243,16 @@ function NgajiRekap() {
   }, []);
 
   const filtered = useMemo(() => {
-    const keyword = search.toLowerCase();
+    const keyword = search.trim().toLowerCase();
     if (!keyword) return rowsData;
-    return rowsData.filter((row) => JSON.stringify(row).toLowerCase().includes(keyword));
+    return rowsData.filter((row) => {
+      const nama = String(row.nama ?? '').toLowerCase();
+      const kelas = String(row.kelas ?? '').toLowerCase();
+      const sesi = String(row.sesi ?? '').toLowerCase();
+      const kitab = String(row.kitab ?? '').toLowerCase();
+      const pengajar = String(row.pengajar ?? '').toLowerCase();
+      return nama.includes(keyword) || kelas.includes(keyword) || sesi.includes(keyword) || kitab.includes(keyword) || pengajar.includes(keyword);
+    });
   }, [rowsData, search]);
 
   const columns: DataColumn<ApiRecord>[] = [

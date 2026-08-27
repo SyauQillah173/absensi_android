@@ -1,10 +1,14 @@
-import React, { FormEvent, useMemo, useState } from 'react';
+import React, { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   ArrowDownLeft,
   CalendarDays,
   Check,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Download,
   Edit,
   FileSpreadsheet,
@@ -255,6 +259,25 @@ export function PemasukanLainPanel({
       return true;
     });
   }, [rows, search, periodFilter, academicYearFilter, calendarYearFilter, customStartDate, customEndDate, categoryFilter, sourceFilter, todayStr]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredRows.length, pageSize]);
+
+  const totalPages = Math.ceil(filteredRows.length / pageSize) || 1;
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const paginatedRows = useMemo(() => {
+    if (pageSize >= filteredRows.length) return filteredRows;
+    const start = (safePage - 1) * pageSize;
+    return filteredRows.slice(start, start + pageSize);
+  }, [filteredRows, safePage, pageSize]);
+
+  const startIndex = filteredRows.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const endIndex = Math.min(safePage * pageSize, filteredRows.length);
 
   // --- STATS COMPUTATION ---
   const stats = useMemo(() => {
@@ -878,7 +901,7 @@ export function PemasukanLainPanel({
                       </td>
                     </tr>
                   ) : (
-                    filteredRows.map((row) => {
+                    paginatedRows.map((row) => {
                       const noTrx = str(row.no_transaksi, `IN-${String(row.id).padStart(4, '0')}`);
                       const tglStr = row.tanggal ? new Date(String(row.tanggal)).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
                       const petugasName = str((row.penginput as ApiRecord)?.name, 'Admin');
@@ -977,6 +1000,83 @@ export function PemasukanLainPanel({
                 <span className="text-base font-black text-emerald-700">
                   {formatMoney(stats.totalFiltered)}
                 </span>
+              </div>
+            )}
+
+            {/* PAGINATION FOOTER */}
+            {filteredRows.length > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white px-4 py-2.5 border-t border-gray-200 text-xs font-bold text-gray-600">
+                <div className="flex items-center gap-2">
+                  <span>
+                    Menampilkan <span className="text-[#138F81] font-extrabold">{startIndex}</span> –{' '}
+                    <span className="text-[#138F81] font-extrabold">{endIndex}</span> dari{' '}
+                    <span className="text-gray-900 font-extrabold">{filteredRows.length.toLocaleString('id-ID')}</span> data
+                  </span>
+                  <span className="text-gray-300">|</span>
+                  <div className="flex items-center gap-1">
+                    <span>Per hal:</span>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => {
+                        setPageSize(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="rounded-lg border border-gray-200 bg-white px-2 py-0.5 text-xs font-bold text-gray-800 focus:border-[#138F81] focus:outline-none"
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                      <option value={filteredRows.length}>Semua</option>
+                    </select>
+                  </div>
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage(1)}
+                      disabled={safePage <= 1}
+                      title="Halaman Pertama"
+                      className="grid h-7 w-7 place-items-center rounded-lg bg-gray-50 text-gray-600 hover:bg-[#138F81] hover:text-white disabled:opacity-40 disabled:hover:bg-gray-50 disabled:hover:text-gray-600 transition-colors"
+                    >
+                      <ChevronsLeft size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={safePage <= 1}
+                      title="Halaman Sebelumnya"
+                      className="grid h-7 w-7 place-items-center rounded-lg bg-gray-50 text-gray-600 hover:bg-[#138F81] hover:text-white disabled:opacity-40 disabled:hover:bg-gray-50 disabled:hover:text-gray-600 transition-colors"
+                    >
+                      <ChevronLeft size={14} />
+                    </button>
+
+                    <span className="px-2.5 py-0.5 font-bold text-gray-800 bg-gray-100 rounded-lg">
+                      Hal {safePage} / {totalPages}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={safePage >= totalPages}
+                      title="Halaman Selanjutnya"
+                      className="grid h-7 w-7 place-items-center rounded-lg bg-gray-50 text-gray-600 hover:bg-[#138F81] hover:text-white disabled:opacity-40 disabled:hover:bg-gray-50 disabled:hover:text-gray-600 transition-colors"
+                    >
+                      <ChevronRight size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={safePage >= totalPages}
+                      title="Halaman Terakhir"
+                      className="grid h-7 w-7 place-items-center rounded-lg bg-gray-50 text-gray-600 hover:bg-[#138F81] hover:text-white disabled:opacity-40 disabled:hover:bg-gray-50 disabled:hover:text-gray-600 transition-colors"
+                    >
+                      <ChevronsRight size={14} />
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

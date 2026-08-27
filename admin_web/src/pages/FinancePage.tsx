@@ -1465,10 +1465,17 @@ function StudentBillingPanel({
 }) {
   const [search, setSearch] = useState('');
   const [confirmCancel, setConfirmCancel] = useState<{ id: number; title: string } | null>(null);
-  const filtered = students.filter((student) => {
-    const text = `${student.nama ?? ''} ${student.nis ?? ''} ${student.nisn ?? ''} ${student.kelas ?? ''}`.toLowerCase();
-    return text.includes(search.toLowerCase());
-  });
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return students;
+    return students.filter((student) => {
+      const nama = String(student.nama ?? '').toLowerCase();
+      const nis = String(student.nis ?? '').toLowerCase();
+      const nisn = String(student.nisn ?? '').toLowerCase();
+      const kelas = String(student.kelas ?? '').toLowerCase();
+      return nama.includes(q) || nis.includes(q) || nisn.includes(q) || kelas.includes(q);
+    });
+  }, [students, search]);
   const student = students.find((item) => num(item.id) === selectedStudentId);
   const totals = (summary?.summary ?? summary) as ApiRecord | undefined;
   const groups = Array.isArray(summary?.groups) ? (summary.groups as ApiRecord[]) : [];

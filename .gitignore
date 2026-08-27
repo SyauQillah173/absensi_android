@@ -64,6 +64,9 @@ reset_*.sh
 *.class
 *.pyc
 *.swp
+*.xlsx
+*.xls
+*.csv
 .DS_Store
 Thumbs.db
 ~$*

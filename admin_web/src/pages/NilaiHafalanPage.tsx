@@ -133,15 +133,30 @@ export function NilaiHafalanPage() {
   }, [academicRows]);
 
   const filteredNilai = useMemo(() => {
-    const keyword = search.toLowerCase();
+    const keyword = search.trim().toLowerCase();
     if (!keyword) return nilaiRows;
-    return nilaiRows.filter((row) => JSON.stringify(row).toLowerCase().includes(keyword));
+    return nilaiRows.filter((row) => {
+      const nama = String(record(row.siswa).nama ?? row.nama_siswa ?? '').toLowerCase();
+      const nis = String(record(row.siswa).nis ?? row.nis ?? '').toLowerCase();
+      const mapel = String(record(row.mata_pelajaran).nama ?? row.nama_mapel ?? '').toLowerCase();
+      const jenis = String(row.jenis_ujian ?? '').toLowerCase();
+      const guru = String(record(row.guru).name ?? row.nama_guru ?? '').toLowerCase();
+      return nama.includes(keyword) || nis.includes(keyword) || mapel.includes(keyword) || jenis.includes(keyword) || guru.includes(keyword);
+    });
   }, [nilaiRows, search]);
 
   const filteredHafalan = useMemo(() => {
-    const keyword = search.toLowerCase();
+    const keyword = search.trim().toLowerCase();
     if (!keyword) return hafalanRows;
-    return hafalanRows.filter((row) => JSON.stringify(row).toLowerCase().includes(keyword));
+    return hafalanRows.filter((row) => {
+      const nama = String(record(row.siswa).nama ?? row.nama_siswa ?? '').toLowerCase();
+      const nis = String(record(row.siswa).nis ?? row.nis ?? '').toLowerCase();
+      const surah = String(row.nama_surah ?? row.surah ?? '').toLowerCase();
+      const juz = String(row.juz ?? '').toLowerCase();
+      const status = String(row.status ?? '').toLowerCase();
+      const pembina = String(record(row.pembina).name ?? row.nama_pembina ?? '').toLowerCase();
+      return nama.includes(keyword) || nis.includes(keyword) || surah.includes(keyword) || juz.includes(keyword) || status.includes(keyword) || pembina.includes(keyword);
+    });
   }, [hafalanRows, search]);
 
   const nilaiAverage = useMemo(() => {

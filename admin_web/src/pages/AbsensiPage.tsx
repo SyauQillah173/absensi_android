@@ -537,9 +537,15 @@ function PrayerRekap() {
   const selectedComplex = complexes.find((item) => num(item.id) === complexId);
   const roomOptions = roomsOf(selectedComplex ?? {});
   const filtered = useMemo(() => {
-    const keyword = search.toLowerCase();
+    const keyword = search.trim().toLowerCase();
     if (!keyword) return rekapRows;
-    return rekapRows.filter((row) => JSON.stringify(row).toLowerCase().includes(keyword));
+    return rekapRows.filter((row) => {
+      const nama = String(record(row.siswa).nama ?? row.nama ?? '').toLowerCase();
+      const nis = String(record(row.siswa).nis ?? row.nis ?? '').toLowerCase();
+      const kamar = String(row.kamar ?? record(row.boardingRoom).name ?? '').toLowerCase();
+      const komplek = String(row.komplek ?? record(row.boardingComplex).name ?? '').toLowerCase();
+      return nama.includes(keyword) || nis.includes(keyword) || kamar.includes(keyword) || komplek.includes(keyword);
+    });
   }, [rekapRows, search]);
 
   async function loadMaster() {
@@ -652,9 +658,16 @@ function MadinRekap() {
   }, []);
 
   const filtered = useMemo(() => {
-    const keyword = search.toLowerCase();
+    const keyword = search.trim().toLowerCase();
     if (!keyword) return rekapRows;
-    return rekapRows.filter((row) => JSON.stringify(row).toLowerCase().includes(keyword));
+    return rekapRows.filter((row) => {
+      const nama = String(record(row.siswa).nama ?? row.nama ?? '').toLowerCase();
+      const nis = String(record(row.siswa).nis ?? row.nis ?? '').toLowerCase();
+      const kelas = String(row.kelas ?? '').toLowerCase();
+      const mapel = String(row.mapel ?? '').toLowerCase();
+      const petugas = String(row.diinput_oleh ?? '').toLowerCase();
+      return nama.includes(keyword) || nis.includes(keyword) || kelas.includes(keyword) || mapel.includes(keyword) || petugas.includes(keyword);
+    });
   }, [rekapRows, search]);
 
   const columns: DataColumn<ApiRecord>[] = [
