@@ -102,9 +102,18 @@ function statusTone(status: unknown): 'success' | 'warning' | 'danger' | 'neutra
   return 'neutral';
 }
 
-export function FinancePage() {
+interface FinancePageProps {
+  initialTab?: string;
+  onTabChange?: (tab: string) => void;
+}
+
+export function FinancePage({ initialTab = 'today', onTabChange }: FinancePageProps) {
   const { session } = useAuth();
-  const [activeTab, setActiveTab] = useState('today');
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
   const [today, setToday] = useState<ApiRecord[]>([]);
   const [history, setHistory] = useState<ApiRecord[]>([]);
   const [paymentTypes, setPaymentTypes] = useState<ApiRecord[]>([]);
@@ -404,97 +413,99 @@ export function FinancePage() {
 
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard
-          title="Total Pembayaran Santri"
-          value={formatMoney(totalPembayaranSiswa)}
-          subtitle={`${countPembayaranSiswa} transaksi (${currentAcademicYearName})`}
-          icon={WalletCards}
-          tone="teal"
-        />
-        <StatCard
-          title="Total Kas Masuk Lain"
-          value={formatMoney(totalKasMasukLain)}
-          subtitle={`${countKasMasukLain} transaksi (${currentAcademicYearName})`}
-          icon={Landmark}
-          tone="blue"
-        />
-        <StatCard
-          title="Total Pengeluaran Kas"
-          value={formatMoney(totalPengeluaranTahunIni)}
-          subtitle={`${countPengeluaranTahunIni} pengeluaran (${currentAcademicYearName})`}
-          icon={ArrowDownCircle}
-          tone="red"
-        />
-        <StatCard
-          title="Total Saldo Kas Bersih"
-          value={formatMoney(saldoKasBersih)}
-          subtitle={`Surplus Kas (${currentAcademicYearName})`}
-          icon={ShieldCheck}
-          tone={saldoKasBersih >= 0 ? 'teal' : 'red'}
-        />
-      </div>
+      {activeTab === 'today' || activeTab === 'history' ? (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <StatCard
+              title="Total Pembayaran Santri"
+              value={formatMoney(totalPembayaranSiswa)}
+              subtitle={`${countPembayaranSiswa} transaksi (${currentAcademicYearName})`}
+              icon={WalletCards}
+              tone="teal"
+            />
+            <StatCard
+              title="Total Kas Masuk Lain"
+              value={formatMoney(totalKasMasukLain)}
+              subtitle={`${countKasMasukLain} transaksi (${currentAcademicYearName})`}
+              icon={Landmark}
+              tone="blue"
+            />
+            <StatCard
+              title="Total Pengeluaran Kas"
+              value={formatMoney(totalPengeluaranTahunIni)}
+              subtitle={`${countPengeluaranTahunIni} pengeluaran (${currentAcademicYearName})`}
+              icon={ArrowDownCircle}
+              tone="red"
+            />
+            <StatCard
+              title="Total Saldo Kas Bersih"
+              value={formatMoney(saldoKasBersih)}
+              subtitle={`Surplus Kas (${currentAcademicYearName})`}
+              icon={ShieldCheck}
+              tone={saldoKasBersih >= 0 ? 'teal' : 'red'}
+            />
+          </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-100 bg-white/95 p-3.5 shadow-xs">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <span className="flex items-center gap-2 text-xs font-black text-gray-800">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
-            </span>
-            <span>Realtime Hari Ini :</span>
-          </span>
-          <span className="rounded-xl bg-emerald-50 border border-emerald-200/80 px-3 py-1 text-xs font-black text-emerald-800 shadow-2xs">
-            Masuk Hari Ini: {formatMoney(totalMasukHariIni)} ({countMasukHariIni} transaksi)
-          </span>
-          <span className="rounded-xl bg-rose-50 border border-rose-200/80 px-3 py-1 text-xs font-black text-rose-800 shadow-2xs">
-            Keluar Hari Ini: {formatMoney(totalKeluarHariIni)}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-gray-500">Tahun Ajaran:</span>
-          <select
-            value={selectedAcademicYearId || (activeAcademicYear ? Number(activeAcademicYear.id) : 0)}
-            onChange={(e) => setSelectedAcademicYearId(Number(e.target.value))}
-            className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-800 shadow-xs focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] focus:outline-none"
-          >
-            {academicPeriods.map((period) => (
-              <option key={num(period.id)} value={num(period.id)}>
-                {str(period.name)} {period.is_active ? '(Aktif)' : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-100 bg-white/95 p-3.5 shadow-xs">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="flex items-center gap-2 text-xs font-black text-gray-800">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+                </span>
+                <span>Realtime Hari Ini :</span>
+              </span>
+              <span className="rounded-xl bg-emerald-50 border border-emerald-200/80 px-3 py-1 text-xs font-black text-emerald-800 shadow-2xs">
+                Masuk Hari Ini: {formatMoney(totalMasukHariIni)} ({countMasukHariIni} transaksi)
+              </span>
+              <span className="rounded-xl bg-rose-50 border border-rose-200/80 px-3 py-1 text-xs font-black text-rose-800 shadow-2xs">
+                Keluar Hari Ini: {formatMoney(totalKeluarHariIni)}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-500">Tahun Ajaran:</span>
+              <select
+                value={selectedAcademicYearId || (activeAcademicYear ? Number(activeAcademicYear.id) : 0)}
+                onChange={(e) => setSelectedAcademicYearId(Number(e.target.value))}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-800 shadow-xs focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] focus:outline-none"
+              >
+                {academicPeriods.map((period) => (
+                  <option key={num(period.id)} value={num(period.id)}>
+                    {str(period.name)} {period.is_active ? '(Aktif)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-      <section className="q-card p-5 mb-5">
-        <h2 className="text-lg font-extrabold text-[#2D3436] mb-1">Tren Keuangan Tahun {new Date().getFullYear()}</h2>
-        <p className="text-xs font-semibold text-[#636E72] mb-4">Grafik Pemasukan vs Pengeluaran Bulanan</p>
-        <div className="h-[300px] w-full mt-4">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorPemasukan" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#138F81" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#138F81" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="colorPengeluaran" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#FF7675" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#FF7675" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
-              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} tickFormatter={(value) => `Rp ${(value/1000).toFixed(0)}K`} />
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <RechartsTooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} formatter={(value: any) => formatMoney(value)} />
-              <Area type="monotone" dataKey="Pemasukan" stroke="#138F81" strokeWidth={3} fillOpacity={1} fill="url(#colorPemasukan)" />
-              <Area type="monotone" dataKey="Pengeluaran" stroke="#FF7675" strokeWidth={3} fillOpacity={1} fill="url(#colorPengeluaran)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
-
-      <SegmentedTabs tabs={visibleTabs} active={activeTab} onChange={setActiveTab} />
+          <section className="q-card p-5 mb-5">
+            <h2 className="text-lg font-extrabold text-[#2D3436] mb-1">Tren Keuangan Tahun {new Date().getFullYear()}</h2>
+            <p className="text-xs font-semibold text-[#636E72] mb-4">Grafik Pemasukan vs Pengeluaran Bulanan</p>
+            <div className="h-[300px] w-full mt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorPemasukan" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#138F81" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#138F81" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorPengeluaran" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#FF7675" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#FF7675" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} tickFormatter={(value) => `Rp ${(value/1000).toFixed(0)}K`} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <RechartsTooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} formatter={(value: any) => formatMoney(value)} />
+                  <Area type="monotone" dataKey="Pemasukan" stroke="#138F81" strokeWidth={3} fillOpacity={1} fill="url(#colorPemasukan)" />
+                  <Area type="monotone" dataKey="Pengeluaran" stroke="#FF7675" strokeWidth={3} fillOpacity={1} fill="url(#colorPengeluaran)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+        </>
+      ) : null}
 
       <section className="q-panel p-4 sm:p-6">
         {isLoading ? <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-bold text-[#636E72]">Memuat data keuangan...</div> : null}

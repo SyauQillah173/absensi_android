@@ -34,7 +34,8 @@ function PageLoader() {
 function AdminShell() {
   const { isAuthenticated, canView, session } = useAuth();
   const [activePage, setActivePage] = useState<PageKey>('dashboard');
-  const [masterSection, setMasterSection] = useState<BukuIndukSection>('ringkas');
+  const [masterSection, setMasterSection] = useState<BukuIndukSection>('siswa');
+  const [financeTab, setFinanceTab] = useState<string>('today');
   const [absensiTarget, setAbsensiTarget] = useState<(AbsensiNavigationTarget & { key: number }) | undefined>();
 
   if (!isAuthenticated) {
@@ -70,29 +71,39 @@ function AdminShell() {
   };
   const safePage = activePage === 'account' || canView(pagePermissionKeys[activePage] ?? activePage) ? activePage : 'dashboard';
 
-  function navigate(page: PageKey, options?: { masterSection?: BukuIndukSection }) {
+  function navigate(page: PageKey, options?: { masterSection?: BukuIndukSection; financeTab?: string }) {
     setActivePage(page);
     if (page === 'absensi') {
       setAbsensiTarget(undefined);
     }
     if (page === 'master') {
-      setMasterSection(options?.masterSection ?? 'ringkas');
+      setMasterSection(options?.masterSection ?? 'siswa');
+    }
+    if (page === 'keuangan') {
+      setFinanceTab(options?.financeTab ?? 'today');
     }
   }
 
   return (
-    <AdminLayout activePage={safePage} activeMasterSection={masterSection} onNavigate={navigate}>
+    <AdminLayout
+      activePage={safePage}
+      activeMasterSection={masterSection}
+      activeFinanceTab={financeTab}
+      onNavigate={navigate}
+    >
       <Suspense fallback={<PageLoader />}>
         {safePage === 'dashboard' ? (
           <DashboardPage
-            onOpenFinance={() => navigate('keuangan')}
+            onOpenFinance={() => navigate('keuangan', { financeTab: 'today' })}
             onOpenAttendance={(target) => {
               setAbsensiTarget({ ...target, key: Date.now() });
               setActivePage('absensi');
             }}
           />
         ) : null}
-        {safePage === 'keuangan' ? <FinancePage /> : null}
+        {safePage === 'keuangan' ? (
+          <FinancePage initialTab={financeTab} onTabChange={setFinanceTab} />
+        ) : null}
         {safePage === 'whatsapp' ? <WhatsAppBotPage /> : null}
         {safePage === 'master' ? <BukuIndukPage initialSection={masterSection} onSectionChange={setMasterSection} /> : null}
         {safePage === 'guru' ? <MasterDataPage variant="guru" /> : null}

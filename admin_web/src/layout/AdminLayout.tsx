@@ -57,15 +57,17 @@ export interface MenuItem {
     label: string;
     page: PageKey;
     masterSection?: BukuIndukSection;
+    financeTab?: string;
   }>;
 }
 
 interface AdminLayoutProps {
   activePage: PageKey;
   activeMasterSection?: BukuIndukSection;
+  activeFinanceTab?: string;
   onNavigate: (
     page: PageKey,
-    options?: { masterSection?: BukuIndukSection },
+    options?: { masterSection?: BukuIndukSection; financeTab?: string },
   ) => void;
   children: ReactNode;
 }
@@ -104,7 +106,20 @@ const allMenu: MenuItem[] = [
   },
   { key: "absensi", label: "Presensi & Absensi", icon: CalendarCheck, page: "absensi" },
   { key: "nilai", label: "Nilai & Hafalan", icon: ListChecks, page: "nilai" },
-  { key: "keuangan", label: "Keuangan & SPP", icon: WalletCards, page: "keuangan" },
+  {
+    key: "keuangan_menu",
+    label: "Keuangan & Kas",
+    icon: WalletCards,
+    children: [
+      { label: "Transaksi Hari Ini", page: "keuangan", financeTab: "today" },
+      { label: "Tagihan Santri (SPP)", page: "keuangan", financeTab: "student" },
+      { label: "Riwayat Pembayaran", page: "keuangan", financeTab: "history" },
+      { label: "Kas Masuk Lain", page: "keuangan", financeTab: "pemasukan_lain" },
+      { label: "Pengeluaran Kas", page: "keuangan", financeTab: "pengeluaran" },
+      { label: "Tipe & Tarif Tagihan", page: "keuangan", financeTab: "types" },
+      { label: "Pengaturan & Struk", page: "keuangan", financeTab: "settings" },
+    ],
+  },
   {
     key: "manajemen_user",
     label: "Data Login Akun",
@@ -134,7 +149,7 @@ const menuPermissionKeys: Record<string, string> = {
   akademik_menu: "mata_pelajaran",
   absensi: "absensi",
   nilai: "nilai",
-  keuangan: "keuangan",
+  keuangan_menu: "keuangan",
   manajemen_user: "buku_induk",
   pengaturan_sistem: "hak_akses",
 };
@@ -142,6 +157,7 @@ const menuPermissionKeys: Record<string, string> = {
 export function AdminLayout({
   activePage,
   activeMasterSection = "siswa",
+  activeFinanceTab = "today",
   onNavigate,
   children,
 }: AdminLayoutProps) {
@@ -212,7 +228,7 @@ export function AdminLayout({
   useEffect(() => {
     setProfileOpen(false);
     setNotificationOpen(false);
-  }, [activePage, activeMasterSection]);
+  }, [activePage, activeMasterSection, activeFinanceTab]);
 
   const menu = useMemo(() => {
     return allMenu.filter((item) =>
@@ -259,7 +275,8 @@ export function AdminLayout({
           const isChildActive = item.children?.some(
             (c) =>
               c.page === activePage &&
-              (!c.masterSection || c.masterSection === activeMasterSection),
+              (!c.masterSection || c.masterSection === activeMasterSection) &&
+              (!c.financeTab || c.financeTab === activeFinanceTab),
           );
           const isDirectActive = item.page === activePage && !hasChildren;
           const isSelected = isDirectActive || isChildActive;
@@ -310,10 +327,12 @@ export function AdminLayout({
                     const childActive =
                       child.page === activePage &&
                       (!child.masterSection ||
-                        child.masterSection === activeMasterSection);
+                        child.masterSection === activeMasterSection) &&
+                      (!child.financeTab ||
+                        child.financeTab === activeFinanceTab);
                     return (
                       <button
-                        key={`${child.page}-${child.masterSection ?? child.label}`}
+                        key={`${child.page}-${child.financeTab ?? child.masterSection ?? child.label}`}
                         className={`flex min-h-8.5 w-full items-center rounded-xl px-3 text-left text-xs font-bold transition ${
                           childActive
                             ? "bg-[#138F81] text-white shadow-md shadow-[#138F81]/20 font-extrabold"
@@ -322,6 +341,7 @@ export function AdminLayout({
                         onClick={() => {
                           onNavigate(child.page, {
                             masterSection: child.masterSection,
+                            financeTab: child.financeTab,
                           });
                           setMobileOpen(false);
                           setProfileOpen(false);
