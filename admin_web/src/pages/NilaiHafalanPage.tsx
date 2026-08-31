@@ -1122,10 +1122,10 @@ export function NilaiHafalanPage() {
       {deleteTarget ? (
         <ConfirmDialog
           title="Hapus Data Penilaian"
-          description={`Apakah Anda yakin ingin menghapus data ${deleteTarget.type === 'nilai' ? 'nilai ujian' : 'setoran hafalan'} ini? Data yang dihapus tidak dapat dikembalikan.`}
+          message={`Apakah Anda yakin ingin menghapus data ${deleteTarget.type === 'nilai' ? 'nilai ujian' : 'setoran hafalan'} ini? Data yang dihapus tidak dapat dikembalikan.`}
           confirmLabel="Hapus Data"
           tone="danger"
-          onClose={() => setDeleteTarget(null)}
+          onCancel={() => setDeleteTarget(null)}
           onConfirm={() => void confirmDelete()}
           isBusy={isSaving}
         />

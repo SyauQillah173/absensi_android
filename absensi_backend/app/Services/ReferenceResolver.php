@@ -277,6 +277,11 @@ class ReferenceResolver
         return $name === null ? null : (string) $name;
     }
 
+    public function academicYearName(?int $id): ?string
+    {
+        return $this->nameById('academic_years', $id);
+    }
+
     public function className(?int $id): ?string
     {
         return $this->nameById('classes', $id);
@@ -444,8 +449,13 @@ class ReferenceResolver
             }
         }
 
-        $query = DB::table($table)->whereRaw('lower(name) = ?', [Str::lower($cleanName)]);
-        if ($parentColumn) {
+        $cleanLower = Str::lower($cleanName);
+        $query = DB::table($table)->where(function ($q) use ($cleanLower) {
+            $q->whereRaw('lower(name) = ?', [$cleanLower])
+              ->orWhereRaw('lower(name) = ?', ['kabupaten ' . $cleanLower])
+              ->orWhereRaw('lower(name) = ?', ['kota ' . $cleanLower]);
+        });
+        if ($parentColumn && $parentId) {
             $query->where($parentColumn, $parentId);
         }
 

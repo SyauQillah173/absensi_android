@@ -164,6 +164,9 @@ class Siswa extends Model
                 if ($classId) {
                     $siswa->class_id = $classId;
                     $siswa->kelas = $resolver->className($classId) ?? $siswa->kelas;
+                } else {
+                    $siswa->class_id = null;
+                    $siswa->kelas = null;
                 }
             }
 
@@ -199,24 +202,28 @@ class Siswa extends Model
                 $siswa->provinsi = $resolver->nameById('provinces', $siswa->province_id) ?? $siswa->provinsi;
             } elseif ($siswa->isDirty('provinsi') || !$siswa->province_id) {
                 $siswa->province_id = $resolver->provinceId($siswa->provinsi) ?? $siswa->province_id;
+                $siswa->provinsi = $siswa->province_id ? $resolver->nameById('provinces', $siswa->province_id) : null;
             }
 
             if ($siswa->isDirty('city_id') && $siswa->city_id) {
                 $siswa->kota = $resolver->nameById('cities', $siswa->city_id) ?? $siswa->kota;
             } elseif ($siswa->isDirty('kota') || !$siswa->city_id) {
                 $siswa->city_id = $resolver->cityId($siswa->kota, $siswa->province_id) ?? $siswa->city_id;
+                $siswa->kota = $siswa->city_id ? $resolver->nameById('cities', $siswa->city_id) : null;
             }
 
             if ($siswa->isDirty('district_id') && $siswa->district_id) {
                 $siswa->kecamatan = $resolver->nameById('districts', $siswa->district_id) ?? $siswa->kecamatan;
             } elseif ($siswa->isDirty('kecamatan') || !$siswa->district_id) {
                 $siswa->district_id = $resolver->districtId($siswa->kecamatan, $siswa->city_id) ?? $siswa->district_id;
+                $siswa->kecamatan = $siswa->district_id ? $resolver->nameById('districts', $siswa->district_id) : null;
             }
 
             if ($siswa->isDirty('village_id') && $siswa->village_id) {
                 $siswa->kelurahan = $resolver->nameById('villages', $siswa->village_id) ?? $siswa->kelurahan;
             } elseif ($siswa->isDirty('kelurahan') || !$siswa->village_id) {
                 $siswa->village_id = $resolver->villageId($siswa->kelurahan, $siswa->district_id) ?? $siswa->village_id;
+                $siswa->kelurahan = $siswa->village_id ? $resolver->nameById('villages', $siswa->village_id) : null;
             }
 
             // 7. Parent & Other References

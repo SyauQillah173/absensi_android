@@ -125,6 +125,7 @@ WhatsApp_Bot/bot_runtime.log
 .pub-cache/
 .pub/
 /build/
+/android/build/
 /coverage/
 app.*.symbols
 app.*.map.json
