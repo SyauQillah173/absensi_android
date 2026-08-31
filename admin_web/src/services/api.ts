@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE = 'https://absensi-android.vercel.app/api';
+const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 export type ApiRecord = Record<string, unknown>;
 

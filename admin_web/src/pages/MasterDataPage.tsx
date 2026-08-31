@@ -37,6 +37,8 @@ interface MasterDataPageProps {
   variant: MasterVariant;
 }
 
+const BASE_URL = import.meta.env.VITE_BASE_URL || 'https://absensi-android.vercel.app/api';
+
 const config = {
   siswa: {
     title: 'Buku Induk - Data Siswa/Santri Aktif',
@@ -723,7 +725,7 @@ function ResetSuccessModal({ data, onClose }: { data: ApiRecord; onClose: () => 
     `Role: ${role}\n` +
     `Username / Login: ${loginId}\n` +
     `Password Default: ${password}\n\n` +
-    `Akses Web: https://absensi-android.vercel.app\n` +
+    `Akses Web: ${BASE_URL}\n` +
     `Catatan: Silakan segera ganti kata sandi setelah berhasil masuk untuk keamanan akun.`;
 
   const handleCopy = async () => {
