@@ -5,6 +5,8 @@ import {
   Coins,
   CreditCard,
   Download,
+  FileText,
+  History,
   Landmark,
   Plus,
   Printer,
@@ -1490,6 +1492,7 @@ function StudentBillingPanel({
   onPaymentSuccess: () => Promise<void>;
 }) {
   const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState<'tagihan' | 'bayar' | 'riwayat'>('tagihan');
   const [confirmCancel, setConfirmCancel] = useState<{ id: number; title: string } | null>(null);
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -1671,294 +1674,378 @@ function StudentBillingPanel({
           </div>
         </div>
       ) : null}
+      
+      {summary && student ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setViewMode('tagihan')}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition-all ${
+                viewMode === 'tagihan'
+                  ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <FileText size={15} />
+              <span>1. Rincian & Status Tagihan</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('bayar')}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition-all ${
+                viewMode === 'bayar'
+                  ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <CreditCard size={15} />
+              <span>2. Input Pembayaran (Kasir)</span>
+            </button>
+            {Array.isArray(summary?.transactions) && summary.transactions.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setViewMode('riwayat')}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition-all ${
+                  viewMode === 'riwayat'
+                    ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <History size={15} />
+                <span>3. Riwayat Struk ({summary.transactions.length})</span>
+              </button>
+            ) : null}
+          </div>
+
+          {viewMode === 'tagihan' ? (
+            <button
+              type="button"
+              onClick={() => setViewMode('bayar')}
+              className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-black text-white shadow-xs transition"
+            >
+              <CreditCard size={15} />
+              <span>Bayar Tagihan Sekarang 👉</span>
+            </button>
+          ) : viewMode === 'bayar' ? (
+            <button
+              type="button"
+              onClick={() => setViewMode('tagihan')}
+              className="flex items-center gap-2 rounded-xl bg-teal-50 hover:bg-teal-100 border border-teal-200 px-4 py-2 text-xs font-black text-[#138F81] transition"
+            >
+              <FileText size={15} />
+              <span>Lihat Rincian Tagihan</span>
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {summary ? (
         <>
-          {/* TAHUN AJARAN FILTER TABS */}
-          {availableYears.length > 0 && (
-            <div className="rounded-3xl bg-white p-4 shadow-sm border border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-black text-gray-500 uppercase flex items-center gap-1">
-                  <span>🎓 TAHUN AJARAN:</span>
-                </span>
-                <div className="flex flex-wrap items-center gap-1.5">
+          {viewMode === 'tagihan' ? (
+            <>
+              {/* TAHUN AJARAN FILTER TABS */}
+              {availableYears.length > 0 && (
+                <div className="rounded-3xl bg-white p-4 shadow-sm border border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-black text-gray-500 uppercase flex items-center gap-1">
+                      <span>🎓 TAHUN AJARAN:</span>
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedYearId('all')}
+                        className={`rounded-xl px-3.5 py-1.5 text-xs font-black transition-all ${
+                          selectedYearId === 'all'
+                            ? 'bg-[#138F81] text-white shadow-sm'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        Semua Tahun ({availableYears.length})
+                      </button>
+                      {availableYears.map((ay) => {
+                        const isActive = ay.is_active;
+                        const isSelected = selectedYearId === ay.id;
+                        return (
+                          <button
+                            key={ay.id}
+                            type="button"
+                            onClick={() => setSelectedYearId(ay.id)}
+                            className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-black transition-all ${
+                              isSelected
+                                ? 'bg-[#138F81] text-white shadow-sm'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200/60'
+                            }`}
+                          >
+                            <span>{ay.name}</span>
+                            <span className={`rounded-full px-1.5 py-0.2 text-[9px] font-black ${
+                              isSelected
+                                ? 'bg-white text-teal-900'
+                                : isActive
+                                ? 'bg-teal-100 text-teal-800'
+                                : 'bg-gray-200 text-gray-600'
+                            }`}>
+                              {isActive ? 'Aktif' : 'Arsip'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {selectedYearId !== 'all' && (
+                    <div className="text-xs font-bold text-teal-800 bg-teal-50 border border-teal-200 rounded-xl px-3 py-1.5">
+                      Filter: <span className="font-extrabold">{availableYears.find((y) => y.id === selectedYearId)?.name}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 4 SUMMARY STATS BOXES */}
+              <div className="grid gap-3 md:grid-cols-4">
+                <SummaryBox title="Total Tagihan" value={currentTotals.tagihan} tone="blue" />
+                <SummaryBox title="Total Dibayar" value={currentTotals.dibayar} tone="teal" />
+                <SummaryBox title="Kurang Bayar" value={currentTotals.kurang} tone="red" />
+                <SummaryBox title="Menunggu Verifikasi" value={currentTotals.menunggu} tone="orange" />
+              </div>
+
+              {filteredGroups.length === 0 ? (
+                <div className="rounded-3xl bg-white p-8 text-center font-bold text-gray-500 border border-gray-200 shadow-sm space-y-2">
+                  <div className="text-2xl">📋</div>
+                  <div>Tidak ada data tagihan untuk tahun ajaran yang dipilih.</div>
                   <button
                     type="button"
                     onClick={() => setSelectedYearId('all')}
-                    className={`rounded-xl px-3.5 py-1.5 text-xs font-black transition-all ${
-                      selectedYearId === 'all'
-                        ? 'bg-[#138F81] text-white shadow-sm'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    className="inline-block rounded-xl bg-teal-50 hover:bg-teal-100 px-3.5 py-1.5 text-xs font-black text-[#138F81] transition-colors"
                   >
-                    Semua Tahun ({availableYears.length})
+                    Lihat Semua Tahun Ajaran
                   </button>
-                  {availableYears.map((ay) => {
-                    const isActive = ay.is_active;
-                    const isSelected = selectedYearId === ay.id;
-                    return (
-                      <button
-                        key={ay.id}
-                        type="button"
-                        onClick={() => setSelectedYearId(ay.id)}
-                        className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-black transition-all ${
-                          isSelected
-                            ? 'bg-[#138F81] text-white shadow-sm'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200/60'
-                        }`}
-                      >
-                        <span>{ay.name}</span>
-                        <span className={`rounded-full px-1.5 py-0.2 text-[9px] font-black ${
-                          isSelected
-                            ? 'bg-white text-teal-900'
-                            : isActive
-                            ? 'bg-teal-100 text-teal-800'
-                            : 'bg-gray-200 text-gray-600'
-                        }`}>
-                          {isActive ? 'Aktif' : 'Arsip'}
-                        </span>
-                      </button>
-                    );
-                  })}
                 </div>
-              </div>
+              ) : (
+                filteredGroups.map((group, idx) => {
+                  const groupMonthly = Array.isArray(group.monthly) ? (group.monthly as ApiRecord[]) : [];
+                  const groupGeneral = Array.isArray(group.general) ? (group.general as ApiRecord[]) : [];
+                  const periodTitle = str(group.tahun_ajaran ?? group.period_badge, '2025/2026');
 
-              {selectedYearId !== 'all' && (
-                <div className="text-xs font-bold text-teal-800 bg-teal-50 border border-teal-200 rounded-xl px-3 py-1.5">
-                  Filter: <span className="font-extrabold">{availableYears.find((y) => y.id === selectedYearId)?.name}</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 4 SUMMARY STATS BOXES */}
-          <div className="grid gap-3 md:grid-cols-4">
-            <SummaryBox title="Total Tagihan" value={currentTotals.tagihan} tone="blue" />
-            <SummaryBox title="Total Dibayar" value={currentTotals.dibayar} tone="teal" />
-            <SummaryBox title="Kurang Bayar" value={currentTotals.kurang} tone="red" />
-            <SummaryBox title="Menunggu Verifikasi" value={currentTotals.menunggu} tone="orange" />
-          </div>
-
-          {filteredGroups.length === 0 ? (
-            <div className="rounded-3xl bg-white p-8 text-center font-bold text-gray-500 border border-gray-200 shadow-sm space-y-2">
-              <div className="text-2xl">📋</div>
-              <div>Tidak ada data tagihan untuk tahun ajaran yang dipilih.</div>
-              <button
-                type="button"
-                onClick={() => setSelectedYearId('all')}
-                className="inline-block rounded-xl bg-teal-50 hover:bg-teal-100 px-3.5 py-1.5 text-xs font-black text-[#138F81] transition-colors"
-              >
-                Lihat Semua Tahun Ajaran
-              </button>
-            </div>
-          ) : (
-            filteredGroups.map((group, idx) => {
-              const groupMonthly = Array.isArray(group.monthly) ? (group.monthly as ApiRecord[]) : [];
-              const groupGeneral = Array.isArray(group.general) ? (group.general as ApiRecord[]) : [];
-              const periodTitle = str(group.tahun_ajaran ?? group.period_badge, '2025/2026');
-
-              return (
-                <div key={idx} className="space-y-4 rounded-3xl bg-white p-6 shadow-sm border border-gray-200">
-                  <h2 className="text-lg font-black text-gray-800">
-                    Tahun Ajaran: <span className="text-[#138F81]">{periodTitle}</span>
-                  </h2>
-                  
-                  {groupMonthly.length > 0 && (
-                    <div className="space-y-3">
-                      <div className="text-xs font-black tracking-wider text-gray-500 uppercase">BULANAN (SPP)</div>
-                      <div className="overflow-x-auto q-scrollbar rounded-xl border border-gray-200">
-                        <table className="w-full min-w-[760px] border-collapse text-xs">
-                          <thead>
-                            <tr className="bg-gray-50 font-black text-gray-700">
-                              <th className="border border-gray-200 px-4 py-2.5 text-left w-52">Tipe Pembayaran</th>
-                              {['Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'].map((m, idx) => (
-                                <th
-                                  key={m}
-                                  className={`border border-gray-200 px-1 py-2.5 text-center w-12 ${
-                                    idx < 6 ? 'text-teal-900 bg-teal-50/30' : 'text-blue-900 bg-blue-50/30'
-                                  }`}
-                                  title={idx < 6 ? `${m} (Semester Ganjil)` : `${m} (Semester Genap)`}
-                                >
-                                  {m}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {groupMonthly.map((item) => {
-                              const months = Array.isArray(item.months) ? (item.months as ApiRecord[]) : [];
-                              return (
-                                <tr key={str(item.payment_type_id ?? item.id ?? item.name)}>
-                                  <td className="border border-gray-200 bg-white px-4 py-3 text-gray-800">
-                                    <div className="font-extrabold text-sm">{str(item.name ?? item.nama ?? item.payment_type_name ?? 'SPP')}</div>
-                                    <div className="text-[11px] font-semibold text-gray-500">12 Bulan (Ganjil & Genap)</div>
-                                  </td>
-                                  {months.map((month) => {
-                                    const monthNo = num(month.month);
-                                    const status = str(month.status, 'Libur');
-                                    const paid = status === 'Lunas' || month.is_paid === true;
-                                    const isLibur = status === 'Libur';
-                                    const pId = month.pembayaran_id;
-                                    const semLabel = [7, 8, 9, 10, 11, 12].includes(monthNo) ? 'Semester Ganjil' : 'Semester Genap';
-
-                                    return (
-                                      <td
-                                        key={`${str(item.payment_type_id)}-${monthNo}`}
-                                        className={`border border-gray-200 p-0 text-center font-black transition-colors ${
-                                          isLibur
-                                            ? 'bg-gray-100 text-gray-400'
-                                            : paid
-                                            ? 'bg-[#138F81] text-white hover:bg-[#0A7065] cursor-pointer'
-                                            : 'bg-[#E74C3C] text-white'
-                                        }`}
-                                        onClick={() => {
-                                          if (paid && pId) {
-                                            setConfirmCancel({ id: Number(pId), title: `${str(item.name)} ${month.label} (${semLabel})` });
-                                          }
-                                        }}
-                                        title={
-                                          isLibur
-                                            ? `Bulan ${month.label} (${semLabel}) - Libur / Tidak Ditagihkan`
-                                            : paid
-                                            ? `Bulan ${month.label} (${semLabel}) - LUNAS ✓ (Klik untuk batalkan jika perlu)`
-                                            : `Bulan ${month.label} (${semLabel}) - Belum Lunas: ${formatMoney(month.remaining_amount ?? month.amount)}`
-                                        }
-                                      >
-                                        <div className="flex h-11 w-full items-center justify-center text-sm font-extrabold">
-                                          {isLibur ? '-' : paid ? '✓' : 'X'}
-                                        </div>
+                  return (
+                    <div key={idx} className="space-y-4 rounded-3xl bg-white p-6 shadow-sm border border-gray-200">
+                      <h2 className="text-lg font-black text-gray-800">
+                        Tahun Ajaran: <span className="text-[#138F81]">{periodTitle}</span>
+                      </h2>
+                      
+                      {groupMonthly.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="text-xs font-black tracking-wider text-gray-500 uppercase">BULANAN (SPP)</div>
+                          <div className="overflow-x-auto q-scrollbar rounded-xl border border-gray-200">
+                            <table className="w-full min-w-[760px] border-collapse text-xs">
+                              <thead>
+                                <tr className="bg-gray-50 font-black text-gray-700">
+                                  <th className="border border-gray-200 px-4 py-2.5 text-left w-52">Tipe Pembayaran</th>
+                                  {['Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'].map((m, idx) => (
+                                    <th
+                                      key={m}
+                                      className={`border border-gray-200 px-1 py-2.5 text-center w-12 ${
+                                        idx < 6 ? 'text-teal-900 bg-teal-50/30' : 'text-blue-900 bg-blue-50/30'
+                                      }`}
+                                      title={idx < 6 ? `${m} (Semester Ganjil)` : `${m} (Semester Genap)`}
+                                    >
+                                      {m}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {groupMonthly.map((item) => {
+                                  const months = Array.isArray(item.months) ? (item.months as ApiRecord[]) : [];
+                                  return (
+                                    <tr key={str(item.payment_type_id ?? item.id ?? item.name)}>
+                                      <td className="border border-gray-200 bg-white px-4 py-3 text-gray-800">
+                                        <div className="font-extrabold text-sm">{str(item.name ?? item.nama ?? item.payment_type_name ?? 'SPP')}</div>
+                                        <div className="text-[11px] font-semibold text-gray-500">12 Bulan (Ganjil & Genap)</div>
                                       </td>
-                                    );
-                                  })}
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
+                                      {months.map((month) => {
+                                        const monthNo = num(month.month);
+                                        const status = str(month.status, 'Libur');
+                                        const paid = status === 'Lunas' || month.is_paid === true;
+                                        const isLibur = status === 'Libur';
+                                        const pId = month.pembayaran_id;
+                                        const semLabel = [7, 8, 9, 10, 11, 12].includes(monthNo) ? 'Semester Ganjil' : 'Semester Genap';
 
-                      {/* Legend & Penjelasan Pembagian Semester SPP */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-gray-50/80 p-3 text-xs font-semibold text-gray-600">
-                        <div className="flex flex-wrap items-center gap-4">
-                          <div className="flex items-center gap-1.5">
-                            <span className="flex h-4 w-4 items-center justify-center rounded bg-[#138F81] text-[10px] font-black text-white">✓</span>
-                            <span>Sudah Lunas</span>
+                                        return (
+                                          <td
+                                            key={`${str(item.payment_type_id)}-${monthNo}`}
+                                            className={`border border-gray-200 p-0 text-center font-black transition-colors ${
+                                              isLibur
+                                                ? 'bg-gray-100 text-gray-400'
+                                                : paid
+                                                ? 'bg-[#138F81] text-white hover:bg-[#0A7065] cursor-pointer'
+                                                : 'bg-[#E74C3C] text-white'
+                                            }`}
+                                            onClick={() => {
+                                              if (paid && pId) {
+                                                setConfirmCancel({ id: Number(pId), title: `${str(item.name)} ${month.label} (${semLabel})` });
+                                              }
+                                            }}
+                                            title={
+                                              isLibur
+                                                ? `Bulan ${month.label} (${semLabel}) - Libur / Tidak Ditagihkan`
+                                                : paid
+                                                ? `Bulan ${month.label} (${semLabel}) - LUNAS ✓ (Klik untuk batalkan jika perlu)`
+                                                : `Bulan ${month.label} (${semLabel}) - Belum Lunas: ${formatMoney(month.remaining_amount ?? month.amount)}`
+                                            }
+                                          >
+                                            <div className="flex h-11 w-full items-center justify-center text-sm font-extrabold">
+                                              {isLibur ? '-' : paid ? '✓' : 'X'}
+                                            </div>
+                                          </td>
+                                        );
+                                      })}
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="flex h-4 w-4 items-center justify-center rounded bg-[#E74C3C] text-[10px] font-black text-white">X</span>
-                            <span>Belum Lunas</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="flex h-4 w-4 items-center justify-center rounded bg-gray-200 text-[10px] font-black text-gray-500">-</span>
-                            <span>Libur SPP</span>
+
+                          {/* Legend & Penjelasan Pembagian Semester SPP */}
+                          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-gray-50/80 p-3 text-xs font-semibold text-gray-600">
+                            <div className="flex flex-wrap items-center gap-4">
+                              <div className="flex items-center gap-1.5">
+                                <span className="flex h-4 w-4 items-center justify-center rounded bg-[#138F81] text-[10px] font-black text-white">✓</span>
+                                <span>Sudah Lunas</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="flex h-4 w-4 items-center justify-center rounded bg-[#E74C3C] text-[10px] font-black text-white">X</span>
+                                <span>Belum Lunas</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="flex h-4 w-4 items-center justify-center rounded bg-gray-200 text-[10px] font-black text-gray-500">-</span>
+                                <span>Libur SPP</span>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
+                              <span className="rounded-md border border-teal-200 bg-teal-50 px-2 py-0.5 text-teal-800">
+                                Semester Ganjil: Jul – Des
+                              </span>
+                              <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-blue-800">
+                                Semester Genap: Jan – Jun
+                              </span>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
-                          <span className="rounded-md border border-teal-200 bg-teal-50 px-2 py-0.5 text-teal-800">
-                            Semester Ganjil: Jul – Des
-                          </span>
-                          <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-blue-800">
-                            Semester Genap: Jan – Jun
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                      )}
 
-                  {groupGeneral.length > 0 && (
-                    <div className="space-y-2 pt-2">
-                      <div className="text-xs font-black tracking-wider text-gray-500 uppercase">UMUM (NON-BULANAN)</div>
-                      <div className="overflow-x-auto q-scrollbar rounded-xl border border-gray-200">
-                        <table className="w-full min-w-[760px] border-collapse text-xs">
-                          <thead>
-                            <tr className="bg-gray-50 font-black text-gray-700">
-                              <th className="border border-gray-200 px-4 py-2.5 text-left">Tipe Pembayaran</th>
-                              <th className="border border-gray-200 px-3 py-2.5 text-center w-36">Semester / Periode</th>
-                              <th className="border border-gray-200 px-4 py-2.5 text-right w-36">Tagihan</th>
-                              <th className="border border-gray-200 px-4 py-2.5 text-right w-36">Dibayar</th>
-                              <th className="border border-gray-200 px-4 py-2.5 text-right w-36">Kurang Bayar</th>
-                              <th className="border border-gray-200 px-4 py-2.5 text-center w-32">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {groupGeneral.map((row, rIdx) => {
-                              const amount = num(row.amount ?? row.amount_due);
-                              const paidAmount = num(row.paid_amount);
-                              const remaining = num(row.remaining_amount);
-                              const status = str(row.display_status ?? row.status);
-                              const isLunas = status.toLowerCase() === 'lunas' || (amount > 0 && paidAmount >= amount);
-                              const semesterName = str(row.semester, row.semester_id === 1 ? 'Semester Ganjil' : row.semester_id === 2 ? 'Semester Genap' : 'Tahunan / Sekali Bayar');
-
-                              return (
-                                <tr key={rIdx} className="hover:bg-gray-50/50">
-                                  <td className="border border-gray-200 bg-white px-4 py-3 font-extrabold text-gray-800">
-                                    {str(row.name ?? row.nama ?? row.payment_type_name ?? row.title)}
-                                  </td>
-                                  <td className="border border-gray-200 bg-white px-3 py-3 text-center">
-                                    <span className={`inline-block rounded-md px-2.5 py-1 text-xs font-black ${
-                                      semesterName.toLowerCase().includes('ganjil')
-                                        ? 'bg-teal-50 text-teal-700 border border-teal-200'
-                                        : semesterName.toLowerCase().includes('genap')
-                                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                        : 'bg-gray-100 text-gray-600'
-                                    }`}>
-                                      {semesterName}
-                                    </span>
-                                  </td>
-                                  <td className="border border-gray-200 bg-white px-4 py-3 text-right font-bold text-gray-700">
-                                    {formatMoney(amount)}
-                                  </td>
-                                  <td className="border border-gray-200 bg-white px-4 py-3 text-right font-bold text-gray-700">
-                                    {formatMoney(paidAmount)}
-                                  </td>
-                                  <td className="border border-gray-200 bg-white px-4 py-3 text-right font-bold text-gray-700">
-                                    {formatMoney(remaining)}
-                                  </td>
-                                  <td className="border border-gray-200 bg-white px-4 py-3 text-center">
-                                    <span className={`inline-block rounded-lg px-3 py-1 text-xs font-black ${
-                                      isLunas
-                                        ? 'bg-[#138F81] text-white'
-                                        : remaining < amount && paidAmount > 0
-                                        ? 'bg-amber-500 text-white'
-                                        : 'bg-[#E74C3C] text-white'
-                                    }`}>
-                                      {isLunas ? 'LUNAS' : remaining < amount && paidAmount > 0 ? 'KURANG BAYAR' : 'BELUM LUNAS'}
-                                    </span>
-                                  </td>
+                      {groupGeneral.length > 0 && (
+                        <div className="space-y-2 pt-2">
+                          <div className="text-xs font-black tracking-wider text-gray-500 uppercase">UMUM (NON-BULANAN)</div>
+                          <div className="overflow-x-auto q-scrollbar rounded-xl border border-gray-200">
+                            <table className="w-full min-w-[760px] border-collapse text-xs">
+                              <thead>
+                                <tr className="bg-gray-50 font-black text-gray-700">
+                                  <th className="border border-gray-200 px-4 py-2.5 text-left">Tipe Pembayaran</th>
+                                  <th className="border border-gray-200 px-3 py-2.5 text-center w-36">Semester / Periode</th>
+                                  <th className="border border-gray-200 px-4 py-2.5 text-right w-36">Tagihan</th>
+                                  <th className="border border-gray-200 px-4 py-2.5 text-right w-36">Dibayar</th>
+                                  <th className="border border-gray-200 px-4 py-2.5 text-right w-36">Kurang Bayar</th>
+                                  <th className="border border-gray-200 px-4 py-2.5 text-center w-32">Status</th>
                                 </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          )}
+                              </thead>
+                              <tbody>
+                                {groupGeneral.map((row, rIdx) => {
+                                  const amount = num(row.amount ?? row.amount_due);
+                                  const paidAmount = num(row.paid_amount);
+                                  const remaining = num(row.remaining_amount);
+                                  const status = str(row.display_status ?? row.status);
+                                  const isLunas = status.toLowerCase() === 'lunas' || (amount > 0 && paidAmount >= amount);
+                                  const semesterName = str(row.semester, row.semester_id === 1 ? 'Semester Ganjil' : row.semester_id === 2 ? 'Semester Genap' : 'Tahunan / Sekali Bayar');
 
-          {/* KASIR POS PEMBAYARAN SANTRI */}
-          {student ? (
-            <DirectPaymentCashier
-              student={student}
-              userId={userId}
-              paymentTypes={paymentTypes}
-              paymentMethods={paymentMethods}
-              academicPeriods={academicPeriods}
-              summaryData={summary}
-              syncedAcademicYearId={typeof selectedYearId === 'number' ? selectedYearId : undefined}
-              onPaymentSuccess={onPaymentSuccess}
-            />
+                                  return (
+                                    <tr key={rIdx} className="hover:bg-gray-50/50">
+                                      <td className="border border-gray-200 bg-white px-4 py-3 font-extrabold text-gray-800">
+                                        {str(row.name ?? row.nama ?? row.payment_type_name ?? row.title)}
+                                      </td>
+                                      <td className="border border-gray-200 bg-white px-3 py-3 text-center">
+                                        <span className={`inline-block rounded-md px-2.5 py-1 text-xs font-black ${
+                                          semesterName.toLowerCase().includes('ganjil')
+                                            ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                                            : semesterName.toLowerCase().includes('genap')
+                                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                            : 'bg-gray-100 text-gray-600'
+                                        }`}>
+                                          {semesterName}
+                                        </span>
+                                      </td>
+                                      <td className="border border-gray-200 bg-white px-4 py-3 text-right font-bold text-gray-700">
+                                        {formatMoney(amount)}
+                                      </td>
+                                      <td className="border border-gray-200 bg-white px-4 py-3 text-right font-bold text-gray-700">
+                                        {formatMoney(paidAmount)}
+                                      </td>
+                                      <td className="border border-gray-200 bg-white px-4 py-3 text-right font-bold text-gray-700">
+                                        {formatMoney(remaining)}
+                                      </td>
+                                      <td className="border border-gray-200 bg-white px-4 py-3 text-center">
+                                        <span className={`inline-block rounded-lg px-3 py-1 text-xs font-black ${
+                                          isLunas
+                                            ? 'bg-[#138F81] text-white'
+                                            : remaining < amount && paidAmount > 0
+                                            ? 'bg-amber-500 text-white'
+                                            : 'bg-[#E74C3C] text-white'
+                                        }`}>
+                                          {isLunas ? 'LUNAS' : remaining < amount && paidAmount > 0 ? 'KURANG BAYAR' : 'BELUM LUNAS'}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('bayar')}
+                  className="flex items-center gap-2 rounded-2xl bg-[#138F81] hover:bg-[#0E6C62] px-6 py-3 text-sm font-black text-white shadow-lg shadow-[#138F81]/25 transition"
+                >
+                  <CreditCard size={18} />
+                  <span>Lanjut Input Pembayaran (Kasir POS) 👉</span>
+                </button>
+              </div>
+            </>
+          ) : viewMode === 'bayar' ? (
+            /* KASIR POS PEMBAYARAN SANTRI */
+            student ? (
+              <DirectPaymentCashier
+                student={student}
+                userId={userId}
+                paymentTypes={paymentTypes}
+                paymentMethods={paymentMethods}
+                academicPeriods={academicPeriods}
+                summaryData={summary}
+                syncedAcademicYearId={typeof selectedYearId === 'number' ? selectedYearId : undefined}
+                onPaymentSuccess={onPaymentSuccess}
+              />
+            ) : null
+          ) : viewMode === 'riwayat' ? (
+            /* RIWAYAT SEMUA TRANSAKSI SANTRI */
+            student && Array.isArray(summary?.transactions) && summary.transactions.length > 0 ? (
+              <StudentPaymentHistorySection
+                transactions={summary.transactions as ApiRecord[]}
+                student={student}
+              />
+            ) : (
+              <div className="rounded-3xl bg-white p-8 text-center font-bold text-gray-500 border border-gray-200 shadow-sm">
+                Belum ada riwayat transaksi pembayaran untuk santri ini.
+              </div>
+            )
           ) : null}
-
-          {/* RIWAYAT SEMUA TRANSAKSI SANTRI (CETAK ULANG KAPAN SAJA & MULTI PILIH) */}
-          {student && Array.isArray(summary?.transactions) && summary.transactions.length > 0 && (
-            <StudentPaymentHistorySection
-              transactions={summary.transactions as ApiRecord[]}
-              student={student}
-            />
-          )}
         </>
       ) : (
         <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-bold text-[#636E72]">Pilih santri untuk melihat tagihan.</div>
