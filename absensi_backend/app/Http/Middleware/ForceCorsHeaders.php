@@ -30,7 +30,8 @@ class ForceCorsHeaders
             'https://www.sisteminformasipondok.my.id',
             'http://localhost:5173',
             'http://127.0.0.1:5173',
-            'http://43.156.154.97:3000'
+            'http://43.156.154.97:3000',
+            'https://ppqomaruddin.itqom.net'
         ];
 
         // 1. CORS Headers (Strict Mode)

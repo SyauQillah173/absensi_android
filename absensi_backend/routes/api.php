@@ -38,12 +38,37 @@ use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
 // Public auth endpoints.
-Route::get('health', fn () => response()->json([
+Route::get('health', fn() => response()->json([
     'success' => true,
     'message' => 'API aktif',
     'timestamp' => now()->toIso8601String(),
 ]));
-Route::get('captcha', fn () => app('captcha')->create('default', true));
+
+// Route::get('/health-check', function () {
+//     $dbStatus = 'Connected';
+//     $dbError = null;
+
+//     try {
+//         // Cek koneksi database
+//         DB::connection()->getPdo();
+//     } catch (\Exception $e) {
+//         $dbStatus = 'Disconnected';
+//         $dbError = $e->getMessage();
+//     }
+
+//     return response()->json([
+//         'status' => 'success',
+//         'php_version' => PHP_VERSION,
+//         'database' => [
+//             'status' => $dbStatus,
+//             'connection_name' => DB::getDefaultConnection(),
+//             'error' => $dbError,
+//         ],
+//         'timestamp' => now(),
+//     ]);
+// });
+
+Route::get('captcha', fn() => app('captcha')->create('default', true));
 Route::middleware('throttle:6,1')->group(function () {
     Route::post('login', [AuthController::class, 'login']);
     Route::post('change-password', [AuthController::class, 'changePassword']);
@@ -97,7 +122,7 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::delete('classes/{schoolClass}', [ReferenceController::class, 'destroyClass']);
         Route::get('school-origins', [ReferenceController::class, 'schoolOrigins']);
         Route::get('references/{table}', [ReferenceController::class, 'master']);
-        
+
         Route::get('master-referensi', [MasterReferensiController::class, 'index']);
         Route::post('master-referensi', [MasterReferensiController::class, 'store']);
         Route::put('master-referensi/{referensi}', [MasterReferensiController::class, 'update']);
