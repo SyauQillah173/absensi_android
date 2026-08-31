@@ -55,6 +55,8 @@ reset_*.sh
 # ==========================================
 # 3. BACKUP, ARCHIVES & TEMPORARY FILES
 # ==========================================
+absensi_backend/database/data/santri_*.json
+absensi_backend/database/data/*.json
 *.zip
 *.rar
 *.tar.gz
