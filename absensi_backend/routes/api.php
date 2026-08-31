@@ -92,6 +92,9 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::get('regions/districts', [RegionController::class, 'districts']);
         Route::get('regions/villages', [RegionController::class, 'villages']);
         Route::get('classes', [ReferenceController::class, 'classes']);
+        Route::post('classes', [ReferenceController::class, 'storeClass']);
+        Route::put('classes/{schoolClass}', [ReferenceController::class, 'updateClass']);
+        Route::delete('classes/{schoolClass}', [ReferenceController::class, 'destroyClass']);
         Route::get('school-origins', [ReferenceController::class, 'schoolOrigins']);
         Route::get('references/{table}', [ReferenceController::class, 'master']);
         

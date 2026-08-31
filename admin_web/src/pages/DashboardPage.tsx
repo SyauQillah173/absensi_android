@@ -1,6 +1,8 @@
 import {
   BookMarked,
+  BookOpen,
   BookOpenCheck,
+  Building,
   Building2,
   CalendarCheck,
   ChevronRight,
@@ -220,22 +222,62 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
   const showFinance = canView('keuangan');
 
   // Chart filters & calculations
-  const [selectedClassTier, setSelectedClassTier] = useState<string>('all');
+  const [activeClassView, setActiveClassView] = useState<'sekolah' | 'madin'>('sekolah');
+  const [selectedMadinTier, setSelectedMadinTier] = useState<string>('all');
+  const [selectedSekolahTier, setSelectedSekolahTier] = useState<string>('all');
   const [selectedPondokView, setSelectedPondokView] = useState<'komplek' | 'kamar'>('komplek');
 
-  const rawClasses = useMemo(() => {
-    return Array.isArray(statistik?.siswa_per_kelas) ? (statistik.siswa_per_kelas as ApiRecord[]) : [];
-  }, [statistik?.siswa_per_kelas]);
+  const rawMadinClasses = useMemo(() => {
+    return Array.isArray(statistik?.siswa_per_kelas_madin)
+      ? (statistik.siswa_per_kelas_madin as ApiRecord[])
+      : Array.isArray(statistik?.siswa_per_kelas)
+      ? (statistik.siswa_per_kelas as ApiRecord[])
+      : [];
+  }, [statistik?.siswa_per_kelas_madin, statistik?.siswa_per_kelas]);
 
-  const filteredClasses = useMemo(() => {
-    if (selectedClassTier === 'all') return rawClasses;
-    if (selectedClassTier === 'top10') {
-      return [...rawClasses].sort((a, b) => Number(b.value ?? 0) - Number(a.value ?? 0)).slice(0, 10);
+  const rawSekolahClasses = useMemo(() => {
+    return Array.isArray(statistik?.siswa_per_kelas_sekolah)
+      ? (statistik.siswa_per_kelas_sekolah as ApiRecord[])
+      : [];
+  }, [statistik?.siswa_per_kelas_sekolah]);
+
+  const filteredMadinClasses = useMemo(() => {
+    if (selectedMadinTier === 'all') return rawMadinClasses;
+    if (selectedMadinTier === 'top10') {
+      return [...rawMadinClasses].sort((a, b) => Number(b.value ?? 0) - Number(a.value ?? 0)).slice(0, 10);
     }
-    return rawClasses.filter((item) =>
-      String(item.name || item.kelas || '').toLowerCase().includes(selectedClassTier.toLowerCase())
+    return rawMadinClasses.filter((item) =>
+      String(item.name || item.kelas || '').toLowerCase().includes(selectedMadinTier.toLowerCase())
     );
-  }, [rawClasses, selectedClassTier]);
+  }, [rawMadinClasses, selectedMadinTier]);
+
+  const filteredSekolahClasses = useMemo(() => {
+    if (selectedSekolahTier === 'all') return rawSekolahClasses;
+    if (selectedSekolahTier === 'top10') {
+      return [...rawSekolahClasses].sort((a, b) => Number(b.value ?? 0) - Number(a.value ?? 0)).slice(0, 10);
+    }
+    if (selectedSekolahTier === 'smp_mts') {
+      return rawSekolahClasses.filter((item) => {
+        const n = String(item.name || item.kelas || '').toLowerCase();
+        return n.includes('smp') || n.includes('mts') || n.startsWith('vii ') || n.startsWith('viii ') || n.startsWith('ix ');
+      });
+    }
+    if (selectedSekolahTier === 'sma_ma_smk') {
+      return rawSekolahClasses.filter((item) => {
+        const n = String(item.name || item.kelas || '').toLowerCase();
+        return n.includes('sma') || n.includes('smk') || n.includes('ma') || n.startsWith('x ') || n.startsWith('xi ') || n.startsWith('xii ');
+      });
+    }
+    return rawSekolahClasses;
+  }, [rawSekolahClasses, selectedSekolahTier]);
+
+  const totalSantriMadin = useMemo(() => {
+    return rawMadinClasses.reduce((sum, c) => sum + Number(c.value ?? 0), 0);
+  }, [rawMadinClasses]);
+
+  const totalSantriSekolah = useMemo(() => {
+    return rawSekolahClasses.reduce((sum, c) => sum + Number(c.value ?? 0), 0);
+  }, [rawSekolahClasses]);
 
   const genderData = useMemo(() => {
     return Array.isArray(statistik?.siswa_per_gender) ? (statistik.siswa_per_gender as ApiRecord[]) : [];
@@ -403,24 +445,56 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
           </div>
         </section>
 
-        {/* CHART 2: SEBARAN SANTRI PER KELAS DENGAN FILTER JENJANG */}
+        {/* CHART 2: SEBARAN SANTRI PER KELAS (MADIN & SEKOLAH FORMAL) */}
         <section className="q-card p-5 lg:col-span-8 flex flex-col justify-between">
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
               <div>
-                <h2 className="text-base font-black text-slate-800 flex items-center gap-2">
-                  <GraduationCap size={19} className="text-[#138F81]" />
-                  Sebaran Santri per Kelas
-                </h2>
+                <div className="flex items-center gap-2 mb-1">
+                  <h2 className="text-base font-black text-slate-800 flex items-center gap-2">
+                    <GraduationCap size={19} className="text-[#138F81]" />
+                    Sebaran Santri per Kelas
+                  </h2>
+                </div>
                 <p className="text-xs font-semibold text-slate-500">
-                  {filteredClasses.length} rombel kelas terpilih • Filter berdasarkan tingkatan
+                  {activeClassView === 'madin'
+                    ? `${filteredMadinClasses.length} rombel kelas Madin terpilih • Filter tingkatan Madin`
+                    : `${filteredSekolahClasses.length} rombel kelas Sekolah terpilih • Filter jenjang Formal`}
                 </p>
               </div>
 
-              {/* TIER FILTER PILLS */}
-              <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-1 rounded-xl">
-                {[
-                  { id: 'all', label: 'Semua (70)' },
+              {/* SEGMENTED SWITCHER: MADIN VS SEKOLAH FORMAL */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/50">
+                <button
+                  type="button"
+                  onClick={() => setActiveClassView('sekolah')}
+                  className={`px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all flex items-center gap-1.5 ${
+                    activeClassView === 'sekolah'
+                      ? 'bg-sky-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                  }`}
+                >
+                  <Building size={13} /> Kelas Sekolah ({rawSekolahClasses.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveClassView('madin')}
+                  className={`px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all flex items-center gap-1.5 ${
+                    activeClassView === 'madin'
+                      ? 'bg-[#138F81] text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                  }`}
+                >
+                  <BookOpen size={13} /> Kelas Madin ({rawMadinClasses.length})
+                </button>
+              </div>
+            </div>
+
+            {/* FILTER PILLS */}
+            <div className="flex flex-wrap items-center gap-1.5 mt-2 mb-1">
+              {activeClassView === 'madin' ? (
+                [
+                  { id: 'all', label: `Semua (${rawMadinClasses.length})` },
                   { id: 'top10', label: 'Top 10' },
                   { id: 'Awal', label: 'Awal' },
                   { id: 'Tsani', label: 'Tsani' },
@@ -432,68 +506,104 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
                   <button
                     key={tier.id}
                     type="button"
-                    onClick={() => setSelectedClassTier(tier.id)}
+                    onClick={() => setSelectedMadinTier(tier.id)}
                     className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
-                      selectedClassTier === tier.id
+                      selectedMadinTier === tier.id
                         ? 'bg-[#138F81] text-white shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                        : 'bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                     }`}
                   >
                     {tier.label}
                   </button>
-                ))}
-              </div>
+                ))
+              ) : (
+                [
+                  { id: 'all', label: `Semua (${rawSekolahClasses.length})` },
+                  { id: 'top10', label: 'Top 10 Terbanyak' },
+                  { id: 'smp_mts', label: 'SMP / MTs' },
+                  { id: 'sma_ma_smk', label: 'SMA / MA / SMK' }
+                ].map((tier) => (
+                  <button
+                    key={tier.id}
+                    type="button"
+                    onClick={() => setSelectedSekolahTier(tier.id)}
+                    className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
+                      selectedSekolahTier === tier.id
+                        ? 'bg-sky-600 text-white shadow-xs'
+                        : 'bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    {tier.label}
+                  </button>
+                ))
+              )}
             </div>
 
-            {/* BAR CHART */}
-            <div className="h-[220px] w-full mt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={filteredClasses}
-                  margin={{
-                    top: 10,
-                    right: 10,
-                    left: -20,
-                    bottom: selectedClassTier === 'all' ? 5 : 20
-                  }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis
-                    dataKey="name"
-                    axisLine={false}
-                    tickLine={false}
-                    interval={0}
-                    angle={selectedClassTier === 'all' ? 0 : -20}
-                    textAnchor={selectedClassTier === 'all' ? 'middle' : 'end'}
-                    tick={
-                      selectedClassTier === 'all'
-                        ? false
-                        : { fontSize: 10, fill: '#475569', fontWeight: 700 }
-                    }
-                  />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
-                  <RechartsTooltip cursor={{ fill: '#f8fafc' }} content={<CustomClassTooltip />} />
-                  <Bar
-                    dataKey="value"
-                    fill="#138F81"
-                    radius={[6, 6, 0, 0]}
-                    maxBarSize={selectedClassTier === 'all' ? 14 : 45}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {/* CHART DISPLAY */}
+            {activeClassView === 'madin' && totalSantriMadin === 0 ? (
+              <div className="h-[200px] flex flex-col items-center justify-center rounded-2xl bg-teal-50/40 border border-dashed border-teal-200/80 p-6 text-center mt-2">
+                <div className="h-10 w-10 rounded-full bg-teal-100/80 flex items-center justify-center text-[#138F81] mb-2 font-black">
+                  <BookOpen size={20} />
+                </div>
+                <p className="text-sm font-extrabold text-teal-900">Belum Ada Santri di Rombel Kelas Madin</p>
+                <p className="text-xs font-medium text-teal-700/80 max-w-md mt-0.5">
+                  Saat ini seluruh santri terdaftar di kelas sekolah formal masing-masing. Anda dapat mengatur penempatan rombel Madin (Awal s/d Sadis) melalui menu Data Kelas & Data Santri.
+                </p>
+              </div>
+            ) : (
+              <div className="h-[220px] w-full mt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={activeClassView === 'madin' ? filteredMadinClasses : filteredSekolahClasses}
+                    margin={{
+                      top: 10,
+                      right: 10,
+                      left: -20,
+                      bottom: (activeClassView === 'madin' ? selectedMadinTier : selectedSekolahTier) === 'all' ? 5 : 20
+                    }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis
+                      dataKey="name"
+                      axisLine={false}
+                      tickLine={false}
+                      interval={0}
+                      angle={(activeClassView === 'madin' ? selectedMadinTier : selectedSekolahTier) === 'all' ? 0 : -20}
+                      textAnchor={(activeClassView === 'madin' ? selectedMadinTier : selectedSekolahTier) === 'all' ? 'middle' : 'end'}
+                      tick={
+                        (activeClassView === 'madin' ? selectedMadinTier : selectedSekolahTier) === 'all'
+                          ? false
+                          : { fontSize: 10, fill: '#475569', fontWeight: 700 }
+                      }
+                    />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+                    <RechartsTooltip cursor={{ fill: '#f8fafc' }} content={<CustomClassTooltip />} />
+                    <Bar
+                      dataKey="value"
+                      fill={activeClassView === 'madin' ? '#138F81' : '#0284c7'}
+                      radius={[6, 6, 0, 0]}
+                      maxBarSize={(activeClassView === 'madin' ? selectedMadinTier : selectedSekolahTier) === 'all' ? 14 : 45}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center justify-between text-xs font-bold text-slate-500 pt-2 border-t border-slate-100 gap-2">
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm bg-[#138F81] inline-block" /> Total Siswa per Rombel
-              {selectedClassTier === 'all' && (
+              <span className={`h-2.5 w-2.5 rounded-sm inline-block ${activeClassView === 'madin' ? 'bg-[#138F81]' : 'bg-sky-600'}`} /> Total Siswa per Rombel
+              {((activeClassView === 'madin' ? selectedMadinTier : selectedSekolahTier) === 'all') && (
                 <span className="text-[11px] font-medium text-slate-400 italic pl-1">
                   (Arahkan kursor ke batang grafik untuk melihat nama kelas)
                 </span>
               )}
             </span>
-            <span>Total {rawClasses.length} Rombel Kelas Madin</span>
+            <span>
+              {activeClassView === 'madin'
+                ? `Total ${rawMadinClasses.length} Rombel Madin (${totalSantriMadin} Santri)`
+                : `Total ${rawSekolahClasses.length} Rombel Sekolah Formal (${totalSantriSekolah} Santri)`}
+            </span>
           </div>
         </section>
       </div>

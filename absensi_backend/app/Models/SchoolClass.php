@@ -13,4 +13,25 @@ class SchoolClass extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    public function siswa()
+    {
+        return $this->hasMany(Siswa::class, 'class_id');
+    }
+
+    public function scopeMadin($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('category', '!=', 'Formal')
+              ->orWhere('name', 'ilike', 'Sifir%');
+        });
+    }
+
+    public function scopeFormal($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('category', 'Formal')
+              ->orWhere('name', 'not ilike', 'Sifir%');
+        });
+    }
 }

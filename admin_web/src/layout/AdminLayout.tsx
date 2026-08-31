@@ -99,6 +99,7 @@ const allMenu: MenuItem[] = [
     label: "Akademik & KBM",
     icon: BookOpen,
     children: [
+      { label: "Data Kelas (Madin & Sekolah)", page: "master", masterSection: "kelas" },
       { label: "Mata Pelajaran", page: "mapel" },
       { label: "Jadwal Pelajaran", page: "jadwal" },
       { label: "Kelompok Belajar", page: "master", masterSection: "kelompok" },

@@ -410,8 +410,17 @@ export const api = {
   importGuru(rows: ApiRecord[]) {
     return importRowsInBatches('/users/import-guru', rows);
   },
-  classes() {
-    return request<ApiRecord[]>('/classes');
+  classes(params?: Record<string, string | number | boolean>) {
+    return request<ApiRecord[]>('/classes', {}, params);
+  },
+  createClass(data: ApiRecord) {
+    return request<ApiRecord>('/classes', { method: 'POST', body: JSON.stringify(data) });
+  },
+  updateClass(id: number, data: ApiRecord) {
+    return request<ApiRecord>(`/classes/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+  deleteClass(id: number) {
+    return request(`/classes/${id}`, { method: 'DELETE' });
   },
   schoolOrigins(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>('/school-origins', {}, params);

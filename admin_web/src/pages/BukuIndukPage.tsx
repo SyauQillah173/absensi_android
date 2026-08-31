@@ -4,6 +4,7 @@ import { DataPondokPage } from './DataPondokPage';
 import { AcademicPage } from './AcademicPage';
 import { KelompokBelajarPage } from './KelompokBelajarPage';
 import { MasterReferensiPage } from './MasterReferensiPage';
+import { MasterKelasPage } from './MasterKelasPage';
 
 export type BukuIndukSection =
   | 'ringkas'
@@ -17,7 +18,8 @@ export type BukuIndukSection =
   | 'login-wali'
   | 'akademik'
   | 'kelompok'
-  | 'pondok';
+  | 'pondok'
+  | 'kelas';
 
 interface BukuIndukPageProps {
   initialSection?: BukuIndukSection;
@@ -32,6 +34,7 @@ export function BukuIndukPage({ initialSection = 'siswa', onSectionChange }: Buk
   }, [initialSection]);
 
   // Render langsung komponen sesuai section tanpa ada tab/sub-menu ganda di dalam halaman
+  if (section === 'kelas') return <MasterKelasPage />;
   if (section === 'alumni') return <MasterDataPage variant="alumni" />;
   if (section === 'guru') return <MasterDataPage variant="guru" />;
   if (section === 'login-admin') return <MasterDataPage variant="login-admin" />;

@@ -154,76 +154,117 @@ class DashboardController extends Controller
             $totalSantriMondok = SantriPondok::whereNull('deleted_at')->where('status', 'Aktif')->count()
                 ?: Siswa::whereNotNull('komplek')->where('komplek', '!=', '')->count();
 
+        $madinClasses = \App\Models\SchoolClass::where(function ($q) {
+            $q->where('category', '!=', 'Formal')
+              ->orWhere('name', 'ilike', 'Sifir%');
+        })->get(['id', 'name', 'category', 'gender_group']);
+
+        $madinClassIds = $madinClasses->pluck('id')->toArray();
+
+        $madinCounts = Siswa::whereIn('class_id', $madinClassIds)
+            ->select('class_id', 'jenis_kelamin', DB::raw('count(*) as total'))
+            ->groupBy('class_id', 'jenis_kelamin')
+            ->get()
+            ->groupBy('class_id');
+
+        $siswaPerKelasMadin = $madinClasses->map(function ($c) use ($madinCounts) {
+            $items = $madinCounts->get($c->id, collect());
+            $pa = (int) ($items->where('jenis_kelamin', 'L')->first()?->total ?? 0);
+            $pi = (int) ($items->where('jenis_kelamin', 'P')->first()?->total ?? 0);
             return [
-                'success' => true,
-                'tanggal' => $today,
-                'role' => 'admin',
-                'absensi' => [
-                    'total' => $absensiHariIni->count(),
-                    'hadir' => $absensiHariIni->where('status', 'Hadir')->count(),
-                    'izin' => $absensiHariIni->where('status', 'Izin')->count(),
-                    'sakit' => $absensiHariIni->where('status', 'Sakit')->count(),
-                    'alfa' => $absensiHariIni->where('status', 'Alfa')->count(),
-                    'per_kelas' => $absensiPerKelas,
-                    'terbaru' => $absensiHariIni
-                        ->sortByDesc('created_at')
-                        ->take(8)
-                        ->map(fn (Absensi $row) => [
-                            'id' => $row->id,
-                            'siswa_id' => $row->siswa_id,
-                            'siswa_nama' => $row->siswa?->nama,
-                            'kelas' => $row->kelas,
-                            'mapel' => $row->mapel,
-                            'status' => $row->status,
-                            'petugas' => $row->diinput_oleh,
-                            'waktu' => $row->created_at?->format('H:i'),
-                            'created_at' => $row->created_at?->toIso8601String(),
-                        ])
-                        ->values(),
-                ],
-                'absensi_sholat' => $this->buildAdminPrayerSummary($today),
-                'absensi_ngaji' => $this->buildAdminNgajiSummary($today),
-                'pembayaran' => [
-                    'total_masuk' => $pembayaranHariIni->sum('jumlah'),
-                    'jumlah_transaksi' => $pembayaranHariIni->count(),
-                ],
-                'statistik' => [
-                    'total_siswa' => Siswa::count(),
-                    'siswa_aktif' => $this->activeStudentsQuery()->count(),
-                    'total_santri_mondok' => $totalSantriMondok,
-                    'total_mapel' => MataPelajaran::where('status', 'Aktif')->count(),
-                    'total_asrama' => BoardingComplex::count() ?: $siswaPerKomplek->count(),
-                    'total_kamar' => BoardingRoom::count() ?: Siswa::whereNotNull('kamar')->where('kamar', '!=', '')->distinct('kamar')->count(),
-                    'siswa_per_gender' => Siswa::select('jenis_kelamin', DB::raw('count(*) as total'))
-                        ->groupBy('jenis_kelamin')
-                        ->get()
-                        ->map(fn ($row) => [
-                            'name' => $row->jenis_kelamin === 'L' ? 'Santri Putra' : 'Santri Putri',
-                            'gender' => $row->jenis_kelamin,
-                            'value' => (int) $row->total
-                        ]),
-                    'siswa_per_kelas' => Siswa::select('kelas', 'jenis_kelamin', DB::raw('count(*) as total'))
-                        ->whereNotNull('kelas')
-                        ->groupBy('kelas', 'jenis_kelamin')
-                        ->orderBy('kelas')
-                        ->get()
-                        ->groupBy('kelas')
-                        ->map(function ($items, $kelas) {
-                            $pa = (int) ($items->where('jenis_kelamin', 'L')->first()?->total ?? 0);
-                            $pi = (int) ($items->where('jenis_kelamin', 'P')->first()?->total ?? 0);
-                            return [
-                                'name' => $kelas,
-                                'kelas' => $kelas,
-                                'value' => $pa + $pi,
-                                'putra' => $pa,
-                                'putri' => $pi,
-                            ];
-                        })
-                        ->values(),
-                    'siswa_per_komplek' => $siswaPerKomplek,
-                    'siswa_per_kamar' => $siswaPerKamar,
-                ],
+                'id' => $c->id,
+                'name' => $c->name,
+                'kelas' => $c->name,
+                'category' => $c->category,
+                'gender_group' => $c->gender_group,
+                'value' => $pa + $pi,
+                'putra' => $pa,
+                'putri' => $pi,
             ];
+        })->values();
+
+        $siswaPerKelasSekolah = Siswa::where(function ($q) use ($madinClassIds) {
+            $q->whereNotIn('class_id', $madinClassIds)
+              ->orWhereNull('class_id');
+        })
+        ->whereNotNull('kelas')
+        ->where('kelas', '!=', '')
+        ->select('kelas', 'jenis_kelamin', DB::raw('count(*) as total'))
+        ->groupBy('kelas', 'jenis_kelamin')
+        ->orderBy('kelas')
+        ->get()
+        ->groupBy('kelas')
+        ->map(function ($items, $kelas) {
+            $pa = (int) ($items->where('jenis_kelamin', 'L')->first()?->total ?? 0);
+            $pi = (int) ($items->where('jenis_kelamin', 'P')->first()?->total ?? 0);
+            return [
+                'name' => $kelas,
+                'kelas' => $kelas,
+                'value' => $pa + $pi,
+                'putra' => $pa,
+                'putri' => $pi,
+            ];
+        })->values();
+
+        return [
+            'success' => true,
+            'tanggal' => $today,
+            'role' => 'admin',
+            'absensi' => [
+                'total' => $absensiHariIni->count(),
+                'hadir' => $absensiHariIni->where('status', 'Hadir')->count(),
+                'izin' => $absensiHariIni->where('status', 'Izin')->count(),
+                'sakit' => $absensiHariIni->where('status', 'Sakit')->count(),
+                'alfa' => $absensiHariIni->where('status', 'Alfa')->count(),
+                'per_kelas' => $absensiPerKelas,
+                'terbaru' => $absensiHariIni
+                    ->sortByDesc('created_at')
+                    ->take(8)
+                    ->map(fn (Absensi $row) => [
+                        'id' => $row->id,
+                        'siswa_id' => $row->siswa_id,
+                        'siswa_nama' => $row->siswa?->nama,
+                        'kelas' => $row->kelas,
+                        'mapel' => $row->mapel,
+                        'status' => $row->status,
+                        'petugas' => $row->diinput_oleh,
+                        'waktu' => $row->created_at?->format('H:i'),
+                        'created_at' => $row->created_at?->toIso8601String(),
+                    ])
+                    ->values(),
+            ],
+            'absensi_sholat' => $this->buildAdminPrayerSummary($today),
+            'absensi_ngaji' => $this->buildAdminNgajiSummary($today),
+            'pembayaran' => [
+                'total_masuk' => $pembayaranHariIni->sum('jumlah'),
+                'jumlah_transaksi' => $pembayaranHariIni->count(),
+            ],
+            'statistik' => [
+                'total_siswa' => Siswa::count(),
+                'siswa_aktif' => $this->activeStudentsQuery()->count(),
+                'total_santri_mondok' => $totalSantriMondok,
+                'total_mapel' => MataPelajaran::where('status', 'Aktif')->count(),
+                'total_asrama' => BoardingComplex::count() ?: $siswaPerKomplek->count(),
+                'total_kamar' => BoardingRoom::count() ?: Siswa::whereNotNull('kamar')->where('kamar', '!=', '')->distinct('kamar')->count(),
+                'total_kelas_madin' => $madinClasses->count(),
+                'total_kelas_sekolah' => $siswaPerKelasSekolah->count(),
+                'total_santri_madin' => $siswaPerKelasMadin->sum('value'),
+                'total_santri_sekolah' => $siswaPerKelasSekolah->sum('value'),
+                'siswa_per_gender' => Siswa::select('jenis_kelamin', DB::raw('count(*) as total'))
+                    ->groupBy('jenis_kelamin')
+                    ->get()
+                    ->map(fn ($row) => [
+                        'name' => $row->jenis_kelamin === 'L' ? 'Santri Putra' : 'Santri Putri',
+                        'gender' => $row->jenis_kelamin,
+                        'value' => (int) $row->total
+                    ]),
+                'siswa_per_kelas' => $siswaPerKelasMadin,
+                'siswa_per_kelas_madin' => $siswaPerKelasMadin,
+                'siswa_per_kelas_sekolah' => $siswaPerKelasSekolah,
+                'siswa_per_komplek' => $siswaPerKomplek,
+                'siswa_per_kamar' => $siswaPerKamar,
+            ],
+        ];
     }
 
     private function buildGuruDashboard(User $guru, string $today): array

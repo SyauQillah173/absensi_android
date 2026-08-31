@@ -15,12 +15,34 @@ class ReferenceController extends Controller
 {
     public function classes(Request $request)
     {
-        $query = SchoolClass::query();
+        $query = SchoolClass::query()->withCount('siswa');
 
         if ($request->has('active')) {
             $query->where('is_active', $request->boolean('active'));
-        } else {
-            $query->where('is_active', true);
+        }
+
+        if ($request->filled('category')) {
+            $cat = trim((string) $request->input('category'));
+            if (strtolower($cat) === 'madin') {
+                $query->madin();
+            } elseif (strtolower($cat) === 'formal') {
+                $query->formal();
+            } else {
+                $query->where('category', $cat);
+            }
+        }
+
+        if ($request->filled('gender_group')) {
+            $query->where('gender_group', $request->input('gender_group'));
+        }
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->input('search'));
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'ilike', '%' . $search . '%')
+                  ->orWhere('code', 'ilike', '%' . $search . '%')
+                  ->orWhere('category', 'ilike', '%' . $search . '%');
+            });
         }
 
         return response()->json([
@@ -28,7 +50,88 @@ class ReferenceController extends Controller
             'data' => $query
                 ->orderBy('category')
                 ->orderBy('name')
-                ->get(['id', 'code', 'name', 'category', 'gender_group', 'is_active']),
+                ->get(['id', 'code', 'name', 'category', 'gender_group', 'is_active', 'siswa_count']),
+        ]);
+    }
+
+    public function storeClass(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'code' => ['nullable', 'string', 'max:100', 'unique:classes,code'],
+            'category' => ['required', 'string', 'max:100'],
+            'gender_group' => ['nullable', 'string', 'max:50'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $code = !empty($validated['code'])
+            ? Str::slug($validated['code'], '_')
+            : Str::slug($validated['name'], '_');
+
+        // Ensure unique code
+        $baseCode = $code;
+        $counter = 2;
+        while (SchoolClass::where('code', $code)->exists()) {
+            $code = $baseCode . '_' . $counter++;
+        }
+
+        $class = SchoolClass::create([
+            'name' => trim($validated['name']),
+            'code' => $code,
+            'category' => trim($validated['category']),
+            'gender_group' => $validated['gender_group'] ?? null,
+            'is_active' => $validated['is_active'] ?? true,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data kelas berhasil ditambahkan',
+            'data' => $class,
+        ], 201);
+    }
+
+    public function updateClass(Request $request, SchoolClass $schoolClass)
+    {
+        $validated = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'code' => ['nullable', 'string', 'max:100', Rule::unique('classes', 'code')->ignore($schoolClass->id)],
+            'category' => ['sometimes', 'required', 'string', 'max:100'],
+            'gender_group' => ['nullable', 'string', 'max:50'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        if (isset($validated['name'])) {
+            $validated['name'] = trim($validated['name']);
+        }
+        if (isset($validated['category'])) {
+            $validated['category'] = trim($validated['category']);
+        }
+
+        $schoolClass->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data kelas berhasil diperbarui',
+            'data' => $schoolClass->fresh()->loadCount('siswa'),
+        ]);
+    }
+
+    public function destroyClass(SchoolClass $schoolClass)
+    {
+        $studentCount = $schoolClass->siswa()->count();
+        if ($studentCount > 0) {
+            // Deactivate instead of hard delete if students exist
+            $schoolClass->update(['is_active' => false]);
+            return response()->json([
+                'success' => true,
+                'message' => "Kelas dinonaktifkan karena masih memiliki {$studentCount} santri terhubung.",
+            ]);
+        }
+
+        $schoolClass->delete();
+        return response()->json([
+            'success' => true,
+            'message' => 'Data kelas berhasil dihapus.',
         ]);
     }
 
