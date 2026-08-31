@@ -82,7 +82,7 @@ const allMenu: MenuItem[] = [
     children: [
       { label: "Data Siswa/Santri", page: "master", masterSection: "siswa" },
       { label: "Data Santri Alumni", page: "master", masterSection: "alumni" },
-      { label: "Data Pondok (Kamar)", page: "master", masterSection: "pondok" },
+      { label: "Data Kamar Pondok", page: "master", masterSection: "pondok" },
     ],
   },
   {
@@ -250,8 +250,8 @@ export function AdminLayout({
 
   const nav = (
     <aside
-      className={`q-sidebar flex h-full flex-col rounded-[26px] bg-[#FFFDF7] p-4 lg:p-5 shadow-xl shadow-black/5 ${
-        collapsed ? "w-23" : "w-64"
+      className={`q-sidebar flex h-full flex-col rounded-[26px] bg-[#FFFDF7] p-3.5 lg:p-4 shadow-xl shadow-black/5 ${
+        collapsed ? "w-23" : "w-72"
       }`}
     >
       <div className={`mb-6 pt-2 text-center ${collapsed ? "px-0" : ""}`}>
@@ -318,11 +318,11 @@ export function AdminLayout({
               >
                 <Icon size={18} className="shrink-0" />
                 {!collapsed ? (
-                  <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                  <span className="min-w-0 flex-1 leading-snug">{item.label}</span>
                 ) : null}
                 {!collapsed && hasChildren ? (
                   <ChevronDown
-                    className={`transition-transform duration-200 ${
+                    className={`shrink-0 transition-transform duration-200 ${
                       isGroupOpen ? "rotate-180 text-[#138F81]" : "text-[#636E72]"
                     }`}
                     size={15}
@@ -332,7 +332,7 @@ export function AdminLayout({
 
               {/* Sub-menu Collapsible Accordion */}
               {!collapsed && hasChildren && isGroupOpen ? (
-                <div className="q-submenu mt-1 space-y-1 pl-4">
+                <div className="q-submenu my-1 ml-3.5 space-y-1 border-l-2 border-[#138F81]/20 pl-2.5">
                   {item.children?.map((child) => {
                     const childActive =
                       child.page === activePage &&
@@ -343,7 +343,7 @@ export function AdminLayout({
                     return (
                       <button
                         key={`${child.page}-${child.financeTab ?? child.masterSection ?? child.label}`}
-                        className={`flex min-h-8.5 w-full items-center rounded-xl px-3 text-left text-xs font-bold transition ${
+                        className={`flex min-h-8.5 w-full items-center rounded-xl px-2.5 py-1.5 text-left text-xs font-bold transition ${
                           childActive
                             ? "bg-[#138F81] text-white shadow-md shadow-[#138F81]/20 font-extrabold"
                             : "text-[#636E72] hover:bg-[#E1EFF7] hover:text-[#138F81]"
@@ -359,7 +359,7 @@ export function AdminLayout({
                         }}
                         type="button"
                       >
-                        <span className="truncate">{child.label}</span>
+                        <span className="min-w-0 flex-1 leading-snug">{child.label}</span>
                       </button>
                     );
                   })}
