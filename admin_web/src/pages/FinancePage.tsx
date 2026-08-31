@@ -344,12 +344,33 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
     }
   }, [isBendahara2, activeTab]);
 
+  const pageHeaderInfo = useMemo(() => {
+    switch (activeTab) {
+      case 'settings':
+        return { subtitle: 'Pengaturan & Struk', title: 'Pengaturan Struk / Nota' };
+      case 'methods':
+        return { subtitle: 'Pengaturan & Sistem', title: 'Metode Pembayaran Kasir' };
+      case 'types':
+        return { subtitle: 'Master Tarif & Pos', title: 'Tipe & Tarif Tagihan' };
+      case 'pemasukan_lain':
+        return { subtitle: 'Penerimaan Kas & Donasi', title: 'Kas Masuk Lain' };
+      case 'pengeluaran':
+        return { subtitle: 'Operasional & Belanja Pondok', title: 'Pengeluaran Kas' };
+      case 'student':
+        return { subtitle: 'Tagihan Santri & SPP', title: 'Tagihan Santri' };
+      case 'history':
+        return { subtitle: 'Rekap Transaksi', title: 'Riwayat Pembayaran' };
+      default:
+        return { subtitle: 'Keuangan & Pembayaran', title: 'Transaksi Hari Ini' };
+    }
+  }, [activeTab]);
+
   return (
     <div className="space-y-6">
       <section className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-bold text-[#636E72]">Keuangan & Pembayaran</p>
-          <h1 className="text-3xl font-extrabold text-[#2D3436]">Keuangan</h1>
+          <p className="text-sm font-bold text-[#636E72]">{pageHeaderInfo.subtitle}</p>
+          <h1 className="text-3xl font-extrabold text-[#2D3436]">{pageHeaderInfo.title}</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <button

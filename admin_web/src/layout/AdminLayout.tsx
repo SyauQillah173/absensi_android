@@ -14,6 +14,7 @@ import {
   LogOut,
   Menu,
   MessageCircle,
+  Settings,
   ShieldCheck,
   UserCog,
   UserRound,
@@ -95,13 +96,12 @@ const allMenu: MenuItem[] = [
   },
   {
     key: "akademik_menu",
-    label: "Akademik",
+    label: "Akademik & KBM",
     icon: BookOpen,
     children: [
-      { label: "Setting Semester & TA", page: "master", masterSection: "akademik" },
-      { label: "Kelompok Belajar", page: "master", masterSection: "kelompok" },
       { label: "Mata Pelajaran", page: "mapel" },
       { label: "Jadwal Pelajaran", page: "jadwal" },
+      { label: "Kelompok Belajar", page: "master", masterSection: "kelompok" },
     ],
   },
   { key: "absensi", label: "Presensi & Absensi", icon: CalendarCheck, page: "absensi" },
@@ -117,7 +117,6 @@ const allMenu: MenuItem[] = [
       { label: "Kas Masuk Lain", page: "keuangan", financeTab: "pemasukan_lain" },
       { label: "Pengeluaran Kas", page: "keuangan", financeTab: "pengeluaran" },
       { label: "Tipe & Tarif Tagihan", page: "keuangan", financeTab: "types" },
-      { label: "Pengaturan & Struk", page: "keuangan", financeTab: "settings" },
     ],
   },
   {
@@ -132,12 +131,16 @@ const allMenu: MenuItem[] = [
   },
   {
     key: "pengaturan_sistem",
-    label: "Sistem & Integrasi",
-    icon: ShieldCheck,
+    label: "Pengaturan & Sistem",
+    icon: Settings,
     children: [
-      { label: "Data Referensi", page: "master", masterSection: "referensi" },
-      { label: "Hak Akses Role", page: "hak-akses" },
-      { label: "WhatsApp Bot", page: "whatsapp" },
+      { label: "Pengaturan Struk / Nota", page: "keuangan", financeTab: "settings" },
+      { label: "Pengaturan Metode Bayar", page: "keuangan", financeTab: "methods" },
+      { label: "Pengaturan Semester & TA", page: "master", masterSection: "akademik" },
+      { label: "Profil Identitas Lembaga", page: "master", masterSection: "referensi" },
+      { label: "Pengaturan WhatsApp Bot", page: "whatsapp" },
+      { label: "Hak Akses & Role User", page: "hak-akses" },
+      { label: "Pengaturan Akun", page: "account" },
     ],
   },
 ];
@@ -151,7 +154,14 @@ const menuPermissionKeys: Record<string, string> = {
   nilai: "nilai",
   keuangan_menu: "keuangan",
   manajemen_user: "buku_induk",
-  pengaturan_sistem: "hak_akses",
+  pengaturan_sistem: "dashboard",
+  mapel: "mata_pelajaran",
+  jadwal: "mata_pelajaran",
+  master: "buku_induk",
+  keuangan: "keuangan",
+  whatsapp: "whatsapp_bot",
+  "hak-akses": "hak_akses",
+  account: "dashboard",
 };
 
 export function AdminLayout({
