@@ -488,7 +488,7 @@ class ImportRealSantriData extends Command
             ]
         );
 
-        Semester::firstOrCreate(
+        $activeSemester = Semester::firstOrCreate(
             ['academic_year_id' => $activeYear->id, 'name' => 'Ganjil'],
             ['code' => '20251', 'is_active' => true]
         );
@@ -628,7 +628,14 @@ class ImportRealSantriData extends Command
             SiswaTahunAjaran::create([
                 'siswa_id' => $siswa->id,
                 'academic_year_id' => $activeYear->id,
+                'semester_id' => $activeSemester->id,
+                'tahun_ajaran' => '2025/2026',
+                'semester' => 'Ganjil',
                 'class_id' => $classId,
+                'kelas' => $kelasStr,
+                'wali_id' => $waliUser->id,
+                'student_status_id' => $studentStatusId,
+                'status_santri' => 'Aktif',
                 'is_active' => true,
             ]);
 
