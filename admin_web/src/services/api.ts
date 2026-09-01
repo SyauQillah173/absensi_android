@@ -347,6 +347,12 @@ export const api = {
   markNotificationRead(id: number) {
     return request<ApiRecord>(`/notifications/${id}/read`, { method: 'PATCH' });
   },
+  markAllNotificationsRead() {
+    return request<{ success: boolean; message?: string }>('/notifications/mark-all-read', { method: 'POST' });
+  },
+  deleteNotification(id: number) {
+    return request<{ success: boolean; message?: string }>(`/notifications/${id}`, { method: 'DELETE' });
+  },
   activeAcademicPeriod() {
     return request<ApiRecord>('/academic-periods/active');
   },

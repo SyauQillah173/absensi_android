@@ -85,7 +85,9 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
     Route::post('profile/foto', [UserProfileController::class, 'uploadFoto'])->middleware('throttle:15,1');
     Route::delete('profile/foto', [UserProfileController::class, 'deleteFoto']);
     Route::get('notifications', [NotificationController::class, 'index']);
+    Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
     Route::patch('notifications/{notification}/read', [NotificationController::class, 'markRead']);
+    Route::delete('notifications/{notification}', [NotificationController::class, 'destroy']);
 
     Route::middleware('role:admin,wali')->group(function () {
         Route::get('pembayaran/rekap-siswa', [PembayaranController::class, 'studentRekap'])

@@ -20,6 +20,8 @@ import {
   UserRound,
   UsersRound,
   WalletCards,
+  RefreshCw,
+  Trash2,
   X,
 } from "lucide-react";
 import {
@@ -231,6 +233,46 @@ export function AdminLayout({
       // Ignore
     }
   }, []);
+
+  const markAllNotificationsRead = useCallback(async () => {
+    try {
+      await api.markAllNotificationsRead();
+      setNotifications((current) =>
+        current.map((item) => ({ ...item, is_read: true })),
+      );
+      setUnreadNotifications(0);
+    } catch {
+      // Ignore
+    }
+  }, []);
+
+  const deleteNotificationItem = useCallback(async (id: number) => {
+    try {
+      await api.deleteNotification(id);
+      setNotifications((current) =>
+        current.filter((item) => Number(item.id ?? 0) !== id),
+      );
+      setUnreadNotifications((current) => {
+        const deleted = notifications.find((item) => Number(item.id ?? 0) === id);
+        return deleted && !deleted.is_read ? Math.max(0, current - 1) : current;
+      });
+    } catch {
+      // Ignore
+    }
+  }, [notifications]);
+
+  const handleNotificationClick = useCallback((item: ApiRecord) => {
+    void markNotificationRead(item);
+    const data = (item.data ?? {}) as ApiRecord;
+    if (data.page) {
+      onNavigate(String(data.page) as PageKey, {
+        masterSection: data.masterSection ? String(data.masterSection) as BukuIndukSection : undefined,
+        financeTab: data.tab ? String(data.tab) as never : undefined,
+        absensiTab: data.tab ? String(data.tab) as AbsensiTab : undefined,
+      });
+      setNotificationOpen(false);
+    }
+  }, [markNotificationRead, onNavigate]);
 
   useEffect(() => {
     void loadNotifications();
@@ -584,65 +626,127 @@ export function AdminLayout({
                 </button>
 
                 {notificationOpen ? (
-                  <div className="q-popover absolute right-0 top-13 z-30 w-80 rounded-3xl bg-white p-4 shadow-2xl shadow-black/10">
-                    <div className="mb-3 flex items-center justify-between gap-2 border-b border-black/5 pb-3">
-                      <div>
-                        <p className="text-xs font-extrabold text-[#2D3436]">
-                          Notifikasi Sistem
-                        </p>
-                        <p className="text-[11px] font-semibold text-[#636E72]">
-                          {unreadNotifications} belum dibaca
-                        </p>
-                      </div>
-                      <button
-                        className="text-[11px] font-extrabold text-[#138F81] hover:underline"
-                        onClick={() => void loadNotifications(true)}
-                        type="button"
-                      >
-                        Refresh
-                      </button>
-                    </div>
+                  <>
+                    {/* Backdrop for Mobile */}
+                    <div
+                      className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px] sm:hidden"
+                      onClick={() => setNotificationOpen(false)}
+                    />
 
-                    <div className="q-scrollbar max-h-72 space-y-2 overflow-y-auto pr-1">
-                      {notificationsLoading ? (
-                        <div className="py-8 text-center text-xs font-bold text-[#636E72]">
-                          Memuat notifikasi...
+                    <div className="q-popover fixed inset-x-3.5 top-16 z-50 max-h-[85vh] flex flex-col rounded-3xl bg-white p-4 sm:p-5 shadow-2xl ring-1 ring-black/10 sm:absolute sm:inset-auto sm:right-0 sm:top-13 sm:w-[380px] sm:max-h-[500px]">
+                      {/* Header */}
+                      <div className="mb-3 flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="grid h-8 w-8 place-items-center rounded-xl bg-teal-50 text-[#138F81] font-extrabold text-xs">
+                            🔔
+                          </span>
+                          <div>
+                            <p className="text-xs font-black text-slate-800">
+                              Notifikasi {isGuru ? 'Ustadz' : 'Sistem'}
+                            </p>
+                            <p className="text-[11px] font-semibold text-slate-500">
+                              {unreadNotifications > 0 ? `${unreadNotifications} belum dibaca` : 'Semua telah dibaca'}
+                            </p>
+                          </div>
                         </div>
-                      ) : notifications.length === 0 ? (
-                        <div className="py-8 text-center text-xs font-bold text-[#636E72]">
-                          Tidak ada notifikasi
-                        </div>
-                      ) : (
-                        notifications.map((item) => {
-                          const isRead = Boolean(item.is_read);
-                          return (
+
+                        <div className="flex items-center gap-1.5">
+                          {unreadNotifications > 0 && (
                             <button
-                              key={String(item.id)}
-                              className={`w-full rounded-2xl p-3 text-left transition ${
-                                isRead
-                                  ? "bg-[#F8FAFC] text-[#636E72]"
-                                  : "bg-[#E8F7F3] text-[#2D3436]"
-                              }`}
-                              onClick={() => void markNotificationRead(item)}
+                              className="rounded-lg bg-teal-50 px-2.5 py-1 text-[11px] font-extrabold text-[#138F81] hover:bg-teal-100 transition-colors"
+                              onClick={() => void markAllNotificationsRead()}
                               type="button"
+                              title="Tandai semua sudah dibaca"
                             >
-                              <div className="flex items-start justify-between gap-2">
-                                <p className="text-xs font-extrabold text-[#2D3436]">
-                                  {String(item.title ?? "Notifikasi")}
-                                </p>
-                                {!isRead ? (
-                                  <span className="h-2 w-2 shrink-0 rounded-full bg-[#138F81]" />
-                                ) : null}
-                              </div>
-                              <p className="mt-1 text-xs font-medium leading-relaxed">
-                                {String(item.message ?? "")}
-                              </p>
+                              ✓ Baca Semua
                             </button>
-                          );
-                        })
-                      )}
+                          )}
+                          <button
+                            className="rounded-lg bg-slate-100 p-1.5 text-slate-500 hover:bg-slate-200 transition-colors"
+                            onClick={() => void loadNotifications(true)}
+                            type="button"
+                            title="Refresh notifikasi"
+                          >
+                            <RefreshCw size={12} className={notificationsLoading ? "animate-spin" : ""} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* List */}
+                      <div className="q-scrollbar flex-1 space-y-2 overflow-y-auto pr-1">
+                        {notificationsLoading ? (
+                          <div className="py-12 text-center text-xs font-bold text-slate-400">
+                            Memuat notifikasi...
+                          </div>
+                        ) : notifications.length === 0 ? (
+                          <div className="py-12 text-center">
+                            <span className="text-2xl">🎉</span>
+                            <p className="mt-1 text-xs font-bold text-slate-500">
+                              Tidak ada notifikasi baru
+                            </p>
+                            <p className="text-[11px] text-slate-400">
+                              Semua tugas dan pengingat sudah terpantau rapi.
+                            </p>
+                          </div>
+                        ) : (
+                          notifications.map((item) => {
+                            const isRead = Boolean(item.is_read);
+                            const notifType = String(item.type ?? '');
+                            const isUrgent = notifType.includes('urgent') || notifType.includes('peringatan');
+                            const isSchedule = notifType.includes('jadwal') || notifType.includes('kbm');
+
+                            return (
+                              <div
+                                key={String(item.id)}
+                                className={`group relative flex items-start justify-between gap-2.5 rounded-2xl p-3 text-left transition-all border ${
+                                  isRead
+                                    ? "border-transparent bg-slate-50/80 text-slate-600 hover:bg-slate-100"
+                                    : isUrgent
+                                    ? "border-amber-200 bg-amber-50/60 text-slate-900 shadow-xs"
+                                    : isSchedule
+                                    ? "border-emerald-200 bg-emerald-50/50 text-slate-900 shadow-xs"
+                                    : "border-teal-100 bg-[#E8F7F3]/70 text-slate-900 shadow-xs"
+                                }`}
+                              >
+                                <button
+                                  type="button"
+                                  className="flex-1 min-w-0 text-left"
+                                  onClick={() => handleNotificationClick(item)}
+                                >
+                                  <div className="flex items-center gap-1.5">
+                                    {!isRead && (
+                                      <span className={`h-2 w-2 shrink-0 rounded-full ${isUrgent ? 'bg-amber-500' : 'bg-[#138F81]'}`} />
+                                    )}
+                                    <p className="text-xs font-black truncate text-slate-800">
+                                      {String(item.title ?? "Notifikasi")}
+                                    </p>
+                                  </div>
+                                  <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-600">
+                                    {String(item.message ?? "")}
+                                  </p>
+                                  <span className="mt-1.5 inline-block text-[10px] font-bold text-slate-400">
+                                    {new Date(String(item.created_at || Date.now())).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                                  </span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void deleteNotificationItem(Number(item.id));
+                                  }}
+                                  className="opacity-60 hover:opacity-100 text-slate-400 hover:text-rose-600 p-1 transition-opacity shrink-0"
+                                  title="Hapus notifikasi"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  </>
                 ) : null}
               </div>
 
