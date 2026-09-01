@@ -2,16 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Models\AcademicYear;
-use App\Models\PaymentBill;
-use App\Models\PaymentBillRule;
-use App\Models\PaymentTransaction;
-use App\Models\PaymentTransactionItem;
-use App\Models\Pembayaran;
-use App\Models\PemasukanLain;
-use App\Models\Pengeluaran;
-use App\Models\Semester;
-use App\Services\PaymentBillService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -24,31 +14,34 @@ class ResetFinanceData extends Command
      * @var string
      */
     protected $signature = 'finance:reset 
-                            {--all : Reset seluruh transaksi keuangan dan master tahun ajaran}
-                            {--with-academic : Reset transaksi dan kembalikan tahun ajaran ke default awal (2025/2026 Ganjil)}
-                            {--fresh-academic : Kosongkan seluruh tahun ajaran agar bisa input setting akademik dari nol}
-                            {--no-generate : Jangan generate ulang tagihan setelah reset}
-                            {--kas-only : Hanya reset kas masuk lain dan pengeluaran}';
+                            {--kas-only : Hanya reset data kas masuk lain dan pengeluaran}
+                            {--keep-bills : Jangan hapus tagihan santri, hanya reset transaksi pembayaran}
+                            {--force : Jalankan langsung tanpa konfirmasi interaktif}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Reset seluruh data transaksi keuangan (Transaksi Siswa, Kas Masuk Lain, Pengeluaran) dan setting akademik untuk keperluan testing';
+    protected $description = 'Reset seluruh data transaksi keuangan (Transaksi Pembayaran SPP, Kas Masuk Lain, Pengeluaran Kas) untuk keperluan testing';
 
     /**
      * Execute the console command.
      */
     public function handle()
     {
-        $this->warn("=================================================================");
-        $this->warn("      RESET TOTAL SISTEM KEUANGAN & TESTING PESANTREN           ");
-        $this->warn("=================================================================");
+        $this->info("=================================================================");
+        $this->info("      💰 RESET DATA TRANSAKSI KEUANGAN & KAS PESANTREN           ");
+        $this->info("=================================================================");
 
         $isKasOnly = $this->option('kas-only');
-        $withAcademic = $this->option('with-academic') || $this->option('all');
-        $freshAcademic = $this->option('fresh-academic');
+        $keepBills = $this->option('keep-bills');
+        $force = $this->option('force');
+
+        if (!$force && !$this->confirm('Apakah Anda yakin ingin mereset seluruh data transaksi keuangan hasil uji coba?', true)) {
+            $this->warn("Operasi reset dibatalkan.");
+            return 0;
+        }
 
         try {
             $candidateTables = [];
@@ -56,29 +49,31 @@ class ResetFinanceData extends Command
             if ($isKasOnly) {
                 $candidateTables = [
                     'pemasukan_lain',
+                    'pemasukan_lains',
                     'pengeluaran',
+                    'pengeluarans',
                 ];
-                $this->info("Membersihkan data Kas Masuk Lain & Pengeluaran...");
+                $this->info("▶ Membersihkan data Kas Masuk Lain & Pengeluaran...");
             } else {
                 $candidateTables = [
                     'pembayaran',
-                    'payment_bills',
-                    'payment_bill_month_items',
-                    'payment_bill_notifications',
-                    'payment_bill_rule_student',
-                    'payment_bill_rules',
+                    'pembayarans',
                     'payment_transactions',
                     'payment_transaction_items',
+                    'payment_bill_notifications',
+                    'payment_bill_month_items',
                     'pemasukan_lain',
+                    'pemasukan_lains',
                     'pengeluaran',
+                    'pengeluarans',
                 ];
 
-                if ($withAcademic || $freshAcademic) {
-                    $candidateTables[] = 'semesters';
-                    $candidateTables[] = 'academic_years';
+                if (!$keepBills) {
+                    $candidateTables[] = 'tagihan_santris';
+                    $candidateTables[] = 'payment_bills';
                 }
 
-                $this->info("Membersihkan seluruh transaksi siswa, tagihan, kas masuk lain, dan pengeluaran...");
+                $this->info("▶ Membersihkan seluruh transaksi pembayaran, kas masuk lain, dan pengeluaran...");
             }
 
             $existingTables = [];
@@ -102,65 +97,40 @@ class ResetFinanceData extends Command
                 }
             }
 
+            // If keepBills is active, reset the paid status of bills to 0 / Unpaid
+            if ($keepBills && Schema::hasTable('tagihan_santris')) {
+                DB::table('tagihan_santris')->update([
+                    'terbayar' => 0,
+                    'status' => 'Belum Lunas',
+                    'updated_at' => now(),
+                ]);
+                $this->info("✓ Status seluruh Tagihan Santri dikembalikan menjadi Belum Lunas (0 terbayar).");
+            }
+
+            $this->newLine();
+            $this->info("-----------------------------------------------------------------");
+            $this->info("  STATUS HASIL PEMBERSIHAN KEUANGAN:");
+            $this->info("-----------------------------------------------------------------");
             if (!$isKasOnly) {
-                $this->info("✓ Data Transaksi Pembayaran Santri berhasil dibersihkan.");
-                $this->info("✓ Data Tagihan Santri (Bills & Rules) berhasil dibersihkan.");
-            }
-            $this->info("✓ Data Pemasukan Kas Lain (Non-Santri) berhasil dibersihkan.");
-            $this->info("✓ Data Pengeluaran Kas berhasil dibersihkan.");
-
-            if ($withAcademic) {
-                $this->info("Menginisialisasi Tahun Ajaran Default (2025/2026 - Ganjil Aktif)...");
-                $defaultYear = AcademicYear::create([
-                    'name' => '2025/2026',
-                    'start_date' => '2025-07-01',
-                    'end_date' => '2026-06-30',
-                    'year_start' => 2025,
-                    'year_end' => 2026,
-                    'active_semester' => 'Ganjil',
-                    'is_active' => true,
-                ]);
-
-                Semester::create([
-                    'academic_year_id' => $defaultYear->id,
-                    'code' => '20251',
-                    'name' => 'Ganjil',
-                    'is_active' => true,
-                ]);
-
-                Semester::create([
-                    'academic_year_id' => $defaultYear->id,
-                    'code' => '20252',
-                    'name' => 'Genap',
-                    'is_active' => false,
-                ]);
-                $this->info("✓ Tahun Ajaran 2025/2026 (Ganjil Aktif) berhasil diinisialisasi.");
-            } elseif ($freshAcademic) {
-                $this->info("✓ Seluruh Tahun Ajaran & Semester telah dikosongkan. Silakan buat Tahun Ajaran baru di web admin.");
-            }
-
-            // Auto-generate bills if not disabled and not fresh/kas-only
-            if (!$this->option('no-generate') && !$isKasOnly && !$freshAcademic) {
-                $this->info("Men-generate ulang tagihan bersih untuk periode akademik aktif...");
-                $activeYear = AcademicYear::query()->with('semesters')->where('is_active', true)->first();
-
-                if ($activeYear) {
-                    $activeSemester = $activeYear->semesters->firstWhere('is_active', true);
-                    $count = app(PaymentBillService::class)->generateBillsForAcademicPeriod($activeYear, $activeSemester);
-                    $semesterName = $activeSemester?->name ?? 'Ganjil';
-                    $this->info("✓ Berhasil men-generate {$count} tagihan baru untuk {$activeYear->name} - {$semesterName}.");
-                } else {
-                    $this->warn("! Tidak ada Tahun Ajaran aktif saat ini. Buka web admin untuk mengaktifkan semester.");
+                $this->info("  ✓ Data Riwayat Transaksi Pembayaran Santri : [BERSIH / KOSONG]");
+                if (!$keepBills) {
+                    $this->info("  ✓ Data Tagihan Santri Uji Coba            : [BERSIH / KOSONG]");
                 }
             }
-
+            $this->info("  ✓ Data Pemasukan Kas Masuk Lain (Non-SPP)  : [BERSIH / KOSONG]");
+            $this->info("  ✓ Data Pengeluaran Kas Operasional         : [BERSIH / KOSONG]");
+            $this->info("-----------------------------------------------------------------");
+            $this->comment("  🔒 DATA PENTING TETAP AMAN 100%:");
+            $this->comment("  • Data Santri & Wali (siswa)          : [UTUH / TIDAK TERHAPUS]");
+            $this->comment("  • Akun User, Admin, Guru (users)      : [UTUH / TIDAK TERHAPUS]");
+            $this->comment("  • Master Tarif & Tipe Tagihan         : [UTUH / TIDAK TERHAPUS]");
             $this->info("=================================================================");
-            $this->info("         RESET SELESAI! SELURUH SISTEM SIAP DIUJI COBA          ");
+            $this->info("  ✅ KEUANGAN BERHASIL DIRESET! SIAP UNTUK DIGUNAKAN KEMBALI      ");
             $this->info("=================================================================");
 
             return 0;
         } catch (\Throwable $e) {
-            $this->error("Gagal melakukan reset: " . $e->getMessage());
+            $this->error("Gagal melakukan reset keuangan: " . $e->getMessage());
             return 1;
         }
     }
