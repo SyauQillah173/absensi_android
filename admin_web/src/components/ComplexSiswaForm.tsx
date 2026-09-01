@@ -773,7 +773,7 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                 {readOnly ? 'Tutup' : 'Batal'}
               </button>
 
-              {!readOnly && !isFirstTab && (
+              {!isFirstTab && (
                 <button
                   type="button"
                   onClick={handlePrev}
@@ -791,18 +791,18 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                 Langkah {currentTabIndex + 1} dari 4 ({tabList[currentTabIndex]?.shortLabel})
               </span>
 
-              {!readOnly && (
-                !isLastTab ? (
-                  <button
-                    type="button"
-                    onClick={handleNext}
-                    disabled={isSaving || isSuccess}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-6 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors"
-                  >
-                    <span>{tabList[currentTabIndex]?.nextTitle}</span>
-                    <ChevronRight size={18} />
-                  </button>
-                ) : (
+              {!isLastTab ? (
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  disabled={isSaving || isSuccess}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-6 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors"
+                >
+                  <span>{tabList[currentTabIndex]?.nextTitle}</span>
+                  <ChevronRight size={18} />
+                </button>
+              ) : (
+                !readOnly ? (
                   <button
                     type="submit"
                     form="complex-siswa-form"
@@ -811,6 +811,14 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                   >
                     <CheckCircle2 size={18} className={isSaving ? 'animate-spin' : ''} />
                     {isSaving ? 'Menyimpan...' : 'Simpan Data Siswa/Santri'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-8 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors"
+                  >
+                    <CheckCircle2 size={18} /> Selesai
                   </button>
                 )
               )}
