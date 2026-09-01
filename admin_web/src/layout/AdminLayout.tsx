@@ -191,8 +191,7 @@ export function AdminLayout({
   onNavigate,
   children,
 }: AdminLayoutProps) {
-  const { session, logout, canView } = useAuth();
-  const isGuru = session?.role === "guru";
+  const { session, logout, canView, isGuru, isTreasurer, isKepalaSekolah } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -278,8 +277,8 @@ export function AdminLayout({
   }, [activePage, activeMasterSection, activeFinanceTab, activeAbsensiTab]);
 
   const menu = useMemo<MenuItem[]>(() => {
+    // 1. Role Guru: Khusus KBM (Dashboard, Input Presensi, Nilai - Tanpa Rekap)
     if (isGuru) {
-      // Guru khusus 3 menu: Dashboard, Presensi & Absensi, Nilai & Hafalan
       return [
         {
           key: "dashboard",
@@ -293,9 +292,8 @@ export function AdminLayout({
           icon: CalendarCheck,
           children: [
             { label: "🕌 Input Presensi Madin", page: "absensi", absensiTab: "madin-input" },
-            { label: "📊 Rekap Presensi Madin", page: "absensi", absensiTab: "madin" },
             { label: "🕋 Input Presensi Sholat", page: "absensi", absensiTab: "sholat" },
-            { label: "📖 Input Presensi Ngaji Kitab", page: "absensi", absensiTab: "ngaji" },
+            { label: "📖 Input Presensi Ngaji", page: "absensi", absensiTab: "ngaji" },
           ],
         },
         {
@@ -307,10 +305,59 @@ export function AdminLayout({
       ];
     }
 
+    // 2. Role Bendahara: Khusus Transaksi & Kas Keuangan
+    if (isTreasurer) {
+      return [
+        {
+          key: "dashboard",
+          label: "Dashboard Keuangan",
+          icon: Home,
+          page: "dashboard",
+        },
+        {
+          key: "keuangan_menu",
+          label: "Keuangan & Kas",
+          icon: WalletCards,
+          children: [
+            { label: "Transaksi Hari Ini", page: "keuangan", financeTab: "today" },
+            { label: "Tagihan Santri (SPP)", page: "keuangan", financeTab: "student" },
+            { label: "Riwayat Pembayaran", page: "keuangan", financeTab: "history" },
+            { label: "Kas Masuk Lain", page: "keuangan", financeTab: "pemasukan_lain" },
+            { label: "Pengeluaran Kas", page: "keuangan", financeTab: "pengeluaran" },
+            { label: "Tipe & Tarif Tagihan", page: "keuangan", financeTab: "types" },
+          ],
+        },
+      ];
+    }
+
+    // 3. Role Kepala Sekolah / Madrasah: Monitoring Pemantauan & Rekap Only
+    if (isKepalaSekolah) {
+      return [
+        {
+          key: "dashboard",
+          label: "Dashboard Monitoring",
+          icon: Home,
+          page: "dashboard",
+        },
+        {
+          key: "absensi_menu",
+          label: "Pemantauan Presensi",
+          icon: CalendarCheck,
+          children: [
+            { label: "⚡ Log Realtime", page: "absensi", absensiTab: "log-realtime" },
+            { label: "📊 Rekap Presensi Madin", page: "absensi", absensiTab: "madin" },
+            { label: "📈 Rekap Presensi Sholat", page: "absensi", absensiTab: "rekap-sholat" },
+            { label: "📚 Rekap Presensi Ngaji", page: "absensi", absensiTab: "rekap-ngaji" },
+          ],
+        },
+      ];
+    }
+
+    // 4. Role Admin Utama (Super Admin): Full Access Semua Menu
     return allMenu.filter((item) =>
       canView(menuPermissionKeys[item.key] ?? item.key),
     );
-  }, [canView, isGuru]);
+  }, [canView, isGuru, isTreasurer, isKepalaSekolah]);
 
   const collapsed = mobileOpen ? false : sidebarCollapsed;
 

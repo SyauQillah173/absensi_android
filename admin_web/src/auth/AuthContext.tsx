@@ -6,6 +6,8 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isMainAdmin: boolean;
   isTreasurer: boolean;
+  isGuru: boolean;
+  isKepalaSekolah: boolean;
   canView: (menuKey: string) => boolean;
   refreshProfile: () => Promise<UserSession | null>;
   login: (identifier: string, password: string) => Promise<void>;
@@ -50,10 +52,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(() => {
-    const adminType = (session?.admin_type || 'utama').toLowerCase();
-    const isMainAdmin = session?.role === 'admin' && (!adminType || ['utama', 'it', 'pengurus'].includes(adminType));
-    const isTreasurer = session?.role === 'admin' && ['bendahara', 'keuangan', 'bendahara_1', 'bendahara_2'].includes(adminType);
-    const isMadrasah = session?.role === 'admin' && ['madrasah', 'absensi', 'kepala_madrasah'].includes(adminType);
+    const isGuru = session?.role === 'guru';
+    const adminType = (session?.admin_type || (session?.role === 'admin' ? 'utama' : '')).toLowerCase();
+    
+    // Role definitions:
+    // 1. Admin Utama (Full Access): IT, Pengurus, Superadmin, Utama
+    const isMainAdmin = session?.role === 'admin' && (!adminType || ['utama', 'it', 'pengurus', 'superadmin', 'admin'].includes(adminType));
+    // 2. Admin Bendahara: Bendahara, Keuangan, Kasir, Bendahara 1 & 2
+    const isTreasurer = session?.role === 'admin' && ['bendahara', 'keuangan', 'bendahara_1', 'bendahara_2', 'kasir'].includes(adminType);
+    // 3. Kepala Sekolah / Kepala Madrasah (Monitoring Only)
+    const isKepalaSekolah = session?.role === 'admin' && ['madrasah', 'absensi', 'kepala_madrasah', 'kepala_sekolah', 'monitoring', 'kepala'].includes(adminType);
+    
     const byKey = (session?.permissions && typeof session.permissions === 'object'
       ? (session.permissions.by_key as ApiRecord | undefined)
       : undefined) ?? {};
@@ -61,11 +70,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const canView = (menuKey: string) => {
       if (!menuKey) return true;
       if (isMainAdmin) return true;
-      if (isMadrasah) {
-        return ['dashboard', 'absensi', 'nilai', 'account'].includes(menuKey);
+      if (isGuru) {
+        return ['dashboard', 'absensi', 'nilai'].includes(menuKey);
+      }
+      if (isKepalaSekolah) {
+        return ['dashboard', 'absensi'].includes(menuKey);
       }
       if (isTreasurer) {
-        return ['dashboard', 'keuangan', 'account'].includes(menuKey);
+        return ['dashboard', 'keuangan'].includes(menuKey);
       }
       const permission = byKey[menuKey];
       if (permission && typeof permission === 'object') {
@@ -82,6 +94,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated: Boolean(session?.token),
       isMainAdmin,
       isTreasurer,
+      isGuru,
+      isKepalaSekolah,
       canView,
       refreshProfile,
       login,

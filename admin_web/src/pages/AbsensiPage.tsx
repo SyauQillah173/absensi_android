@@ -131,35 +131,33 @@ function statusTone(status: PrayerStatus | MadinStatus | string): 'success' | 'w
 }
 
 export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabChange }: AbsensiPageProps) {
-  const { session } = useAuth();
-  const isGuru = session?.role === 'guru';
-  const isMadrasah = session?.role === 'admin' && String(session?.admin_type || '').toLowerCase() === 'madrasah';
+  const { session, isGuru, isKepalaSekolah, isMainAdmin } = useAuth();
 
   const [activeTab, setActiveTab] = useState<AbsensiTab>(() => {
     if (initialTarget?.tab) return initialTarget.tab;
-    if (isGuru && (!initialTab || initialTab === 'log-realtime' || initialTab === 'jenis-sholat')) {
-      return 'madin-input';
-    }
+    if (isGuru) return 'madin-input';
+    if (isKepalaSekolah) return 'log-realtime';
     return initialTab;
   });
+
+  const handleTabSelect = (tab: AbsensiTab) => {
+    setActiveTab(tab);
+    if (onTabChange) onTabChange(tab);
+  };
 
   useEffect(() => {
     if (initialTarget?.tab) {
       setActiveTab(initialTarget.tab);
     } else if (initialTab) {
-      if (isGuru && (initialTab === 'log-realtime' || initialTab === 'jenis-sholat')) {
+      if (isGuru && !['madin-input', 'sholat', 'ngaji'].includes(initialTab)) {
         setActiveTab('madin-input');
+      } else if (isKepalaSekolah && !['log-realtime', 'madin', 'rekap-madin', 'rekap-sholat', 'rekap-ngaji'].includes(initialTab)) {
+        setActiveTab('log-realtime');
       } else {
         setActiveTab(initialTab);
       }
     }
-  }, [initialTab, initialTarget, isGuru]);
-
-  useEffect(() => {
-    if (isMadrasah && !['log-realtime', 'madin', 'rekap-madin', 'rekap-sholat', 'ngaji', 'rekap-ngaji'].includes(activeTab)) {
-      setActiveTab('log-realtime');
-    }
-  }, [isMadrasah, activeTab]);
+  }, [initialTab, initialTarget, isGuru, isKepalaSekolah]);
 
   const currentTab = activeTab === 'rekap-madin' ? 'madin' : activeTab;
 
@@ -244,11 +242,13 @@ export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabC
         <p className="text-sm font-semibold text-[#636E72]">{headerInfo.desc}</p>
       </section>
 
+      {/* Dynamic Tab Navigation Based on Role */}
       {isGuru ? (
+        // Guru: HANYA TAB INPUT (Tanpa Rekap)
         <div className="flex flex-wrap items-center gap-2 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
           <button
             type="button"
-            onClick={() => setActiveTab('madin-input')}
+            onClick={() => handleTabSelect('madin-input')}
             className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
               currentTab === 'madin-input'
                 ? 'bg-[#138F81] text-white shadow-sm'
@@ -259,18 +259,7 @@ export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabC
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('madin')}
-            className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
-              currentTab === 'madin'
-                ? 'bg-[#138F81] text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            📊 Rekap Presensi Madin
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('sholat')}
+            onClick={() => handleTabSelect('sholat')}
             className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
               currentTab === 'sholat'
                 ? 'bg-[#138F81] text-white shadow-sm'
@@ -281,7 +270,7 @@ export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabC
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('ngaji')}
+            onClick={() => handleTabSelect('ngaji')}
             className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
               currentTab === 'ngaji'
                 ? 'bg-[#138F81] text-white shadow-sm'
@@ -291,7 +280,147 @@ export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabC
             📖 Input Presensi Ngaji
           </button>
         </div>
-      ) : null}
+      ) : isKepalaSekolah ? (
+        // Kepala Sekolah: HANYA MONITORING & REKAP (Tanpa Input)
+        <div className="flex flex-wrap items-center gap-2 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
+          <button
+            type="button"
+            onClick={() => handleTabSelect('log-realtime')}
+            className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
+              currentTab === 'log-realtime'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            ⚡ Log Pemantauan Realtime
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabSelect('madin')}
+            className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
+              currentTab === 'madin'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            📊 Rekap Presensi Madin
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabSelect('rekap-sholat')}
+            className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
+              currentTab === 'rekap-sholat'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            📈 Rekap Presensi Sholat
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabSelect('rekap-ngaji')}
+            className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
+              currentTab === 'rekap-ngaji'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            📚 Rekap Presensi Ngaji
+          </button>
+        </div>
+      ) : (
+        // Admin Utama: Full Access Semua Tab
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm overflow-x-auto q-scrollbar">
+          <button
+            type="button"
+            onClick={() => handleTabSelect('log-realtime')}
+            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition shrink-0 ${
+              currentTab === 'log-realtime'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            ⚡ Log Realtime
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabSelect('madin-input')}
+            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition shrink-0 ${
+              currentTab === 'madin-input'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            🕌 Form Madin
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabSelect('sholat')}
+            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition shrink-0 ${
+              currentTab === 'sholat'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            🕋 Form Sholat
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabSelect('ngaji')}
+            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition shrink-0 ${
+              currentTab === 'ngaji'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            📖 Form Ngaji
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabSelect('madin')}
+            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition shrink-0 ${
+              currentTab === 'madin'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            📊 Rekap Madin
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabSelect('rekap-sholat')}
+            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition shrink-0 ${
+              currentTab === 'rekap-sholat'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            📈 Rekap Sholat
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabSelect('rekap-ngaji')}
+            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition shrink-0 ${
+              currentTab === 'rekap-ngaji'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            📚 Rekap Ngaji
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabSelect('jenis-sholat')}
+            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition shrink-0 ${
+              currentTab === 'jenis-sholat'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            ⚙️ Waktu Sholat
+          </button>
+        </div>
+      )}
 
       {currentTab === 'log-realtime' ? <RealtimeAttendanceLog /> : null}
       {currentTab === 'madin-input' ? <MadinInput initialTarget={initialTarget} /> : null}
