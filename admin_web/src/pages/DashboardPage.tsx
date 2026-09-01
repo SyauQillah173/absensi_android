@@ -771,13 +771,13 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
               </span>
             </div>
 
-            {/* KAMAR RANKING LIST - FULL RESPONSIVE 4-COL GRID */}
+            {/* KAMAR RANKING LIST - FULL RESPONSIVE GRID (MAX 5 VISIBLE ON MOBILE WITH SCROLLING, MULTI-COL ON PC) */}
             {kamarData.length === 0 ? (
               <div className="py-12 text-center text-slate-400">
                 <p className="text-sm font-bold">Belum ada data kamar asrama terisi.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 mt-1 max-h-[295px] overflow-y-auto pr-1 sm:max-h-none sm:overflow-visible sm:pr-0 custom-scrollbar">
                 {kamarData.slice(0, 8).map((room, idx) => {
                   const val = Number(room.value || 0);
                   const cap = Number(room.capacity || 0);
@@ -788,7 +788,7 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
                   return (
                     <div
                       key={idx}
-                      className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/80 border border-slate-100 hover:bg-teal-50/60 hover:border-teal-200 transition-all shadow-2xs"
+                      className="flex items-center justify-between p-2.5 sm:p-3 rounded-2xl bg-slate-50/80 border border-slate-100 hover:bg-teal-50/60 hover:border-teal-200 transition-all shadow-2xs"
                       title={`${roomTitle} (${komplekTitle}): ${val} Santri`}
                     >
                       <div className="min-w-0 pr-2">
@@ -810,7 +810,7 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
                           {val} Santri
                         </span>
                         {pct !== null && (
-                          <div className="w-16 bg-slate-200 h-1.5 rounded-full overflow-hidden mt-2 ml-auto">
+                          <div className="w-16 bg-slate-200 h-1.5 rounded-full overflow-hidden mt-1.5 ml-auto">
                             <div
                               className={`h-full ${pct > 90 ? 'bg-rose-500' : 'bg-teal-500'}`}
                               style={{ width: `${pct}%` }}
