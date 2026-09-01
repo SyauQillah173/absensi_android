@@ -31,6 +31,7 @@ import { exportMadinRekapExcel, exportPrayerRekapExcel } from '../utils/excel';
 import { NgajiKitabSection } from './NgajiKitabSection';
 
 import { RealtimeAttendanceLog } from '../components/RealtimeAttendanceLog';
+import { GuruDashboardView } from '../components/GuruDashboardView';
 
 export type AbsensiTab =
   | 'log-realtime'
@@ -257,28 +258,32 @@ export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabC
           >
             🕌 Input Presensi Madin
           </button>
-          <button
-            type="button"
-            onClick={() => handleTabSelect('sholat')}
-            className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
-              currentTab === 'sholat'
-                ? 'bg-[#138F81] text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            🕋 Input Presensi Sholat
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabSelect('ngaji')}
-            className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
-              currentTab === 'ngaji'
-                ? 'bg-[#138F81] text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            📖 Input Presensi Ngaji
-          </button>
+          {session?.hak_akses?.absen_sholat === true && (
+            <button
+              type="button"
+              onClick={() => handleTabSelect('sholat')}
+              className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
+                currentTab === 'sholat'
+                  ? 'bg-[#138F81] text-white shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              🕋 Input Presensi Sholat
+            </button>
+          )}
+          {session?.hak_akses?.absen_ngaji === true && (
+            <button
+              type="button"
+              onClick={() => handleTabSelect('ngaji')}
+              className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
+                currentTab === 'ngaji'
+                  ? 'bg-[#138F81] text-white shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              📖 Input Presensi Ngaji
+            </button>
+          )}
         </div>
       ) : isKepalaSekolah ? (
         // Kepala Sekolah: HANYA MONITORING & REKAP (Tanpa Input)
@@ -435,7 +440,12 @@ export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabC
 }
 
 function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget }) {
-  const { session } = useAuth();
+  const { session, isGuru } = useAuth();
+
+  if (isGuru) {
+    return <GuruDashboardView session={session} />;
+  }
+
   const [date, setDate] = useState(today());
   const [classes, setClasses] = useState<ApiRecord[]>([]);
   const [mapel, setMapel] = useState<ApiRecord[]>([]);

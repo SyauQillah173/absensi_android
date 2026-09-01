@@ -31,6 +31,7 @@ export interface UnifiedAttendanceLog extends ApiRecord {
   kategori: 'Madin' | 'Sholat' | 'Ngaji';
   kegiatan_pelajaran: string;
   status: string;
+  keterangan?: string;
   pengabsen: string;
   diinput_via: string;
   created_at: string;
@@ -137,6 +138,7 @@ export function RealtimeAttendanceLog() {
           kategori: 'Madin',
           kegiatan_pelajaran: str(mapel.nama ?? row.mapel ?? 'Pelajaran Diniyah'),
           status: normalizeStatus(str(row.status, 'Hadir')),
+          keterangan: str(row.keterangan, ''),
           pengabsen: str(actor.name ?? row.diinput_oleh ?? 'Ustadz Pengajar'),
           diinput_via: str(row.diinput_via, 'Android App'),
           created_at: String(row.created_at || row.tanggal || ''),
@@ -331,8 +333,24 @@ export function RealtimeAttendanceLog() {
     },
     {
       key: 'status',
-      header: 'Status',
-      render: (row) => <StatusBadge label={row.status} tone={statusTone(row.status)} />
+      header: 'Status & Keterangan',
+      render: (row) => (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-1.5">
+            <StatusBadge label={row.status} tone={statusTone(row.status)} />
+            {row.keterangan && row.keterangan.toLowerCase().includes('terlambat') && (
+              <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-black text-amber-800 border border-amber-200">
+                ⚠️ Terlambat
+              </span>
+            )}
+          </div>
+          {row.keterangan && (
+            <span className="text-[10px] font-medium text-slate-500 line-clamp-1" title={row.keterangan}>
+              {row.keterangan}
+            </span>
+          )}
+        </div>
+      )
     },
     {
       key: 'pengabsen',

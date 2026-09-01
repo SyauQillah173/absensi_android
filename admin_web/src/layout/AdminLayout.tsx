@@ -278,6 +278,20 @@ export function AdminLayout({
   const menu = useMemo<MenuItem[]>(() => {
     // 1. Role Guru: Khusus KBM (Dashboard, Input Presensi, Nilai - Tanpa Rekap)
     if (isGuru) {
+      const guruAbsensiChildren: NonNullable<MenuItem['children']> = [
+        { label: "🕌 Input Presensi Madin", page: "absensi", absensiTab: "madin-input" }
+      ];
+
+      // Absen Sholat hanya muncul jika diizinkan / ditugaskan oleh admin
+      if (session?.hak_akses?.absen_sholat === true) {
+        guruAbsensiChildren.push({ label: "🕋 Input Presensi Sholat", page: "absensi", absensiTab: "sholat" });
+      }
+
+      // Absen Ngaji hanya muncul jika diizinkan / ditugaskan oleh admin
+      if (session?.hak_akses?.absen_ngaji === true) {
+        guruAbsensiChildren.push({ label: "📖 Input Presensi Ngaji", page: "absensi", absensiTab: "ngaji" });
+      }
+
       return [
         {
           key: "dashboard",
@@ -289,11 +303,7 @@ export function AdminLayout({
           key: "absensi_menu",
           label: "Presensi & Absensi",
           icon: CalendarCheck,
-          children: [
-            { label: "🕌 Input Presensi Madin", page: "absensi", absensiTab: "madin-input" },
-            { label: "🕋 Input Presensi Sholat", page: "absensi", absensiTab: "sholat" },
-            { label: "📖 Input Presensi Ngaji", page: "absensi", absensiTab: "ngaji" },
-          ],
+          children: guruAbsensiChildren,
         },
         {
           key: "nilai",

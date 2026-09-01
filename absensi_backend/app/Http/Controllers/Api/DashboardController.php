@@ -338,7 +338,10 @@ class DashboardController extends Controller
             5 => 'Jumat',
             6 => 'Sabtu',
         ];
-        $todayDay = $dayMap[now()->dayOfWeek] ?? 'Senin';
+        $now = Carbon::now('Asia/Jakarta');
+        $currentTime = $now->format('H:i');
+        $todayDay = $dayMap[$now->dayOfWeek] ?? 'Senin';
+        $tomorrowDay = $dayMap[($now->dayOfWeek + 1) % 7] ?? 'Selasa';
 
         // 1. Fetch all Jadwal for this teacher
         $jadwalQuery = Jadwal::query()
@@ -349,10 +352,22 @@ class DashboardController extends Controller
                 if (!empty($guru->kode_guru)) {
                     $q->orWhere('guru', $guru->kode_guru);
                 }
-            });
+            })
+            ->orderByRaw("CASE hari
+                WHEN 'Ahad' THEN 1
+                WHEN 'Senin' THEN 2
+                WHEN 'Selasa' THEN 3
+                WHEN 'Rabu' THEN 4
+                WHEN 'Kamis' THEN 5
+                WHEN 'Jumat' THEN 6
+                WHEN 'Sabtu' THEN 7
+                ELSE 99
+            END")
+            ->orderBy('jam_mulai');
 
         $allJadwal = $jadwalQuery->get();
         $jadwalHariIni = $allJadwal->where('hari', $todayDay)->values();
+        $jadwalBesok = $allJadwal->where('hari', $tomorrowDay)->values();
 
         // 2. Classes and Students taught
         $classIds = $allJadwal->pluck('class_id')->filter()->unique()->values()->all();
@@ -364,41 +379,113 @@ class DashboardController extends Controller
         $absensiHariIni = Absensi::query()
             ->whereDate('tanggal', $today)
             ->where(function ($q) use ($guru, $jadwalHariIni) {
-                $q->where('diinput_oleh', $guru->name)
+                $q->where('diinput_oleh', 'ilike', "%{$guru->name}%")
+                    ->orWhere('actor_user_id', $guru->id)
                     ->orWhereIn('jadwal_id', $jadwalHariIni->pluck('id'));
             })
             ->get();
 
-        $jadwalCards = $jadwalHariIni->map(function (Jadwal $j) use ($absensiHariIni) {
+        $formatCard = function (Jadwal $j, bool $isToday = true, bool $isTomorrow = false) use ($absensiHariIni, $currentTime) {
             $absensi = $absensiHariIni->where('jadwal_id', $j->id);
             $isDone = $absensi->isNotEmpty();
+
+            $jamMulai = $j->jam_mulai ? substr((string) $j->jam_mulai, 0, 5) : '07:00';
+            $jamSelesai = $j->jam_selesai ? substr((string) $j->jam_selesai, 0, 5) : '08:30';
+
+            // Hitung 1 jam sebelum jam mulai pelajaran
+            try {
+                $parsedMulai = Carbon::createFromFormat('H:i', $jamMulai);
+                $jamAktifMulai = (clone $parsedMulai)->subHour()->format('H:i');
+            } catch (\Exception) {
+                $jamAktifMulai = '06:00';
+            }
+
+            $canInput = false;
+            $isLate = false;
+            $timeStatus = 'normal';
+            $badgeStatus = 'Sedang Aktif';
+            $pesanRamah = '';
+
+            if (!$isToday) {
+                if ($isTomorrow) {
+                    $timeStatus = 'besok';
+                    $badgeStatus = '📅 Jadwal Besok';
+                    $pesanRamah = "Jadwal untuk besok hari {$j->hari}: Pelajaran {$j->mataPelajaran?->nama} pukul {$jamMulai} - {$jamSelesai}.";
+                } else {
+                    $timeStatus = 'hari_lain';
+                    $badgeStatus = "📅 Hari {$j->hari}";
+                    $pesanRamah = "Jadwal hari {$j->hari}: Pelajaran {$j->mataPelajaran?->nama} pukul {$jamMulai} - {$jamSelesai}.";
+                }
+            } else {
+                if ($isDone) {
+                    $timeStatus = 'sudah_absen';
+                    $badgeStatus = '✅ Sudah Diabsen';
+                    $canInput = false;
+                    $pesanRamah = 'Presensi kelas ini sudah berhasil disimpan dan terkunci.';
+                } elseif ($currentTime < $jamAktifMulai) {
+                    $timeStatus = 'segera';
+                    $badgeStatus = '⏳ Segera Aktif';
+                    $canInput = false;
+                    $pesanRamah = "Jadwal akan aktif pada pukul {$jamAktifMulai} (1 jam sebelum jam pelajaran dimulai).";
+                } elseif ($currentTime >= $jamAktifMulai && $currentTime <= $jamSelesai) {
+                    $timeStatus = 'aktif';
+                    $badgeStatus = '🟢 Sedang Aktif';
+                    $canInput = true;
+                    $isLate = false;
+                    $pesanRamah = '🟢 Jadwal sedang aktif! Silakan klik untuk input presensi santri sekarang.';
+                } elseif ($currentTime > $jamSelesai && $currentTime <= '23:00') {
+                    $timeStatus = 'terlambat';
+                    $badgeStatus = '⚠️ Terlambat Input';
+                    $canInput = true;
+                    $isLate = true;
+                    $pesanRamah = '⚠️ Jam KBM telah selesai. Guru masih dapat mengisi presensi sebelum pukul 23:00 (Status: Terlambat Input).';
+                } else {
+                    $timeStatus = 'ditutup';
+                    $badgeStatus = '🔒 Waktu Ditutup';
+                    $canInput = false;
+                    $isLate = true;
+                    $pesanRamah = '🔒 Waktu input presensi guru telah ditutup (maksimal 23:00). Hubungi Admin Utama jika ada presensi susulan.';
+                }
+            }
 
             return [
                 'id' => $j->id,
                 'hari' => $j->hari,
-                'jam_mulai' => $j->jam_mulai,
-                'jam_selesai' => $j->jam_selesai,
-                'waktu' => ($j->jam_mulai && $j->jam_selesai) ? "{$j->jam_mulai} - {$j->jam_selesai}" : ($j->jam_mulai ?: '-'),
+                'jam_mulai' => $jamMulai,
+                'jam_selesai' => $jamSelesai,
+                'jam_aktif_mulai' => $jamAktifMulai,
+                'waktu' => "{$jamMulai} - {$jamSelesai}",
+                'ruangan' => $j->ruangan ?: '-',
                 'class_id' => $j->class_id,
                 'kelas' => $j->sifir ?: optional($j->kelasRef)->name ?: '-',
                 'mapel_id' => $j->mapel_id,
-                'mapel' => optional($j->mataPelajaran)->name ?: '-',
-                'status_absen' => $isDone ? 'completed' : 'pending',
-                'status_label' => $isDone ? 'Sudah Diabsen' : 'Belum Diabsen',
+                'mapel' => optional($j->mataPelajaran)->nama ?: optional($j->mataPelajaran)->name ?: '-',
+                'guru' => $j->guru ?: $guru->name,
+                'status_absen' => $isDone ? 'completed' : ($canInput ? ($isLate ? 'active_late' : 'active') : 'locked'),
+                'status_waktu' => $timeStatus,
+                'badge_status' => $badgeStatus,
+                'pesan_ramah' => $pesanRamah,
+                'can_input' => $canInput,
+                'is_late' => $isLate,
+                'is_done' => $isDone,
                 'total_hadir' => $absensi->where('status', 'Hadir')->count(),
                 'total_izin' => $absensi->where('status', 'Izin')->count(),
                 'total_sakit' => $absensi->where('status', 'Sakit')->count(),
                 'total_alfa' => $absensi->where('status', 'Alfa')->count(),
                 'total_siswa' => $absensi->count(),
             ];
-        });
+        };
+
+        $jadwalCardsHariIni = $jadwalHariIni->map(fn (Jadwal $j) => $formatCard($j, true, false))->values();
+        $jadwalCardsBesok = $jadwalBesok->map(fn (Jadwal $j) => $formatCard($j, false, true))->values();
+        $jadwalCardsMingguan = $allJadwal->map(fn (Jadwal $j) => $formatCard($j, $j->hari === $todayDay, $j->hari === $tomorrowDay))->values();
 
         // 4. Sholat Access for Guru
         $sholatAccess = GuruAbsensiSholatAccess::query()
             ->where('user_id', $guru->id)
             ->where('is_active', true)
             ->get();
-        $canSholat = $sholatAccess->isNotEmpty();
+        $canSholat = $sholatAccess->isNotEmpty() || $guru->role === 'admin';
 
         // 5. Ngaji Schedule for Guru
         $ngajiSchedules = NgajiSchedule::query()
@@ -408,11 +495,14 @@ class DashboardController extends Controller
                     ->orWhere('user_id', $guru->id);
             })
             ->get();
-        $canNgaji = $ngajiSchedules->isNotEmpty();
+        $canNgaji = $ngajiSchedules->isNotEmpty() || $guru->role === 'admin';
 
         return [
             'success' => true,
             'tanggal' => $today,
+            'waktu_sekarang' => $currentTime,
+            'hari_ini' => $todayDay,
+            'hari_besok' => $tomorrowDay,
             'role' => 'guru',
             'guru' => [
                 'id' => $guru->id,
@@ -426,11 +516,14 @@ class DashboardController extends Controller
                 'absen_ngaji' => $canNgaji,
                 'nilai' => true,
             ],
-            'jadwal_hari_ini' => $jadwalCards,
+            'jadwal_hari_ini' => $jadwalCardsHariIni,
+            'jadwal_besok' => $jadwalCardsBesok,
+            'jadwal_mingguan' => $jadwalCardsMingguan,
             'stats' => [
                 'total_jadwal_hari_ini' => $jadwalHariIni->count(),
-                'jadwal_sudah_diabsen' => $jadwalCards->where('status_absen', 'completed')->count(),
-                'jadwal_belum_diabsen' => $jadwalCards->where('status_absen', 'pending')->count(),
+                'jadwal_sudah_diabsen' => $jadwalCardsHariIni->where('is_done', true)->count(),
+                'jadwal_aktif_sekarang' => $jadwalCardsHariIni->where('can_input', true)->count(),
+                'jadwal_belum_diabsen' => $jadwalCardsHariIni->where('is_done', false)->count(),
                 'total_santri_diampu' => $totalSantriDiampu,
                 'total_kelas_diampu' => count($classIds),
             ],

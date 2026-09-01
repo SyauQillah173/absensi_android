@@ -23,6 +23,12 @@ export interface UserSession {
   permissions?: ApiRecord;
   token: string;
   anak?: ApiRecord[];
+  hak_akses?: {
+    absen_madin?: boolean;
+    absen_sholat?: boolean;
+    absen_ngaji?: boolean;
+    nilai?: boolean;
+  };
   must_change_password?: boolean;
 }
 

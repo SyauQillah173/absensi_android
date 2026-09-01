@@ -1,477 +1,666 @@
 import {
-  ArrowRight,
-  BookMarked,
+  AlertCircle,
   BookOpen,
-  BookOpenCheck,
   Calendar,
-  CalendarCheck,
   CheckCircle2,
-  Clock,
+  Clock3,
   GraduationCap,
-  Landmark,
-  ListChecks,
+  Lock,
+  Play,
   RefreshCw,
-  Sparkles,
-  UserCheck,
-  Users
+  Save,
+  UsersRound,
+  X
 } from 'lucide-react';
-import { useMemo } from 'react';
-import { useAuth } from '../auth/AuthContext';
-import type { AbsensiNavigationTarget } from '../pages/AbsensiPage';
-import type { ApiRecord } from '../services/api';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { api, type ApiRecord, type UserSession } from '../services/api';
 
 interface GuruDashboardViewProps {
-  dashboard: ApiRecord | null;
-  onRefresh: () => void;
-  isLoading: boolean;
-  onOpenAttendance: (target: AbsensiNavigationTarget) => void;
-  onNavigateToNilai?: () => void;
+  session: UserSession | null;
+  onNavigateToMadin?: (target?: { classId?: number; mapelId?: number; jadwalId?: number }) => void;
 }
 
-export function GuruDashboardView({
-  dashboard,
-  onRefresh,
-  isLoading,
-  onOpenAttendance,
-  onNavigateToNilai
-}: GuruDashboardViewProps) {
-  const { session } = useAuth();
+interface ScheduleCardData extends ApiRecord {
+  id: number;
+  hari: string;
+  jam_mulai: string;
+  jam_selesai: string;
+  jam_aktif_mulai: string;
+  waktu: string;
+  ruangan?: string;
+  class_id: number;
+  kelas: string;
+  mapel_id: number;
+  mapel: string;
+  guru: string;
+  status_absen: 'active' | 'active_late' | 'locked' | 'completed' | 'tomorrow' | 'upcoming';
+  status_waktu: 'aktif' | 'terlambat' | 'segera' | 'ditutup' | 'sudah_absen' | 'besok' | 'hari_lain';
+  badge_status: string;
+  pesan_ramah: string;
+  can_input: boolean;
+  is_late: boolean;
+  is_done: boolean;
+  total_hadir: number;
+  total_izin: number;
+  total_sakit: number;
+  total_alfa: number;
+  total_siswa: number;
+}
 
-  const guru = (dashboard?.guru as ApiRecord | undefined) || {};
-  const stats = (dashboard?.stats as ApiRecord | undefined) || {};
-  const hakAkses = (dashboard?.hak_akses as ApiRecord | undefined) || {
-    absen_madin: true,
-    absen_sholat: false,
-    absen_ngaji: false,
-    nilai: true
-  };
-  const jadwalList = Array.isArray(dashboard?.jadwal_hari_ini)
-    ? (dashboard.jadwal_hari_ini as ApiRecord[])
-    : [];
+type MadinStatus = 'Hadir' | 'Izin' | 'Sakit' | 'Alfa';
 
-  const sholatSummary = dashboard?.absensi_sholat as ApiRecord | undefined;
-  const ngajiSummary = dashboard?.absensi_ngaji as ApiRecord | undefined;
+function text(value: unknown, fallback = '-'): string {
+  const clean = String(value ?? '').trim();
+  return clean || fallback;
+}
 
-  const todayFormatted = useMemo(() => {
-    return new Intl.DateTimeFormat('id-ID', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    }).format(new Date());
+function num(value: unknown): number {
+  const result = Number(value ?? 0);
+  return Number.isFinite(result) ? result : 0;
+}
+
+export function GuruDashboardView({ session }: GuruDashboardViewProps) {
+  const [dashboard, setDashboard] = useState<ApiRecord | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [currentTimeStr, setCurrentTimeStr] = useState('');
+
+  // 1-Click Modal Presensi state
+  const [activeJadwal, setActiveJadwal] = useState<ScheduleCardData | null>(null);
+  const [students, setStudents] = useState<ApiRecord[]>([]);
+  const [statuses, setStatuses] = useState<Record<number, MadinStatus>>({});
+  const [notes, setNotes] = useState<Record<number, string>>({});
+  const [isLoadingStudents, setIsLoadingStudents] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [modalError, setModalError] = useState('');
+
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
+    setError('');
+    try {
+      const res = await api.dashboard();
+      setDashboard(res);
+    } catch (err) {
+      if (!silent) setError(err instanceof Error ? err.message : 'Gagal memuat jadwal guru.');
+    } finally {
+      if (!silent) setIsLoading(false);
+    }
   }, []);
 
-  const totalJadwal = Number(stats.total_jadwal_hari_ini ?? jadwalList.length);
-  const jadwalDone = Number(stats.jadwal_sudah_diabsen ?? jadwalList.filter((j) => String(j.status_absen) === 'completed').length);
-  const jadwalPending = Number(stats.jadwal_belum_diabsen ?? (totalJadwal - jadwalDone));
-  const totalSantri = Number(stats.total_santri_diampu ?? 0);
+  useEffect(() => {
+    void load();
+    const interval = setInterval(() => {
+      void load(true);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [load]);
 
-  const guruName = String(guru.name || session?.name || 'Ustadz / Ustadzah');
-  const guruCode = guru.kode_guru ? String(guru.kode_guru) : '';
-  const unitKerja = String(guru.unit_kerja || 'Madrasah Diniyah PP Qomaruddin');
+  // Update clock every second
+  useEffect(() => {
+    const updateClock = () => {
+      const d = new Date();
+      setCurrentTimeStr(
+        d.toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        }) + ' WIB'
+      );
+    };
+    updateClock();
+    const clockInterval = setInterval(updateClock, 1000);
+    return () => clearInterval(clockInterval);
+  }, []);
+
+  const jadwalHariIni = useMemo(() => {
+    return Array.isArray(dashboard?.jadwal_hari_ini)
+      ? (dashboard?.jadwal_hari_ini as ScheduleCardData[])
+      : [];
+  }, [dashboard]);
+
+  const jadwalBesok = useMemo(() => {
+    return Array.isArray(dashboard?.jadwal_besok)
+      ? (dashboard?.jadwal_besok as ScheduleCardData[])
+      : [];
+  }, [dashboard]);
+
+  const jadwalMingguan = useMemo(() => {
+    return Array.isArray(dashboard?.jadwal_mingguan)
+      ? (dashboard?.jadwal_mingguan as ScheduleCardData[])
+      : [];
+  }, [dashboard]);
+
+  const stats = dashboard?.stats as ApiRecord | undefined;
+
+  // Open 1-Click Attendance Modal
+  const openAttendanceModal = async (jadwal: ScheduleCardData) => {
+    setActiveJadwal(jadwal);
+    setModalError('');
+    setIsLoadingStudents(true);
+    try {
+      // Load students in this class
+      const classId = jadwal.class_id;
+      const res = classId
+        ? await api.siswa({ class_id: classId, status: 'Aktif' })
+        : await api.siswa({ status: 'Aktif' });
+
+      const rawList = Array.isArray(res.data) ? (res.data as ApiRecord[]) : [];
+      setStudents(rawList);
+
+      // Default all to "Hadir"
+      const initStatuses: Record<number, MadinStatus> = {};
+      rawList.forEach((s) => {
+        if (s.id) initStatuses[Number(s.id)] = 'Hadir';
+      });
+      setStatuses(initStatuses);
+      setNotes({});
+    } catch (err) {
+      setModalError(err instanceof Error ? err.message : 'Gagal memuat daftar santri.');
+    } finally {
+      setIsLoadingStudents(false);
+    }
+  };
+
+  const setAllStatus = (st: MadinStatus) => {
+    const next: Record<number, MadinStatus> = {};
+    students.forEach((s) => {
+      if (s.id) next[Number(s.id)] = st;
+    });
+    setStatuses(next);
+  };
+
+  const handleSaveAttendance = async () => {
+    if (!activeJadwal || isSaving) return;
+    setIsSaving(true);
+    setModalError('');
+
+    try {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const items = students.map((s) => {
+        const sid = Number(s.id);
+        return {
+          siswa_id: sid,
+          tanggal: todayStr,
+          status: statuses[sid] || 'Hadir',
+          class_id: activeJadwal.class_id,
+          mapel_id: activeJadwal.mapel_id,
+          jadwal_id: activeJadwal.id,
+          keterangan: notes[sid] || undefined
+        };
+      });
+
+      await api.createAbsensiBulk({
+        user_id: session?.id,
+        actor_user_id: session?.id,
+        absensi: items
+      });
+
+      setIsSuccess(true);
+      setTimeout(() => {
+        setIsSuccess(false);
+        setActiveJadwal(null);
+        void load(true);
+      }, 1200);
+    } catch (err) {
+      setModalError(err instanceof Error ? err.message : 'Gagal menyimpan absensi santri.');
+      setIsSaving(false);
+    }
+  };
 
   return (
-    <div className="w-full max-w-full space-y-4 sm:space-y-6 overflow-hidden">
-      {/* 1. HERO WELCOME BANNER FOR GURU (FULL RESPONSIVE) */}
-      <section className="relative overflow-hidden rounded-2xl sm:rounded-[28px] bg-gradient-to-r from-[#0C6B60] via-[#138F81] to-[#1BB5A4] p-4 sm:p-6 lg:p-8 text-white shadow-xl shadow-[#138F81]/15">
-        <div className="absolute right-0 top-0 -mr-16 -mt-16 h-48 w-48 sm:h-64 sm:w-64 rounded-full bg-white/10 blur-3xl pointer-events-none" />
-        <div className="absolute right-12 bottom-0 -mb-16 h-36 w-36 sm:h-48 sm:w-48 rounded-full bg-emerald-300/10 blur-2xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
-          <div className="min-w-0 flex-1 space-y-2 sm:space-y-2.5">
-            {/* Badges */}
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] sm:text-xs font-extrabold backdrop-blur-md border border-white/20">
-                <Sparkles size={13} className="text-amber-300 shrink-0" />
-                <span>Portal Guru & Ustadz</span>
-              </div>
-              {guruCode ? (
-                <span className="rounded-full bg-amber-400 text-slate-900 px-2 py-0.5 text-[10px] sm:text-[11px] font-black shrink-0">
-                  Kode: {guruCode}
-                </span>
-              ) : null}
-            </div>
-
-            {/* Teacher Name */}
-            <h1 className="text-lg sm:text-2xl lg:text-3xl font-black tracking-tight text-white drop-shadow-sm break-words leading-tight">
-              Assalamu'alaikum, <span className="block sm:inline">{guruName}</span>
-            </h1>
-
-            {/* Description */}
-            <p className="text-xs sm:text-sm font-medium text-emerald-50 max-w-2xl leading-relaxed">
-              Selamat mengajar dan berkhidmah di Madrasah Diniyah Pondok Pesantren Qomaruddin. Semoga ilmu yang diajarkan membawa keberkahan.
+    <div className="space-y-6">
+      {/* Floating Success Toast */}
+      {isSuccess && (
+        <div className="fixed top-5 right-5 z-[99999] flex items-center gap-3.5 rounded-2xl bg-white p-4 shadow-2xl border border-emerald-200 shadow-emerald-900/15 transition-all animate-in fade-in slide-in-from-top-4 duration-300 max-w-sm">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-500 text-white shadow-md shadow-emerald-500/30">
+            <CheckCircle2 size={24} strokeWidth={2.5} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-black text-slate-800">Presensi Berhasil Disimpan!</p>
+            <p className="text-xs font-semibold text-slate-500 mt-0.5">
+              Data kehadiran tersimpan & otomatis terkunci.
             </p>
+          </div>
+        </div>
+      )}
 
-            {/* Sub Info Chips */}
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pt-1 text-[11px] sm:text-xs font-semibold text-emerald-100">
-              <span className="inline-flex items-center gap-1.5 bg-black/15 px-2.5 py-1 rounded-xl">
-                <Calendar size={13} className="text-emerald-200 shrink-0" />
-                <span>{todayFormatted}</span>
+      {/* Greeting Banner */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#138F81] via-[#0E7A6E] to-[#0A5D54] p-6 text-white shadow-lg shadow-[#138F81]/20">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold backdrop-blur-md">
+                Madrasah Diniyah PP Qomaruddin
               </span>
-              <span className="inline-flex items-center gap-1.5 bg-black/15 px-2.5 py-1 rounded-xl max-w-full">
-                <GraduationCap size={13} className="text-emerald-200 shrink-0" />
-                <span className="truncate">{unitKerja}</span>
+              <span className="rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-black text-emerald-200 border border-emerald-300/30">
+                Ustadz Pengajar
               </span>
             </div>
+            <h1 className="mt-2 text-2xl sm:text-3xl font-black">
+              Ahlan Wa Sahlan, {session?.name ?? 'Ustadz'}
+            </h1>
+            <p className="mt-1 text-xs sm:text-sm font-medium text-emerald-100/90">
+              Berikut jadwal mengajar KBM aktif Anda hari ini. Cukup klik jadwal aktif untuk input presensi santri.
+            </p>
           </div>
 
-          {/* Refresh Button */}
-          <div className="flex shrink-0 items-center self-start sm:self-auto">
-            <button
-              onClick={onRefresh}
-              disabled={isLoading}
-              className="flex items-center gap-1.5 rounded-xl sm:rounded-2xl bg-white/20 hover:bg-white/30 active:scale-95 px-3 py-1.5 sm:px-4 sm:py-2.5 text-xs font-extrabold text-white backdrop-blur-md transition-all border border-white/25 shadow-sm"
-              type="button"
-            >
-              <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
-              <span>{isLoading ? 'Menyinkron...' : 'Perbarui'}</span>
-            </button>
+          <div className="flex flex-col items-end rounded-2xl bg-white/10 p-3.5 backdrop-blur-md border border-white/15">
+            <span className="text-[11px] font-bold text-emerald-200 flex items-center gap-1.5">
+              <Clock3 size={13} /> Waktu Realtime
+            </span>
+            <span className="text-xl font-black font-mono mt-0.5 text-white">
+              {currentTimeStr || '--:--:-- WIB'}
+            </span>
+            <span className="text-[11px] font-semibold text-emerald-100">
+              Hari: <b>{text(dashboard?.hari_ini, 'Hari ini')}</b> ({dashboard?.tanggal as string ?? ''})
+            </span>
           </div>
         </div>
       </section>
 
-      {/* 2. STATS OVERVIEW CARDS (RESPONSIVE GRID) */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {/* Card 1: Jadwal Hari Ini */}
-        <div className="rounded-2xl sm:rounded-[22px] bg-white p-4 sm:p-5 border border-slate-100 shadow-md sm:shadow-lg shadow-black/5 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-slate-500">Jadwal Mengajar</span>
-            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl sm:rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold shrink-0">
-              <CalendarCheck size={18} />
-            </div>
-          </div>
-          <div className="my-2.5 sm:my-3">
-            <div className="text-2xl sm:text-3xl font-black text-slate-800">{totalJadwal}</div>
-            <p className="text-[11px] sm:text-xs font-bold text-slate-500 mt-0.5">
-              {totalJadwal > 0 ? (
-                <>
-                  <span className="text-emerald-600 font-extrabold">{jadwalDone} Selesai</span>
-                  {' • '}
-                  <span className={jadwalPending > 0 ? 'text-amber-600 font-extrabold' : 'text-slate-400'}>
-                    {jadwalPending} Belum
-                  </span>
-                </>
-              ) : (
-                'Tidak ada jadwal hari ini'
-              )}
+      {/* Quick Summary Cards */}
+      <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs font-bold text-slate-500">Jadwal Hari Ini</p>
+          <p className="text-2xl font-black text-slate-800 mt-1">{jadwalHariIni.length}</p>
+          <p className="text-[11px] font-semibold text-slate-400 mt-0.5">Sesi KBM hari ini</p>
+        </div>
+
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 shadow-sm">
+          <p className="text-xs font-bold text-emerald-800">Sedang Aktif</p>
+          <p className="text-2xl font-black text-emerald-700 mt-1">
+            {num(stats?.jadwal_aktif_sekarang)}
+          </p>
+          <p className="text-[11px] font-semibold text-emerald-600 mt-0.5">Siap diinput sekarang</p>
+        </div>
+
+        <div className="rounded-2xl border border-teal-200 bg-teal-50/60 p-4 shadow-sm">
+          <p className="text-xs font-bold text-teal-800">Sudah Diabsen</p>
+          <p className="text-2xl font-black text-teal-700 mt-1">
+            {num(stats?.jadwal_sudah_diabsen)}
+          </p>
+          <p className="text-[11px] font-semibold text-teal-600 mt-0.5">Tersimpan & terkunci</p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs font-bold text-slate-500">Total Santri Diampu</p>
+          <p className="text-2xl font-black text-slate-800 mt-1">
+            {num(stats?.total_santri_diampu)}
+          </p>
+          <p className="text-[11px] font-semibold text-slate-400 mt-0.5">Santri aktif</p>
+        </div>
+      </section>
+
+      {/* SECTION 1: JADWAL HARI INI */}
+      <section className="space-y-4 rounded-3xl bg-white p-5 sm:p-6 shadow-sm ring-1 ring-slate-200">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-4">
+          <div>
+            <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+              <Calendar className="text-[#138F81]" size={20} />
+              Jadwal Mengajar Hari Ini ({text(dashboard?.hari_ini, 'Hari Ini')})
+            </h2>
+            <p className="text-xs font-semibold text-slate-500 mt-0.5">
+              Jadwal otomatis aktif <b>1 jam sebelum pelajaran dimulai</b> sampai jam selesai (batas toleransi 23:00).
             </p>
           </div>
           <button
             type="button"
-            onClick={() => onOpenAttendance({ tab: 'madin-input' })}
-            className="w-full mt-1 text-xs font-extrabold text-[#138F81] bg-[#138F81]/10 hover:bg-[#138F81] hover:text-white py-2 rounded-xl transition flex items-center justify-center gap-1.5"
+            onClick={() => void load()}
+            disabled={isLoading}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 transition-colors"
           >
-            <span>Buka Presensi Madin</span>
-            <ArrowRight size={14} />
+            <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} /> Refresh
           </button>
         </div>
 
-        {/* Card 2: Santri Diampu */}
-        <div className="rounded-2xl sm:rounded-[22px] bg-white p-4 sm:p-5 border border-slate-100 shadow-md sm:shadow-lg shadow-black/5 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-slate-500">Santri Diampu</span>
-            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0">
-              <Users size={18} />
-            </div>
-          </div>
-          <div className="my-2.5 sm:my-3">
-            <div className="text-2xl sm:text-3xl font-black text-slate-800">{totalSantri}</div>
-            <p className="text-[11px] sm:text-xs font-bold text-slate-500 mt-0.5">
-              Santri aktif di kelas yang diampu
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => onOpenAttendance({ tab: 'madin' })}
-            className="w-full mt-1 text-xs font-extrabold text-slate-700 bg-slate-100 hover:bg-slate-200 py-2 rounded-xl transition flex items-center justify-center gap-1.5"
-          >
-            <span>Lihat Rekap Kehadiran</span>
-            <ArrowRight size={14} />
-          </button>
-        </div>
-
-        {/* Card 3: Presensi Sholat (Jika Ada Akses) / Status */}
-        {Boolean(hakAkses.absen_sholat) ? (
-          <div className="rounded-2xl sm:rounded-[22px] bg-white p-4 sm:p-5 border border-slate-100 shadow-md sm:shadow-lg shadow-black/5 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-slate-500">Presensi Sholat</span>
-              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl sm:rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0">
-                <Landmark size={18} />
-              </div>
-            </div>
-            <div className="my-2.5 sm:my-3">
-              <div className="text-2xl sm:text-3xl font-black text-slate-800">
-                {Number(sholatSummary?.total ?? 0)}
-              </div>
-              <p className="text-[11px] sm:text-xs font-bold text-slate-500 mt-0.5">
-                Santri diabsen sholat jama'ah hari ini
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => onOpenAttendance({ tab: 'sholat' })}
-              className="w-full mt-1 text-xs font-extrabold text-indigo-700 bg-indigo-50 hover:bg-indigo-600 hover:text-white py-2 rounded-xl transition flex items-center justify-center gap-1.5"
-            >
-              <span>Presensi Sholat</span>
-              <ArrowRight size={14} />
-            </button>
-          </div>
-        ) : (
-          <div className="rounded-2xl sm:rounded-[22px] bg-white p-4 sm:p-5 border border-slate-100 shadow-md sm:shadow-lg shadow-black/5 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-slate-500">Status Presensi</span>
-              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl sm:rounded-2xl bg-teal-50 text-[#138F81] flex items-center justify-center font-bold shrink-0">
-                <UserCheck size={18} />
-              </div>
-            </div>
-            <div className="my-2.5 sm:my-3">
-              <div className="text-2xl sm:text-3xl font-black text-[#138F81]">
-                {jadwalPending === 0 && totalJadwal > 0 ? 'Tuntas ✓' : `${jadwalDone}/${totalJadwal}`}
-              </div>
-              <p className="text-[11px] sm:text-xs font-bold text-slate-500 mt-0.5">
-                Progress absensi KBM hari ini
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => onOpenAttendance({ tab: 'madin-input' })}
-              className="w-full mt-1 text-xs font-extrabold text-[#138F81] bg-[#138F81]/10 hover:bg-[#138F81] hover:text-white py-2 rounded-xl transition flex items-center justify-center gap-1.5"
-            >
-              <span>Catat Absensi</span>
-              <ArrowRight size={14} />
-            </button>
+        {error && (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-bold text-rose-700">
+            ⚠️ {error}
           </div>
         )}
 
-        {/* Card 4: Nilai & Hafalan */}
-        <div className="rounded-2xl sm:rounded-[22px] bg-white p-4 sm:p-5 border border-slate-100 shadow-md sm:shadow-lg shadow-black/5 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-slate-500">Nilai & Hafalan</span>
-            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl sm:rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold shrink-0">
-              <ListChecks size={18} />
-            </div>
-          </div>
-          <div className="my-2.5 sm:my-3">
-            <div className="text-2xl sm:text-3xl font-black text-slate-800">KBM</div>
-            <p className="text-[11px] sm:text-xs font-bold text-slate-500 mt-0.5">
-              Input nilai harian, UTS, UAS & hafalan
+        {jadwalHariIni.length === 0 ? (
+          <div className="py-12 text-center text-slate-400">
+            <Calendar className="mx-auto mb-2 text-slate-300" size={36} />
+            <p className="text-sm font-bold text-slate-600">Tidak ada jadwal mengajar untuk hari ini.</p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Silakan cek jadwal besok atau jadwal mingguan di bawah.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (onNavigateToNilai) {
-                onNavigateToNilai();
-              } else {
-                window.location.hash = '#nilai';
-              }
-            }}
-            className="w-full mt-1 text-xs font-extrabold text-rose-700 bg-rose-50 hover:bg-rose-600 hover:text-white py-2 rounded-xl transition flex items-center justify-center gap-1.5"
-          >
-            <span>Input Nilai & Hafalan</span>
-            <ArrowRight size={14} />
-          </button>
-        </div>
-      </section>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {jadwalHariIni.map((jadwal) => {
+              const isActive = jadwal.can_input && !jadwal.is_done;
+              const isDone = jadwal.is_done;
+              const isLocked = !jadwal.can_input && !jadwal.is_done;
+              const isLate = jadwal.is_late && isActive;
 
-      {/* 3. MAIN SECTION: JADWAL MENGAJAR HARI INI */}
-      <section className="rounded-2xl sm:rounded-[28px] bg-white p-4 sm:p-6 lg:p-7 border border-slate-100 shadow-xl shadow-black/5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-slate-100">
-          <div>
-            <h2 className="text-base sm:text-lg font-black text-slate-800 flex items-center gap-2">
-              <BookOpenCheck className="text-[#138F81] shrink-0" size={20} />
-              <span>Jadwal Mengajar Hari Ini</span>
-            </h2>
-            <p className="text-[11px] sm:text-xs font-semibold text-slate-500 mt-0.5">
-              Daftar mata pelajaran & kelas yang harus diabsen pada {todayFormatted}
-            </p>
-          </div>
+              return (
+                <div
+                  key={jadwal.id}
+                  className={`flex flex-col justify-between rounded-3xl p-5 border transition-all ${
+                    isDone
+                      ? 'bg-emerald-50/40 border-emerald-200'
+                      : isActive
+                      ? isLate
+                        ? 'bg-amber-50/60 border-amber-300 ring-2 ring-amber-300/50 shadow-md'
+                        : 'bg-gradient-to-br from-emerald-50/80 to-teal-50/60 border-emerald-400 ring-2 ring-emerald-400/50 shadow-lg'
+                      : 'bg-slate-50/80 border-slate-200 opacity-90'
+                  }`}
+                >
+                  <div className="space-y-3">
+                    {/* Badge Status Waktu */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black ${
+                          isDone
+                            ? 'bg-emerald-600 text-white'
+                            : isActive
+                            ? isLate
+                              ? 'bg-amber-500 text-white animate-pulse'
+                              : 'bg-emerald-500 text-white animate-pulse'
+                            : 'bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {jadwal.badge_status}
+                      </span>
 
-          <button
-            type="button"
-            onClick={() => onOpenAttendance({ tab: 'madin-input' })}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-[#138F81] px-3.5 py-2 text-xs font-extrabold text-white shadow-md shadow-[#138F81]/20 hover:bg-[#0D6B60] transition self-start sm:self-auto shrink-0"
-          >
-            <BookOpen size={14} />
-            <span>Form Presensi KBM</span>
-          </button>
-        </div>
-
-        <div className="mt-4 sm:mt-5">
-          {jadwalList.length === 0 ? (
-            <div className="rounded-2xl bg-slate-50/80 border border-dashed border-slate-200 p-6 sm:p-8 text-center">
-              <div className="mx-auto grid h-12 w-12 sm:h-14 sm:w-14 place-items-center rounded-2xl bg-emerald-50 text-[#138F81] mb-2.5 sm:mb-3">
-                <CheckCircle2 size={26} />
-              </div>
-              <h3 className="text-xs sm:text-sm font-extrabold text-slate-700">
-                Alhamdulillah, tidak ada jadwal KBM untuk Ustadz/Ustadzah hari ini.
-              </h3>
-              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 mt-1 max-w-md mx-auto">
-                Anda tetap dapat melihat rekap kehadiran santri atau menginput nilai melalui menu navigasi.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {jadwalList.map((j) => {
-                const isCompleted = String(j.status_absen) === 'completed';
-                const mapelName = String(j.mapel || '-');
-                const kelasName = String(j.kelas || '-');
-                const waktuJam = String(j.waktu || 'Jam KBM');
-                const hadirCount = Number(j.total_hadir ?? 0);
-                const izinCount = Number(j.total_izin ?? 0);
-                const sakitCount = Number(j.total_sakit ?? 0);
-                const alfaCount = Number(j.total_alfa ?? 0);
-                const siswaTotal = Number(j.total_siswa ?? 0);
-
-                return (
-                  <div
-                    key={String(j.id)}
-                    className={`rounded-2xl p-4 sm:p-5 border transition-all flex flex-col justify-between ${
-                      isCompleted
-                        ? 'bg-emerald-50/40 border-emerald-200/80'
-                        : 'bg-amber-50/40 border-amber-200/80 hover:shadow-md'
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-slate-600 bg-white px-2.5 py-1 rounded-lg border border-slate-200/60 shadow-2xs">
-                          <Clock size={11} className="text-[#138F81] shrink-0" />
-                          <span>{waktuJam}</span>
-                        </span>
-                        <span
-                          className={`text-[10px] sm:text-[11px] font-extrabold px-2 py-0.5 rounded-full ${
-                            isCompleted
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-amber-100 text-amber-900 animate-pulse'
-                          }`}
-                        >
-                          {isCompleted ? '✓ Sudah Diabsen' : 'Belum Diabsen'}
-                        </span>
-                      </div>
-
-                      <h4 className="text-sm sm:text-base font-black text-slate-800 line-clamp-1">
-                        {mapelName}
-                      </h4>
-                      <p className="text-xs font-bold text-[#138F81] mt-0.5">
-                        Kelas: <span className="text-slate-700">{kelasName}</span>
-                      </p>
-
-                      {isCompleted && siswaTotal > 0 ? (
-                        <div className="mt-2.5 flex flex-wrap items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] font-bold bg-white/80 p-2 rounded-xl border border-emerald-100">
-                          <span className="text-emerald-700">Hadir: {hadirCount}</span>
-                          <span className="text-slate-300">•</span>
-                          <span className="text-amber-700">Izin: {izinCount}</span>
-                          <span className="text-slate-300">•</span>
-                          <span className="text-rose-700">Sakit: {sakitCount}</span>
-                          <span className="text-slate-300">•</span>
-                          <span className="text-slate-600">Alfa: {alfaCount}</span>
-                        </div>
-                      ) : null}
+                      <span className="text-xs font-black text-slate-700 font-mono">
+                        ⏰ {jadwal.waktu} WIB
+                      </span>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onOpenAttendance({
-                          tab: 'madin-input',
-                          classId: Number(j.class_id ?? 0),
-                          mapelId: Number(j.mapel_id ?? 0),
-                          jadwalId: Number(j.id ?? 0)
-                        })
-                      }
-                      className={`w-full mt-3 sm:mt-4 py-2 sm:py-2.5 px-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
-                        isCompleted
-                          ? 'bg-white text-emerald-800 border border-emerald-200 hover:bg-emerald-50'
-                          : 'bg-[#138F81] text-white hover:bg-[#0D6B60] shadow-md shadow-[#138F81]/20'
-                      }`}
-                    >
-                      <BookOpenCheck size={14} />
-                      <span>{isCompleted ? 'Edit Presensi Kelas Ini' : 'Isi Presensi Kelas Ini'}</span>
-                    </button>
+                    {/* Mata Pelajaran & Kelas */}
+                    <div>
+                      <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                        {jadwal.mapel}
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <span className="rounded-lg bg-white px-2.5 py-0.5 text-xs font-black text-slate-800 border border-slate-200 shadow-2xs">
+                          🏫 Kelas: {jadwal.kelas}
+                        </span>
+                        {jadwal.ruangan && jadwal.ruangan !== '-' && (
+                          <span className="rounded-lg bg-white px-2.5 py-0.5 text-xs font-bold text-slate-600 border border-slate-200">
+                            🚪 {jadwal.ruangan}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Pesan Ramah Guru */}
+                    <p className="text-xs font-semibold text-slate-600 bg-white/80 p-2.5 rounded-xl border border-slate-100">
+                      💡 {jadwal.pesan_ramah}
+                    </p>
+
+                    {/* Attendance Result if completed */}
+                    {isDone && (
+                      <div className="flex items-center gap-2 text-xs font-bold text-emerald-800 pt-1">
+                        <span>👥 Rekap: <b>{jadwal.total_hadir} Hadir</b></span>
+                        {jadwal.total_izin > 0 && <span>• {jadwal.total_izin} Izin</span>}
+                        {jadwal.total_sakit > 0 && <span>• {jadwal.total_sakit} Sakit</span>}
+                        {jadwal.total_alfa > 0 && <span>• {jadwal.total_alfa} Alfa</span>}
+                      </div>
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+
+                  {/* Action Button */}
+                  <div className="pt-4 mt-2 border-t border-slate-200/60">
+                    {isActive ? (
+                      <button
+                        type="button"
+                        onClick={() => void openAttendanceModal(jadwal)}
+                        className={`w-full flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-black text-white shadow-lg transition-transform active:scale-95 ${
+                          isLate
+                            ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/30'
+                            : 'bg-[#138F81] hover:bg-[#0f766a] shadow-[#138F81]/30'
+                        }`}
+                      >
+                        <Play size={16} fill="white" />
+                        <span>{isLate ? '👉 Input Presensi (Terlambat)' : '👉 Input Presensi Sekarang'}</span>
+                      </button>
+                    ) : isDone ? (
+                      <div className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <CheckCircle2 size={16} />
+                        <span>Presensi Sudah Disimpan & Terkunci</span>
+                      </div>
+                    ) : (
+                      <div className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-xs font-bold bg-slate-100 text-slate-500">
+                        <Lock size={15} />
+                        <span>Terkunci (Aktif 1 Jam Sebelum Pelajaran)</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
-      {/* 4. MODUL TAMBAHAN (NGAJI KITAB / SHOLAT) */}
-      {(Boolean(hakAkses.absen_ngaji) || Boolean(hakAkses.absen_sholat)) && (
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
-          {Boolean(hakAkses.absen_ngaji) && (
-            <div className="rounded-2xl sm:rounded-[28px] bg-white p-4 sm:p-6 border border-slate-100 shadow-xl shadow-black/5 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center gap-2 text-indigo-700 font-extrabold text-xs sm:text-sm mb-1.5 sm:mb-2">
-                  <BookMarked size={16} />
-                  <span>Pengajian Kitab Kuning</span>
+      {/* SECTION 2: JADWAL UNTUK BESOK (Ramah Guru Sepuh) */}
+      {jadwalBesok.length > 0 && (
+        <section className="rounded-3xl bg-gradient-to-r from-blue-50 via-sky-50 to-indigo-50/50 p-5 sm:p-6 border border-blue-200/80 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-blue-600 text-white font-black text-xs">
+              📌
+            </span>
+            <div>
+              <h3 className="text-base font-black text-blue-950">
+                Jadwal Mengajar Untuk Besok ({text(dashboard?.hari_besok, 'Besok')})
+              </h3>
+              <p className="text-xs font-semibold text-blue-700/80">
+                Pengingat awal persiapan materi mengajar untuk esok hari.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {jadwalBesok.map((j) => (
+              <div
+                key={j.id}
+                className="rounded-2xl border border-blue-200 bg-white p-4 shadow-sm flex flex-col justify-between"
+              >
+                <div>
+                  <span className="rounded-md bg-blue-100 px-2 py-0.5 text-[11px] font-black text-blue-800">
+                    ⏰ {j.waktu} WIB
+                  </span>
+                  <h4 className="text-base font-extrabold text-slate-800 mt-2">{j.mapel}</h4>
+                  <p className="text-xs font-bold text-slate-500 mt-0.5">🏫 Kelas: {j.kelas}</p>
                 </div>
-                <h3 className="text-base sm:text-lg font-black text-slate-800">
-                  Presensi Ngaji Kitab
-                </h3>
-                <p className="text-[11px] sm:text-xs font-semibold text-slate-500 mt-1">
-                  Catat kehadiran santri pada halaqah dan jadwal ngaji kitab yang Anda ampu.
+                <p className="text-[11px] font-semibold text-blue-600 mt-3 pt-2 border-t border-slate-100">
+                  {j.pesan_ramah}
                 </p>
               </div>
-
-              <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-                <span className="text-[11px] sm:text-xs font-bold text-slate-600">
-                  Diabsen: <span className="font-extrabold text-indigo-700">{Number(ngajiSummary?.total ?? 0)} Santri</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onOpenAttendance({ tab: 'ngaji' })}
-                  className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold shadow-sm transition flex items-center gap-1.5"
-                >
-                  <span>Buka Form</span>
-                  <ArrowRight size={13} />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {Boolean(hakAkses.absen_sholat) && (
-            <div className="rounded-2xl sm:rounded-[28px] bg-white p-4 sm:p-6 border border-slate-100 shadow-xl shadow-black/5 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center gap-2 text-teal-700 font-extrabold text-xs sm:text-sm mb-1.5 sm:mb-2">
-                  <Landmark size={16} />
-                  <span>Sholat Jama'ah Asrama</span>
-                </div>
-                <h3 className="text-base sm:text-lg font-black text-slate-800">
-                  Presensi Sholat Santri
-                </h3>
-                <p className="text-[11px] sm:text-xs font-semibold text-slate-500 mt-1">
-                  Catat kehadiran sholat fardhu berjama'ah santri pada komplek dan kamar pondok.
-                </p>
-              </div>
-
-              <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-                <span className="text-[11px] sm:text-xs font-bold text-slate-600">
-                  Diabsen: <span className="font-extrabold text-teal-700">{Number(sholatSummary?.total ?? 0)} Santri</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onOpenAttendance({ tab: 'sholat' })}
-                  className="px-3.5 py-1.5 rounded-xl bg-[#138F81] hover:bg-[#0D6B60] text-white text-xs font-extrabold shadow-sm transition flex items-center gap-1.5"
-                >
-                  <span>Buka Form</span>
-                  <ArrowRight size={13} />
-                </button>
-              </div>
-            </div>
-          )}
+            ))}
+          </div>
         </section>
       )}
 
-      {/* 5. MUTIARA HIKMAH / DO'A GURU */}
-      <footer className="rounded-xl sm:rounded-2xl bg-emerald-50/70 border border-emerald-200/50 p-3 sm:p-4 text-center">
-        <p className="text-[11px] sm:text-xs font-bold text-emerald-900 italic">
-          "خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ"
-        </p>
-        <p className="text-[10px] sm:text-[11px] font-semibold text-emerald-700 mt-0.5">
-          "Sebaik-baik kalian adalah orang yang mempelajari Al-Qur'an dan mengajarkannya." (HR. Bukhari)
-        </p>
-      </footer>
+      {/* SECTION 3: SELURUH JADWAL MINGGUAN */}
+      <section className="rounded-3xl bg-white p-5 sm:p-6 shadow-sm ring-1 ring-slate-200 space-y-4">
+        <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
+          <BookOpen className="text-[#138F81]" size={18} />
+          Seluruh Jadwal Mengajar Mingguan Anda
+        </h3>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          {jadwalMingguan.map((j) => (
+            <div
+              key={j.id}
+              className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 hover:bg-white hover:border-slate-300 transition-all shadow-2xs"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold text-xs text-[#138F81] bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-200">
+                  {j.hari}
+                </span>
+                <span className="text-xs font-mono font-bold text-slate-600">{j.waktu} WIB</span>
+              </div>
+              <h4 className="text-sm font-extrabold text-slate-800 mt-2.5">{j.mapel}</h4>
+              <p className="text-xs font-semibold text-slate-500 mt-0.5">Kelas: {j.kelas}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* MODAL 1-KLIK INPUT PRESENSI SANTRI */}
+      {activeJadwal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="flex flex-col max-h-[92vh] w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200">
+            {/* Header Modal */}
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-gradient-to-r from-teal-500/10 via-emerald-500/5 to-transparent px-5 py-4 sm:px-6">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-md bg-[#138F81] px-2 py-0.5 text-xs font-black text-white">
+                    {activeJadwal.hari}, {activeJadwal.waktu}
+                  </span>
+                  <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-extrabold text-slate-700">
+                    Kelas: {activeJadwal.kelas}
+                  </span>
+                </div>
+                <h3 className="text-lg sm:text-xl font-black text-slate-900 mt-1">
+                  Presensi {activeJadwal.mapel}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveJadwal(null)}
+                disabled={isSaving}
+                className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Sub-header Quick Buttons */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/80 px-5 py-3 sm:px-6">
+              <span className="text-xs font-bold text-slate-600">
+                Total <b>{students.length} Santri</b> terdaftar di kelas ini
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setAllStatus('Hadir')}
+                  className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-black text-white hover:bg-emerald-700 transition-colors"
+                >
+                  ✓ Semua Hadir
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAllStatus('Izin')}
+                  className="rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800 hover:bg-amber-200 transition-colors"
+                >
+                  Semua Izin
+                </button>
+              </div>
+            </div>
+
+            {/* Student List */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2.5">
+              {modalError && (
+                <div className="mb-3 rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-xs font-bold text-rose-700">
+                  ⚠️ {modalError}
+                </div>
+              )}
+
+              {isLoadingStudents ? (
+                <div className="py-12 text-center text-slate-400 font-bold text-sm">
+                  Memuat daftar santri...
+                </div>
+              ) : students.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 font-bold text-sm">
+                  Belum ada santri terdaftar di kelas {activeJadwal.kelas}.
+                </div>
+              ) : (
+                students.map((siswa, idx) => {
+                  const sid = Number(siswa.id);
+                  const currentStatus = statuses[sid] || 'Hadir';
+
+                  return (
+                    <div
+                      key={sid}
+                      className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-all"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-100 font-black text-xs text-slate-600">
+                          {idx + 1}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-black text-slate-800 truncate">{text(siswa.nama)}</p>
+                          <p className="text-[11px] font-semibold text-slate-400">
+                            NIS: {text(siswa.nis)} • {siswa.jenis_kelamin === 'L' ? 'Putra' : 'Putri'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Status Pills */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {(['Hadir', 'Izin', 'Sakit', 'Alfa'] as const).map((st) => {
+                          const isSelected = currentStatus === st;
+                          const colors = {
+                            Hadir: isSelected
+                              ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                            Izin: isSelected
+                              ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/30'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                            Sakit: isSelected
+                              ? 'bg-rose-500 text-white shadow-sm shadow-rose-500/30'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                            Alfa: isSelected
+                              ? 'bg-slate-800 text-white shadow-sm'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          };
+
+                          return (
+                            <button
+                              key={st}
+                              type="button"
+                              onClick={() => setStatuses({ ...statuses, [sid]: st })}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${colors[st]}`}
+                            >
+                              {st === 'Hadir'
+                                ? 'Hadir'
+                                : st === 'Izin'
+                                ? 'Izin'
+                                : st === 'Sakit'
+                                ? 'Sakit'
+                                : 'Alfa'}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Footer Modal */}
+            <div className="flex shrink-0 items-center justify-between border-t border-slate-200 bg-slate-50/80 px-5 py-3.5 sm:px-6">
+              <button
+                type="button"
+                onClick={() => setActiveJadwal(null)}
+                disabled={isSaving}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Batal
+              </button>
+
+              <button
+                type="button"
+                onClick={() => void handleSaveAttendance()}
+                disabled={isSaving || students.length === 0}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#138F81] px-6 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-[#138F81]/25 hover:bg-[#0f766a] transition-all disabled:opacity-50"
+              >
+                <Save size={16} />
+                <span>{isSaving ? 'Menyimpan...' : 'Simpan Presensi Santri'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

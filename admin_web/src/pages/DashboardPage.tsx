@@ -324,10 +324,19 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
     return (
       <div className="q-page-enter space-y-6">
         <GuruDashboardView
-          dashboard={dashboard}
-          onRefresh={() => void load()}
-          isLoading={isLoading}
-          onOpenAttendance={onOpenAttendance}
+          session={session}
+          onNavigateToMadin={(target) => {
+            if (target) {
+              onOpenAttendance({
+                tab: 'madin-input',
+                classId: target.classId,
+                mapelId: target.mapelId,
+                jadwalId: target.jadwalId
+              });
+            } else {
+              onOpenAttendance({ tab: 'madin-input' });
+            }
+          }}
         />
       </div>
     );
