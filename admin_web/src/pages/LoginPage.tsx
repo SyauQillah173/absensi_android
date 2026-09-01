@@ -1,4 +1,4 @@
-import { Eye, EyeOff, LockKeyhole, UserRound } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, LockKeyhole, UserRound } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 
@@ -26,62 +26,58 @@ export function LoginPage() {
   }
 
   return (
-    <main className="min-h-[100dvh] w-full flex items-center justify-center p-4 sm:p-6 md:p-8 bg-[#FFDC80] relative overflow-hidden font-sans select-none">
+    <main className="h-[100dvh] w-full flex items-center justify-center p-3 sm:p-5 bg-[#FFDC80] font-sans select-none overflow-hidden">
       
-      {/* SOFT AMBIENT GLOWS ON YELLOW BACKGROUND */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-white/30 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
-
-      {/* STANDALONE CIRCULAR / SQUIRCLE NEUMORPHIC CONTAINER PERSIS SCREENSHOT */}
-      <div className="relative w-full max-w-[420px] sm:max-w-[450px]">
+      {/* STANDALONE 3D NEUMORPHIC CARD */}
+      <div className="w-full max-w-[380px] sm:max-w-[400px]">
         
-        {/* OUTER CIRCULAR BEZEL / EMBOSSED RIM */}
+        {/* CARD CONTAINER (FIT VIEWPORT, NO SCROLL) */}
         <div
-          className="w-full rounded-[44px] sm:rounded-[56px] bg-[#f0f3f6] p-7 sm:p-10 md:p-12 relative border border-white/80"
+          className="w-full rounded-[36px] sm:rounded-[44px] bg-[#f2f5f8] px-6 py-6 sm:px-8 sm:py-8 border border-white/90"
           style={{
-            boxShadow: '18px 18px 45px rgba(180, 140, 50, 0.28), -14px -14px 40px rgba(255, 255, 255, 0.9), inset 1px 1px 2px rgba(255, 255, 255, 0.8)',
+            boxShadow: '16px 16px 36px rgba(165, 125, 35, 0.25), -12px -12px 30px rgba(255, 255, 255, 0.85)',
           }}
         >
           {/* LOGO QOMARUDDIN */}
-          <div className="flex flex-col items-center text-center mb-5">
+          <div className="flex flex-col items-center text-center mb-4">
             <div
-              className="h-20 w-20 sm:h-22 sm:w-22 rounded-full p-2.5 bg-[#f0f3f6] flex items-center justify-center mb-3.5 transition-transform duration-300 hover:scale-105"
+              className="h-16 w-16 sm:h-18 sm:w-18 rounded-full p-2 bg-[#f2f5f8] flex items-center justify-center mb-2.5 transition-transform duration-300 hover:scale-105"
               style={{
-                boxShadow: '6px 6px 14px #d1d9e2, -6px -6px 14px #ffffff',
+                boxShadow: '5px 5px 12px #d0d8e2, -5px -5px 12px #ffffff',
               }}
             >
               <img
-                className="h-14 w-14 sm:h-16 sm:w-16 object-contain drop-shadow-xs"
+                className="h-12 w-12 sm:h-13 sm:w-13 object-contain drop-shadow-xs"
                 src="/logo-qomaruddin.png"
                 alt="Logo Qomaruddin"
               />
             </div>
 
-            {/* TITLE & SUBTITLE PERSIS SCREENSHOT */}
-            <h1 className="text-3xl sm:text-4xl font-black text-[#2D3436] tracking-tight">
+            {/* TITLE & SUBTITLE */}
+            <h1 className="text-2xl sm:text-3xl font-black text-[#2D3436] tracking-tight">
               Login
             </h1>
-            <p className="mt-1.5 text-xs sm:text-sm font-semibold text-[#7B8794]">
+            <p className="text-[11px] sm:text-xs font-semibold text-[#7B8794] mt-0.5">
               Sign in to your account
             </p>
           </div>
 
-          {/* FORM PERSIS SCREENSHOT */}
-          <form className="space-y-4 sm:space-y-5 mt-6" onSubmit={handleSubmit}>
+          {/* FORM */}
+          <form className="space-y-3.5 sm:space-y-4" onSubmit={handleSubmit}>
             
             {/* USERNAME INPUT (NEUMORPHIC INSET) */}
             <div
-              className="relative rounded-2xl sm:rounded-[20px] bg-[#f0f3f6] transition-all focus-within:ring-2 focus-within:ring-[#138F81]/30 focus-within:border-[#138F81]/40 border border-transparent"
+              className="relative rounded-2xl bg-[#f2f5f8] transition-all focus-within:ring-2 focus-within:ring-[#138F81]/40 border border-transparent"
               style={{
-                boxShadow: 'inset 4px 4px 8px #d1d9e2, inset -4px -4px 8px #ffffff',
+                boxShadow: 'inset 3.5px 3.5px 7px #d0d8e2, inset -3.5px -3.5px 7px #ffffff',
               }}
             >
               <UserRound
-                className="pointer-events-none absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-[#7B8794]"
-                size={19}
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#7B8794]"
+                size={18}
               />
               <input
-                className="w-full bg-transparent pl-12 sm:pl-13 pr-4 py-3.5 sm:py-4 text-xs sm:text-sm font-bold text-[#2D3436] placeholder:text-[#9AA5B1] placeholder:font-normal outline-hidden"
+                className="w-full bg-transparent pl-11 pr-4 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-[#2D3436] placeholder:text-[#9AA5B1] placeholder:font-normal outline-hidden"
                 value={identifier}
                 onChange={(event) => setIdentifier(event.target.value)}
                 autoComplete="username"
@@ -92,17 +88,17 @@ export function LoginPage() {
 
             {/* PASSWORD INPUT (NEUMORPHIC INSET) */}
             <div
-              className="relative rounded-2xl sm:rounded-[20px] bg-[#f0f3f6] transition-all focus-within:ring-2 focus-within:ring-[#138F81]/30 focus-within:border-[#138F81]/40 border border-transparent"
+              className="relative rounded-2xl bg-[#f2f5f8] transition-all focus-within:ring-2 focus-within:ring-[#138F81]/40 border border-transparent"
               style={{
-                boxShadow: 'inset 4px 4px 8px #d1d9e2, inset -4px -4px 8px #ffffff',
+                boxShadow: 'inset 3.5px 3.5px 7px #d0d8e2, inset -3.5px -3.5px 7px #ffffff',
               }}
             >
               <LockKeyhole
-                className="pointer-events-none absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-[#7B8794]"
-                size={19}
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#7B8794]"
+                size={18}
               />
               <input
-                className="w-full bg-transparent pl-12 sm:pl-13 pr-11 sm:pr-12 py-3.5 sm:py-4 text-xs sm:text-sm font-bold text-[#2D3436] placeholder:text-[#9AA5B1] placeholder:font-normal outline-hidden"
+                className="w-full bg-transparent pl-11 pr-11 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-[#2D3436] placeholder:text-[#9AA5B1] placeholder:font-normal outline-hidden"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -111,28 +107,28 @@ export function LoginPage() {
                 required
               />
               <button
-                className="absolute right-3.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-xl text-[#7B8794] hover:text-[#2D3436] transition-colors cursor-pointer"
+                className="absolute right-3 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-xl text-[#7B8794] hover:text-[#2D3436] transition-colors cursor-pointer"
                 onClick={() => setShowPassword((value) => !value)}
                 type="button"
                 aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
               </button>
             </div>
 
-            {/* REMEMBER ME & FORGOT PASSWORD PERSIS SCREENSHOT */}
-            <div className="flex items-center justify-between text-xs sm:text-[13px] font-semibold text-[#7B8794] px-1 pt-0.5">
+            {/* REMEMBER ME & HELPER */}
+            <div className="flex items-center justify-between text-xs font-semibold text-[#7B8794] px-1">
               <label className="inline-flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="rounded-md border-gray-300 text-[#138F81] focus:ring-[#138F81] h-4 w-4 cursor-pointer"
+                  className="rounded border-gray-300 text-[#138F81] focus:ring-[#138F81] h-3.5 w-3.5 cursor-pointer"
                 />
-                <span>Remember me</span>
+                <span className="text-[11px] sm:text-xs">Remember me</span>
               </label>
 
-              <span className="text-[#9AA5B1] text-[11px] sm:text-xs">
+              <span className="text-[#9AA5B1] text-[10px] sm:text-[11px]">
                 Yayasan Qomaruddin
               </span>
             </div>
@@ -140,7 +136,7 @@ export function LoginPage() {
             {/* ERROR MESSAGE */}
             {error && (
               <div
-                className="rounded-2xl bg-rose-50 border border-rose-200/80 px-4 py-3 text-xs font-bold text-[#D63031]"
+                className="rounded-xl bg-rose-50 border border-rose-200/80 px-3.5 py-2.5 text-xs font-bold text-[#D63031]"
                 style={{
                   boxShadow: 'inset 2px 2px 4px rgba(214, 48, 49, 0.08)',
                 }}
@@ -149,25 +145,26 @@ export function LoginPage() {
               </div>
             )}
 
-            {/* NEUMORPHIC 3D SUBMIT BUTTON PERSIS SCREENSHOT */}
+            {/* 3D TEAL BRAND ACTION BUTTON */}
             <button
-              className="mt-3 w-full py-3.5 sm:py-4 px-6 rounded-2xl sm:rounded-[20px] bg-[#f0f3f6] text-xs sm:text-sm font-black tracking-widest uppercase text-[#52606D] hover:text-[#138F81] transition-all duration-200 active:scale-[0.98] cursor-pointer disabled:opacity-60 border border-white/60"
+              className="mt-2 w-full py-3.5 sm:py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#138F81] to-[#0c6b60] text-xs sm:text-sm font-black tracking-widest uppercase text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98] cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2 border border-teal-400/30"
               style={{
-                boxShadow: '6px 6px 14px #d1d9e2, -6px -6px 14px #ffffff',
+                boxShadow: '0 8px 20px -3px rgba(19, 143, 129, 0.45), 4px 4px 10px rgba(165, 125, 35, 0.15)',
               }}
               disabled={isSubmitting}
               type="submit"
             >
-              {isSubmitting ? 'SIGNING IN...' : 'SIGN IN'}
+              <span>{isSubmitting ? 'SIGNING IN...' : 'SIGN IN'}</span>
+              {!isSubmitting && <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />}
             </button>
           </form>
 
           {/* FOOTER TEXT */}
-          <div className="mt-8 text-center">
-            <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#138F81]">
+          <div className="mt-5 text-center">
+            <p className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-[#138F81]">
               Pondok Pesantren Qomaruddin
             </p>
-            <p className="text-[10px] font-medium text-[#7B8794] mt-0.5">
+            <p className="text-[9px] sm:text-[10px] font-medium text-[#7B8794]">
               Sampurnan Bungah Gresik • Jawa Timur
             </p>
           </div>
@@ -177,6 +174,7 @@ export function LoginPage() {
     </main>
   );
 }
+
 
 
 
