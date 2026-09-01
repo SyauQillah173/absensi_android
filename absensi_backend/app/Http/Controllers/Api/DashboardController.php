@@ -187,29 +187,35 @@ class DashboardController extends Controller
             ];
         })->values();
 
-        $siswaPerKelasSekolah = Siswa::where(function ($q) use ($madinClassIds) {
-            $q->whereNotIn('class_id', $madinClassIds)
-              ->orWhereNull('class_id');
-        })
-        ->whereNotNull('kelas')
-        ->where('kelas', '!=', '')
-        ->select('kelas', 'jenis_kelamin', DB::raw('count(*) as total'))
-        ->groupBy('kelas', 'jenis_kelamin')
-        ->orderBy('kelas')
-        ->get()
-        ->groupBy('kelas')
-        ->map(function ($items, $kelas) {
-            $items = collect($items);
-            $pa = (int) ($items->firstWhere('jenis_kelamin', 'L')?->total ?? 0);
-            $pi = (int) ($items->firstWhere('jenis_kelamin', 'P')?->total ?? 0);
-            return [
-                'name' => $kelas,
-                'kelas' => $kelas,
-                'value' => $pa + $pi,
-                'putra' => $pa,
-                'putri' => $pi,
-            ];
-        })->values();
+        $siswaPerKelasSekolah = Siswa::query()
+            ->where(function ($q) {
+                $q->where(function ($sub) {
+                    $sub->whereNotNull('sekolah_formal')->where('sekolah_formal', '!=', '');
+                })->orWhere(function ($sub) {
+                    $sub->whereNotNull('kelas')->where('kelas', '!=', '');
+                });
+            })
+            ->select(
+                DB::raw("COALESCE(NULLIF(sekolah_formal, ''), NULLIF(kelas, '')) as formal_name"),
+                'jenis_kelamin',
+                DB::raw('count(*) as total')
+            )
+            ->groupBy(DB::raw("COALESCE(NULLIF(sekolah_formal, ''), NULLIF(kelas, ''))"), 'jenis_kelamin')
+            ->orderBy(DB::raw("COALESCE(NULLIF(sekolah_formal, ''), NULLIF(kelas, ''))"))
+            ->get()
+            ->groupBy('formal_name')
+            ->map(function ($items, $sekolah) {
+                $items = collect($items);
+                $pa = (int) ($items->firstWhere('jenis_kelamin', 'L')?->total ?? 0);
+                $pi = (int) ($items->firstWhere('jenis_kelamin', 'P')?->total ?? 0);
+                return [
+                    'name' => (string) $sekolah,
+                    'kelas' => (string) $sekolah,
+                    'value' => $pa + $pi,
+                    'putra' => $pa,
+                    'putri' => $pi,
+                ];
+            })->values();
 
         return [
             'success' => true,
