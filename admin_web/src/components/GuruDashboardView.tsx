@@ -12,7 +12,6 @@ import {
   Play,
   RefreshCw,
   Save,
-  Search,
   UsersRound,
   X
 } from 'lucide-react';
@@ -96,7 +95,6 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
   // 1-Click Modal Presensi state
   const [activeJadwal, setActiveJadwal] = useState<ScheduleCardData | null>(null);
   const [isReadOnlyMode, setIsReadOnlyMode] = useState(false);
-  const [searchStudent, setSearchStudent] = useState('');
   const [students, setStudents] = useState<ApiRecord[]>([]);
   const [statuses, setStatuses] = useState<Record<number, MadinStatus>>({});
   const [notes, setNotes] = useState<Record<number, string>>({});
@@ -170,7 +168,6 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
     const readOnly = isReadOnly || Boolean(jadwal.is_done);
     setIsReadOnlyMode(readOnly);
     setModalError('');
-    setSearchStudent('');
     setIsLoadingStudents(true);
     try {
       const todayStr = new Date().toISOString().slice(0, 10);
@@ -271,14 +268,6 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
     }
   };
 
-  const filteredStudents = useMemo(() => {
-    const kw = searchStudent.toLowerCase().trim();
-    if (!kw) return students;
-    return students.filter((s) =>
-      `${s.nama ?? ''} ${s.nis ?? ''} ${s.kamar ?? ''}`.toLowerCase().includes(kw)
-    );
-  }, [students, searchStudent]);
-
   const summaryCount = useMemo(() => {
     let hadir = 0;
     let izin = 0;
@@ -297,7 +286,7 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
   // If activeJadwal is selected, render the Dedicated Full Page Form (Mobile & Desktop Full Screen)
   if (activeJadwal) {
     return (
-      <div className="space-y-4 animate-in fade-in duration-200 pb-16">
+      <div className="space-y-4 animate-in fade-in duration-200 pb-20">
         {/* Floating Top-Right Toast Notification */}
         {toastMessage && (
           <div className="fixed top-6 right-6 z-[999999] flex items-center gap-3.5 rounded-2xl bg-white p-4 shadow-2xl border border-emerald-200 shadow-emerald-900/20 transition-all animate-in fade-in slide-in-from-top-4 duration-300 max-w-sm">
@@ -320,8 +309,8 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
           </div>
         )}
 
-        {/* Top Navigation & Header Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-white p-4 sm:p-5 shadow-sm ring-1 ring-slate-200">
+        {/* Top Header Card - Info Mapel, Kelas, Jam & Total Santri */}
+        <div className="rounded-3xl bg-white p-4 sm:p-5 shadow-sm ring-1 ring-slate-200 space-y-3">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -331,7 +320,7 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
             >
               <ChevronLeft size={22} strokeWidth={2.5} />
             </button>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-lg sm:text-2xl font-black text-slate-800">
                   Presensi {activeJadwal.mapel}
@@ -355,35 +344,13 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveJadwal(null)}
-              disabled={isSaving}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
-            >
-              {isReadOnlyMode ? '← Kembali' : 'Batal'}
-            </button>
-            {!isReadOnlyMode && (
-              <button
-                type="button"
-                onClick={() => void handleSaveAttendance()}
-                disabled={isSaving || students.length === 0}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#138F81] px-5 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-[#138F81]/25 hover:bg-[#0f766a] transition-all disabled:opacity-50 cursor-pointer"
-              >
-                <Save size={16} />
-                <span>{isSaving ? 'Menyimpan...' : 'Simpan Presensi'}</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Filter & Quick Actions Card */}
-        <div className="rounded-3xl bg-white p-4 sm:p-5 shadow-sm ring-1 ring-slate-200 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Sub Header: Total Santri & Quick Buttons */}
+          <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
             {isReadOnlyMode ? (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-extrabold text-slate-600 mr-1">Rekap Hasil:</span>
+                <span className="text-xs font-extrabold text-slate-600 mr-1">
+                  Rekap Presensi ({students.length} Santri):
+                </span>
                 <span className="rounded-xl bg-emerald-100 border border-emerald-200 px-3 py-1 text-xs font-black text-emerald-800">
                   ✅ {summaryCount.hadir} Hadir
                 </span>
@@ -406,7 +373,7 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
             ) : (
               <div className="flex flex-wrap items-center justify-between gap-2 w-full">
                 <span className="text-xs sm:text-sm font-extrabold text-slate-700">
-                  Daftar Santri ({students.length} Santri)
+                  Daftar Santri ({students.length} Santri Terdaftar)
                 </span>
                 <div className="flex items-center gap-2">
                   <button
@@ -426,17 +393,6 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
                 </div>
               </div>
             )}
-
-            <div className="relative w-full">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input
-                type="text"
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50/60 py-2.5 pl-10 pr-4 text-xs sm:text-sm font-semibold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#138F81] outline-none transition-all"
-                placeholder="🔍 Cari nama santri / NIS / kamar..."
-                value={searchStudent}
-                onChange={(e) => setSearchStudent(e.target.value)}
-              />
-            </div>
           </div>
         </div>
 
@@ -456,12 +412,8 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
             <div className="rounded-3xl bg-white p-12 text-center text-slate-400 font-bold text-sm ring-1 ring-slate-200">
               Belum ada santri terdaftar di kelas {activeJadwal.kelas}.
             </div>
-          ) : filteredStudents.length === 0 ? (
-            <div className="rounded-3xl bg-white p-8 text-center text-xs font-bold text-slate-400 ring-1 ring-slate-200">
-              Tidak ada santri yang cocok dengan pencarian "{searchStudent}".
-            </div>
           ) : (
-            filteredStudents.map((siswa, idx) => {
+            students.map((siswa, idx) => {
               const sid = Number(siswa.id);
               const currentStatus = statuses[sid] || 'Hadir';
               const currentNote = notes[sid] || '';
