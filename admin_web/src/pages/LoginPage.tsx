@@ -60,19 +60,19 @@ export function LoginPage() {
           {/* FORM */}
           <form className="space-y-3.5 sm:space-y-4" onSubmit={handleSubmit}>
             
-            {/* USERNAME INPUT */}
+            {/* USERNAME INPUT (ANJLOK / 3D INSET PERSIS CONTOH) */}
             <div
-              className="relative rounded-2xl bg-[#f1f5f9] transition-all focus-within:ring-2 focus-within:ring-[#138F81]/40 border border-slate-200/70"
+              className="relative rounded-[22px] bg-[#edf2f7] transition-all focus-within:ring-2 focus-within:ring-[#138F81]/40 border border-transparent"
               style={{
-                boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.04)',
+                boxShadow: 'inset 4.5px 4.5px 9px #ccd6e2, inset -4.5px -4.5px 9px #ffffff',
               }}
             >
               <UserRound
-                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#7B8794]"
-                size={18}
+                className="pointer-events-none absolute left-4.5 top-1/2 -translate-y-1/2 text-[#7B8794]"
+                size={19}
               />
               <input
-                className="w-full bg-transparent pl-11 pr-4 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-[#2D3436] placeholder:text-[#9AA5B1] placeholder:font-normal outline-hidden"
+                className="w-full bg-transparent pl-12 pr-4 py-3.5 text-xs sm:text-sm font-bold text-[#2D3436] placeholder:text-[#9AA5B1] placeholder:font-normal outline-hidden"
                 value={identifier}
                 onChange={(event) => setIdentifier(event.target.value)}
                 autoComplete="username"
@@ -81,19 +81,19 @@ export function LoginPage() {
               />
             </div>
 
-            {/* PASSWORD INPUT */}
+            {/* PASSWORD INPUT (ANJLOK / 3D INSET PERSIS CONTOH) */}
             <div
-              className="relative rounded-2xl bg-[#f1f5f9] transition-all focus-within:ring-2 focus-within:ring-[#138F81]/40 border border-slate-200/70"
+              className="relative rounded-[22px] bg-[#edf2f7] transition-all focus-within:ring-2 focus-within:ring-[#138F81]/40 border border-transparent"
               style={{
-                boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.04)',
+                boxShadow: 'inset 4.5px 4.5px 9px #ccd6e2, inset -4.5px -4.5px 9px #ffffff',
               }}
             >
               <LockKeyhole
-                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#7B8794]"
-                size={18}
+                className="pointer-events-none absolute left-4.5 top-1/2 -translate-y-1/2 text-[#7B8794]"
+                size={19}
               />
               <input
-                className="w-full bg-transparent pl-11 pr-11 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-[#2D3436] placeholder:text-[#9AA5B1] placeholder:font-normal outline-hidden"
+                className="w-full bg-transparent pl-12 pr-12 py-3.5 text-xs sm:text-sm font-bold text-[#2D3436] placeholder:text-[#9AA5B1] placeholder:font-normal outline-hidden"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -102,12 +102,12 @@ export function LoginPage() {
                 required
               />
               <button
-                className="absolute right-3 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-xl text-[#7B8794] hover:text-[#2D3436] transition-colors cursor-pointer"
+                className="absolute right-3.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-xl text-[#7B8794] hover:text-[#2D3436] transition-colors cursor-pointer"
                 onClick={() => setShowPassword((value) => !value)}
                 type="button"
                 aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
               >
-                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
 
