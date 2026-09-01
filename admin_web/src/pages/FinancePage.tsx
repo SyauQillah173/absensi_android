@@ -329,20 +329,21 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
     }
   }
 
-  const isBendahara2 = session?.role === 'admin' && String(session?.admin_type || '').toLowerCase() === 'bendahara_2';
+  const adminType = String(session?.admin_type || '').toLowerCase();
+  const isBendahara1 = session?.role === 'admin' && (adminType === 'bendahara_1' || adminType === 'kasir');
 
   const visibleTabs = useMemo(() => {
-    if (isBendahara2) {
+    if (isBendahara1) {
       return tabs.filter((t) => ['today', 'history', 'student'].includes(t.id));
     }
     return tabs;
-  }, [isBendahara2]);
+  }, [isBendahara1]);
 
   useEffect(() => {
-    if (isBendahara2 && !['today', 'history', 'student'].includes(activeTab)) {
+    if (isBendahara1 && !['today', 'history', 'student'].includes(activeTab)) {
       setActiveTab('today');
     }
-  }, [isBendahara2, activeTab]);
+  }, [isBendahara1, activeTab]);
 
   const pageHeaderInfo = useMemo(() => {
     switch (activeTab) {

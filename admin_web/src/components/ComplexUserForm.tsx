@@ -54,6 +54,7 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
       const payload: ApiRecord = {
         name: String(form.name || '').trim(),
         email: String(form.email || '').trim(),
+        gender: String(form.gender || 'L').trim(),
         no_hp: String(form.no_hp || '').trim() || null,
         role: String(form.role || 'admin'),
         admin_type: form.role === 'admin' ? (String(form.admin_type || 'utama')) : null,
@@ -149,15 +150,24 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
                       <User size={16} /> Informasi Pribadi
                     </h3>
                     
-                    <label className="block">
-                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Nama Lengkap</span>
-                      <input className="q-input" name="name" value={String(form.name || '')} onChange={handleChange} required disabled={readOnly} />
-                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <label className="block">
+                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Nama Lengkap</span>
+                        <input className="q-input" name="name" value={String(form.name || '')} onChange={handleChange} required disabled={readOnly} />
+                      </label>
+                      <label className="block">
+                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Jenis Kelamin</span>
+                        <select className="q-input" name="gender" value={String(form.gender || 'L')} onChange={handleChange} disabled={readOnly}>
+                          <option value="L">Laki-laki (Ustadz / Ikhwan)</option>
+                          <option value="P">Perempuan (Ustadzah / Akhwat)</option>
+                        </select>
+                      </label>
+                    </div>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <label className="block">
-                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Email Akun</span>
-                        <input type="email" className="q-input" name="email" value={String(form.email || '')} onChange={handleChange} required disabled={readOnly} />
+                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Email Akun / Username Login</span>
+                        <input type="text" className="q-input" name="email" value={String(form.email || '')} onChange={handleChange} required disabled={readOnly} />
                       </label>
                       <label className="block">
                         <span className="mb-2 block text-sm font-bold text-[#636E72]">Nomor WhatsApp / HP</span>
@@ -202,27 +212,25 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
 
                       {(form.role === 'admin' || form.role === 'guru') && (
                         <label className="block sm:col-span-2">
-                          <span className="mb-2 block text-sm font-bold text-[#636E72]">{form.role === 'admin' ? 'Tipe Admin' : 'Hak Akses Spesifik Guru'}</span>
+                          <span className="mb-2 block text-sm font-bold text-[#636E72]">{form.role === 'admin' ? 'Tipe Admin / Jabatan' : 'Hak Akses Spesifik Guru'}</span>
                           <select className="q-input" name="admin_type" value={String(form.admin_type || (form.role === 'admin' ? 'utama' : 'umum'))} onChange={handleChange} disabled={readOnly}>
                             {form.role === 'admin' ? (
                               <>
-                                <option value="it">Admin IT (Super Admin & Full Stack)</option>
-                                <option value="pengurus">Admin Pengurus (Akses Penuh)</option>
-                                <option value="madrasah">Admin Madrasah (Pemantau Absensi Realtime)</option>
-                                <option value="bendahara_2">Admin Bendahara 2 (Kasir Santri)</option>
-                                <option value="keuangan">Admin Keuangan 1 (Bendahara Utama)</option>
-                                <option value="utama">Admin Utama (Akses Penuh)</option>
-                                <option value="akademik">Admin Akademik (Pelajaran & Nilai)</option>
-                                <option value="pondok">Admin Pondok (Asrama & Santri)</option>
-                                <option value="absensi">Admin Absensi (Rekap & Kehadiran)</option>
-                                <option value="lainnya">Lainnya / Terbatas</option>
+                                <option value="utama">👑 Admin Utama (Full Akses Seluruh Sistem)</option>
+                                <option value="bendahara_1">💵 Bendahara 1 (Input Transaksi & Tagihan Siswa Saja)</option>
+                                <option value="bendahara_2">💰 Bendahara 2 (Kepala Bendahara - Full Kas & Pengeluaran)</option>
+                                <option value="kepala_sekolah">🎓 Kepala Madrasah / Sekolah (Monitoring & Rekap Saja)</option>
+                                <option value="akademik">📚 Admin Akademik (KBM & Nilai)</option>
+                                <option value="pondok">🕌 Admin Pondok (Asrama & Santri)</option>
+                                <option value="absensi">📅 Admin Absensi (Rekap Kehadiran)</option>
+                                <option value="it">💻 Admin IT (Super Admin)</option>
                               </>
                             ) : (
                               <>
-                                <option value="umum">Guru Umum (Sesuai Hak Akses Default)</option>
+                                <option value="umum">Guru Umum (Sesuai Jadwal Mengajar)</option>
                                 <option value="madin">Guru Madin (Absensi Madin)</option>
                                 <option value="ngaji">Guru Ngaji Kitab (Absensi Ngaji)</option>
-                                <option value="sholat">Guru Pembina Sholat (Absensi Jama'ah)</option>
+                                <option value="sholat">Guru Pembina Sholat (Absensi Sholat)</option>
                                 <option value="asrama">Pembina Asrama / Musyrif</option>
                               </>
                             )}

@@ -307,6 +307,24 @@ export function AdminLayout({
 
     // 2. Role Bendahara: Khusus Transaksi & Kas Keuangan
     if (isTreasurer) {
+      const adminType = (session?.admin_type || '').toLowerCase();
+      const isBendahara1 = adminType === 'bendahara_1' || adminType === 'kasir';
+
+      const financeChildren = isBendahara1
+        ? [
+            { label: "💵 Transaksi Hari Ini", page: "keuangan" as PageKey, financeTab: "today" },
+            { label: "📜 Tagihan Santri (SPP)", page: "keuangan" as PageKey, financeTab: "student" },
+            { label: "🧾 Riwayat & Rekap", page: "keuangan" as PageKey, financeTab: "history" },
+          ]
+        : [
+            { label: "💵 Transaksi Hari Ini", page: "keuangan" as PageKey, financeTab: "today" },
+            { label: "📜 Tagihan Santri (SPP)", page: "keuangan" as PageKey, financeTab: "student" },
+            { label: "🧾 Riwayat Pembayaran", page: "keuangan" as PageKey, financeTab: "history" },
+            { label: "📥 Kas Masuk Lain", page: "keuangan" as PageKey, financeTab: "pemasukan_lain" },
+            { label: "📤 Pengeluaran Kas", page: "keuangan" as PageKey, financeTab: "pengeluaran" },
+            { label: "⚙️ Tipe & Tarif Tagihan", page: "keuangan" as PageKey, financeTab: "types" },
+          ];
+
       return [
         {
           key: "dashboard",
@@ -316,16 +334,9 @@ export function AdminLayout({
         },
         {
           key: "keuangan_menu",
-          label: "Keuangan & Kas",
+          label: isBendahara1 ? "Transaksi Santri" : "Keuangan & Kas",
           icon: WalletCards,
-          children: [
-            { label: "Transaksi Hari Ini", page: "keuangan", financeTab: "today" },
-            { label: "Tagihan Santri (SPP)", page: "keuangan", financeTab: "student" },
-            { label: "Riwayat Pembayaran", page: "keuangan", financeTab: "history" },
-            { label: "Kas Masuk Lain", page: "keuangan", financeTab: "pemasukan_lain" },
-            { label: "Pengeluaran Kas", page: "keuangan", financeTab: "pengeluaran" },
-            { label: "Tipe & Tarif Tagihan", page: "keuangan", financeTab: "types" },
-          ],
+          children: financeChildren,
         },
       ];
     }

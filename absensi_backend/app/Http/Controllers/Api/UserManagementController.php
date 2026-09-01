@@ -355,7 +355,7 @@ class UserManagementController extends Controller
             'email' => $emailRule,
             'role' => $roleRule,
             'role_id' => 'nullable|integer|exists:roles,id',
-            'admin_type' => 'nullable|in:utama,bendahara,akademik,pondok,absensi,lainnya',
+            'admin_type' => 'nullable|in:utama,bendahara,bendahara_1,bendahara_2,kasir,keuangan,madrasah,kepala_madrasah,kepala_sekolah,monitoring,akademik,pondok,absensi,it,pengurus,superadmin,umum,madin,ngaji,sholat,asrama,lainnya',
             'nis' => [
                 'nullable',
                 'string',
@@ -369,6 +369,7 @@ class UserManagementController extends Controller
                 Rule::unique('users', 'nisn')->ignore($user?->id),
             ],
             'jenis_kelamin' => 'nullable|in:L,P',
+            'gender' => 'nullable|in:L,P',
             'nik_user' => 'nullable|string|max:50',
             'no_hp' => [...$requiredRules, 'string', 'max:50'],
             'status' => [...$requiredRules, 'in:Aktif,Nonaktif'],
@@ -466,6 +467,10 @@ class UserManagementController extends Controller
             $validated['alamat'] = $validated['alamat'] ?? null;
             $validated['unit_kerja'] = null;
             $validated['kategori_guru'] = null;
+        }
+
+        if (isset($validated['gender']) && !isset($validated['jenis_kelamin'])) {
+            $validated['jenis_kelamin'] = $validated['gender'];
         }
 
         if (($validated['role'] ?? $existingUser?->role) === 'admin') {
