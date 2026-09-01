@@ -95,17 +95,20 @@ class ImportRealSantriData extends Command
             $this->line("1. " . $dataSementaraPath);
             $this->line("2. " . $eraBaruPath);
 
+            $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+            $reader->setReadDataOnly(true);
+
             // 1. Baca ERA BARU 2026 (Santri Mondok Putra)
-            $eraSpreadsheet = IOFactory::load($eraBaruPath);
+            $eraSpreadsheet = $reader->load($eraBaruPath);
             $eraSantri = [];
             foreach ($eraSpreadsheet->getSheetNames() as $sheetName) {
                 $sheet = $eraSpreadsheet->getSheetByName($sheetName);
                 $highestRow = $sheet->getHighestRow();
                 $currentKamar = '';
                 for ($r = 2; $r <= $highestRow; $r++) {
-                    $kamarVal = trim($sheet->getCell("A{$r}")->getFormattedValue());
-                    $namaVal = trim($sheet->getCell("C{$r}")->getFormattedValue());
-                    $kelasVal = trim($sheet->getCell("D{$r}")->getFormattedValue());
+                    $kamarVal = trim((string)$sheet->getCell("A{$r}")->getValue());
+                    $namaVal = trim((string)$sheet->getCell("C{$r}")->getValue());
+                    $kelasVal = trim((string)$sheet->getCell("D{$r}")->getValue());
                     if ($kamarVal !== '') $currentKamar = $kamarVal;
                     if ($namaVal !== '') {
                         $key = $this->normName($namaVal);
@@ -120,7 +123,7 @@ class ImportRealSantriData extends Command
             }
 
             // 2. Baca data sementara.xlsx
-            $dataSpreadsheet = IOFactory::load($dataSementaraPath);
+            $dataSpreadsheet = $reader->load($dataSementaraPath);
             $nisCounter = 1;
 
             foreach (['putra', 'putri'] as $sheetName) {
@@ -130,26 +133,26 @@ class ImportRealSantriData extends Command
                 $isPutra = ($sheetName === 'putra');
 
                 for ($r = 1; $r <= $highestRow; $r++) {
-                    $nama = trim($sheet->getCell("A{$r}")->getFormattedValue());
+                    $nama = trim((string)$sheet->getCell("A{$r}")->getValue());
                     if ($nama === '' || strtoupper($nama) === 'NAMA' || strtoupper($nama) === 'NAMA LENGKAP') continue;
 
                     $key = $this->normName($nama);
                     $jk = $isPutra ? 'L' : 'P';
-                    $nisn = trim($sheet->getCell("C{$r}")->getFormattedValue()) ?: null;
-                    $nik = trim($sheet->getCell("D{$r}")->getFormattedValue()) ?: null;
-                    $sekolahTujuan = trim($sheet->getCell("S{$r}")->getFormattedValue()) ?: null;
-                    $waWali = trim($sheet->getCell("AI{$r}")->getFormattedValue()) ?: null;
-                    $emailWali = trim($sheet->getCell("AJ{$r}")->getFormattedValue()) ?: null;
+                    $nisn = trim((string)$sheet->getCell("C{$r}")->getValue()) ?: null;
+                    $nik = trim((string)$sheet->getCell("D{$r}")->getValue()) ?: null;
+                    $sekolahTujuan = trim((string)$sheet->getCell("S{$r}")->getValue()) ?: null;
+                    $waWali = trim((string)$sheet->getCell("AI{$r}")->getValue()) ?: null;
+                    $emailWali = trim((string)$sheet->getCell("AJ{$r}")->getValue()) ?: null;
 
-                    $alamatJalan = trim($sheet->getCell("E{$r}")->getFormattedValue());
-                    $rt = trim($sheet->getCell("F{$r}")->getFormattedValue());
-                    $rw = trim($sheet->getCell("G{$r}")->getFormattedValue());
-                    $dusun = trim($sheet->getCell("H{$r}")->getFormattedValue());
-                    $desa = trim($sheet->getCell("I{$r}")->getFormattedValue());
-                    $kec = trim($sheet->getCell("J{$r}")->getFormattedValue());
-                    $kab = trim($sheet->getCell("K{$r}")->getFormattedValue());
-                    $kodePos = trim($sheet->getCell("L{$r}")->getFormattedValue());
-                    $prov = trim($sheet->getCell("M{$r}")->getFormattedValue());
+                    $alamatJalan = trim((string)$sheet->getCell("E{$r}")->getValue());
+                    $rt = trim((string)$sheet->getCell("F{$r}")->getValue());
+                    $rw = trim((string)$sheet->getCell("G{$r}")->getValue());
+                    $dusun = trim((string)$sheet->getCell("H{$r}")->getValue());
+                    $desa = trim((string)$sheet->getCell("I{$r}")->getValue());
+                    $kec = trim((string)$sheet->getCell("J{$r}")->getValue());
+                    $kab = trim((string)$sheet->getCell("K{$r}")->getValue());
+                    $kodePos = trim((string)$sheet->getCell("L{$r}")->getValue());
+                    $prov = trim((string)$sheet->getCell("M{$r}")->getValue());
 
                     $fullAlamat = implode(', ', array_filter([$alamatJalan, ($rt || $rw) ? "RT {$rt} / RW {$rw}" : null, $dusun, $desa, $kec, $kab, $prov]));
 
@@ -170,11 +173,11 @@ class ImportRealSantriData extends Command
                         'jenis_kelamin' => $jk,
                         'nisn' => $nisn,
                         'nik' => $nik,
-                        'tempat_lahir' => trim($sheet->getCell("N{$r}")->getFormattedValue()) ?: null,
-                        'tanggal_lahir' => $this->parseDateValue($sheet->getCell("O{$r}")->getFormattedValue()),
-                        'anak_ke' => (int)trim($sheet->getCell("P{$r}")->getFormattedValue()) ?: null,
-                        'asal_sekolah' => trim($sheet->getCell("Q{$r}")->getFormattedValue()) ?: null,
-                        'tahun_lulus' => trim($sheet->getCell("R{$r}")->getFormattedValue()) ?: null,
+                        'tempat_lahir' => trim((string)$sheet->getCell("N{$r}")->getValue()) ?: null,
+                        'tanggal_lahir' => $this->parseDateValue($sheet->getCell("O{$r}")->getValue()),
+                        'anak_ke' => (int)trim((string)$sheet->getCell("P{$r}")->getValue()) ?: null,
+                        'asal_sekolah' => trim((string)$sheet->getCell("Q{$r}")->getValue()) ?: null,
+                        'tahun_lulus' => trim((string)$sheet->getCell("R{$r}")->getValue()) ?: null,
                         'kelas' => $kelasFormal ?: $sekolahTujuan,
                         'alamat' => $fullAlamat ?: 'Pondok Pesantren Qomaruddin',
                         'provinsi' => $prov ?: 'Jawa Timur',
@@ -182,15 +185,15 @@ class ImportRealSantriData extends Command
                         'kecamatan' => $kec ?: null,
                         'kelurahan' => $desa ?: null,
                         'kode_pos' => $kodePos ?: null,
-                        'nama_ayah' => trim($sheet->getCell("Y{$r}")->getFormattedValue()) ?: null,
-                        'tempat_lahir_ayah' => trim($sheet->getCell("Z{$r}")->getFormattedValue()) ?: null,
-                        'pekerjaan_ayah' => trim($sheet->getCell("AB{$r}")->getFormattedValue()) ?: null,
-                        'pendidikan_ayah' => trim($sheet->getCell("AC{$r}")->getFormattedValue()) ?: null,
-                        'nama_ibu' => trim($sheet->getCell("AD{$r}")->getFormattedValue()) ?: null,
-                        'tempat_lahir_ibu' => trim($sheet->getCell("AE{$r}")->getFormattedValue()) ?: null,
-                        'pekerjaan_ibu' => trim($sheet->getCell("AG{$r}")->getFormattedValue()) ?: null,
-                        'pendidikan_ibu' => trim($sheet->getCell("AH{$r}")->getFormattedValue()) ?: null,
-                        'nama_wali' => trim($sheet->getCell("Y{$r}")->getFormattedValue()) ?: (trim($sheet->getCell("AD{$r}")->getFormattedValue()) ?: 'Wali ' . $nama),
+                        'nama_ayah' => trim((string)$sheet->getCell("Y{$r}")->getValue()) ?: null,
+                        'tempat_lahir_ayah' => trim((string)$sheet->getCell("Z{$r}")->getValue()) ?: null,
+                        'pekerjaan_ayah' => trim((string)$sheet->getCell("AB{$r}")->getValue()) ?: null,
+                        'pendidikan_ayah' => trim((string)$sheet->getCell("AC{$r}")->getValue()) ?: null,
+                        'nama_ibu' => trim((string)$sheet->getCell("AD{$r}")->getValue()) ?: null,
+                        'tempat_lahir_ibu' => trim((string)$sheet->getCell("AE{$r}")->getValue()) ?: null,
+                        'pekerjaan_ibu' => trim((string)$sheet->getCell("AG{$r}")->getValue()) ?: null,
+                        'pendidikan_ibu' => trim((string)$sheet->getCell("AH{$r}")->getValue()) ?: null,
+                        'nama_wali' => trim((string)$sheet->getCell("Y{$r}")->getValue()) ?: (trim((string)$sheet->getCell("AD{$r}")->getValue()) ?: 'Wali ' . $nama),
                         'no_telepon_wali' => $waWali,
                         'email_wali' => $emailWali,
                         'kamar' => $kamar,
