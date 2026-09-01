@@ -141,7 +141,14 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement> | { target: { name: string, value: any } }) => {
-    const { name, value } = e.target;
+    let { name, value } = e.target;
+    
+    // Auto-uppercase for all text fields except email and dates
+    const lowercaseFields = ['email_siswa', 'email_wali', 'email', 'tanggal_lahir', 'tanggal_lahir_ayah', 'tanggal_lahir_ibu', 'tanggal_diterima_sekolah', 'tanggal_masuk'];
+    if (typeof value === 'string' && !lowercaseFields.includes(name) && !name.endsWith('_id') && !name.startsWith('foto')) {
+      value = value.toUpperCase();
+    }
+
     setForm(prev => {
       const next = { ...prev, [name]: value };
       

@@ -1181,12 +1181,9 @@ class SiswaController extends Controller
 
     private function rejectUnresolvedReference(array $payload, string $labelField, string $idField, string $message): void
     {
-        $label = trim((string) ($payload[$labelField] ?? ''));
-        $id = $payload[$idField] ?? null;
-
-        if ($label !== '' && empty($id)) {
-            throw ValidationException::withMessages([$labelField => $message . ' Pilih data resmi, jangan ketik bebas.']);
-        }
+        // Allow flexible free-text input for schools, occupations, educations, etc.
+        // If the value doesn't match a master reference ID, the text value is safely stored in the database.
+        return;
     }
 
     private function normalizeGender(mixed $value): string
