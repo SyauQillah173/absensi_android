@@ -49,7 +49,11 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
   const isFirstTab = currentTabIndex === 0;
   const isLastTab = currentTabIndex === tabList.length - 1;
 
-  const handleNext = () => {
+  const handleNext = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (activeTab === 'siswa') {
       if (!form.nama || !String(form.nama).trim()) {
         setError('Nama Lengkap siswa wajib diisi.');
@@ -67,7 +71,11 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
     }
   };
 
-  const handlePrev = () => {
+  const handlePrev = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     setError('');
     if (currentTabIndex > 0) {
       setActiveTab(tabList[currentTabIndex - 1].key);
@@ -210,8 +218,11 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (isSaving) return;
     setIsSaving(true);
     setError('');
@@ -297,7 +308,7 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
             <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-white q-scrollbar">
               {error ? <div className="mb-6 rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031] border border-rose-100">{error}</div> : null}
               
-              <form id="complex-siswa-form" onSubmit={handleSubmit} className="space-y-8 pb-10">
+              <form id="complex-siswa-form" onSubmit={(e) => { e.preventDefault(); e.stopPropagation(); }} className="space-y-8 pb-10">
                 <fieldset disabled={readOnly} className="space-y-8">
                   {/* Section I */}
                 <div className={activeTab === 'siswa' ? 'block' : 'hidden'}>
@@ -800,8 +811,9 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
 
               {!isLastTab ? (
                 <button
+                  key={`btn-next-${activeTab}`}
                   type="button"
-                  onClick={handleNext}
+                  onClick={(e) => handleNext(e)}
                   disabled={isSaving || isSuccess}
                   className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-6 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors"
                 >
@@ -811,8 +823,9 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
               ) : (
                 !readOnly ? (
                   <button
-                    type="submit"
-                    form="complex-siswa-form"
+                    key="btn-save-santri-final"
+                    type="button"
+                    onClick={(e) => void handleSubmit(e)}
                     disabled={isSaving || isSuccess}
                     className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-8 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors disabled:opacity-70"
                   >
@@ -821,6 +834,7 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                   </button>
                 ) : (
                   <button
+                    key="btn-finish-detail"
                     type="button"
                     onClick={onClose}
                     className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-8 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors"
