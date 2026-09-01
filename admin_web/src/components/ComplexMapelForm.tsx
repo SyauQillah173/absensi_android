@@ -1,4 +1,4 @@
-import { BookOpen, Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock3, GraduationCap, Plus, Save, Trash2, UsersRound, X } from 'lucide-react';
+import { BookOpen, Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock3, GraduationCap, Pencil, Plus, Save, Trash2, UsersRound, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, type ApiRecord } from '../services/api';
 
@@ -66,6 +66,7 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
   const [teachers, setTeachers] = useState<ApiRecord[]>([]);
   const [classes, setClasses] = useState<ApiRecord[]>([]);
   const [activeTab, setActiveTab] = useState<'mapel' | 'jadwal'>('mapel');
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   // New Schedule Draft State
   const [newSchedule, setNewSchedule] = useState<{
@@ -136,7 +137,33 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
     scrollToTop();
   }, [activeTab]);
 
-  const handleAddSchedule = () => {
+  const handleEditSchedule = (index: number) => {
+    const item = form.jadwals[index];
+    if (!item) return;
+
+    setEditingIndex(index);
+    setNewSchedule({
+      hari: item.hari,
+      jam_mulai: item.jam_mulai.length >= 5 ? item.jam_mulai.slice(0, 5) : item.jam_mulai,
+      jam_selesai: item.jam_selesai.length >= 5 ? item.jam_selesai.slice(0, 5) : item.jam_selesai,
+      class_id: item.class_id ? String(item.class_id) : '',
+      sifir: item.sifir || '',
+      teacher_id: item.teacher_id ? String(item.teacher_id) : '',
+      ruangan: item.ruangan || '',
+    });
+
+    scrollToTop();
+  };
+
+  const handleCancelEditSchedule = () => {
+    setEditingIndex(null);
+    setNewSchedule((prev) => ({
+      ...prev,
+      ruangan: '',
+    }));
+  };
+
+  const handleSaveScheduleSlot = () => {
     setError('');
     if (!newSchedule.jam_mulai || !newSchedule.jam_selesai) {
       setError('Jam mulai dan jam selesai jadwal wajib diisi.');
@@ -151,6 +178,7 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
     const selTeacher = teachers.find((t) => String(t.id) === String(newSchedule.teacher_id));
 
     const item: ScheduleItem = {
+      ...(editingIndex !== null && form.jadwals[editingIndex]?.id ? { id: form.jadwals[editingIndex].id } : {}),
       hari: newSchedule.hari,
       jam_mulai: newSchedule.jam_mulai,
       jam_selesai: newSchedule.jam_selesai,
@@ -162,10 +190,17 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
       status: 'Aktif',
     };
 
-    setForm((prev) => ({
-      ...prev,
-      jadwals: [...prev.jadwals, item],
-    }));
+    setForm((prev) => {
+      if (editingIndex !== null) {
+        const nextList = [...prev.jadwals];
+        nextList[editingIndex] = item;
+        return { ...prev, jadwals: nextList };
+      } else {
+        return { ...prev, jadwals: [...prev.jadwals, item] };
+      }
+    });
+
+    setEditingIndex(null);
 
     // Reset draft fields except day & class for easy consecutive entry
     setNewSchedule((prev) => ({
@@ -175,6 +210,9 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
   };
 
   const handleRemoveSchedule = (index: number) => {
+    if (editingIndex === index) {
+      setEditingIndex(null);
+    }
     setForm((prev) => ({
       ...prev,
       jadwals: prev.jadwals.filter((_, i) => i !== index),
@@ -412,15 +450,28 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
           {/* TAB 2: JADWAL & JAM PELAJARAN */}
           {activeTab === 'jadwal' && (
             <div className="max-w-4xl space-y-6 animate-in fade-in duration-200">
-              {/* Form Tambah Slot Jadwal */}
-              <div className="rounded-2xl border border-teal-200/80 bg-teal-50/40 p-5 sm:p-6 space-y-4">
-                <div className="flex items-center justify-between">
+              {/* Form Tambah / Edit Slot Jadwal */}
+              <div className={`rounded-2xl border p-5 sm:p-6 space-y-4 transition-all ${
+                editingIndex !== null
+                  ? 'border-amber-300 bg-amber-50/40 ring-1 ring-amber-300/60'
+                  : 'border-teal-200/80 bg-teal-50/40'
+              }`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-sm sm:text-base font-extrabold text-[#138F81] flex items-center gap-2">
-                    <Plus size={18} /> Atur / Tambah Slot Jadwal Baru
+                    {editingIndex !== null ? <Pencil size={18} className="text-amber-600" /> : <Plus size={18} />}
+                    <span className={editingIndex !== null ? 'text-amber-900' : ''}>
+                      {editingIndex !== null ? 'Edit Slot Jadwal KBM' : 'Atur / Tambah Slot Jadwal Baru'}
+                    </span>
                   </h3>
-                  <span className="text-xs font-semibold text-slate-500">
-                    Mata Pelajaran: <b className="text-slate-800">{form.nama || '(Isi di Tab I)'}</b>
-                  </span>
+                  {editingIndex !== null ? (
+                    <span className="rounded-lg bg-amber-100/90 border border-amber-300 px-2.5 py-1 text-xs font-black text-amber-900 animate-pulse">
+                      ✏️ Sedang Mengedit Jadwal #{editingIndex + 1}
+                    </span>
+                  ) : (
+                    <span className="text-xs font-semibold text-slate-500">
+                      Mata Pelajaran: <b className="text-slate-800">{form.nama || '(Isi di Tab I)'}</b>
+                    </span>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
@@ -524,13 +575,30 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
                   </div>
                 </div>
 
-                <div className="flex justify-end pt-1">
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  {editingIndex !== null && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEditSchedule}
+                      className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
+                    >
+                      Batal Edit
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={handleAddSchedule}
-                    className="inline-flex items-center gap-2 rounded-xl bg-[#138F81] px-4 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-[#138F81]/25 hover:bg-[#0f766a] transition-all"
+                    onClick={handleSaveScheduleSlot}
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#138F81] px-4 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-[#138F81]/25 hover:bg-[#0f766a] transition-all cursor-pointer"
                   >
-                    <Plus size={16} /> Tambahkan ke Daftar Jadwal
+                    {editingIndex !== null ? (
+                      <>
+                        <Save size={16} /> Simpan Perubahan Jadwal
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={16} /> Tambahkan ke Daftar Jadwal
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -559,10 +627,16 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
                     {form.jadwals.map((jadwal, idx) => (
                       <div
                         key={idx}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:border-slate-300 transition-all"
+                        className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 shadow-sm transition-all ${
+                          editingIndex === idx
+                            ? 'bg-amber-50/60 border-amber-300 ring-2 ring-amber-300'
+                            : 'bg-white border-slate-200 hover:border-slate-300'
+                        }`}
                       >
                         <div className="flex items-center gap-3.5">
-                          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-teal-50 text-[#138F81] font-black text-xs">
+                          <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl font-black text-xs ${
+                            editingIndex === idx ? 'bg-amber-200 text-amber-900' : 'bg-teal-50 text-[#138F81]'
+                          }`}>
                             {jadwal.hari.slice(0, 3)}
                           </div>
                           <div>
@@ -586,14 +660,28 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveSchedule(idx)}
-                          className="grid h-8 w-8 place-items-center rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-colors"
-                          title="Hapus slot jadwal ini"
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleEditSchedule(idx)}
+                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
+                              editingIndex === idx
+                                ? 'bg-amber-600 text-white shadow-xs'
+                                : 'bg-[#EAF4FF] text-[#2E86DE] hover:bg-[#d8ecff]'
+                            }`}
+                            title="Edit slot jadwal ini"
+                          >
+                            <Pencil size={13} /> Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSchedule(idx)}
+                            className="grid h-8 w-8 place-items-center rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-colors cursor-pointer"
+                            title="Hapus slot jadwal ini"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

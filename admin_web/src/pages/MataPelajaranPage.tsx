@@ -22,6 +22,62 @@ function list(value: unknown): ApiRecord[] {
   return Array.isArray(value) ? (value as ApiRecord[]) : [];
 }
 
+function formatTime(val: unknown): string {
+  const str = String(val ?? '').trim();
+  if (str.length >= 5) return str.slice(0, 5);
+  return str;
+}
+
+function CompactJadwalCell({ jadwals }: { jadwals: ApiRecord[] }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  if (!jadwals.length) {
+    return <span className="text-xs font-semibold text-slate-400 italic">Belum ada jadwal</span>;
+  }
+
+  const renderItem = (j: ApiRecord, idx: number) => {
+    const hari = text(j.hari);
+    const jamMulai = formatTime(j.jam_mulai);
+    const jamSelesai = formatTime(j.jam_selesai);
+    const sifir = text(j.sifir ?? (j.class as ApiRecord)?.name);
+
+    return (
+      <span
+        key={idx}
+        className="inline-flex items-center gap-1 rounded-lg bg-teal-50/90 border border-teal-200/80 px-2 py-0.5 text-[11px] font-bold text-teal-900 shadow-xs"
+      >
+        <span className="font-extrabold text-[#138F81]">{hari}</span>
+        <span className="text-slate-600 font-mono text-[10px]">({jamMulai}-{jamSelesai})</span>
+        <span className="text-slate-700">• {sifir}</span>
+      </span>
+    );
+  };
+
+  if (jadwals.length <= 2) {
+    return (
+      <div className="flex flex-wrap gap-1.5 max-w-sm">
+        {jadwals.map(renderItem)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5 max-w-sm">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {isExpanded ? jadwals.map(renderItem) : jadwals.slice(0, 2).map(renderItem)}
+        
+        <button
+          type="button"
+          onClick={() => setIsExpanded((prev) => !prev)}
+          className="inline-flex items-center gap-1 rounded-lg bg-teal-100/80 hover:bg-teal-200 text-teal-900 px-2 py-0.5 text-[10px] font-black transition-colors cursor-pointer"
+        >
+          {isExpanded ? '▲ Ringkas' : `+${jadwals.length - 2} Lainnya...`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function MataPelajaranPage() {
   const [rows, setRows] = useState<ApiRecord[]>([]);
   const [search, setSearch] = useState('');
@@ -118,24 +174,7 @@ export function MataPelajaranPage() {
       {
         key: 'jadwal',
         header: 'Susunan Jadwal KBM',
-        render: (row) => {
-          const jadwals = list(row.jadwal);
-          if (!jadwals.length) {
-            return <span className="text-xs font-semibold text-slate-400 italic">Belum ada jadwal</span>;
-          }
-          return (
-            <div className="flex flex-wrap gap-1.5 max-w-sm">
-              {jadwals.map((j, idx) => (
-                <span
-                  key={idx}
-                  className="rounded-lg bg-teal-50 border border-teal-200 px-2 py-1 text-[11px] font-bold text-teal-900"
-                >
-                  <b>{text(j.hari)}</b> ({text(j.jam_mulai)} - {text(j.jam_selesai)}) • {text(j.sifir ?? (j.class as ApiRecord)?.name)}
-                </span>
-              ))}
-            </div>
-          );
-        },
+        render: (row) => <CompactJadwalCell jadwals={list(row.jadwal)} />,
       },
       {
         key: 'status',

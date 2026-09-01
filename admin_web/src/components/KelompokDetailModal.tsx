@@ -23,73 +23,94 @@ export function KelompokDetailModal({ data, onClose }: KelompokDetailModalProps)
     const kw = search.toLowerCase().trim();
     if (!kw) return rawSiswaList;
     return rawSiswaList.filter((s) =>
-      `${s.nama ?? ''} ${s.nis ?? ''} ${s.nisn ?? ''} ${s.kamar ?? ''}`.toLowerCase().includes(kw)
+      `${s.nama ?? ''} ${s.nis ?? ''} ${s.nisn ?? ''} ${s.kamar ?? ''} ${s.sekolah_formal ?? ''}`.toLowerCase().includes(kw)
     );
   }, [rawSiswaList, search]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="flex flex-col max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200">
-        {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-gradient-to-r from-teal-500/10 via-emerald-500/5 to-transparent px-6 py-5">
-          <div className="flex items-center gap-3.5">
-            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#138F81] text-white shadow-lg shadow-[#138F81]/25">
-              <BookOpen size={24} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="flex flex-col max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200">
+        
+        {/* Modern Modal Header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-5 py-4 sm:px-6 sm:py-4.5">
+          <div className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-teal-50 text-[#138F81] border border-teal-100 shadow-xs">
+              <BookOpen size={22} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-xl font-extrabold text-slate-800">{text(data.nama)}</h3>
-                <span className="rounded-md bg-teal-100 px-2.5 py-0.5 text-xs font-black text-teal-800">
+                <h3 className="text-lg sm:text-xl font-extrabold text-slate-800">{text(data.nama)}</h3>
+                <span className="rounded-md bg-teal-50 border border-teal-200 px-2 py-0.5 text-xs font-black text-[#138F81]">
                   {text(data.kategori, 'Kelompok')}
                 </span>
               </div>
               <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                Level/Sifir: <b>{text(data.sifir)}</b> • Total <b>{rawSiswaList.length} Santri</b> terdaftar
+                Detail data kelompok belajar & daftar anggota santri aktif
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+            className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
           >
             <X size={18} />
           </button>
         </div>
 
+        {/* Top Info Cards (Consistent with Data Santri Detail style) */}
+        <div className="bg-slate-50/70 border-b border-slate-200 p-4 sm:p-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-2xl bg-white p-3.5 border border-slate-200/80 shadow-xs">
+            <p className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500">Nama Kelompok</p>
+            <p className="mt-1 text-xs sm:text-sm font-extrabold text-slate-800 truncate">{text(data.nama)}</p>
+          </div>
+          <div className="rounded-2xl bg-white p-3.5 border border-slate-200/80 shadow-xs">
+            <p className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500">Sifir / Level</p>
+            <p className="mt-1 text-xs sm:text-sm font-extrabold text-[#138F81]">{text(data.sifir)}</p>
+          </div>
+          <div className="rounded-2xl bg-white p-3.5 border border-slate-200/80 shadow-xs">
+            <p className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500">Kategori</p>
+            <p className="mt-1 text-xs sm:text-sm font-extrabold text-slate-800">{text(data.kategori)}</p>
+          </div>
+          <div className="rounded-2xl bg-white p-3.5 border border-slate-200/80 shadow-xs">
+            <p className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500">Total Santri</p>
+            <p className="mt-1 text-xs sm:text-sm font-extrabold text-slate-800">👥 {rawSiswaList.length} Santri</p>
+          </div>
+        </div>
+
         {/* Search Bar */}
-        <div className="border-b border-slate-100 bg-slate-50/70 px-6 py-3.5 flex items-center justify-between gap-3">
+        <div className="border-b border-slate-200 bg-white px-5 py-3 sm:px-6 flex flex-wrap items-center justify-between gap-3">
           <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
             <input
               type="text"
-              className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3.5 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:border-[#138F81] outline-none"
-              placeholder="Cari santri di kelompok ini..."
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/60 py-2 pl-9 pr-3.5 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:border-[#138F81] focus:bg-white outline-none transition-colors"
+              placeholder="🔍 Cari nama santri / NIS / kamar..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <span className="text-xs font-bold text-slate-500">
-            Menampilkan {filteredStudents.length} dari {rawSiswaList.length} santri
+            Menampilkan <b>{filteredStudents.length}</b> dari {rawSiswaList.length} santri
           </span>
         </div>
 
         {/* Student Table */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/40">
           {rawSiswaList.length === 0 ? (
-            <div className="py-12 text-center text-slate-400">
+            <div className="py-12 text-center text-slate-400 rounded-2xl border border-dashed border-slate-200 bg-white p-8">
               <Users className="mx-auto mb-2 text-slate-300" size={36} />
               <p className="text-sm font-bold text-slate-600">Belum ada santri di kelompok belajar ini.</p>
               <p className="text-xs text-slate-400 mt-0.5">
-                Klik tombol <b>Edit</b> pada tabel untuk menambahkan santri ke dalam kelompok ini.
+                Klik tombol <b>Edit</b> pada tabel kelompok untuk menambahkan santri.
               </p>
             </div>
           ) : filteredStudents.length === 0 ? (
-            <div className="py-8 text-center text-xs font-bold text-slate-400">
+            <div className="py-8 text-center text-xs font-bold text-slate-400 rounded-2xl bg-white border border-slate-200 p-6">
               Tidak ada santri yang cocok dengan pencarian "{search}".
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-600 font-extrabold uppercase tracking-wider border-b border-slate-200">
                   <tr>
@@ -106,7 +127,14 @@ export function KelompokDetailModal({ data, onClose }: KelompokDetailModalProps)
                     <tr key={String(siswa.id ?? idx)} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-4 py-3 text-center text-slate-400 font-bold">{idx + 1}</td>
                       <td className="px-4 py-3 font-mono font-bold text-slate-800">{text(siswa.nis)}</td>
-                      <td className="px-4 py-3 font-extrabold text-slate-900">{text(siswa.nama)}</td>
+                      <td className="px-4 py-3">
+                        <span className="font-extrabold text-slate-900 block">{text(siswa.nama)}</span>
+                        {siswa.sekolah_formal ? (
+                          <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.2 rounded mt-0.5 inline-block border border-teal-200/60">
+                            🏫 {text(siswa.sekolah_formal)}
+                          </span>
+                        ) : null}
+                      </td>
                       <td className="px-4 py-3 text-center">
                         <span
                           className={`rounded-md px-2 py-0.5 text-[11px] font-black ${
@@ -132,12 +160,12 @@ export function KelompokDetailModal({ data, onClose }: KelompokDetailModalProps)
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex shrink-0 justify-end border-t border-slate-200 bg-slate-50/50 px-6 py-4">
+        {/* Modern Brand Footer */}
+        <div className="flex shrink-0 justify-end border-t border-slate-200 bg-white px-5 py-3.5 sm:px-6 sm:py-4">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl bg-slate-800 px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-slate-700 transition-colors"
+            className="rounded-2xl bg-[#138F81] px-6 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-[#138F81]/25 hover:bg-[#0f766a] transition-all cursor-pointer"
           >
             Tutup
           </button>
