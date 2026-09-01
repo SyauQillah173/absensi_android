@@ -2,13 +2,16 @@ import {
   AlertCircle,
   BookOpen,
   Calendar,
+  CalendarCheck,
   CheckCircle2,
   Clock3,
+  Eye,
   GraduationCap,
   Lock,
   Play,
   RefreshCw,
   Save,
+  Search,
   UsersRound,
   X
 } from 'lucide-react';
@@ -91,13 +94,15 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
 
   // 1-Click Modal Presensi state
   const [activeJadwal, setActiveJadwal] = useState<ScheduleCardData | null>(null);
+  const [isReadOnlyMode, setIsReadOnlyMode] = useState(false);
+  const [searchStudent, setSearchStudent] = useState('');
   const [students, setStudents] = useState<ApiRecord[]>([]);
   const [statuses, setStatuses] = useState<Record<number, MadinStatus>>({});
   const [notes, setNotes] = useState<Record<number, string>>({});
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
   const [modalError, setModalError] = useState('');
+  const [toastMessage, setToastMessage] = useState<{ title: string; subtitle: string } | null>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
@@ -159,27 +164,52 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
   const stats = dashboard?.stats as ApiRecord | undefined;
 
   // Open 1-Click Attendance Modal
-  const openAttendanceModal = async (jadwal: ScheduleCardData) => {
+  const openAttendanceModal = async (jadwal: ScheduleCardData, isReadOnly = false) => {
     setActiveJadwal(jadwal);
+    const readOnly = isReadOnly || Boolean(jadwal.is_done);
+    setIsReadOnlyMode(readOnly);
     setModalError('');
+    setSearchStudent('');
     setIsLoadingStudents(true);
     try {
-      // Load students in this class
+      const todayStr = new Date().toISOString().slice(0, 10);
       const classId = jadwal.class_id;
-      const res = classId
-        ? await api.siswa({ class_id: classId, status: 'Aktif' })
-        : await api.siswa({ status: 'Aktif' });
 
-      const rawList = Array.isArray(res.data) ? (res.data as ApiRecord[]) : [];
+      // Parallel fetch students and attendance records if done
+      const [siswaRes, absensiRes] = await Promise.all([
+        classId
+          ? api.siswa({ class_id: classId, status: 'Aktif' })
+          : api.siswa({ status: 'Aktif' }),
+        readOnly
+          ? api.absensi({ class_id: classId, mapel_id: jadwal.mapel_id, tanggal: todayStr, jadwal_id: jadwal.id })
+          : Promise.resolve({ data: [] })
+      ]);
+
+      const rawList = Array.isArray(siswaRes.data) ? (siswaRes.data as ApiRecord[]) : [];
+      const savedLogs = Array.isArray(absensiRes.data) ? (absensiRes.data as ApiRecord[]) : [];
+
       setStudents(rawList);
 
-      // Default all to "Hadir"
       const initStatuses: Record<number, MadinStatus> = {};
-      rawList.forEach((s) => {
-        if (s.id) initStatuses[Number(s.id)] = 'Hadir';
-      });
+      const initNotes: Record<number, string> = {};
+
+      if (savedLogs.length > 0) {
+        savedLogs.forEach((log) => {
+          const sid = Number(log.siswa_id);
+          const st = String(log.status ?? 'Hadir');
+          initStatuses[sid] = (st === 'H' || st === 'Hadir') ? 'Hadir' : (st === 'I' || st === 'Izin') ? 'Izin' : (st === 'S' || st === 'Sakit') ? 'Sakit' : 'Alfa';
+          if (log.keterangan || log.catatan) {
+            initNotes[sid] = String(log.keterangan || log.catatan);
+          }
+        });
+      } else {
+        rawList.forEach((s) => {
+          if (s.id) initStatuses[Number(s.id)] = 'Hadir';
+        });
+      }
+
       setStatuses(initStatuses);
-      setNotes({});
+      setNotes(initNotes);
     } catch (err) {
       setModalError(err instanceof Error ? err.message : 'Gagal memuat daftar santri.');
     } finally {
@@ -188,6 +218,7 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
   };
 
   const setAllStatus = (st: MadinStatus) => {
+    if (isReadOnlyMode) return;
     const next: Record<number, MadinStatus> = {};
     students.forEach((s) => {
       if (s.id) next[Number(s.id)] = st;
@@ -196,7 +227,7 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
   };
 
   const handleSaveAttendance = async () => {
-    if (!activeJadwal || isSaving) return;
+    if (!activeJadwal || isSaving || isReadOnlyMode) return;
     setIsSaving(true);
     setModalError('');
 
@@ -221,32 +252,68 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
         absensi: items
       });
 
-      setIsSuccess(true);
+      // Show top-right toast
+      setToastMessage({
+        title: 'Presensi Berhasil Disimpan!',
+        subtitle: `Data absensi ${activeJadwal.mapel} telah tersimpan dan status terkunci.`
+      });
+
+      setActiveJadwal(null);
+      void load(true);
+
       setTimeout(() => {
-        setIsSuccess(false);
-        setActiveJadwal(null);
-        void load(true);
-      }, 1200);
+        setToastMessage(null);
+      }, 3500);
     } catch (err) {
       setModalError(err instanceof Error ? err.message : 'Gagal menyimpan absensi santri.');
       setIsSaving(false);
     }
   };
 
+  const filteredStudents = useMemo(() => {
+    const kw = searchStudent.toLowerCase().trim();
+    if (!kw) return students;
+    return students.filter((s) =>
+      `${s.nama ?? ''} ${s.nis ?? ''} ${s.kamar ?? ''}`.toLowerCase().includes(kw)
+    );
+  }, [students, searchStudent]);
+
+  const summaryCount = useMemo(() => {
+    let hadir = 0;
+    let izin = 0;
+    let sakit = 0;
+    let alfa = 0;
+    students.forEach((s) => {
+      const st = statuses[Number(s.id)] || 'Hadir';
+      if (st === 'Hadir') hadir++;
+      else if (st === 'Izin') izin++;
+      else if (st === 'Sakit') sakit++;
+      else alfa++;
+    });
+    return { hadir, izin, sakit, alfa };
+  }, [students, statuses]);
+
   return (
     <div className="space-y-6">
-      {/* Floating Success Toast */}
-      {isSuccess && (
-        <div className="fixed top-5 right-5 z-[99999] flex items-center gap-3.5 rounded-2xl bg-white p-4 shadow-2xl border border-emerald-200 shadow-emerald-900/15 transition-all animate-in fade-in slide-in-from-top-4 duration-300 max-w-sm">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-500 text-white shadow-md shadow-emerald-500/30">
+      {/* Floating Top-Right Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-[999999] flex items-center gap-3.5 rounded-2xl bg-white p-4 shadow-2xl border border-emerald-200 shadow-emerald-900/20 transition-all animate-in fade-in slide-in-from-top-4 duration-300 max-w-sm">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#138F81] text-white shadow-md shadow-[#138F81]/30">
             <CheckCircle2 size={24} strokeWidth={2.5} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-black text-slate-800">Presensi Berhasil Disimpan!</p>
+            <p className="text-sm font-black text-slate-800">{toastMessage.title}</p>
             <p className="text-xs font-semibold text-slate-500 mt-0.5">
-              Data kehadiran tersimpan & otomatis terkunci.
+              {toastMessage.subtitle}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setToastMessage(null)}
+            className="text-slate-400 hover:text-slate-600 transition-colors p-1"
+          >
+            <X size={16} />
+          </button>
         </div>
       )}
 
@@ -434,8 +501,8 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
                     {isActive ? (
                       <button
                         type="button"
-                        onClick={() => void openAttendanceModal(jadwal)}
-                        className={`w-full flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-black text-white shadow-lg transition-transform active:scale-95 ${
+                        onClick={() => void openAttendanceModal(jadwal, false)}
+                        className={`w-full flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-black text-white shadow-lg transition-transform active:scale-95 cursor-pointer ${
                           isLate
                             ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/30'
                             : 'bg-[#138F81] hover:bg-[#0f766a] shadow-[#138F81]/30'
@@ -445,10 +512,14 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
                         <span>{isLate ? '👉 Input Presensi (Terlambat)' : '👉 Input Presensi Sekarang'}</span>
                       </button>
                     ) : isDone ? (
-                      <div className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
-                        <CheckCircle2 size={16} />
-                        <span>Presensi Sudah Disimpan & Terkunci</span>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void openAttendanceModal(jadwal, true)}
+                        className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200 transition-colors shadow-xs cursor-pointer"
+                      >
+                        <Eye size={15} />
+                        <span>👁️ Lihat Detail Presensi (Terkunci)</span>
+                      </button>
                     ) : (
                       <div className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-xs font-bold bg-slate-100 text-slate-500">
                         <Lock size={15} />
@@ -528,60 +599,112 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
         </div>
       </section>
 
-      {/* MODAL 1-KLIK INPUT PRESENSI SANTRI */}
+      {/* MODAL INPUT & DETAIL PRESENSI SANTRI */}
       {activeJadwal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="flex flex-col max-h-[92vh] w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200">
-            {/* Header Modal */}
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-gradient-to-r from-teal-500/10 via-emerald-500/5 to-transparent px-5 py-4 sm:px-6">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-md bg-[#138F81] px-2 py-0.5 text-xs font-black text-white">
-                    {activeJadwal.hari}, {activeJadwal.waktu}
-                  </span>
-                  <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-extrabold text-slate-700">
-                    Kelas: {activeJadwal.kelas}
-                  </span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="flex flex-col max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200">
+            
+            {/* Header Modal - Consistent with Data Santri Header style */}
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
+              <div className="flex items-center gap-3">
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-teal-50 text-[#138F81] border border-teal-100 shadow-xs">
+                  <CalendarCheck size={22} />
                 </div>
-                <h3 className="text-lg sm:text-xl font-black text-slate-900 mt-1">
-                  Presensi {activeJadwal.mapel}
-                </h3>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg sm:text-xl font-extrabold text-slate-800">
+                      Presensi {activeJadwal.mapel}
+                    </h3>
+                    <span className="rounded-md bg-teal-50 border border-teal-200 px-2 py-0.5 text-xs font-black text-[#138F81]">
+                      Kelas: {activeJadwal.kelas}
+                    </span>
+                  </div>
+                  <p className="text-xs font-semibold text-slate-500 mt-0.5 flex flex-wrap items-center gap-2">
+                    <span>⏰ {activeJadwal.hari}, {activeJadwal.waktu} WIB</span>
+                    {isReadOnlyMode ? (
+                      <span className="rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-black px-2.5 py-0.5 border border-emerald-200">
+                        🔒 Tersimpan & Terkunci (Hanya Lihat)
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-teal-100 text-teal-800 text-[11px] font-black px-2.5 py-0.5 border border-teal-200">
+                        ✏️ Mode Pengisian Guru
+                      </span>
+                    )}
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setActiveJadwal(null)}
                 disabled={isSaving}
-                className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
-            {/* Sub-header Quick Buttons */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/80 px-5 py-3 sm:px-6">
-              <span className="text-xs font-bold text-slate-600">
-                Total <b>{students.length} Santri</b> terdaftar di kelas ini
-              </span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setAllStatus('Hadir')}
-                  className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-black text-white hover:bg-emerald-700 transition-colors"
-                >
-                  ✓ Semua Hadir
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAllStatus('Izin')}
-                  className="rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800 hover:bg-amber-200 transition-colors"
-                >
-                  Semua Izin
-                </button>
+            {/* Sub-header Summary & Search Bar */}
+            <div className="border-b border-slate-200 bg-slate-50/70 px-5 py-3 sm:px-6 flex flex-wrap items-center justify-between gap-3">
+              {isReadOnlyMode ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-extrabold text-slate-600 mr-1">Rekap:</span>
+                  <span className="rounded-lg bg-emerald-100 border border-emerald-200 px-2.5 py-0.5 text-xs font-black text-emerald-800">
+                    ✅ {summaryCount.hadir} Hadir
+                  </span>
+                  {summaryCount.izin > 0 && (
+                    <span className="rounded-lg bg-amber-100 border border-amber-200 px-2.5 py-0.5 text-xs font-black text-amber-800">
+                      ⚠️ {summaryCount.izin} Izin
+                    </span>
+                  )}
+                  {summaryCount.sakit > 0 && (
+                    <span className="rounded-lg bg-rose-100 border border-rose-200 px-2.5 py-0.5 text-xs font-black text-rose-800">
+                      🏥 {summaryCount.sakit} Sakit
+                    </span>
+                  )}
+                  {summaryCount.alfa > 0 && (
+                    <span className="rounded-lg bg-slate-200 border border-slate-300 px-2.5 py-0.5 text-xs font-black text-slate-800">
+                      ❌ {summaryCount.alfa} Alfa
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center justify-between gap-2 w-full">
+                  <span className="text-xs font-bold text-slate-600">
+                    Total <b>{students.length} Santri</b> terdaftar
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setAllStatus('Hadir')}
+                      className="rounded-xl bg-[#138F81] px-3 py-1.5 text-xs font-black text-white hover:bg-[#0f766a] transition-colors shadow-xs cursor-pointer"
+                    >
+                      ✓ Semua Hadir
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAllStatus('Izin')}
+                      className="rounded-xl bg-amber-100 border border-amber-200 px-3 py-1.5 text-xs font-bold text-amber-800 hover:bg-amber-200 transition-colors cursor-pointer"
+                    >
+                      Semua Izin
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="relative w-full max-w-sm mt-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                <input
+                  type="text"
+                  className="w-full rounded-xl border border-slate-200 bg-white py-1.5 pl-9 pr-3 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:border-[#138F81] outline-none"
+                  placeholder="🔍 Cari nama santri / NIS / kamar..."
+                  value={searchStudent}
+                  onChange={(e) => setSearchStudent(e.target.value)}
+                />
               </div>
             </div>
 
-            {/* Student List */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2.5">
+            {/* Student List - Consistent with Data Santri Card List */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2.5 bg-slate-50/40">
               {modalError && (
                 <div className="mb-3 rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-xs font-bold text-rose-700">
                   ⚠️ {modalError}
@@ -596,8 +719,12 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
                 <div className="py-12 text-center text-slate-400 font-bold text-sm">
                   Belum ada santri terdaftar di kelas {activeJadwal.kelas}.
                 </div>
+              ) : filteredStudents.length === 0 ? (
+                <div className="py-8 text-center text-xs font-bold text-slate-400">
+                  Tidak ada santri yang cocok dengan pencarian "{searchStudent}".
+                </div>
               ) : (
-                students.map((siswa, idx) => {
+                filteredStudents.map((siswa, idx) => {
                   const sid = Number(siswa.id);
                   const currentStatus = statuses[sid] || 'Hadir';
                   const currentNote = notes[sid] || '';
@@ -605,119 +732,146 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
                   return (
                     <div
                       key={sid}
-                      className={`flex flex-col p-3.5 rounded-2xl border transition-all ${
-                        currentStatus === 'Hadir'
-                          ? 'border-slate-200 bg-white hover:border-slate-300'
-                          : currentStatus === 'Izin'
-                          ? 'border-amber-200 bg-amber-50/40'
-                          : currentStatus === 'Sakit'
-                          ? 'border-rose-200 bg-rose-50/40'
-                          : 'border-slate-300 bg-slate-100/70'
-                      }`}
+                      className="flex flex-col p-4 rounded-2xl border border-slate-200 bg-white shadow-xs hover:border-slate-300 transition-all"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-100 font-black text-xs text-slate-600">
+                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-slate-100 font-black text-xs text-slate-600">
                             {idx + 1}
                           </span>
                           <div className="min-w-0">
                             <p className="text-sm font-black text-slate-800 truncate">{text(siswa.nama)}</p>
-                            <p className="text-[11px] font-semibold text-slate-400">
-                              NIS: {text(siswa.nis)} • {siswa.jenis_kelamin === 'L' ? 'Putra' : 'Putri'}
-                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[11px] font-mono font-bold text-slate-500">NIS: {text(siswa.nis)}</span>
+                              <span
+                                className={`rounded-md px-1.5 py-0.2 text-[10px] font-black ${
+                                  siswa.jenis_kelamin === 'L'
+                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                    : 'bg-pink-50 text-pink-700 border border-pink-200'
+                                }`}
+                              >
+                                {siswa.jenis_kelamin === 'L' ? 'Putra' : 'Putri'}
+                              </span>
+                              {Boolean(siswa.kamar) && (
+                                <span className="text-[10px] font-semibold text-slate-400 truncate">
+                                  • {text(siswa.kamar)}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
 
-                        {/* Status Pills */}
-                        <div className="flex items-center gap-1 shrink-0">
-                          {(['Hadir', 'Izin', 'Sakit', 'Alfa'] as const).map((st) => {
-                            const isSelected = currentStatus === st;
-                            const colors = {
-                              Hadir: isSelected
-                                ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                              Izin: isSelected
-                                ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/30'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                              Sakit: isSelected
-                                ? 'bg-rose-500 text-white shadow-sm shadow-rose-500/30'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                              Alfa: isSelected
-                                ? 'bg-slate-800 text-white shadow-sm'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                            };
+                        {/* Status Badge in Read-Only Mode vs Status Pills in Editable Mode */}
+                        {isReadOnlyMode ? (
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`rounded-xl px-3.5 py-1 text-xs font-black border ${
+                                currentStatus === 'Hadir'
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                  : currentStatus === 'Izin'
+                                  ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                  : currentStatus === 'Sakit'
+                                  ? 'bg-rose-50 text-rose-800 border-rose-200'
+                                  : 'bg-slate-100 text-slate-800 border-slate-300'
+                              }`}
+                            >
+                              ● {currentStatus}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1 shrink-0">
+                            {(['Hadir', 'Izin', 'Sakit', 'Alfa'] as const).map((st) => {
+                              const isSelected = currentStatus === st;
+                              const colors = {
+                                Hadir: isSelected
+                                  ? 'bg-[#138F81] text-white shadow-xs'
+                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                                Izin: isSelected
+                                  ? 'bg-amber-500 text-white shadow-xs'
+                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                                Sakit: isSelected
+                                  ? 'bg-rose-500 text-white shadow-xs'
+                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                                Alfa: isSelected
+                                  ? 'bg-slate-800 text-white shadow-xs'
+                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                              };
 
-                            return (
-                              <button
-                                key={st}
-                                type="button"
-                                onClick={() => {
-                                  setStatuses({ ...statuses, [sid]: st });
-                                  if (st === 'Hadir') {
-                                    const nextNotes = { ...notes };
-                                    delete nextNotes[sid];
-                                    setNotes(nextNotes);
-                                  }
-                                }}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${colors[st]}`}
-                              >
-                                {st === 'Hadir'
-                                  ? 'Hadir'
-                                  : st === 'Izin'
-                                  ? 'Izin'
-                                  : st === 'Sakit'
-                                  ? 'Sakit'
-                                  : 'Alfa'}
-                              </button>
-                            );
-                          })}
-                        </div>
+                              return (
+                                <button
+                                  key={st}
+                                  type="button"
+                                  onClick={() => {
+                                    setStatuses({ ...statuses, [sid]: st });
+                                    if (st === 'Hadir') {
+                                      const nextNotes = { ...notes };
+                                      delete nextNotes[sid];
+                                      setNotes(nextNotes);
+                                    }
+                                  }}
+                                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${colors[st]}`}
+                                >
+                                  {st}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
 
-                      {/* Dropdown & Input Keterangan Alasan (Khusus Izin, Sakit, Alfa) */}
-                      {currentStatus !== 'Hadir' && (
-                        <div className="mt-3 pt-2.5 border-t border-slate-200/80 flex flex-wrap items-center gap-2 animate-in fade-in duration-200">
-                          <span className="text-[11px] font-bold text-slate-600 shrink-0">
-                            Alasan {currentStatus}:
-                          </span>
+                      {/* Note / Keterangan Alasan */}
+                      {isReadOnlyMode ? (
+                        currentNote ? (
+                          <div className="mt-2.5 pt-2 border-t border-slate-100 text-xs font-semibold text-slate-600 flex items-center gap-1.5">
+                            <span className="font-bold text-slate-500">💬 Keterangan:</span>
+                            <span>{currentNote}</span>
+                          </div>
+                        ) : null
+                      ) : (
+                        currentStatus !== 'Hadir' && (
+                          <div className="mt-3 pt-2.5 border-t border-slate-100 flex flex-wrap items-center gap-2 animate-in fade-in duration-200">
+                            <span className="text-[11px] font-bold text-slate-600 shrink-0">
+                              Alasan {currentStatus}:
+                            </span>
 
-                          <select
-                            className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 outline-none focus:border-[#138F81] transition-colors shrink-0 max-w-[220px]"
-                            value={
-                              KETERANGAN_PRESETS[currentStatus].includes(currentNote)
-                                ? currentNote
-                                : currentNote
-                                ? '__custom__'
-                                : ''
-                            }
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (val === '__custom__') {
-                                if (KETERANGAN_PRESETS[currentStatus].includes(currentNote)) {
-                                  setNotes({ ...notes, [sid]: '' });
-                                }
-                              } else {
-                                setNotes({ ...notes, [sid]: val });
+                            <select
+                              className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 outline-none focus:border-[#138F81] transition-colors shrink-0 max-w-[220px]"
+                              value={
+                                KETERANGAN_PRESETS[currentStatus].includes(currentNote)
+                                  ? currentNote
+                                  : currentNote
+                                  ? '__custom__'
+                                  : ''
                               }
-                            }}
-                          >
-                            <option value="">-- Pilih Alasan Cepat (Opsional) --</option>
-                            {KETERANGAN_PRESETS[currentStatus].map((preset) => (
-                              <option key={preset} value={preset}>
-                                {preset}
-                              </option>
-                            ))}
-                            <option value="__custom__">✏️ Ketik Alasan Sendiri...</option>
-                          </select>
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === '__custom__') {
+                                  if (KETERANGAN_PRESETS[currentStatus].includes(currentNote)) {
+                                    setNotes({ ...notes, [sid]: '' });
+                                  }
+                                } else {
+                                  setNotes({ ...notes, [sid]: val });
+                                }
+                              }}
+                            >
+                              <option value="">-- Pilih Alasan Cepat (Opsional) --</option>
+                              {KETERANGAN_PRESETS[currentStatus].map((preset) => (
+                                <option key={preset} value={preset}>
+                                  {preset}
+                                </option>
+                              ))}
+                              <option value="__custom__">✏️ Ketik Alasan Sendiri...</option>
+                            </select>
 
-                          <input
-                            type="text"
-                            placeholder={`Ketik keterangan ${currentStatus.toLowerCase()} (opsional)...`}
-                            value={currentNote}
-                            onChange={(e) => setNotes({ ...notes, [sid]: e.target.value })}
-                            className="flex-1 min-w-[160px] rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#138F81]"
-                          />
-                        </div>
+                            <input
+                              type="text"
+                              placeholder={`Ketik keterangan ${currentStatus.toLowerCase()} (opsional)...`}
+                              value={currentNote}
+                              onChange={(e) => setNotes({ ...notes, [sid]: e.target.value })}
+                              className="flex-1 min-w-[160px] rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#138F81]"
+                            />
+                          </div>
+                        )
                       )}
                     </div>
                   );
@@ -726,25 +880,42 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
             </div>
 
             {/* Footer Modal */}
-            <div className="flex shrink-0 items-center justify-between border-t border-slate-200 bg-slate-50/80 px-5 py-3.5 sm:px-6">
-              <button
-                type="button"
-                onClick={() => setActiveJadwal(null)}
-                disabled={isSaving}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
-              >
-                Batal
-              </button>
+            <div className="flex shrink-0 items-center justify-between border-t border-slate-200 bg-white px-5 py-3.5 sm:px-6">
+              {isReadOnlyMode ? (
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-xs font-bold text-slate-500">
+                    🔒 Mode Hanya Lihat (Data tersimpan permanen)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveJadwal(null)}
+                    className="rounded-2xl bg-[#138F81] px-6 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-[#138F81]/25 hover:bg-[#0f766a] transition-all cursor-pointer"
+                  >
+                    Tutup
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setActiveJadwal(null)}
+                    disabled={isSaving}
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => void handleSaveAttendance()}
-                disabled={isSaving || students.length === 0}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#138F81] px-6 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-[#138F81]/25 hover:bg-[#0f766a] transition-all disabled:opacity-50"
-              >
-                <Save size={16} />
-                <span>{isSaving ? 'Menyimpan...' : 'Simpan Presensi Santri'}</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleSaveAttendance()}
+                    disabled={isSaving || students.length === 0}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-6 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-[#138F81]/25 hover:bg-[#0f766a] transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    <Save size={16} />
+                    <span>{isSaving ? 'Menyimpan...' : 'Simpan Presensi Santri'}</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
