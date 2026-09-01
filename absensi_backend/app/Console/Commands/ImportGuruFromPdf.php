@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Schema;
 
 class ImportGuruFromPdf extends Command
 {
-    protected $signature = 'guru:import-pdf {--force : Timpa data/password dengan default admin123 jika akun sudah ada}';
+    protected $signature = 'guru:import-pdf {--force : Timpa data/password dengan default guru123 jika akun sudah ada}';
     protected $description = 'Import data master guru resmi Pesantren Qomaruddin dari DAFTAR GURU.pdf';
 
     public function handle(): int
@@ -25,7 +25,7 @@ class ImportGuruFromPdf extends Command
         $total = count($guruList);
         $this->info("Total data guru resmi dari PDF: {$total} Guru/Pengajar.\n");
 
-        $defaultPassword = 'admin123';
+        $defaultPassword = 'guru123';
         $hashedPassword = Hash::make($defaultPassword);
         $encryptedPassword = Crypt::encryptString($defaultPassword);
 

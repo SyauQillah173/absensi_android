@@ -822,7 +822,7 @@ export function exportRowsExcel(rows: ApiRecord[], fileName: string, title: stri
       { key: 'name', label: 'Nama Lengkap Guru', width: 30, getValue: (r) => String(r.name || r.nama || '-') },
       { key: 'kode_guru', label: 'Kode Guru (Username Login)', width: 22, getValue: (r) => String(r.kode_guru || '-') },
       { key: 'login_alternatif', label: 'Login Alternatif', width: 26, getValue: (r) => `Bisa Login dgn Kode (${r.kode_guru || '-'}) atau Nama` },
-      { key: 'password_display', label: 'Password Login Awal', width: 22, getValue: (r) => String(r.password_display || (r.password_changed_at ? 'Sudah Diganti User' : 'admin123')) },
+      { key: 'password_display', label: 'Password Login Awal', width: 22, getValue: (r) => String(r.password_display || (r.password_changed_at ? 'Sudah Diganti User' : 'guru123')) },
       { key: 'password_display_label', label: 'Status Sandi', width: 20, getValue: (r) => String(r.password_display_label || (r.password_changed_at ? 'Password Privat' : 'Password Default')) },
       { key: 'status', label: 'Status Akun', width: 14, getValue: (r) => String(r.status || 'Aktif') },
       { key: 'unit_kerja', label: 'Unit Kerja / Lembaga', width: 32, getValue: (r) => Array.isArray(r.unit_kerja) ? r.unit_kerja.join(', ') : String(r.unit_kerja || 'Madrasah Diniyah PP Qomaruddin') },

@@ -550,10 +550,10 @@ class UserManagementController extends Controller
     private function buildPasswordDisplayMeta(User $user): array
     {
         $defaultFallback = match ($user->role) {
-            'guru' => 'admin123',
+            'guru' => 'guru123',
             'wali' => 'siswa12345',
             'admin' => 'admin12345',
-            default => 'admin123',
+            default => 'guru123',
         };
 
         if ($user->password_changed_at) {
@@ -591,10 +591,10 @@ class UserManagementController extends Controller
     private function generateTemporaryPassword(User $user): string
     {
         return match ($user->role) {
-            'guru' => 'admin123',
+            'guru' => 'guru123',
             'wali' => 'siswa12345',
             'admin' => 'admin12345',
-            default => 'admin123',
+            default => 'guru123',
         };
     }
 }
