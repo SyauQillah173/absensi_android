@@ -176,8 +176,20 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement> | { target: { name: string, value: any } }) => {
     let { name, value } = e.target;
     
-    // Auto-uppercase for all text fields except email and dates
-    const lowercaseFields = ['email_siswa', 'email_wali', 'email', 'tanggal_lahir', 'tanggal_lahir_ayah', 'tanggal_lahir_ibu', 'tanggal_diterima_sekolah', 'tanggal_masuk'];
+    // Phone fields should keep their original formatting (no uppercase)
+    const phoneFields = ['no_telepon_wali', 'no_whatsapp_ayah', 'no_whatsapp_ibu', 'telepon', 'no_hp', 'no_whatsapp'];
+    if (typeof value === 'string' && phoneFields.includes(name)) {
+      // Clean duplicate prefixes e.g. +6285704237199+62856 -> sanitize cleanly
+      value = value.replace(/[^\d+]/g, '');
+      if (value.startsWith('+62')) {
+        value = '+62' + value.slice(3).replace(/\+/g, '');
+      } else {
+        value = value.replace(/\+/g, '');
+      }
+    }
+
+    // Auto-uppercase for all text fields except email, dates, and phones
+    const lowercaseFields = ['email_siswa', 'email_wali', 'email', 'tanggal_lahir', 'tanggal_lahir_ayah', 'tanggal_lahir_ibu', 'tanggal_diterima_sekolah', 'tanggal_masuk', ...phoneFields];
     if (typeof value === 'string' && !lowercaseFields.includes(name) && !name.endsWith('_id') && !name.startsWith('foto')) {
       value = value.toUpperCase();
     }
@@ -260,12 +272,12 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
         await api.createSiswa(payload);
       }
       
-      // Show success animation
+      // Tampilkan toast berhasil di pojok kanan atas yang elegan
       setIsSuccess(true);
       setTimeout(() => {
         setIsSuccess(false);
         onSave();
-      }, 2000);
+      }, 1200);
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal menyimpan data siswa.');
@@ -277,33 +289,37 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
 
   return (
     <div className="w-full flex-1">
+      {/* Modern Top-Right Floating Toast Notification (Tidak menutupi layar) */}
+      {isSuccess && (
+        <div className="fixed top-5 right-5 z-[99999] flex items-center gap-3.5 rounded-2xl bg-white p-4 shadow-2xl border border-emerald-200 shadow-emerald-900/15 transition-all animate-in fade-in slide-in-from-top-4 duration-300 max-w-sm">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-500 text-white shadow-md shadow-emerald-500/30">
+            <CheckCircle2 size={24} strokeWidth={2.5} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-black text-slate-800">Berhasil Disimpan!</p>
+            <p className="text-xs font-semibold text-slate-500 mt-0.5">
+              {form.id ? 'Data siswa/santri berhasil diperbarui.' : 'Siswa baru berhasil ditambahkan.'}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex min-h-[calc(100vh-10rem)] w-full flex-col overflow-hidden bg-white shadow-sm ring-1 ring-slate-200 sm:rounded-3xl">
           {/* Header */}
-          <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-3.5 sm:px-6 sm:py-4">
             <div>
-              <h2 className="text-xl font-extrabold text-[#2D3436]">
+              <h2 className="text-lg sm:text-xl font-extrabold text-[#2D3436]">
                 {readOnly ? 'Detail Data Siswa/Santri' : (form.id ? 'Edit Data Siswa/Santri' : 'Tambah Data Siswa/Santri Baru')}
               </h2>
-              <p className="text-sm font-semibold text-[#636E72] mt-1">Lengkapi data profil, orang tua, dan akademik secara detail.</p>
+              <p className="text-xs sm:text-sm font-semibold text-[#636E72] mt-0.5">Lengkapi data profil, orang tua, dan akademik secara detail.</p>
             </div>
-            <button className="grid h-10 w-10 place-items-center rounded-full bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors" onClick={onClose} type="button" disabled={isSuccess}>
-              <X size={20} />
+            <button className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-full bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors shrink-0" onClick={onClose} type="button" disabled={isSuccess}>
+              <X size={18} />
             </button>
           </div>
 
-          {/* Success Overlay */}
-          {isSuccess && (
-            <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center rounded-3xl bg-white/90 backdrop-blur-sm transition-all duration-300">
-              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-green-100 text-green-500 shadow-xl shadow-green-500/20 mb-6 animate-[bounce_1s_ease-in-out_infinite]">
-                <CheckCircle2 size={56} strokeWidth={2.5} />
-              </div>
-              <h2 className="text-2xl font-extrabold text-[#2D3436] animate-[pulse_2s_ease-in-out_infinite]">Berhasil!</h2>
-              <p className="mt-2 text-base font-bold text-[#636E72]">{form.id ? 'Data berhasil diperbarui.' : 'Siswa baru berhasil ditambahkan.'}</p>
-            </div>
-          )}
-
           <div className="flex min-h-0 flex-1 flex-col md:flex-row overflow-hidden relative">
-            {/* Sidebar Tabs */}
+            {/* Sidebar Tabs (Desktop) */}
             <div className="hidden w-64 shrink-0 flex-col gap-2 overflow-y-auto border-r border-slate-200 bg-slate-50 p-4 md:flex">
               <button type="button" onClick={() => setActiveTab('siswa')} className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'siswa' ? 'bg-[#138F81] text-white shadow-md' : 'text-[#636E72] hover:bg-white'}`}>
                 <User size={18} /> I. Data Siswa
@@ -319,14 +335,54 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
               </button>
             </div>
 
-            {/* Mobile Tab Selector */}
-            <div className="border-b border-slate-200 bg-slate-50 p-3 md:hidden">
-               <select className="q-input font-bold text-[#138F81]" value={activeTab} onChange={(e) => setActiveTab(e.target.value as any)}>
-                 <option value="siswa">I. Data Siswa</option>
-                 <option value="ortu">II. Orang Tua / Wali</option>
-                 <option value="akademik">III. Masuk Madrasah Ini</option>
-                 <option value="lainnya">IV. Lain-lain</option>
-               </select>
+            {/* Mobile Tab Selector (Pill tabs scrollable) */}
+            <div className="border-b border-slate-200 bg-slate-50 p-2 md:hidden overflow-x-auto q-scrollbar">
+              <div className="flex items-center gap-1.5 min-w-max">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('siswa')}
+                  className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition-all ${
+                    activeTab === 'siswa'
+                      ? 'bg-[#138F81] text-white shadow-sm'
+                      : 'text-slate-600 hover:bg-white'
+                  }`}
+                >
+                  <User size={14} /> I. Siswa
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('ortu')}
+                  className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition-all ${
+                    activeTab === 'ortu'
+                      ? 'bg-[#138F81] text-white shadow-sm'
+                      : 'text-slate-600 hover:bg-white'
+                  }`}
+                >
+                  <Users size={14} /> II. Ortu/Wali
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('akademik')}
+                  className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition-all ${
+                    activeTab === 'akademik'
+                      ? 'bg-[#138F81] text-white shadow-sm'
+                      : 'text-slate-600 hover:bg-white'
+                  }`}
+                >
+                  <GraduationCap size={14} /> III. Masuk Sekolah
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('lainnya')}
+                  className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition-all ${
+                    activeTab === 'lainnya'
+                      ? 'bg-[#138F81] text-white shadow-sm'
+                      : 'text-slate-600 hover:bg-white'
+                  }`}
+                >
+                  <FileText size={14} /> IV. Lainnya
+                </button>
+              </div>
             </div>
 
             {/* Form Content */}
@@ -838,14 +894,14 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
             </div>
           </div>
           
-          <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 bg-white px-6 py-4">
+          <div className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-200 bg-white p-3 sm:px-6 sm:py-4">
             {/* Left Action: Tutup / Batal / Kembali */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <button 
                 type="button" 
                 onClick={onClose} 
                 disabled={isSaving || isSuccess} 
-                className="rounded-2xl bg-white px-5 py-3 text-sm font-bold text-[#636E72] shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                className="rounded-xl sm:rounded-2xl bg-white px-3 py-2 sm:px-5 sm:py-3 text-xs sm:text-sm font-bold text-[#636E72] shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50"
               >
                 {readOnly ? 'Tutup' : 'Batal'}
               </button>
@@ -855,16 +911,17 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                   type="button"
                   onClick={handlePrev}
                   disabled={isSaving || isSuccess}
-                  className="inline-flex items-center gap-1.5 rounded-2xl bg-slate-100 px-5 py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-200 transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-1 rounded-xl sm:rounded-2xl bg-slate-100 px-3 py-2 sm:px-5 sm:py-3 text-xs sm:text-sm font-extrabold text-slate-700 hover:bg-slate-200 transition-colors disabled:opacity-50"
                 >
-                  <ChevronLeft size={18} /> Kembali
+                  <ChevronLeft size={16} />
+                  <span>Kembali</span>
                 </button>
               )}
             </div>
 
             {/* Right Action: Step Info & Next / Submit Button */}
-            <div className="flex items-center gap-3">
-              <span className="hidden sm:inline-block text-xs font-bold text-slate-400">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="hidden lg:inline-block text-xs font-bold text-slate-400">
                 Langkah {currentTabIndex + 1} dari 4 ({tabList[currentTabIndex]?.shortLabel})
               </span>
 
@@ -874,10 +931,11 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                   type="button"
                   onClick={(e) => handleNext(e)}
                   disabled={isSaving || isSuccess}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-6 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors"
+                  className="inline-flex items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl bg-[#138F81] px-3.5 py-2 sm:px-6 sm:py-3 text-xs sm:text-sm font-extrabold text-white shadow-md sm:shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors shrink-0"
                 >
-                  <span>{tabList[currentTabIndex]?.nextTitle}</span>
-                  <ChevronRight size={18} />
+                  <span className="sm:hidden">Lanjut</span>
+                  <span className="hidden sm:inline">{tabList[currentTabIndex]?.nextTitle}</span>
+                  <ChevronRight size={16} />
                 </button>
               ) : (
                 !readOnly ? (
@@ -886,19 +944,20 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                     type="button"
                     onClick={(e) => void handleSubmit(e)}
                     disabled={isSaving || isSuccess}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-8 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors disabled:opacity-70"
+                    className="inline-flex items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl bg-[#138F81] px-4 py-2 sm:px-8 sm:py-3 text-xs sm:text-sm font-extrabold text-white shadow-md sm:shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors disabled:opacity-70 shrink-0"
                   >
-                    <CheckCircle2 size={18} className={isSaving ? 'animate-spin' : ''} />
-                    {isSaving ? 'Menyimpan...' : 'Simpan Data Siswa/Santri'}
+                    <CheckCircle2 size={16} className={isSaving ? 'animate-spin' : ''} />
+                    <span className="sm:hidden">{isSaving ? 'Menyimpan...' : 'Simpan Data'}</span>
+                    <span className="hidden sm:inline">{isSaving ? 'Menyimpan...' : 'Simpan Data Siswa/Santri'}</span>
                   </button>
                 ) : (
                   <button
                     key="btn-finish-detail"
                     type="button"
                     onClick={onClose}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-8 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors"
+                    className="inline-flex items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl bg-[#138F81] px-4 py-2 sm:px-8 sm:py-3 text-xs sm:text-sm font-extrabold text-white shadow-md sm:shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors shrink-0"
                   >
-                    <CheckCircle2 size={18} /> Selesai
+                    <CheckCircle2 size={16} /> Selesai
                   </button>
                 )
               )}
