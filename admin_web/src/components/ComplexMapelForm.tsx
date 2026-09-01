@@ -40,18 +40,12 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
     nama: string;
     kode: string;
     status: 'Aktif' | 'Nonaktif';
-    guruIds: Set<number>;
     jadwals: ScheduleItem[];
   }>({
     id: initialData?.id ? num(initialData.id) : undefined,
     nama: text(initialData?.nama),
     kode: text(initialData?.kode),
     status: text(initialData?.status, 'Aktif') === 'Nonaktif' ? 'Nonaktif' : 'Aktif',
-    guruIds: new Set(
-      Array.isArray(initialData?.guru)
-        ? (initialData.guru as ApiRecord[]).map((g) => num(g.id)).filter(Boolean)
-        : []
-    ),
     jadwals: Array.isArray(initialData?.jadwal)
       ? (initialData.jadwal as ApiRecord[]).map((j) => ({
           id: j.id ? num(j.id) : undefined,
@@ -71,7 +65,6 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
   // Supporting master data
   const [teachers, setTeachers] = useState<ApiRecord[]>([]);
   const [classes, setClasses] = useState<ApiRecord[]>([]);
-  const [teacherSearch, setTeacherSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'mapel' | 'jadwal'>('mapel');
 
   // New Schedule Draft State
@@ -143,26 +136,6 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
     scrollToTop();
   }, [activeTab]);
 
-  const filteredTeachers = useMemo(() => {
-    const kw = teacherSearch.toLowerCase().trim();
-    if (!kw) return teachers;
-    return teachers.filter((t) =>
-      `${t.name ?? ''} ${t.kode_guru ?? ''} ${t.email ?? ''}`.toLowerCase().includes(kw)
-    );
-  }, [teachers, teacherSearch]);
-
-  const toggleTeacher = (teacherId: number) => {
-    setForm((prev) => {
-      const next = new Set(prev.guruIds);
-      if (next.has(teacherId)) {
-        next.delete(teacherId);
-      } else {
-        next.add(teacherId);
-      }
-      return { ...prev, guruIds: next };
-    });
-  };
-
   const handleAddSchedule = () => {
     setError('');
     if (!newSchedule.jam_mulai || !newSchedule.jam_selesai) {
@@ -189,18 +162,10 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
       status: 'Aktif',
     };
 
-    setForm((prev) => {
-      // Also automatically attach teacher to guruIds if selected
-      const nextGuruIds = new Set(prev.guruIds);
-      if (item.teacher_id) {
-        nextGuruIds.add(Number(item.teacher_id));
-      }
-      return {
-        ...prev,
-        guruIds: nextGuruIds,
-        jadwals: [...prev.jadwals, item],
-      };
-    });
+    setForm((prev) => ({
+      ...prev,
+      jadwals: [...prev.jadwals, item],
+    }));
 
     // Reset draft fields except day & class for easy consecutive entry
     setNewSchedule((prev) => ({
@@ -230,11 +195,20 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
     setError('');
 
     try {
+      // Auto-derive teacher IDs directly from schedules
+      const derivedGuruIds = Array.from(
+        new Set(
+          form.jadwals
+            .map((j) => (j.teacher_id ? Number(j.teacher_id) : null))
+            .filter((id): id is number => id !== null && id > 0)
+        )
+      );
+
       const payload: ApiRecord = {
         nama: form.nama.trim(),
         kode: form.kode.trim() || null,
         status: form.status,
-        guru_ids: Array.from(form.guruIds),
+        guru_ids: derivedGuruIds,
         jadwals: form.jadwals.map((j) => ({
           ...(j.id ? { id: j.id } : {}),
           hari: j.hari,
@@ -319,11 +293,6 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
           >
             <BookOpen size={16} />
             <span>I. Informasi Mata Pelajaran</span>
-            {form.guruIds.size > 0 && (
-              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800">
-                {form.guruIds.size} Guru
-              </span>
-            )}
           </button>
 
           <button
@@ -415,71 +384,26 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
                 </div>
               </div>
 
-              {/* Guru Pengajar Selection */}
-              <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-5 sm:p-6 space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <h3 className="text-sm sm:text-base font-extrabold text-slate-800 flex items-center gap-2">
-                      <GraduationCap className="text-[#138F81]" size={18} /> Hubungkan Guru Pengajar
-                    </h3>
-                    <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                      Pilih satu atau beberapa guru yang berwenang mengajar mata pelajaran ini.
-                    </p>
+              <div className="pt-2">
+                <div className="rounded-2xl border border-teal-200/80 bg-teal-50/50 p-4.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#138F81] text-white">
+                      <Calendar size={20} />
+                    </div>
+                    <div>
+                      <p className="text-xs sm:text-sm font-black text-slate-800">Tahap Selanjutnya: Atur Jadwal & Guru</p>
+                      <p className="text-[11px] font-semibold text-slate-500">
+                        Hubungkan guru pengajar langsung saat menyusun jadwal slot hari & jam di Tab II.
+                      </p>
+                    </div>
                   </div>
-                  <span className="rounded-xl bg-teal-50 px-3 py-1 text-xs font-black text-[#138F81] border border-teal-200">
-                    {form.guruIds.size} Guru Dipilih
-                  </span>
-                </div>
-
-                <input
-                  type="text"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-slate-800 placeholder-slate-400 focus:border-[#138F81] focus:ring-2 focus:ring-[#138F81]/20 outline-none"
-                  placeholder="🔍 Cari nama guru / kode guru / email..."
-                  value={teacherSearch}
-                  onChange={(e) => setTeacherSearch(e.target.value)}
-                />
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-64 overflow-y-auto pr-1">
-                  {filteredTeachers.length === 0 ? (
-                    <p className="col-span-full py-4 text-center text-xs font-bold text-slate-400">
-                      Tidak ada guru pengajar yang cocok.
-                    </p>
-                  ) : (
-                    filteredTeachers.map((teacher) => {
-                      const id = num(teacher.id);
-                      const isSelected = form.guruIds.has(id);
-                      return (
-                        <div
-                          key={id}
-                          onClick={() => toggleTeacher(id)}
-                          className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
-                            isSelected
-                              ? 'bg-emerald-50/80 border-emerald-300 ring-1 ring-emerald-300'
-                              : 'bg-white border-slate-200 hover:border-slate-300'
-                          }`}
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs sm:text-sm font-extrabold text-slate-800 truncate">
-                              {text(teacher.name)}
-                            </p>
-                            <p className="text-[11px] font-semibold text-slate-400">
-                              {text(teacher.kode_guru, 'Guru')} {teacher.email ? `• ${teacher.email}` : ''}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-colors ${
-                              isSelected
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                            }`}
-                          >
-                            {isSelected ? '✓ Terpilih' : '+ Pilih'}
-                          </button>
-                        </div>
-                      );
-                    })
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('jadwal')}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-[#138F81] px-4 py-2 text-xs font-black text-white hover:bg-[#0f766a] transition-all shadow-sm"
+                  >
+                    Buka Jadwal Pelajaran <ChevronRight size={16} />
+                  </button>
                 </div>
               </div>
             </div>
