@@ -1,8 +1,8 @@
-import { BookOpen, Pencil, Plus, RefreshCw, Search, Trash2, UsersRound } from 'lucide-react';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { BookOpen, Calendar, GraduationCap, Pencil, Plus, RefreshCw, Search, Trash2, UsersRound } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ComplexMapelForm } from '../components/ComplexMapelForm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
-import { ModalForm } from '../components/ModalForm';
 import { SearchInput } from '../components/SearchInput';
 import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
@@ -22,24 +22,14 @@ function list(value: unknown): ApiRecord[] {
   return Array.isArray(value) ? (value as ApiRecord[]) : [];
 }
 
-interface MapelFormState {
-  id?: number;
-  nama: string;
-  kode: string;
-  status: 'Aktif' | 'Nonaktif';
-  guruIds: Set<number>;
-}
-
 export function MataPelajaranPage() {
   const [rows, setRows] = useState<ApiRecord[]>([]);
-  const [teachers, setTeachers] = useState<ApiRecord[]>([]);
   const [search, setSearch] = useState('');
-  const [teacherSearch, setTeacherSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('Semua');
-  const [form, setForm] = useState<MapelFormState | null>(null);
+  const [activeFormData, setActiveFormData] = useState<ApiRecord | null | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<ApiRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -47,12 +37,10 @@ export function MataPelajaranPage() {
     setIsLoading(true);
     setError('');
     try {
-      const [mapelResult, teacherResult] = await Promise.all([
-        api.mataPelajaran({ status: statusFilter === 'Semua' ? '' : statusFilter }),
-        api.users({ role: 'guru', status: 'Aktif' })
-      ]);
+      const mapelResult = await api.mataPelajaran({
+        status: statusFilter === 'Semua' ? '' : statusFilter,
+      });
       setRows(Array.isArray(mapelResult.data) ? mapelResult.data : []);
-      setTeachers(Array.isArray(teacherResult.data) ? teacherResult.data : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Mata pelajaran gagal dimuat.');
     } finally {
@@ -70,254 +58,259 @@ export function MataPelajaranPage() {
     if (!keyword) return rows;
     return rows.filter((row) => {
       const guruNames = list(row.guru).map((guru) => guru.name).join(' ');
-      return `${row.nama ?? ''} ${row.kode ?? ''} ${guruNames}`.toLowerCase().includes(keyword);
+      const jadwalDetails = list(row.jadwal).map((j) => `${j.hari ?? ''} ${j.sifir ?? ''} ${j.ruangan ?? ''}`).join(' ');
+      return `${row.nama ?? ''} ${row.kode ?? ''} ${guruNames} ${jadwalDetails}`.toLowerCase().includes(keyword);
     });
   }, [rows, search]);
 
-  const activeCount = rows.filter((row) => text(row.status) === 'Aktif').length;
-  const teacherConnected = rows.reduce((sum, row) => sum + list(row.guru).length, 0);
-  const filteredTeachers = useMemo(() => {
-    const keyword = teacherSearch.toLowerCase();
-    if (!keyword) return teachers;
-    return teachers.filter((teacher) => `${teacher.name ?? ''} ${teacher.email ?? ''} ${teacher.kode_guru ?? ''}`.toLowerCase().includes(keyword));
-  }, [teachers, teacherSearch]);
+  const totalJadwals = useMemo(() => {
+    return rows.reduce((sum, row) => sum + list(row.jadwal).length, 0);
+  }, [rows]);
+
+  const totalTeachers = useMemo(() => {
+    const teacherIdSet = new Set<number>();
+    rows.forEach((row) => {
+      list(row.guru).forEach((g) => {
+        if (g.id) teacherIdSet.add(num(g.id));
+      });
+    });
+    return teacherIdSet.size;
+  }, [rows]);
 
   const columns = useMemo<DataColumn<ApiRecord>[]>(
     () => [
-      { key: 'nama', header: 'Mata Pelajaran', render: (row) => <span className="font-extrabold">{text(row.nama)}</span> },
-      { key: 'kode', header: 'Kode', render: (row) => text(row.kode) },
+      {
+        key: 'nama',
+        header: 'Mata Pelajaran',
+        render: (row) => (
+          <div>
+            <span className="font-extrabold text-slate-800 text-sm block">{text(row.nama)}</span>
+            {row.kode ? (
+              <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded mt-0.5 inline-block">
+                Kode: {text(row.kode)}
+              </span>
+            ) : null}
+          </div>
+        ),
+      },
       {
         key: 'guru',
         header: 'Guru Pengajar',
         render: (row) => {
           const gurus = list(row.guru);
-          return gurus.length ? gurus.map((guru) => text(guru.name)).join(', ') : 'Belum terhubung';
-        }
+          if (!gurus.length) {
+            return <span className="text-xs font-semibold text-slate-400 italic">Belum terhubung</span>;
+          }
+          return (
+            <div className="flex flex-wrap gap-1.5 max-w-xs">
+              {gurus.map((g, idx) => (
+                <span
+                  key={idx}
+                  className="rounded-lg bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-bold text-emerald-800"
+                >
+                  {text(g.name)}
+                </span>
+              ))}
+            </div>
+          );
+        },
       },
-      { key: 'jadwal', header: 'Jadwal Aktif', render: (row) => `${list(row.jadwal).length} jadwal` },
+      {
+        key: 'jadwal',
+        header: 'Susunan Jadwal KBM',
+        render: (row) => {
+          const jadwals = list(row.jadwal);
+          if (!jadwals.length) {
+            return <span className="text-xs font-semibold text-slate-400 italic">Belum ada jadwal</span>;
+          }
+          return (
+            <div className="flex flex-wrap gap-1.5 max-w-sm">
+              {jadwals.map((j, idx) => (
+                <span
+                  key={idx}
+                  className="rounded-lg bg-teal-50 border border-teal-200 px-2 py-1 text-[11px] font-bold text-teal-900"
+                >
+                  <b>{text(j.hari)}</b> ({text(j.jam_mulai)} - {text(j.jam_selesai)}) • {text(j.sifir ?? (j.class as ApiRecord)?.name)}
+                </span>
+              ))}
+            </div>
+          );
+        },
+      },
       {
         key: 'status',
         header: 'Status',
-        render: (row) => <StatusBadge label={text(row.status, 'Aktif')} tone={text(row.status) === 'Aktif' ? 'success' : 'danger'} />
+        render: (row) => (
+          <StatusBadge
+            label={text(row.status, 'Aktif')}
+            tone={text(row.status) === 'Aktif' ? 'success' : 'danger'}
+          />
+        ),
       },
       {
         key: 'aksi',
         header: 'Aksi',
         render: (row) => (
           <div className="flex flex-wrap gap-2">
-            <button className="rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-bold text-[#2E86DE]" onClick={() => openForm(row)} type="button">
-              <Pencil size={14} className="inline" /> Edit
+            <button
+              className="rounded-xl bg-[#EAF4FF] px-3.5 py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors inline-flex items-center gap-1.5"
+              onClick={() => setActiveFormData(row)}
+              type="button"
+            >
+              <Pencil size={13} /> Edit & Atur Jadwal
             </button>
-            <button className="rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-bold text-[#D63031]" onClick={() => setDeleteTarget(row)} type="button">
-              <Trash2 size={14} className="inline" /> Hapus
+            <button
+              className="rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-extrabold text-[#D63031] hover:bg-[#fad4d4] transition-colors inline-flex items-center gap-1.5"
+              onClick={() => setDeleteTarget(row)}
+              type="button"
+            >
+              <Trash2 size={13} /> Hapus
             </button>
           </div>
-        )
-      }
+        ),
+      },
     ],
     []
   );
 
-  function openForm(row?: ApiRecord) {
-    setTeacherSearch('');
-    setForm({
-      id: row?.id ? num(row.id) : undefined,
-      nama: text(row?.nama, ''),
-      kode: text(row?.kode, ''),
-      status: text(row?.status, 'Aktif') === 'Nonaktif' ? 'Nonaktif' : 'Aktif',
-      guruIds: new Set(list(row?.guru).map((guru) => num(guru.id)).filter(Boolean))
-    });
-  }
-
-  async function saveForm(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!form || isSaving) return;
-    setIsSaving(true);
-    setError('');
-    try {
-      const payload = {
-        nama: form.nama.trim(),
-        kode: form.kode.trim() || null,
-        status: form.status,
-        guru_ids: Array.from(form.guruIds)
-      };
-      if (form.id) {
-        await api.updateMataPelajaran(form.id, payload);
-      } else {
-        await api.createMataPelajaran(payload);
-      }
-      setForm(null);
-      setNotice('Mata pelajaran berhasil disimpan.');
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Mata pelajaran gagal disimpan.');
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  async function deleteMapel() {
-    if (!deleteTarget?.id || isSaving) return;
-    setIsSaving(true);
+  async function handleDelete() {
+    if (!deleteTarget?.id || isDeleting) return;
+    setIsDeleting(true);
     setError('');
     try {
       await api.deleteMataPelajaran(num(deleteTarget.id));
       setDeleteTarget(null);
-      setNotice('Mata pelajaran berhasil dihapus.');
+      setNotice('Mata pelajaran dan seluruh jadwal terkait berhasil dihapus.');
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Mata pelajaran gagal dihapus.');
     } finally {
-      setIsSaving(false);
+      setIsDeleting(false);
     }
   }
 
-  function toggleTeacher(id: number) {
-    if (!form) return;
-    const next = new Set(form.guruIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setForm({ ...form, guruIds: next });
+  // Jika form aktif terbuka, tampilkan ComplexMapelForm
+  if (activeFormData !== undefined) {
+    return (
+      <ComplexMapelForm
+        initialData={activeFormData}
+        onClose={() => setActiveFormData(undefined)}
+        onSave={() => {
+          setActiveFormData(undefined);
+          void load();
+        }}
+      />
+    );
   }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <section className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-bold text-[#636E72]">Akademik</p>
-          <h1 className="text-3xl font-extrabold text-[#2D3436]">Mata Pelajaran</h1>
-          <p className="text-sm font-semibold text-[#636E72]">Master mapel dan guru pengajar memakai endpoint yang sama dengan Android.</p>
+          <p className="text-sm font-bold text-[#636E72]">Akademik & KBM</p>
+          <h1 className="text-3xl font-extrabold text-[#2D3436]">Mata Pelajaran & Jadwal KBM</h1>
+          <p className="text-sm font-semibold text-[#636E72]">
+            Kelola mata pelajaran resmi, guru pengajar, dan susunan jam jadwal santri secara terpadu.
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className={`q-refresh-button inline-flex min-h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#138F81] ${isLoading ? 'is-loading' : ''}`} onClick={() => void load()} type="button" disabled={isLoading}>
-            <RefreshCw className="q-refresh-icon" size={17} /> {isLoading ? 'Memuat...' : 'Refresh'}
+          <button
+            className="q-refresh-button inline-flex min-h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#138F81]"
+            onClick={() => void load()}
+            type="button"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`q-refresh-icon ${isLoading ? 'animate-spin' : ''}`} size={17} /> Refresh
           </button>
-          <button className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20" onClick={() => openForm()} type="button">
-            <Plus size={17} /> Tambah Mapel
+          <button
+            className="q-soft-action inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white shadow-md shadow-[#138F81]/25 hover:bg-[#0f766a] transition-all"
+            onClick={() => setActiveFormData(null)}
+            type="button"
+          >
+            <Plus size={17} /> Tambah Mapel & Jadwal
           </button>
         </div>
       </section>
 
-      {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
-      {notice ? <div className="rounded-2xl bg-[#E8F7F3] px-4 py-3 text-sm font-bold text-[#138F81]">{notice}</div> : null}
+      {/* Stat Cards */}
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard
+          title="Total Mata Pelajaran"
+          value={rows.length}
+          subtitle={`${rows.filter((r) => text(r.status) === 'Aktif').length} berstatus aktif`}
+          icon={BookOpen}
+          tone="teal"
+        />
+        <StatCard
+          title="Total Slot Jadwal"
+          value={totalJadwals}
+          subtitle="Jadwal aktif KBM santri"
+          icon={Calendar}
+          tone="blue"
+        />
+        <StatCard
+          title="Guru Pengajar Terhubung"
+          value={totalTeachers}
+          subtitle="Ustadz / Ustadzah terdaftar"
+          icon={GraduationCap}
+          tone="teal"
+        />
+      </section>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <StatCard title="Total Mapel" value={rows.length} subtitle={`${activeCount} mapel aktif`} icon={BookOpen} tone="teal" />
-        <StatCard title="Guru Terhubung" value={teacherConnected} subtitle={`${teachers.length} guru aktif tersedia`} icon={UsersRound} tone="blue" />
-        <StatCard title="Filter Tampil" value={filtered.length} subtitle={statusFilter} icon={Search} tone="orange" />
-      </div>
-
-      <section className="q-panel p-4 sm:p-6">
-        <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_220px]">
-          <SearchInput value={search} onChange={setSearch} placeholder="Cari nama mapel / kode / guru" />
-          <select className="q-input" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-            <option value="Semua">Semua status</option>
-            <option value="Aktif">Aktif</option>
-            <option value="Nonaktif">Nonaktif</option>
-          </select>
+      {notice && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 p-4 text-sm font-bold text-emerald-800 animate-in fade-in duration-300">
+          ✅ {notice}
         </div>
+      )}
+
+      {error && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50/90 p-4 text-sm font-bold text-rose-700">
+          ⚠️ {error}
+        </div>
+      )}
+
+      {/* Filters & Search */}
+      <section className="space-y-4 rounded-3xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Cari nama mapel / kode / guru / hari / kelas..."
+          />
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-500">Status:</span>
+            <select
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-[#138F81]"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="Semua">Semua Status</option>
+              <option value="Aktif">Aktif</option>
+              <option value="Nonaktif">Nonaktif</option>
+            </select>
+          </div>
+        </div>
+
         <DataTable
           rows={filtered}
           columns={columns}
-          emptyText={isLoading ? 'Memuat mata pelajaran...' : 'Belum ada mata pelajaran.'}
-          minWidth="900px"
-          mobileRender={(row) => (
-            <article className="rounded-3xl bg-white p-4 shadow-sm shadow-black/5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="break-words text-base font-extrabold text-[#2D3436]">{text(row.nama)}</h3>
-                  <p className="mt-1 text-xs font-semibold text-[#636E72]">Kode: {text(row.kode)}</p>
-                </div>
-                <StatusBadge label={text(row.status, 'Aktif')} tone={text(row.status) === 'Aktif' ? 'success' : 'danger'} />
-              </div>
-              <p className="mt-3 text-xs font-semibold leading-5 text-[#636E72]">
-                Guru: {list(row.guru).length ? list(row.guru).map((guru) => text(guru.name)).join(', ') : 'Belum terhubung'}
-              </p>
-              <p className="text-xs font-semibold text-[#636E72]">Jadwal aktif: {list(row.jadwal).length}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button className="rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-bold text-[#2E86DE]" onClick={() => openForm(row)} type="button">
-                  <Pencil size={14} className="inline" /> Edit
-                </button>
-                <button className="rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-bold text-[#D63031]" onClick={() => setDeleteTarget(row)} type="button">
-                  <Trash2 size={14} className="inline" /> Hapus
-                </button>
-              </div>
-            </article>
-          )}
+          emptyText={isLoading ? 'Memuat mata pelajaran & jadwal...' : 'Belum ada mata pelajaran.'}
+          minWidth="880px"
         />
       </section>
 
-      {form ? (
-        <ModalForm
-          title={form.id ? 'Edit Mata Pelajaran' : 'Tambah Mata Pelajaran'}
-          onClose={() => setForm(null)}
-          footer={
-            <button className="min-h-12 w-full rounded-2xl bg-[#138F81] text-sm font-extrabold text-white disabled:opacity-60" disabled={isSaving} form="mapel-form" type="submit">
-              {isSaving ? 'Menyimpan...' : 'Simpan Mata Pelajaran'}
-            </button>
-          }
-        >
-          <form id="mapel-form" className="space-y-4" onSubmit={saveForm}>
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[#636E72]">Nama Mata Pelajaran</span>
-              <input className="q-input" value={form.nama} onChange={(event) => setForm({ ...form, nama: event.target.value })} required />
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[#636E72]">Kode</span>
-              <input className="q-input" value={form.kode} onChange={(event) => setForm({ ...form, kode: event.target.value })} placeholder="Opsional" />
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              {(['Aktif', 'Nonaktif'] as const).map((status) => (
-                <button key={status} className={`min-h-12 rounded-2xl text-sm font-extrabold ${form.status === status ? 'bg-[#138F81] text-white' : 'bg-white text-[#636E72]'}`} onClick={() => setForm({ ...form, status })} type="button">
-                  {status}
-                </button>
-              ))}
-            </div>
-            <div className="rounded-3xl bg-white p-4">
-              <p className="mb-3 text-sm font-extrabold text-[#2D3436]">Guru Pengajar</p>
-              <div className="mb-3">
-                <SearchInput value={teacherSearch} onChange={setTeacherSearch} placeholder="Cari guru pengajar / kode / email" />
-              </div>
-              <div className="grid max-h-64 gap-2 overflow-y-auto q-scrollbar">
-                {filteredTeachers.length === 0 ? (
-                  <p className="rounded-2xl bg-[#E1EFF7] px-4 py-3 text-sm font-bold text-[#636E72]">Belum ada guru aktif.</p>
-                ) : (
-                  filteredTeachers.map((teacher) => {
-                    const id = num(teacher.id);
-                    const selected = form.guruIds.has(id);
-                    return (
-                      <button
-                        key={id}
-                        className={`flex items-center justify-between rounded-2xl px-4 py-3 text-left transition ${selected ? 'bg-[#E8F7F3] text-[#138F81]' : 'bg-[#F8FBFC] text-[#2D3436] hover:bg-[#E1EFF7]'}`}
-                        onClick={() => toggleTeacher(id)}
-                        type="button"
-                      >
-                        <span>
-                          <span className="block text-sm font-extrabold">{text(teacher.name)}</span>
-                          <span className="block text-xs font-semibold text-[#636E72]">{text(teacher.kode_guru ?? teacher.email)}</span>
-                        </span>
-                        <span className="text-xs font-extrabold">{selected ? 'Dipilih' : 'Pilih'}</span>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          </form>
-        </ModalForm>
-      ) : null}
-
-      {deleteTarget ? (
+      {deleteTarget && (
         <ConfirmDialog
-          title="Hapus Mata Pelajaran?"
-          message={`${text(deleteTarget.nama)} akan dihapus. Jika sudah terkait jadwal/absensi, pastikan data lama tetap aman di backend.`}
+          title="Hapus Mata Pelajaran & Jadwal?"
+          message={`Apakah Anda yakin ingin menghapus "${text(deleteTarget?.nama)}"? Seluruh slot jadwal KBM yang terhubung ke mapel ini juga akan terhapus.`}
+          confirmLabel={isDeleting ? 'Menghapus...' : 'Ya, Hapus'}
           tone="danger"
-          confirmLabel="Hapus"
-          isBusy={isSaving}
+          isBusy={isDeleting}
+          onConfirm={() => void handleDelete()}
           onCancel={() => setDeleteTarget(null)}
-          onConfirm={() => void deleteMapel()}
         />
-      ) : null}
+      )}
     </div>
   );
 }

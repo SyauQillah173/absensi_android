@@ -95,6 +95,7 @@ class KelompokBelajarController extends Controller
     {
         $activeStatusId = app(ReferenceResolver::class)->studentStatusId('Aktif');
         $siswa = $this->activeStudentQuery($kelompokBelajar, $activeStatusId)
+            ->with(['boardingRoom.complex'])
             ->orderBy('nama')
             ->get();
 
@@ -107,12 +108,16 @@ class KelompokBelajarController extends Controller
                 'kategori' => $kelompokBelajar->kategori,
                 'sifir' => $kelompokBelajar->sifir,
                 'siswa' => $siswa->map(function ($s) {
+                    $kamar = $s->boardingRoom ? (($s->boardingRoom->complex->name ?? '') . ' - ' . $s->boardingRoom->name) : ($s->kamar ?? '-');
                     return [
                         'id' => $s->id,
                         'nis' => $s->nis,
+                        'nisn' => $s->nisn,
                         'nama' => $s->nama,
                         'jenis_kelamin' => $s->jenis_kelamin,
                         'status' => $s->status,
+                        'kamar' => $kamar,
+                        'kelas' => $s->kelas,
                     ];
                 }),
             ],
@@ -127,11 +132,31 @@ class KelompokBelajarController extends Controller
             'class_id' => 'nullable|integer|exists:classes,id',
             'kategori' => 'required|string',
             'sifir' => 'required|string',
+            'siswa_ids' => 'nullable|array',
+            'siswa_ids.*' => 'integer|exists:siswa,id',
         ]);
         $validated['class_id'] = $validated['class_id']
             ?? app(ReferenceResolver::class)->classId($validated['nama'], false);
 
-        $kelompok = KelompokBelajar::create($validated);
+        $kelompok = DB::transaction(function () use ($validated) {
+            $kelompok = KelompokBelajar::create([
+                'nama' => $validated['nama'],
+                'class_id' => $validated['class_id'] ?? null,
+                'kategori' => $validated['kategori'],
+                'sifir' => $validated['sifir'],
+            ]);
+
+            if (!empty($validated['siswa_ids']) && is_array($validated['siswa_ids'])) {
+                $ids = collect($validated['siswa_ids'])->map(fn ($id) => (int) $id)->unique()->values()->all();
+                $kelompok->siswa()->sync($ids);
+                Siswa::whereIn('id', $ids)->update([
+                    'kelas' => $kelompok->nama,
+                    'class_id' => $kelompok->class_id,
+                ]);
+            }
+
+            return $kelompok;
+        });
 
         return response()->json([
             'success' => true,
@@ -144,28 +169,37 @@ class KelompokBelajarController extends Controller
     public function addSiswa(Request $request, KelompokBelajar $kelompokBelajar)
     {
         $validated = $request->validate([
-            'siswa_id' => 'required|exists:siswa,id',
+            'siswa_id' => 'nullable|exists:siswa,id',
+            'siswa_ids' => 'nullable|array',
+            'siswa_ids.*' => 'integer|exists:siswa,id',
         ]);
 
-        // Cek apakah siswa sudah ada di kelompok ini
-        if ($kelompokBelajar->siswa()->where('siswa_id', $validated['siswa_id'])->exists()) {
+        $ids = collect($validated['siswa_ids'] ?? [])
+            ->merge(isset($validated['siswa_id']) ? [$validated['siswa_id']] : [])
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($ids)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Siswa sudah ada di kelompok ini',
-            ], 409);
+                'message' => 'Pilih santri terlebih dahulu',
+            ], 422);
         }
 
-        $kelompokBelajar->siswa()->attach($validated['siswa_id']);
+        $kelompokBelajar->siswa()->syncWithoutDetaching($ids);
 
         // Update kelas siswa to match kelompok
-        Siswa::where('id', $validated['siswa_id'])->update([
+        Siswa::whereIn('id', $ids)->update([
             'kelas' => $kelompokBelajar->nama,
             'class_id' => $kelompokBelajar->class_id,
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Siswa berhasil ditambahkan ke kelompok',
+            'message' => count($ids) . ' Santri berhasil ditambahkan ke kelompok',
             'data' => $kelompokBelajar->load('siswa'),
         ]);
     }
@@ -174,10 +208,19 @@ class KelompokBelajarController extends Controller
     public function removeSiswa(KelompokBelajar $kelompokBelajar, $siswaId)
     {
         $kelompokBelajar->siswa()->detach($siswaId);
+        Siswa::where('id', $siswaId)
+            ->where(function ($q) use ($kelompokBelajar) {
+                $q->where('class_id', $kelompokBelajar->class_id)
+                  ->orWhere('kelas', $kelompokBelajar->nama);
+            })
+            ->update([
+                'kelas' => null,
+                'class_id' => null,
+            ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Siswa berhasil dihapus dari kelompok',
+            'message' => 'Santri berhasil dikeluarkan dari kelompok',
         ]);
     }
 
@@ -245,21 +288,52 @@ class KelompokBelajarController extends Controller
             'class_id' => 'nullable|integer|exists:classes,id',
             'kategori' => 'sometimes|string',
             'sifir' => 'sometimes|string',
+            'siswa_ids' => 'nullable|array',
+            'siswa_ids.*' => 'integer|exists:siswa,id',
         ]);
         if (array_key_exists('nama', $validated) && !array_key_exists('class_id', $validated)) {
             $validated['class_id'] = app(ReferenceResolver::class)->classId($validated['nama'], false);
         }
 
-        // If nama changed, also update siswa.kelas for all attached siswa
-        if (isset($validated['nama']) && $validated['nama'] !== $kelompokBelajar->nama) {
-            Siswa::whereIn('id', $kelompokBelajar->siswa()->pluck('siswa_id'))
-                ->update([
-                    'kelas' => $validated['nama'],
-                    'class_id' => $validated['class_id'] ?? $kelompokBelajar->class_id,
-                ]);
-        }
+        DB::transaction(function () use ($validated, $kelompokBelajar) {
+            // If nama changed, also update siswa.kelas for all attached siswa
+            if (isset($validated['nama']) && $validated['nama'] !== $kelompokBelajar->nama) {
+                Siswa::whereIn('id', $kelompokBelajar->siswa()->pluck('siswa_id'))
+                    ->update([
+                        'kelas' => $validated['nama'],
+                        'class_id' => $validated['class_id'] ?? $kelompokBelajar->class_id,
+                    ]);
+            }
 
-        $kelompokBelajar->update($validated);
+            if (isset($validated['siswa_ids']) && is_array($validated['siswa_ids'])) {
+                $ids = collect($validated['siswa_ids'])->map(fn ($id) => (int) $id)->unique()->values()->all();
+                
+                // Find removed students
+                $currentAttached = $kelompokBelajar->siswa()->pluck('siswa_id')->all();
+                $removedIds = array_diff($currentAttached, $ids);
+                if (!empty($removedIds)) {
+                    Siswa::whereIn('id', $removedIds)
+                        ->where(function ($q) use ($kelompokBelajar) {
+                            $q->where('class_id', $kelompokBelajar->class_id)
+                              ->orWhere('kelas', $kelompokBelajar->nama);
+                        })
+                        ->update([
+                            'kelas' => null,
+                            'class_id' => null,
+                        ]);
+                }
+
+                $kelompokBelajar->siswa()->sync($ids);
+                if (!empty($ids)) {
+                    Siswa::whereIn('id', $ids)->update([
+                        'kelas' => $validated['nama'] ?? $kelompokBelajar->nama,
+                        'class_id' => $validated['class_id'] ?? $kelompokBelajar->class_id,
+                    ]);
+                }
+            }
+
+            $kelompokBelajar->update(array_intersect_key($validated, array_flip(['nama', 'class_id', 'kategori', 'sifir'])));
+        });
 
         return response()->json([
             'success' => true,

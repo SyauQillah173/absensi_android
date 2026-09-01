@@ -103,8 +103,7 @@ const allMenu: MenuItem[] = [
     icon: BookOpen,
     children: [
       { label: "Data Kelas (Madin & Sekolah)", page: "master", masterSection: "kelas" },
-      { label: "Mata Pelajaran", page: "mapel" },
-      { label: "Jadwal Pelajaran", page: "jadwal" },
+      { label: "Mata Pelajaran & Jadwal", page: "mapel" },
       { label: "Kelompok Belajar", page: "master", masterSection: "kelompok" },
     ],
   },
