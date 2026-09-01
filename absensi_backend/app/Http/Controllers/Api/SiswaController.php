@@ -823,21 +823,24 @@ class SiswaController extends Controller
 
     private function normalizeClassReference(array $payload, bool $throw = true): array
     {
+        $classId = $payload['class_id'] ?? null;
         $kelas = $payload['kelas'] ?? null;
-        if (($payload['class_id'] ?? null) || !$kelas) {
-            return $payload;
-        }
 
-        $classId = app(ReferenceResolver::class)->classId($kelas, false);
-        if (!$classId) {
-            $message = 'Kelas tidak ditemukan di master kelas. Pilih kelas resmi, jangan ketik bebas.';
-            if ($throw) {
-                throw ValidationException::withMessages(['kelas' => $message]);
+        if ($classId) {
+            $className = app(ReferenceResolver::class)->className($classId);
+            if ($className && empty($payload['kelas'])) {
+                $payload['kelas'] = $className;
             }
             return $payload;
         }
 
-        $payload['class_id'] = $classId;
+        if ($kelas) {
+            $resolvedClassId = app(ReferenceResolver::class)->classId($kelas, false);
+            if ($resolvedClassId) {
+                $payload['class_id'] = $resolvedClassId;
+            }
+        }
+
         return $payload;
     }
 

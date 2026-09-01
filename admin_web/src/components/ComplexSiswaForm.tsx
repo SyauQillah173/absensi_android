@@ -20,6 +20,7 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
   // Options state
   const [masterRefs, setMasterRefs] = useState<ApiRecord[]>([]);
   const [provinces, setProvinces] = useState<ApiRecord[]>([]);
+  const [schoolClasses, setSchoolClasses] = useState<ApiRecord[]>([]);
   
   // Region States
   const [cities, setCities] = useState<ApiRecord[]>([]);
@@ -113,6 +114,7 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
     // Load static dropdowns
     api.masterReferensi().then(res => setMasterRefs(res.data || [])).catch(() => {});
     api.regionProvinces().then(res => setProvinces(res.data || [])).catch(() => {});
+    api.classes().then(res => setSchoolClasses(Array.isArray(res.data) ? res.data : [])).catch(() => {});
   }, [initialData]);
 
   const loadCities = async (provId: string | number, type: 'siswa'|'ayah'|'ibu' = 'siswa') => {
@@ -721,31 +723,61 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                   </h3>
                   <div className="grid gap-6 lg:grid-cols-2">
                     <label className="block">
-                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Dari Sekolah / Madrasah</span>
-                      <input list="sekolah-list" className="q-input" name="asal_sekolah" value={String(form.asal_sekolah || '')} onChange={handleChange} />
+                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Dari Sekolah Asal</span>
+                      <input list="sekolah-list" className="q-input uppercase" name="asal_sekolah" value={String(form.asal_sekolah || '')} onChange={handleChange} placeholder="Misal: MIS SALAFIYAH MAHBUBIYAH" />
                     </label>
                     <label className="block">
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Kewarganegaraan</span>
-                      <input className="q-input" name="kewarganegaraan" value={String(form.kewarganegaraan || 'Indonesia')} onChange={handleChange} />
+                      <input className="q-input uppercase" name="kewarganegaraan" value={String(form.kewarganegaraan || 'INDONESIA')} onChange={handleChange} />
                     </label>
                     <label className="block">
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Tanggal Diterima</span>
                       <input type="date" className="q-input" name="tanggal_diterima_sekolah" value={String(form.tanggal_diterima_sekolah || '')} onChange={handleChange} />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Diterima di Kelas</span>
-                      <input className="q-input" name="kelas" value={String(form.kelas || '')} onChange={handleChange} />
+                      <span className="mb-2 block text-sm font-bold text-[#138F81]">Diterima di Kelas Madin</span>
+                      <SearchableSelect
+                        name="class_id"
+                        value={form.class_id || ''}
+                        onChange={(v) => {
+                          const selected = schoolClasses.find(c => String(c.id) === String(v));
+                          setForm(prev => ({
+                            ...prev,
+                            class_id: v,
+                            kelas: prev.kelas || (selected ? String(selected.name) : '')
+                          }));
+                        }}
+                        options={schoolClasses.map(c => ({
+                          value: String(c.id),
+                          label: `${c.name} (${c.category || 'Madin'}${c.gender_group ? ` - ${c.gender_group}` : ''})`
+                        }))}
+                        placeholder="Pilih atau cari Kelas Madin..."
+                        disabled={readOnly}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Sekolah Formal / Unit Pendidikan</span>
+                      <input list="sekolah-formal-list" className="q-input uppercase" name="kelas" value={String(form.kelas || '')} onChange={handleChange} placeholder="Misal: MTS ASSA'ADAH, SMA ASSA'ADAH, VII MTS, dll" />
                     </label>
                     <label className="block">
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Tahun Akademik Masuk</span>
-                      <input list="tahun-akademik-list" className="q-input" name="tahun_akademik_masuk" value={String(form.tahun_akademik_masuk || '')} onChange={handleChange} placeholder="Misal: 2026/2027" />
+                      <input list="tahun-akademik-list" className="q-input uppercase" name="tahun_akademik_masuk" value={String(form.tahun_akademik_masuk || '')} onChange={handleChange} placeholder="Misal: 2026/2027" />
                     </label>
                     <label className="block">
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Jenis Santri</span>
-                      <input list="jenis-santri-list" className="q-input" name="jenis_santri" value={String(form.jenis_santri || '')} onChange={handleChange} placeholder="Misal: Mukim / Non-Mukim" />
+                      <input list="jenis-santri-list" className="q-input uppercase" name="jenis_santri" value={String(form.jenis_santri || '')} onChange={handleChange} placeholder="Misal: SANTRI MADIN / MUKIM" />
                     </label>
                   </div>
                   <datalist id="sekolah-list">{getRef('asal_sekolah').map(r => <option key={String(r.id)} value={String(r.nilai)} />)}</datalist>
+                  <datalist id="sekolah-formal-list">
+                    <option value="MTs Assa'adah I" />
+                    <option value="MTs Assa'adah II" />
+                    <option value="SMP Assa'adah" />
+                    <option value="SMA Assa'adah" />
+                    <option value="SMK Assa'adah" />
+                    <option value="MA Assa'adah" />
+                    <option value="Universitas Qomaruddin" />
+                  </datalist>
                   <datalist id="tahun-akademik-list">{getRef('tahun_akademik').map(r => <option key={String(r.id)} value={String(r.nilai)} />)}</datalist>
                   <datalist id="jenis-santri-list">{getRef('jenis_santri').map(r => <option key={String(r.id)} value={String(r.nilai)} />)}</datalist>
                 </div>
