@@ -120,9 +120,13 @@ class GuruAttendanceStatusService
 
     private function scheduledDay(Jadwal $jadwal): ?string
     {
+        if (!empty($jadwal->hari)) {
+            return trim($jadwal->hari);
+        }
+
         return $jadwal->day_id
             ? DB::table('days')->where('id', $jadwal->day_id)->value('name')
-            : $jadwal->hari;
+            : null;
     }
 
     private function scheduleTimeForToday(string $time, Carbon $now): Carbon

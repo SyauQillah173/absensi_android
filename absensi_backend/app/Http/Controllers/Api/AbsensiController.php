@@ -246,6 +246,15 @@ class AbsensiController extends Controller
             );
         }
 
+        if ($processedCount === 0 && count($failed) > 0) {
+            $firstErrMsg = $failed[0]['message'] ?? 'Gagal menyimpan absensi santri.';
+            return response()->json([
+                'success' => false,
+                'message' => $firstErrMsg,
+                'failed' => $failed,
+            ], 422);
+        }
+
         return response()->json([
             'success' => true,
             'message' => count($created) . ' absensi baru, ' . count($updated) . ' diperbarui, ' . count($failed) . ' gagal/konflik',
@@ -643,11 +652,26 @@ class AbsensiController extends Controller
         }
 
         $assignedBySchedule = (int) ($jadwal->teacher_id ?? 0) === (int) $actor->id;
+        $assignedByName = false;
+        if (!empty($jadwal->guru)) {
+            $jGuru = strtolower(trim($jadwal->guru));
+            $aName = strtolower(trim($actor->name));
+            $aKode = strtolower(trim($actor->kode_guru ?? ''));
+            $cleanJGuru = preg_replace('/^(ust|ustd|ustadz|ustadzah|hj|h|kh)\.?\s+/i', '', $jGuru);
+            $cleanAName = preg_replace('/^(ust|ustd|ustadz|ustadzah|hj|h|kh)\.?\s+/i', '', $aName);
+
+            $assignedByName = ($jGuru === $aName)
+                || (!empty($aKode) && $jGuru === $aKode)
+                || (str_contains($jGuru, $cleanAName))
+                || (str_contains($aName, $cleanJGuru))
+                || ($cleanJGuru === $cleanAName);
+        }
+
         $assignedByMapel = $jadwal->mataPelajaran
             ? $jadwal->mataPelajaran->guru->contains('id', $actor->id)
             : false;
 
-        if (!$assignedBySchedule && !$assignedByMapel) {
+        if (!$assignedBySchedule && !$assignedByName && !$assignedByMapel) {
             throw ValidationException::withMessages([
                 'jadwal_id' => ['Guru hanya bisa menginput absensi pada jadwal yang ditugaskan admin.'],
             ]);
