@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, type ApiRecord, type UserSession } from '../services/api';
+import { getTodayDateString } from '../utils/formatters';
 
 interface GuruDashboardViewProps {
   session: UserSession | null;
@@ -193,7 +194,7 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
     setModalError('');
     setIsLoadingStudents(true);
     try {
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayStr = getTodayDateString();
       const classId = jadwal.class_id;
 
       // Parallel fetch students and attendance records if done
@@ -217,10 +218,9 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
       if (savedLogs.length > 0) {
         savedLogs.forEach((log) => {
           const sid = Number(log.siswa_id);
-          const st = String(log.status ?? 'Hadir');
-          initStatuses[sid] = (st === 'H' || st === 'Hadir') ? 'Hadir' : (st === 'I' || st === 'Izin') ? 'Izin' : (st === 'S' || st === 'Sakit') ? 'Sakit' : 'Alfa';
-          if (log.keterangan || log.catatan) {
-            initNotes[sid] = String(log.keterangan || log.catatan);
+          if (sid) {
+            initStatuses[sid] = (log.status as MadinStatus) || 'Hadir';
+            if (log.keterangan) initNotes[sid] = String(log.keterangan);
           }
         });
       } else {
@@ -253,7 +253,7 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
     setModalError('');
 
     try {
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayStr = getTodayDateString();
       const items = students.map((s) => {
         const sid = Number(s.id);
         return {

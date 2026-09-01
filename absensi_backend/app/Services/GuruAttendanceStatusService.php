@@ -89,8 +89,9 @@ class GuruAttendanceStatusService
 
     public function assertOpenForGuru(Jadwal $jadwal, ?Carbon $date = null, bool $offlineSync = false): ?string
     {
-        $date = ($date ?: Carbon::now('Asia/Jakarta'))->copy()->startOfDay();
-        $today = Carbon::now('Asia/Jakarta')->startOfDay();
+        $now = Carbon::now('Asia/Jakarta');
+        $date = ($date ?: $now)->copy()->setTimezone('Asia/Jakarta')->startOfDay();
+        $today = $now->copy()->startOfDay();
         $scheduledDay = $this->scheduledDay($jadwal);
         $dayLabel = $this->todayLabel($date);
         $label = trim(($scheduledDay ?: 'hari sesuai jadwal') . ' ' . ($jadwal->jam_mulai ?: ''));
@@ -109,7 +110,7 @@ class GuruAttendanceStatusService
         }
 
         if ($date->equalTo($today)) {
-            $status = $this->resolve($jadwal);
+            $status = $this->resolve($jadwal, false, $now);
             if (!$status['can_absen']) {
                 return $status['message'] ?: "Absensi belum dibuka. Jadwal: {$label}.";
             }

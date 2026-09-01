@@ -682,7 +682,7 @@ class AbsensiController extends Controller
 
     private function assertGuruScheduleIsOpen(Jadwal $jadwal, array $payload): void
     {
-        $tanggal = Carbon::parse($payload['tanggal'] ?? now()->toDateString())->startOfDay();
+        $tanggal = Carbon::parse($payload['tanggal'] ?? Carbon::now('Asia/Jakarta')->toDateString(), 'Asia/Jakarta')->startOfDay();
         $offlineSync = ($payload['diinput_via'] ?? '') === 'offline_sync';
         $message = app(GuruAttendanceStatusService::class)->assertOpenForGuru($jadwal, $tanggal, $offlineSync);
         if ($message) {

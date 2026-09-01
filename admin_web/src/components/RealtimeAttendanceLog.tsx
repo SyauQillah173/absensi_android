@@ -19,6 +19,7 @@ import { StatCard } from './StatCard';
 import { StatusBadge } from './StatusBadge';
 import { api, type ApiRecord } from '../services/api';
 import { exportRowsExcel } from '../utils/importTemplates';
+import { getTodayDateString } from '../utils/formatters';
 
 export interface UnifiedAttendanceLog extends ApiRecord {
   id: string | number;
@@ -104,7 +105,7 @@ export function RealtimeAttendanceLog() {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
   const [selectedStatus, setSelectedStatus] = useState<string>('Semua');
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayDateString());
 
   const loadData = useCallback(async (silent = false) => {
     if (!silent) {
