@@ -250,6 +250,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
       const nis = String(row.nis ?? '').toLowerCase();
       const nisn = String(row.nisn ?? '').toLowerCase();
       const kelas = String(row.kelas ?? '').toLowerCase();
+      const sekolahFormal = String(row.sekolah_formal ?? '').toLowerCase();
       const email = String(row.email ?? '').toLowerCase();
       const kode = String(row.kode_guru ?? '').toLowerCase();
       const komplek = String(row.komplek ?? '').toLowerCase();
@@ -262,6 +263,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
         nis.includes(keyword) ||
         nisn.includes(keyword) ||
         kelas.includes(keyword) ||
+        sekolahFormal.includes(keyword) ||
         email.includes(keyword) ||
         kode.includes(keyword) ||
         komplek.includes(keyword) ||
@@ -868,8 +870,10 @@ function detailEntries(row: ApiRecord, variant: MasterVariant): Array<[string, s
       ['Nama', text(row.nama)],
       ['NIS', text(row.nis)],
       ['NISN', text(row.nisn)],
-      ['Tahun Lulus', text(row.tahun_lulus, '-')],
+      ['Sekolah / Kelas Formal', text(row.sekolah_formal)],
       ['Kelas / Madin', text(row.kelas)],
+      ['Asrama / Pondok', text(row.komplek || row.kamar ? `${text(row.komplek)} - ${text(row.kamar)}` : '-')],
+      ['Tahun Lulus', text(row.tahun_lulus, '-')],
       ['Wali', text(row.wali_nama ?? row.nama_wali)],
       ['Kontak Wali', text(row.no_telepon_wali ?? row.no_whatsapp)],
       ['Status', text(row.status, 'Aktif')],
@@ -907,7 +911,7 @@ function renderMobileCard(variant: MasterVariant, row: ApiRecord, actions: {
   const isUser = isUserVariant(variant);
   const title = isSiswa ? text(row.nama) : isUser ? text(row.name) : text(row.siswa_nama ?? row.nama);
   const subtitle = isSiswa
-    ? `${text(row.nis)} • ${text(row.kelas)}`
+    ? `${text(row.nis)}${row.sekolah_formal ? ` • 🏫 ${text(row.sekolah_formal)}` : ''} • ${text(row.kelas)}`
     : isUser
       ? `${text(row.email)} • ${text(row.role)}`
       : `${text(row.nis ?? record(row.siswa).nis)} • ${text(row.complex_name ?? row.komplek)} / ${text(row.room_name ?? row.kamar)}`;
@@ -1339,6 +1343,11 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
             <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 font-bold">NIS: {text(row.nis)}</span>
             {row.nisn ? (
               <span className="font-mono bg-blue-50 px-1.5 py-0.5 rounded text-[#2E86DE] font-bold">NISN: {text(row.nisn)}</span>
+            ) : null}
+            {row.sekolah_formal ? (
+              <span className="font-bold text-[#6C5CE7] bg-[#F0ECFF] px-1.5 py-0.5 rounded">
+                🏫 {text(row.sekolah_formal)}
+              </span>
             ) : null}
             {row.komplek || row.kamar ? (
               <span className="font-bold text-[#138F81] bg-[#E8F7F3] px-1.5 py-0.5 rounded">
