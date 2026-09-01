@@ -756,12 +756,16 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Sekolah Formal / Unit Pendidikan</span>
-                      <input list="sekolah-formal-list" className="q-input uppercase" name="kelas" value={String(form.kelas || '')} onChange={handleChange} placeholder="Misal: MTS ASSA'ADAH, SMA ASSA'ADAH, VII MTS, dll" />
+                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Tahun Akademik Masuk Madin</span>
+                      <input list="tahun-akademik-list" className="q-input uppercase" name="tahun_akademik_masuk" value={String(form.tahun_akademik_masuk || '')} onChange={handleChange} placeholder="Misal: 2026/2027" />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Tahun Akademik Masuk</span>
-                      <input list="tahun-akademik-list" className="q-input uppercase" name="tahun_akademik_masuk" value={String(form.tahun_akademik_masuk || '')} onChange={handleChange} placeholder="Misal: 2026/2027" />
+                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Sekolah Formal / Unit Pendidikan</span>
+                      <input list="sekolah-formal-list" className="q-input uppercase" name="sekolah_formal" value={String(form.sekolah_formal || form.kelas || '')} onChange={handleChange} placeholder="Misal: MTS ASSA'ADAH, SMA ASSA'ADAH, VII MTS, dll" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Tahun Akademik Masuk Sekolah Formal</span>
+                      <input list="tahun-akademik-list" className="q-input uppercase" name="tahun_akademik_masuk_formal" value={String(form.tahun_akademik_masuk_formal || '')} onChange={handleChange} placeholder="Misal: 2026/2027" />
                     </label>
                     <label className="block">
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Jenis Santri</span>
