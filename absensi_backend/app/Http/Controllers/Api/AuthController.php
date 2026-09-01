@@ -81,9 +81,7 @@ class AuthController extends Controller
         // Jika role guru → sertakan hak akses absensi sholat & ngaji
         if ($user->role === 'guru') {
             $canSholat = \App\Models\GuruAbsensiSholatAccess::where('user_id', $user->id)->where('is_active', true)->exists();
-            $canNgaji = \App\Models\NgajiSchedule::where('status', 'Aktif')->where(function ($q) use ($user) {
-                $q->where('teacher_id', $user->id)->orWhere('user_id', $user->id);
-            })->exists();
+            $canNgaji = \App\Models\NgajiSchedule::where('status', 'Aktif')->where('teacher_id', $user->id)->exists();
 
             $responseData['hak_akses'] = [
                 'absen_madin' => true,

@@ -491,10 +491,7 @@ class DashboardController extends Controller
         // 5. Ngaji Schedule for Guru
         $ngajiSchedules = NgajiSchedule::query()
             ->where('status', 'Aktif')
-            ->where(function ($q) use ($guru) {
-                $q->where('teacher_id', $guru->id)
-                    ->orWhere('user_id', $guru->id);
-            })
+            ->where('teacher_id', $guru->id)
             ->get();
         $canNgaji = $ngajiSchedules->isNotEmpty() || $guru->role === 'admin';
 
