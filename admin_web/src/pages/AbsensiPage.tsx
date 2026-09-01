@@ -42,7 +42,8 @@ export type AbsensiTab =
   | 'madin'
   | 'rekap-sholat'
   | 'rekap-ngaji'
-  | 'jenis-sholat';
+  | 'jenis-sholat'
+  | 'jadwal-ngaji';
 
 export interface AbsensiNavigationTarget {
   tab: AbsensiTab;
@@ -64,9 +65,11 @@ const tabs = [
   { id: 'madin-input', label: 'Absensi Madin' },
   { id: 'sholat', label: "Jama'ah Sholat" },
   { id: 'ngaji', label: 'Ngaji Kitab' },
-  { id: 'rekap-sholat', label: 'Rekap Sholat' },
   { id: 'madin', label: 'Rekap Madin' },
-  { id: 'jenis-sholat', label: "Waktu Jama'ah" }
+  { id: 'rekap-sholat', label: 'Rekap Sholat' },
+  { id: 'rekap-ngaji', label: 'Rekap Ngaji' },
+  { id: 'jenis-sholat', label: "Atur Waktu Sholat" },
+  { id: 'jadwal-ngaji', label: "Atur Jadwal Ngaji" }
 ];
 
 const legacyPrayerTypes: ApiRecord[] = [
@@ -422,7 +425,18 @@ export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabC
                 : 'text-slate-600 hover:bg-slate-50'
             }`}
           >
-            ⚙️ Waktu Sholat
+            ⚙️ Atur Waktu Sholat
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabSelect('jadwal-ngaji')}
+            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition shrink-0 ${
+              currentTab === 'jadwal-ngaji'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            📖 Atur Jadwal Ngaji
           </button>
         </div>
       )}
@@ -432,6 +446,7 @@ export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabC
       {currentTab === 'sholat' ? <PrayerInput /> : null}
       {currentTab === 'ngaji' ? <NgajiKitabSection initialSection="input" /> : null}
       {currentTab === 'rekap-ngaji' ? <NgajiKitabSection initialSection="rekap" /> : null}
+      {currentTab === 'jadwal-ngaji' ? <NgajiKitabSection initialSection="master" /> : null}
       {currentTab === 'rekap-sholat' ? <PrayerRekap /> : null}
       {currentTab === 'madin' ? <MadinRekap /> : null}
       {currentTab === 'jenis-sholat' ? <PrayerTypeCms /> : null}
