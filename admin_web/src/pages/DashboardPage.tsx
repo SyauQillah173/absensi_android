@@ -175,7 +175,7 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
         void load(true);
       }
     };
-    const intervalId = window.setInterval(refreshVisibleDashboard, 60_000);
+    const intervalId = window.setInterval(refreshVisibleDashboard, 12_000);
     document.addEventListener('visibilitychange', refreshVisibleDashboard);
 
     return () => {

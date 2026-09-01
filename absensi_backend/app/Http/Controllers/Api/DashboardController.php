@@ -410,14 +410,35 @@ class DashboardController extends Controller
         $absensiHariIni = Absensi::query()
             ->whereDate('tanggal', $today)
             ->where(function ($q) use ($guru, $jadwalHariIni) {
-                $q->where('diinput_oleh', 'ilike', "%{$guru->name}%")
-                    ->orWhere('actor_user_id', $guru->id)
-                    ->orWhereIn('jadwal_id', $jadwalHariIni->pluck('id'));
+                $q->where('actor_user_id', $guru->id)
+                    ->orWhere('diinput_oleh', 'ilike', "%{$guru->name}%");
+
+                $jIds = $jadwalHariIni->pluck('id')->filter()->all();
+                if (!empty($jIds)) {
+                    $q->orWhereIn('jadwal_id', $jIds);
+                }
+
+                foreach ($jadwalHariIni as $j) {
+                    if ($j->class_id && $j->mapel_id) {
+                        $q->orWhere(function ($sub) use ($j) {
+                            $sub->where('class_id', $j->class_id)
+                                ->where('mapel_id', $j->mapel_id);
+                        });
+                    }
+                }
             })
             ->get();
 
         $formatCard = function (Jadwal $j, bool $isToday = true, bool $isTomorrow = false) use ($absensiHariIni, $currentTime) {
-            $absensi = $absensiHariIni->where('jadwal_id', $j->id);
+            $absensi = $absensiHariIni->filter(function ($a) use ($j) {
+                if ($a->jadwal_id && (int) $a->jadwal_id === (int) $j->id) {
+                    return true;
+                }
+                if ($a->class_id && $a->mapel_id && (int) $a->class_id === (int) $j->class_id && (int) $a->mapel_id === (int) $j->mapel_id) {
+                    return true;
+                }
+                return false;
+            });
             $isDone = $absensi->isNotEmpty();
 
             $jamMulai = $j->jam_mulai ? substr((string) $j->jam_mulai, 0, 5) : '07:00';

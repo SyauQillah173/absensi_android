@@ -118,29 +118,34 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
 
   useEffect(() => {
     void load();
+    // Fast realtime sync every 12 seconds
     const interval = setInterval(() => {
       void load(true);
-    }, 30000);
+    }, 12000);
     return () => clearInterval(interval);
   }, [load]);
 
-  // Update clock every second
+  // Update clock every second & auto-refresh when crossing minute boundaries
   useEffect(() => {
     const updateClock = () => {
       const d = new Date();
-      setCurrentTimeStr(
-        d.toLocaleTimeString('id-ID', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false
-        }) + ' WIB'
-      );
+      const timeStr = d.toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }) + ' WIB';
+      setCurrentTimeStr(timeStr);
+
+      // On every 00 second (crossing a full minute), silently refresh dashboard to auto-activate upcoming schedules!
+      if (d.getSeconds() === 0) {
+        void load(true);
+      }
     };
     updateClock();
     const clockInterval = setInterval(updateClock, 1000);
     return () => clearInterval(clockInterval);
-  }, []);
+  }, [load]);
 
   const jadwalHariIni = useMemo(() => {
     return Array.isArray(dashboard?.jadwal_hari_ini)
@@ -256,7 +261,47 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
         subtitle: `Data absensi ${activeJadwal.mapel} telah tersimpan dan status terkunci.`
       });
 
+      // Optimistically lock the schedule card immediately in UI
+      setDashboard((prev: any) => {
+        if (!prev) return prev;
+        const currentHariIni = Array.isArray(prev.jadwal_hari_ini) ? prev.jadwal_hari_ini : [];
+        const nextHariIni = currentHariIni.map((j: any) => {
+          if (j.id === activeJadwal.id || (j.class_id === activeJadwal.class_id && j.mapel_id === activeJadwal.mapel_id)) {
+            return {
+              ...j,
+              is_done: true,
+              can_input: false,
+              status_absen: 'completed',
+              badge_status: '✅ Sudah Diabsen',
+              pesan_ramah: 'Presensi kelas ini sudah berhasil disimpan dan terkunci.',
+              total_hadir: Object.values(statuses).filter((st) => st === 'Hadir').length,
+              total_izin: Object.values(statuses).filter((st) => st === 'Izin').length,
+              total_sakit: Object.values(statuses).filter((st) => st === 'Sakit').length,
+              total_alfa: Object.values(statuses).filter((st) => st === 'Alfa').length,
+              total_siswa: students.length
+            };
+          }
+          return j;
+        });
+
+        const prevStats = prev.stats || {};
+        const sudah = nextHariIni.filter((j: any) => j.is_done).length;
+        const aktif = nextHariIni.filter((j: any) => j.can_input && !j.is_done).length;
+
+        return {
+          ...prev,
+          jadwal_hari_ini: nextHariIni,
+          stats: {
+            ...prevStats,
+            jadwal_sudah_diabsen: sudah,
+            jadwal_aktif_sekarang: aktif,
+            jadwal_belum_diabsen: nextHariIni.length - sudah
+          }
+        };
+      });
+
       setActiveJadwal(null);
+      setIsSaving(false);
       void load(true);
 
       setTimeout(() => {
