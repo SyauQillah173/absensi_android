@@ -131,6 +131,8 @@ class ImportRealSantriData extends Command
             // 2. Baca data sementara.xlsx
             $dataSpreadsheet = $reader->load($dataSementaraPath);
             $nisCounter = 1;
+            $usedNisn = [];
+            $usedNik = [];
 
             foreach (['putra', 'putri'] as $sheetName) {
                 $sheet = $dataSpreadsheet->getSheetByName($sheetName);
@@ -148,10 +150,24 @@ class ImportRealSantriData extends Command
                     $nisnRaw = trim((string)$sheet->getCell("C{$r}")->getValue());
                     $nisnDigits = preg_replace('/[^0-9]/', '', $nisnRaw);
                     $nisn = (strlen($nisnDigits) >= 8 && strlen($nisnDigits) <= 20) ? $nisnDigits : null;
+                    if ($nisn) {
+                        if (isset($usedNisn[$nisn])) {
+                            $nisn = null;
+                        } else {
+                            $usedNisn[$nisn] = true;
+                        }
+                    }
 
                     $nikRaw = trim((string)$sheet->getCell("D{$r}")->getValue());
                     $nikDigits = preg_replace('/[^0-9]/', '', $nikRaw);
                     $nik = (strlen($nikDigits) >= 10 && strlen($nikDigits) <= 16) ? $nikDigits : null;
+                    if ($nik) {
+                        if (isset($usedNik[$nik])) {
+                            $nik = null;
+                        } else {
+                            $usedNik[$nik] = true;
+                        }
+                    }
 
                     $sekolahTujuan = trim((string)$sheet->getCell("S{$r}")->getValue()) ?: null;
                     $waWali = trim((string)$sheet->getCell("AI{$r}")->getValue()) ?: null;
