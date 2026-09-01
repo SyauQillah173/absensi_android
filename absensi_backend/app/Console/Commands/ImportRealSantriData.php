@@ -304,6 +304,7 @@ class ImportRealSantriData extends Command
                     $parsed['nis'] = sprintf('%04d', $nisCounter++);
                     $parsed['kamar'] = $kamar;
                     $parsed['kelas'] = $kelasFormal ?: $parsed['sekolah_tujuan'];
+                    $parsed['sekolah_formal'] = $kelasFormal ?: $parsed['sekolah_tujuan'];
                     $parsed['status_mondok'] = $statusMondok;
 
                     $santriData[$key] = $parsed;
@@ -325,6 +326,7 @@ class ImportRealSantriData extends Command
                     'asal_sekolah' => null,
                     'tahun_lulus' => null,
                     'kelas' => $data['kelas_formal'],
+                    'sekolah_formal' => $data['kelas_formal'],
                     'alamat' => 'Pondok Pesantren Qomaruddin, Sampurnan Bungah Gresik',
                     'provinsi' => 'Jawa Timur',
                     'kota' => 'Gresik',
@@ -594,6 +596,7 @@ class ImportRealSantriData extends Command
                 'student_status_id' => $studentStatusId,
                 'class_id' => $classId,
                 'kelas' => $kelasStr,
+                'sekolah_formal' => $data['sekolah_formal'] ?? ($data['kelas'] ?? null),
                 'asal_sekolah' => $data['asal_sekolah'] ?? null,
                 'tahun_lulus' => !empty($data['tahun_lulus']) ? substr((string)$data['tahun_lulus'], 0, 4) : null,
                 'tahun_akademik_masuk' => '2025/2026',
