@@ -753,31 +753,31 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
         </section>
 
         {/* CHART 4: TOP KAMAR ASRAMA DENGAN PENGHUNI TERBANYAK */}
-        <section className="q-card p-5 lg:col-span-6 flex flex-col justify-between">
+        <section className="q-card p-5 lg:col-span-12 flex flex-col justify-between">
           <div>
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <div className="min-w-0">
                 <h2 className="text-base font-black text-slate-800 flex items-center gap-2">
                   <DoorOpen size={18} className="text-[#138F81] shrink-0" />
                   <span>Top Kamar Asrama Terpadat</span>
                 </h2>
                 <p className="text-xs font-semibold text-slate-500">
-                  Daftar kamar dengan jumlah santri penghuni terbanyak
+                  Daftar kamar dengan jumlah santri penghuni terbanyak di lingkungan Pondok Pesantren
                 </p>
               </div>
-              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl shrink-0 whitespace-nowrap">
-                <Home size={13} className="text-slate-500" />
-                {totalKamar} Total Kamar
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl shrink-0 whitespace-nowrap shadow-2xs">
+                <Home size={13} className="text-[#138F81]" />
+                {totalKamar} Total Kamar Terdata
               </span>
             </div>
 
-            {/* KAMAR RANKING LIST */}
+            {/* KAMAR RANKING LIST - FULL RESPONSIVE 4-COL GRID */}
             {kamarData.length === 0 ? (
               <div className="py-12 text-center text-slate-400">
                 <p className="text-sm font-bold">Belum ada data kamar asrama terisi.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-3 max-h-[230px] overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-1">
                 {kamarData.slice(0, 8).map((room, idx) => {
                   const val = Number(room.value || 0);
                   const cap = Number(room.capacity || 0);
@@ -788,29 +788,29 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
                   return (
                     <div
                       key={idx}
-                      className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 hover:bg-teal-50/50 transition-colors"
+                      className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/80 border border-slate-100 hover:bg-teal-50/60 hover:border-teal-200 transition-all shadow-2xs"
                       title={`${roomTitle} (${komplekTitle}): ${val} Santri`}
                     >
                       <div className="min-w-0 pr-2">
-                        <div className="flex items-center gap-1.5">
-                          <span className="grid h-5 w-5 place-items-center rounded-md bg-white border border-slate-200 text-[10px] font-black text-slate-700 shrink-0">
+                        <div className="flex items-center gap-2">
+                          <span className="grid h-6 w-6 place-items-center rounded-lg bg-white border border-slate-200 text-[11px] font-black text-slate-700 shrink-0 shadow-xs">
                             {idx + 1}
                           </span>
-                          <span className="font-extrabold text-slate-800 text-xs truncate max-w-[130px]">
+                          <span className="font-extrabold text-slate-800 text-xs sm:text-sm truncate">
                             {roomTitle}
                           </span>
                         </div>
-                        <p className="text-[10px] text-slate-500 font-semibold pl-6 truncate max-w-[130px]">
+                        <p className="text-[11px] text-slate-500 font-semibold pl-8 truncate">
                           {komplekTitle}
                         </p>
                       </div>
 
                       <div className="text-right whitespace-nowrap shrink-0">
-                        <span className="text-xs font-black text-teal-800 bg-white border border-teal-200 px-2 py-0.5 rounded-lg shadow-2xs">
+                        <span className="text-xs font-black text-[#138F81] bg-white border border-teal-200 px-2.5 py-1 rounded-xl shadow-xs">
                           {val} Santri
                         </span>
                         {pct !== null && (
-                          <div className="w-14 bg-slate-200 h-1.5 rounded-full overflow-hidden mt-1.5 ml-auto">
+                          <div className="w-16 bg-slate-200 h-1.5 rounded-full overflow-hidden mt-2 ml-auto">
                             <div
                               className={`h-full ${pct > 90 ? 'bg-rose-500' : 'bg-teal-500'}`}
                               style={{ width: `${pct}%` }}
@@ -825,8 +825,8 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
             )}
           </div>
 
-          <div className="flex items-center justify-between text-xs font-bold text-slate-500 pt-2.5 border-t border-slate-100 mt-2">
-            <span>Kapasitas & Okupansi Kamar</span>
+          <div className="flex items-center justify-between text-xs font-bold text-slate-500 pt-3 border-t border-slate-100 mt-3">
+            <span>Kapasitas & Okupansi Kamar Asrama</span>
             <span className="text-[#138F81] font-extrabold">Yayasan Pondok Qomaruddin</span>
           </div>
         </section>
