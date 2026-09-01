@@ -1,5 +1,5 @@
-import { X, Save, User, Users, GraduationCap, FileText, CheckCircle2 } from 'lucide-react';
-import { useEffect, useState, useMemo } from 'react';
+import { X, Save, User, Users, GraduationCap, FileText, CheckCircle2, ChevronRight, ChevronLeft } from 'lucide-react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { api, type ApiRecord } from '../services/api';
 import SearchableSelect from './SearchableSelect';
@@ -36,6 +36,44 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
   
   // Sections state
   const [activeTab, setActiveTab] = useState<'siswa' | 'ortu' | 'akademik' | 'lainnya'>('siswa');
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const tabList = [
+    { key: 'siswa', label: 'I. Data Siswa', shortLabel: 'Data Siswa', nextTitle: 'Lanjut ke II. Orang Tua / Wali' },
+    { key: 'ortu', label: 'II. Orang Tua / Wali', shortLabel: 'Orang Tua / Wali', nextTitle: 'Lanjut ke III. Masuk Sekolah' },
+    { key: 'akademik', label: 'III. Masuk Sekolah', shortLabel: 'Masuk Sekolah', nextTitle: 'Lanjut ke IV. Lain-lain' },
+    { key: 'lainnya', label: 'IV. Lain-lain', shortLabel: 'Lain-lain', nextTitle: 'Simpan Data Siswa' },
+  ] as const;
+
+  const currentTabIndex = tabList.findIndex(t => t.key === activeTab);
+  const isFirstTab = currentTabIndex === 0;
+  const isLastTab = currentTabIndex === tabList.length - 1;
+
+  const handleNext = () => {
+    if (activeTab === 'siswa') {
+      if (!form.nama || !String(form.nama).trim()) {
+        setError('Nama Lengkap siswa wajib diisi.');
+        return;
+      }
+      if (!form.nis || !String(form.nis).trim()) {
+        setError('NIS siswa wajib diisi.');
+        return;
+      }
+    }
+    setError('');
+    if (currentTabIndex < tabList.length - 1) {
+      setActiveTab(tabList[currentTabIndex + 1].key);
+      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handlePrev = () => {
+    setError('');
+    if (currentTabIndex > 0) {
+      setActiveTab(tabList[currentTabIndex - 1].key);
+      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   useEffect(() => {
     // Initialize form data
@@ -249,7 +287,7 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
             </div>
 
             {/* Form Content */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-white q-scrollbar">
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-white q-scrollbar">
               {error ? <div className="mb-6 rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031] border border-rose-100">{error}</div> : null}
               
               <form id="complex-siswa-form" onSubmit={handleSubmit} className="space-y-8 pb-10">
@@ -723,16 +761,60 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
             </div>
           </div>
           
-          <div className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
-            <button type="button" onClick={onClose} disabled={isSaving || isSuccess} className="rounded-2xl bg-white px-6 py-3 text-sm font-bold text-[#636E72] shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50">
-              {readOnly ? 'Tutup' : 'Batal'}
-            </button>
-            {!readOnly && (
-              <button type="submit" form="complex-siswa-form" disabled={isSaving || isSuccess} className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-8 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors disabled:opacity-70">
-                <CheckCircle2 size={18} className={isSaving ? 'animate-spin' : ''} />
-                {isSaving ? 'Menyimpan...' : 'Simpan Data Siswa/Santri'}
+          <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 bg-white px-6 py-4">
+            {/* Left Action: Tutup / Batal / Kembali */}
+            <div className="flex items-center gap-2">
+              <button 
+                type="button" 
+                onClick={onClose} 
+                disabled={isSaving || isSuccess} 
+                className="rounded-2xl bg-white px-5 py-3 text-sm font-bold text-[#636E72] shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                {readOnly ? 'Tutup' : 'Batal'}
               </button>
-            )}
+
+              {!readOnly && !isFirstTab && (
+                <button
+                  type="button"
+                  onClick={handlePrev}
+                  disabled={isSaving || isSuccess}
+                  className="inline-flex items-center gap-1.5 rounded-2xl bg-slate-100 px-5 py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-200 transition-colors disabled:opacity-50"
+                >
+                  <ChevronLeft size={18} /> Kembali
+                </button>
+              )}
+            </div>
+
+            {/* Right Action: Step Info & Next / Submit Button */}
+            <div className="flex items-center gap-3">
+              <span className="hidden sm:inline-block text-xs font-bold text-slate-400">
+                Langkah {currentTabIndex + 1} dari 4 ({tabList[currentTabIndex]?.shortLabel})
+              </span>
+
+              {!readOnly && (
+                !isLastTab ? (
+                  <button
+                    type="button"
+                    onClick={handleNext}
+                    disabled={isSaving || isSuccess}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-6 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors"
+                  >
+                    <span>{tabList[currentTabIndex]?.nextTitle}</span>
+                    <ChevronRight size={18} />
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    form="complex-siswa-form"
+                    disabled={isSaving || isSuccess}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-8 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors disabled:opacity-70"
+                  >
+                    <CheckCircle2 size={18} className={isSaving ? 'animate-spin' : ''} />
+                    {isSaving ? 'Menyimpan...' : 'Simpan Data Siswa/Santri'}
+                  </button>
+                )
+              )}
+            </div>
           </div>
       </div>
     </div>
