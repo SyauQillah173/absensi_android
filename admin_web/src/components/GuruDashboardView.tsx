@@ -167,6 +167,24 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
 
   const stats = dashboard?.stats as ApiRecord | undefined;
 
+  const isFemale = useMemo(() => {
+    const guruData = dashboard?.guru as ApiRecord | undefined;
+    if (guruData?.panggilan === 'Ustadzah' || guruData?.jenis_kelamin === 'P') return true;
+    if (session?.jenis_kelamin === 'P') return true;
+    const name = (session?.name || '').toUpperCase();
+    return (
+      name.startsWith('USTD.') ||
+      name.startsWith('USTDZ.') ||
+      name.includes('USTADZAH') ||
+      name.includes('HJ.') ||
+      name.includes('NYAI') ||
+      name.includes('NING')
+    );
+  }, [dashboard, session]);
+
+  const teacherTitle = isFemale ? 'Ustadzah' : 'Ustadz';
+  const teacherRoleBadge = isFemale ? 'Ustadzah Pengajar' : 'Ustadz Pengajar';
+
   // Open 1-Click Attendance Modal
   const openAttendanceModal = async (jadwal: ScheduleCardData, isReadOnly = false) => {
     setActiveJadwal(jadwal);
@@ -681,14 +699,14 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
                 Madrasah Diniyah PP Qomaruddin
               </span>
               <span className="rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-black text-emerald-200 border border-emerald-300/30">
-                Ustadz Pengajar
+                {teacherRoleBadge}
               </span>
             </div>
             <h1 className="mt-2 text-2xl sm:text-3xl font-black">
-              Ahlan Wa Sahlan, {session?.name ?? 'Ustadz'}
+              Ahlan Wa Sahlan, {session?.name ?? teacherTitle}
             </h1>
             <p className="mt-1 text-xs sm:text-sm font-medium text-emerald-100/90">
-              Berikut jadwal mengajar KBM aktif Anda hari ini. Cukup klik jadwal aktif untuk input presensi santri.
+              Berikut jadwal mengajar KBM aktif {teacherTitle} hari ini. Cukup klik jadwal aktif untuk input presensi santri.
             </p>
           </div>
 
@@ -901,7 +919,7 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
                 Jadwal Mengajar Untuk Besok ({text(dashboard?.hari_besok, 'Besok')})
               </h3>
               <p className="text-xs font-semibold text-blue-700/80">
-                Pengingat awal persiapan materi mengajar untuk esok hari.
+                Pengingat awal persiapan materi mengajar untuk esok hari bagi {teacherTitle}.
               </p>
             </div>
           </div>

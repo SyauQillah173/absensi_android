@@ -557,6 +557,8 @@ class DashboardController extends Controller
                 'id' => $guru->id,
                 'name' => $guru->name,
                 'kode_guru' => $guru->kode_guru,
+                'jenis_kelamin' => $guru->jenis_kelamin ?: ($guru->gelar_ustadz === 'Ustadzah' ? 'P' : 'L'),
+                'panggilan' => $guru->gelar_ustadz,
                 'unit_kerja' => $guru->unit_kerja ?: 'Madrasah Diniyah PP Qomaruddin',
             ],
             'hak_akses' => [

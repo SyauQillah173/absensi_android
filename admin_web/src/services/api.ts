@@ -19,6 +19,8 @@ export interface UserSession {
   foto_url?: string | null;
   role: string;
   admin_type?: string | null;
+  jenis_kelamin?: string | null;
+  panggilan?: string | null;
   status?: string;
   permissions?: ApiRecord;
   token: string;
@@ -165,6 +167,8 @@ function sessionFromData(data: ApiRecord, token: string): UserSession {
     foto_url: data.foto_url ? String(data.foto_url) : null,
     role: String(data.role ?? ''),
     admin_type: data.admin_type ? String(data.admin_type) : null,
+    jenis_kelamin: data.jenis_kelamin ? String(data.jenis_kelamin) : null,
+    panggilan: data.panggilan ? String(data.panggilan) : null,
     status: data.status ? String(data.status) : undefined,
     permissions: data.permissions && typeof data.permissions === 'object' ? (data.permissions as ApiRecord) : undefined,
     anak: Array.isArray(data.anak) ? (data.anak as ApiRecord[]) : undefined,

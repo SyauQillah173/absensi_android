@@ -199,6 +199,22 @@ export function AdminLayout({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+
+  const isFemaleTeacher = useMemo(() => {
+    if (!isGuru) return false;
+    if (session?.jenis_kelamin === 'P') return true;
+    const name = (session?.name || '').toUpperCase();
+    return (
+      name.startsWith('USTD.') ||
+      name.startsWith('USTDZ.') ||
+      name.includes('USTADZAH') ||
+      name.includes('HJ.') ||
+      name.includes('NYAI') ||
+      name.includes('NING')
+    );
+  }, [isGuru, session]);
+
+  const teacherTitle = isFemaleTeacher ? 'Ustadzah' : 'Ustadz';
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState<ApiRecord[]>([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -645,7 +661,7 @@ export function AdminLayout({
                           </span>
                           <div>
                             <p className="text-xs font-black text-slate-800">
-                              Notifikasi {isGuru ? 'Ustadz' : 'Sistem'}
+                              Notifikasi {isGuru ? teacherTitle : 'Sistem'}
                             </p>
                             <p className="text-[11px] font-semibold text-slate-500">
                               {unreadNotifications > 0 ? `${unreadNotifications} belum dibaca` : 'Semua telah dibaca'}
@@ -770,10 +786,10 @@ export function AdminLayout({
                   </div>
                   <div className="hidden text-left sm:block">
                     <p className="max-w-28 truncate text-xs font-extrabold text-[#2D3436]">
-                      {session?.name ?? "Admin"}
+                      {session?.name ?? (isGuru ? teacherTitle : "Admin")}
                     </p>
                     <p className="text-[10px] font-semibold capitalize text-[#636E72]">
-                      {session?.role ?? "Superadmin"}
+                      {isGuru ? teacherTitle : (session?.role ?? "Superadmin")}
                     </p>
                   </div>
                   <ChevronDown

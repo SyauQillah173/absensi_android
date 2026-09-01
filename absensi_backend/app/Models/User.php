@@ -114,6 +114,28 @@ class User extends Authenticatable
         return $this->hasMany(ApiAccessToken::class);
     }
 
+    public function getGelarUstadzAttribute(): string
+    {
+        $jk = strtoupper(trim((string) ($this->jenis_kelamin ?? '')));
+        if ($jk === 'P' || $jk === 'PEREMPUAN' || $jk === 'FEMALE') {
+            return 'Ustadzah';
+        }
+        if ($jk === 'L' || $jk === 'LAKI-LAKI' || $jk === 'MALE') {
+            return 'Ustadz';
+        }
+
+        $name = strtoupper(trim((string) ($this->name ?? '')));
+
+        if (
+            preg_match('/^(USTD\.|USTDZ\.|USTADZAH|HJ\.|NYAI\.|NING\.)/i', $name) ||
+            preg_match('/\b(USTD|USTDZ|USTADZAH|NYAI|NING|HJ|HAJJAH)\b/i', $name)
+        ) {
+            return 'Ustadzah';
+        }
+
+        return 'Ustadz';
+    }
+
     protected static function booted(): void
     {
         static::saving(function (User $user): void {
@@ -140,6 +162,19 @@ class User extends Authenticatable
                 $user->admin_type = $user->admin_type ?: 'utama';
             } elseif ($user->role === 'guru') {
                 $user->admin_type = $user->admin_type ?: 'umum';
+
+                // Auto-detect gender for guru if not set
+                if (empty($user->jenis_kelamin)) {
+                    $nameUpper = strtoupper(trim((string) ($user->name ?? '')));
+                    if (
+                        preg_match('/^(USTD\.|USTDZ\.|USTADZAH|HJ\.|NYAI\.|NING\.)/i', $nameUpper) ||
+                        preg_match('/\b(USTD|USTDZ|USTADZAH|NYAI|NING|HJ|HAJJAH)\b/i', $nameUpper)
+                    ) {
+                        $user->jenis_kelamin = 'P';
+                    } else {
+                        $user->jenis_kelamin = 'L';
+                    }
+                }
             } else {
                 $user->admin_type = null;
             }
