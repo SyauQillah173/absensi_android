@@ -173,7 +173,7 @@ const menuPermissionKeys: Record<string, string> = {
   nilai: "nilai",
   keuangan_menu: "keuangan",
   manajemen_user: "buku_induk",
-  pengaturan_sistem: "dashboard",
+  pengaturan_sistem: "hak_akses",
   mapel: "mata_pelajaran",
   jadwal: "mata_pelajaran",
   master: "buku_induk",
@@ -192,6 +192,7 @@ export function AdminLayout({
   children,
 }: AdminLayoutProps) {
   const { session, logout, canView } = useAuth();
+  const isGuru = session?.role === "guru";
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -276,11 +277,40 @@ export function AdminLayout({
     }
   }, [activePage, activeMasterSection, activeFinanceTab, activeAbsensiTab]);
 
-  const menu = useMemo(() => {
+  const menu = useMemo<MenuItem[]>(() => {
+    if (isGuru) {
+      // Guru khusus 3 menu: Dashboard, Presensi & Absensi, Nilai & Hafalan
+      return [
+        {
+          key: "dashboard",
+          label: "Dashboard",
+          icon: Home,
+          page: "dashboard",
+        },
+        {
+          key: "absensi_menu",
+          label: "Presensi & Absensi",
+          icon: CalendarCheck,
+          children: [
+            { label: "🕌 Input Presensi Madin", page: "absensi", absensiTab: "madin-input" },
+            { label: "📊 Rekap Presensi Madin", page: "absensi", absensiTab: "madin" },
+            { label: "🕋 Input Presensi Sholat", page: "absensi", absensiTab: "sholat" },
+            { label: "📖 Input Presensi Ngaji Kitab", page: "absensi", absensiTab: "ngaji" },
+          ],
+        },
+        {
+          key: "nilai",
+          label: "Nilai & Hafalan",
+          icon: ListChecks,
+          page: "nilai",
+        },
+      ];
+    }
+
     return allMenu.filter((item) =>
       canView(menuPermissionKeys[item.key] ?? item.key),
     );
-  }, [canView]);
+  }, [canView, isGuru]);
 
   const collapsed = mobileOpen ? false : sidebarCollapsed;
 

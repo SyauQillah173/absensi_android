@@ -132,10 +132,14 @@ function statusTone(status: PrayerStatus | MadinStatus | string): 'success' | 'w
 
 export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabChange }: AbsensiPageProps) {
   const { session } = useAuth();
+  const isGuru = session?.role === 'guru';
   const isMadrasah = session?.role === 'admin' && String(session?.admin_type || '').toLowerCase() === 'madrasah';
 
   const [activeTab, setActiveTab] = useState<AbsensiTab>(() => {
     if (initialTarget?.tab) return initialTarget.tab;
+    if (isGuru && (!initialTab || initialTab === 'log-realtime' || initialTab === 'jenis-sholat')) {
+      return 'madin-input';
+    }
     return initialTab;
   });
 
@@ -143,9 +147,13 @@ export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabC
     if (initialTarget?.tab) {
       setActiveTab(initialTarget.tab);
     } else if (initialTab) {
-      setActiveTab(initialTab);
+      if (isGuru && (initialTab === 'log-realtime' || initialTab === 'jenis-sholat')) {
+        setActiveTab('madin-input');
+      } else {
+        setActiveTab(initialTab);
+      }
     }
-  }, [initialTab, initialTarget]);
+  }, [initialTab, initialTarget, isGuru]);
 
   useEffect(() => {
     if (isMadrasah && !['log-realtime', 'madin', 'rekap-madin', 'rekap-sholat', 'ngaji', 'rekap-ngaji'].includes(activeTab)) {
@@ -235,6 +243,55 @@ export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabC
         </h1>
         <p className="text-sm font-semibold text-[#636E72]">{headerInfo.desc}</p>
       </section>
+
+      {isGuru ? (
+        <div className="flex flex-wrap items-center gap-2 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setActiveTab('madin-input')}
+            className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
+              currentTab === 'madin-input'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            🕌 Input Presensi Madin
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('madin')}
+            className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
+              currentTab === 'madin'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            📊 Rekap Presensi Madin
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('sholat')}
+            className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
+              currentTab === 'sholat'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            🕋 Input Presensi Sholat
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('ngaji')}
+            className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
+              currentTab === 'ngaji'
+                ? 'bg-[#138F81] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            📖 Input Presensi Ngaji
+          </button>
+        </div>
+      ) : null}
 
       {currentTab === 'log-realtime' ? <RealtimeAttendanceLog /> : null}
       {currentTab === 'madin-input' ? <MadinInput initialTarget={initialTarget} /> : null}

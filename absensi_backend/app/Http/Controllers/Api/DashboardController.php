@@ -413,6 +413,118 @@ class DashboardController extends Controller
         return implode(', ', array_slice($kelasList, 0, 2)) . ' +' . ($count - 2) . ' kelas';
     }
 
+    private function buildGuruDashboard(User $guru, string $today): array
+    {
+        $dayMap = [
+            0 => 'Ahad',
+            1 => 'Senin',
+            2 => 'Selasa',
+            3 => 'Rabu',
+            4 => 'Kamis',
+            5 => 'Jumat',
+            6 => 'Sabtu',
+        ];
+        $todayDay = $dayMap[now()->dayOfWeek] ?? 'Senin';
+
+        // 1. Fetch all Jadwal for this teacher
+        $jadwalQuery = Jadwal::query()
+            ->with(['mataPelajaran', 'kelasRef'])
+            ->where(function ($q) use ($guru) {
+                $q->where('teacher_id', $guru->id)
+                    ->orWhere('guru', $guru->name);
+                if (!empty($guru->kode_guru)) {
+                    $q->orWhere('guru', $guru->kode_guru);
+                }
+            });
+
+        $allJadwal = $jadwalQuery->get();
+        $jadwalHariIni = $allJadwal->where('hari', $todayDay)->values();
+
+        // 2. Classes and Students taught
+        $classIds = $allJadwal->pluck('class_id')->filter()->unique()->values()->all();
+        $totalSantriDiampu = !empty($classIds)
+            ? Siswa::query()->whereIn('class_id', $classIds)->where('status', 'Aktif')->count()
+            : 0;
+
+        // 3. Check today's attendance for this teacher's classes
+        $absensiHariIni = Absensi::query()
+            ->whereDate('tanggal', $today)
+            ->where(function ($q) use ($guru, $jadwalHariIni) {
+                $q->where('diinput_oleh', $guru->name)
+                    ->orWhereIn('jadwal_id', $jadwalHariIni->pluck('id'));
+            })
+            ->get();
+
+        $jadwalCards = $jadwalHariIni->map(function (Jadwal $j) use ($absensiHariIni) {
+            $absensi = $absensiHariIni->where('jadwal_id', $j->id);
+            $isDone = $absensi->isNotEmpty();
+
+            return [
+                'id' => $j->id,
+                'hari' => $j->hari,
+                'jam_mulai' => $j->jam_mulai,
+                'jam_selesai' => $j->jam_selesai,
+                'waktu' => ($j->jam_mulai && $j->jam_selesai) ? "{$j->jam_mulai} - {$j->jam_selesai}" : ($j->jam_mulai ?: '-'),
+                'class_id' => $j->class_id,
+                'kelas' => $j->sifir ?: optional($j->kelasRef)->name ?: '-',
+                'mapel_id' => $j->mapel_id,
+                'mapel' => optional($j->mataPelajaran)->name ?: '-',
+                'status_absen' => $isDone ? 'completed' : 'pending',
+                'status_label' => $isDone ? 'Sudah Diabsen' : 'Belum Diabsen',
+                'total_hadir' => $absensi->where('status', 'Hadir')->count(),
+                'total_izin' => $absensi->where('status', 'Izin')->count(),
+                'total_sakit' => $absensi->where('status', 'Sakit')->count(),
+                'total_alfa' => $absensi->where('status', 'Alfa')->count(),
+                'total_siswa' => $absensi->count(),
+            ];
+        });
+
+        // 4. Sholat Access for Guru
+        $sholatAccess = GuruAbsensiSholatAccess::query()
+            ->where('user_id', $guru->id)
+            ->where('is_active', true)
+            ->get();
+        $canSholat = $sholatAccess->isNotEmpty();
+
+        // 5. Ngaji Schedule for Guru
+        $ngajiSchedules = NgajiSchedule::query()
+            ->where('status', 'Aktif')
+            ->where(function ($q) use ($guru) {
+                $q->where('teacher_id', $guru->id)
+                    ->orWhere('user_id', $guru->id);
+            })
+            ->get();
+        $canNgaji = $ngajiSchedules->isNotEmpty();
+
+        return [
+            'success' => true,
+            'tanggal' => $today,
+            'role' => 'guru',
+            'guru' => [
+                'id' => $guru->id,
+                'name' => $guru->name,
+                'kode_guru' => $guru->kode_guru,
+                'unit_kerja' => $guru->unit_kerja ?: 'Madrasah Diniyah PP Qomaruddin',
+            ],
+            'hak_akses' => [
+                'absen_madin' => true,
+                'absen_sholat' => $canSholat,
+                'absen_ngaji' => $canNgaji,
+                'nilai' => true,
+            ],
+            'jadwal_hari_ini' => $jadwalCards,
+            'stats' => [
+                'total_jadwal_hari_ini' => $jadwalHariIni->count(),
+                'jadwal_sudah_diabsen' => $jadwalCards->where('status_absen', 'completed')->count(),
+                'jadwal_belum_diabsen' => $jadwalCards->where('status_absen', 'pending')->count(),
+                'total_santri_diampu' => $totalSantriDiampu,
+                'total_kelas_diampu' => count($classIds),
+            ],
+            'absensi_sholat' => $canSholat ? $this->buildGuruPrayerSummary($guru, $today) : null,
+            'absensi_ngaji' => $canNgaji ? $this->buildGuruNgajiSummary($guru, $today) : null,
+        ];
+    }
+
     private function buildWaliDashboard(User $wali, string $today): array
     {
         $anakIds = Siswa::query()

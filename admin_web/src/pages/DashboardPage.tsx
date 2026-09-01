@@ -39,6 +39,7 @@ import { DataTable } from '../components/DataTable';
 import { MoneyText, formatCompactMoney, formatMoney } from '../components/MoneyText';
 import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
+import { GuruDashboardView } from '../components/GuruDashboardView';
 import { api, type ApiRecord } from '../services/api';
 import type { AbsensiNavigationTarget } from './AbsensiPage';
 
@@ -318,6 +319,19 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
   const totalKamar = Number(statistik?.total_kamar ?? kamarData.length);
 
   const KOMPLEK_COLORS = ['#138F81', '#0EA5E9', '#8B5CF6', '#F59E0B', '#EC4899', '#10B981', '#6366F1', '#14B8A6'];
+
+  if (session?.role === 'guru' || dashboard?.role === 'guru') {
+    return (
+      <div className="q-page-enter space-y-6">
+        <GuruDashboardView
+          dashboard={dashboard}
+          onRefresh={() => void load()}
+          isLoading={isLoading}
+          onOpenAttendance={onOpenAttendance}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
