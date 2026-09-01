@@ -4,6 +4,7 @@ import {
   Calendar,
   CalendarCheck,
   CheckCircle2,
+  ChevronLeft,
   Clock3,
   Eye,
   GraduationCap,
@@ -292,6 +293,363 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
     });
     return { hadir, izin, sakit, alfa };
   }, [students, statuses]);
+
+  // If activeJadwal is selected, render the Dedicated Full Page Form (Mobile & Desktop Full Screen)
+  if (activeJadwal) {
+    return (
+      <div className="space-y-4 animate-in fade-in duration-200 pb-16">
+        {/* Floating Top-Right Toast Notification */}
+        {toastMessage && (
+          <div className="fixed top-6 right-6 z-[999999] flex items-center gap-3.5 rounded-2xl bg-white p-4 shadow-2xl border border-emerald-200 shadow-emerald-900/20 transition-all animate-in fade-in slide-in-from-top-4 duration-300 max-w-sm">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#138F81] text-white shadow-md shadow-[#138F81]/30">
+              <CheckCircle2 size={24} strokeWidth={2.5} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-black text-slate-800">{toastMessage.title}</p>
+              <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                {toastMessage.subtitle}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setToastMessage(null)}
+              className="text-slate-400 hover:text-slate-600 transition-colors p-1"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+
+        {/* Top Navigation & Header Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-white p-4 sm:p-5 shadow-sm ring-1 ring-slate-200">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setActiveJadwal(null)}
+              disabled={isSaving}
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all cursor-pointer shadow-2xs"
+            >
+              <ChevronLeft size={22} strokeWidth={2.5} />
+            </button>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg sm:text-2xl font-black text-slate-800">
+                  Presensi {activeJadwal.mapel}
+                </h2>
+                <span className="rounded-lg bg-teal-50 border border-teal-200 px-2.5 py-0.5 text-xs font-black text-[#138F81]">
+                  Kelas: {activeJadwal.kelas}
+                </span>
+              </div>
+              <p className="text-xs font-semibold text-slate-500 mt-0.5 flex flex-wrap items-center gap-2">
+                <span>⏰ {activeJadwal.hari}, {activeJadwal.waktu} WIB</span>
+                {isReadOnlyMode ? (
+                  <span className="rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-black px-2.5 py-0.5 border border-emerald-200">
+                    🔒 Terkunci (Hanya Lihat Detail)
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-teal-100 text-teal-800 text-[11px] font-black px-2.5 py-0.5 border border-teal-200">
+                    ✏️ Form Pengisian Presensi Guru
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveJadwal(null)}
+              disabled={isSaving}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              {isReadOnlyMode ? '← Kembali' : 'Batal'}
+            </button>
+            {!isReadOnlyMode && (
+              <button
+                type="button"
+                onClick={() => void handleSaveAttendance()}
+                disabled={isSaving || students.length === 0}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#138F81] px-5 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-[#138F81]/25 hover:bg-[#0f766a] transition-all disabled:opacity-50 cursor-pointer"
+              >
+                <Save size={16} />
+                <span>{isSaving ? 'Menyimpan...' : 'Simpan Presensi'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Filter & Quick Actions Card */}
+        <div className="rounded-3xl bg-white p-4 sm:p-5 shadow-sm ring-1 ring-slate-200 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {isReadOnlyMode ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-extrabold text-slate-600 mr-1">Rekap Hasil:</span>
+                <span className="rounded-xl bg-emerald-100 border border-emerald-200 px-3 py-1 text-xs font-black text-emerald-800">
+                  ✅ {summaryCount.hadir} Hadir
+                </span>
+                {summaryCount.izin > 0 && (
+                  <span className="rounded-xl bg-amber-100 border border-amber-200 px-3 py-1 text-xs font-black text-amber-800">
+                    ⚠️ {summaryCount.izin} Izin
+                  </span>
+                )}
+                {summaryCount.sakit > 0 && (
+                  <span className="rounded-xl bg-rose-100 border border-rose-200 px-3 py-1 text-xs font-black text-rose-800">
+                    🏥 {summaryCount.sakit} Sakit
+                  </span>
+                )}
+                {summaryCount.alfa > 0 && (
+                  <span className="rounded-xl bg-slate-200 border border-slate-300 px-3 py-1 text-xs font-black text-slate-800">
+                    ❌ {summaryCount.alfa} Alfa
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-2 w-full">
+                <span className="text-xs sm:text-sm font-extrabold text-slate-700">
+                  Daftar Santri ({students.length} Santri)
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAllStatus('Hadir')}
+                    className="rounded-xl bg-[#138F81] px-3.5 py-1.5 text-xs font-black text-white hover:bg-[#0f766a] transition-all shadow-xs cursor-pointer"
+                  >
+                    ✓ Semua Hadir
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAllStatus('Izin')}
+                    className="rounded-xl bg-amber-100 border border-amber-200 px-3.5 py-1.5 text-xs font-black text-amber-800 hover:bg-amber-200 transition-all cursor-pointer"
+                  >
+                    Semua Izin
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="relative w-full">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input
+                type="text"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50/60 py-2.5 pl-10 pr-4 text-xs sm:text-sm font-semibold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#138F81] outline-none transition-all"
+                placeholder="🔍 Cari nama santri / NIS / kamar..."
+                value={searchStudent}
+                onChange={(e) => setSearchStudent(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Student Cards List */}
+        <div className="space-y-3">
+          {modalError && (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-bold text-rose-700">
+              ⚠️ {modalError}
+            </div>
+          )}
+
+          {isLoadingStudents ? (
+            <div className="rounded-3xl bg-white p-12 text-center text-slate-400 font-bold text-sm ring-1 ring-slate-200">
+              Memuat daftar santri...
+            </div>
+          ) : students.length === 0 ? (
+            <div className="rounded-3xl bg-white p-12 text-center text-slate-400 font-bold text-sm ring-1 ring-slate-200">
+              Belum ada santri terdaftar di kelas {activeJadwal.kelas}.
+            </div>
+          ) : filteredStudents.length === 0 ? (
+            <div className="rounded-3xl bg-white p-8 text-center text-xs font-bold text-slate-400 ring-1 ring-slate-200">
+              Tidak ada santri yang cocok dengan pencarian "{searchStudent}".
+            </div>
+          ) : (
+            filteredStudents.map((siswa, idx) => {
+              const sid = Number(siswa.id);
+              const currentStatus = statuses[sid] || 'Hadir';
+              const currentNote = notes[sid] || '';
+
+              return (
+                <div
+                  key={sid}
+                  className="flex flex-col p-4 sm:p-5 rounded-3xl border border-slate-200 bg-white shadow-xs hover:border-slate-300 transition-all"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 font-black text-xs text-slate-600">
+                        {idx + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm sm:text-base font-black text-slate-800 truncate">{text(siswa.nama)}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs font-mono font-bold text-slate-500">NIS: {text(siswa.nis)}</span>
+                          <span
+                            className={`rounded-md px-2 py-0.5 text-[10px] font-black ${
+                              siswa.jenis_kelamin === 'L'
+                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                : 'bg-pink-50 text-pink-700 border border-pink-200'
+                            }`}
+                          >
+                            {siswa.jenis_kelamin === 'L' ? 'Putra' : 'Putri'}
+                          </span>
+                          {Boolean(siswa.kamar) && (
+                            <span className="text-[11px] font-semibold text-slate-400 truncate">
+                              • {text(siswa.kamar)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Status Badge in Read-Only Mode vs Status Pills in Editable Mode */}
+                    {isReadOnlyMode ? (
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`rounded-2xl px-4 py-1.5 text-xs font-black border ${
+                            currentStatus === 'Hadir'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : currentStatus === 'Izin'
+                              ? 'bg-amber-50 text-amber-800 border-amber-200'
+                              : currentStatus === 'Sakit'
+                              ? 'bg-rose-50 text-rose-800 border-rose-200'
+                              : 'bg-slate-100 text-slate-800 border-slate-300'
+                          }`}
+                        >
+                          ● {currentStatus}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {(['Hadir', 'Izin', 'Sakit', 'Alfa'] as const).map((st) => {
+                          const isSelected = currentStatus === st;
+                          const colors = {
+                            Hadir: isSelected
+                              ? 'bg-[#138F81] text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                            Izin: isSelected
+                              ? 'bg-amber-500 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                            Sakit: isSelected
+                              ? 'bg-rose-500 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                            Alfa: isSelected
+                              ? 'bg-slate-800 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          };
+
+                          return (
+                            <button
+                              key={st}
+                              type="button"
+                              onClick={() => {
+                                setStatuses({ ...statuses, [sid]: st });
+                                if (st === 'Hadir') {
+                                  const nextNotes = { ...notes };
+                                  delete nextNotes[sid];
+                                  setNotes(nextNotes);
+                                }
+                              }}
+                              className={`px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-black transition-all cursor-pointer ${colors[st]}`}
+                            >
+                              {st}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Note / Keterangan Alasan */}
+                  {isReadOnlyMode ? (
+                    currentNote ? (
+                      <div className="mt-3 pt-2.5 border-t border-slate-100 text-xs font-semibold text-slate-600 flex items-center gap-1.5">
+                        <span className="font-bold text-slate-500">💬 Keterangan:</span>
+                        <span>{currentNote}</span>
+                      </div>
+                    ) : null
+                  ) : (
+                    currentStatus !== 'Hadir' && (
+                      <div className="mt-3.5 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2 animate-in fade-in duration-200">
+                        <span className="text-xs font-bold text-slate-600 shrink-0">
+                          Alasan {currentStatus}:
+                        </span>
+
+                        <select
+                          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-[#138F81] transition-colors shrink-0 max-w-[240px]"
+                          value={
+                            KETERANGAN_PRESETS[currentStatus].includes(currentNote)
+                              ? currentNote
+                              : currentNote
+                              ? '__custom__'
+                              : ''
+                          }
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '__custom__') {
+                              if (KETERANGAN_PRESETS[currentStatus].includes(currentNote)) {
+                                setNotes({ ...notes, [sid]: '' });
+                              }
+                            } else {
+                              setNotes({ ...notes, [sid]: val });
+                            }
+                          }}
+                        >
+                          <option value="">-- Pilih Alasan Cepat (Opsional) --</option>
+                          {KETERANGAN_PRESETS[currentStatus].map((preset) => (
+                            <option key={preset} value={preset}>
+                              {preset}
+                            </option>
+                          ))}
+                          <option value="__custom__">✏️ Ketik Alasan Sendiri...</option>
+                        </select>
+
+                        <input
+                          type="text"
+                          placeholder={`Ketik keterangan ${currentStatus.toLowerCase()} (opsional)...`}
+                          value={currentNote}
+                          onChange={(e) => setNotes({ ...notes, [sid]: e.target.value })}
+                          className="flex-1 min-w-[160px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#138F81]"
+                        />
+                      </div>
+                    )
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Sticky Bottom Action Bar on Mobile / Desktop */}
+        <div className="sticky bottom-4 z-30 flex items-center justify-between gap-3 rounded-3xl bg-white/95 backdrop-blur-md p-4 shadow-xl border border-slate-200 ring-1 ring-slate-900/5">
+          <button
+            type="button"
+            onClick={() => setActiveJadwal(null)}
+            disabled={isSaving}
+            className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-xs sm:text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+          >
+            {isReadOnlyMode ? '← Kembali ke Jadwal' : 'Batal'}
+          </button>
+
+          {!isReadOnlyMode ? (
+            <button
+              type="button"
+              onClick={() => void handleSaveAttendance()}
+              disabled={isSaving || students.length === 0}
+              className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-6 sm:px-8 py-3 text-xs sm:text-sm font-black text-white shadow-lg shadow-[#138F81]/30 hover:bg-[#0f766a] transition-all disabled:opacity-50 cursor-pointer"
+            >
+              <Save size={18} />
+              <span>{isSaving ? 'Menyimpan Presensi...' : 'Simpan Presensi Santri'}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setActiveJadwal(null)}
+              className="rounded-2xl bg-[#138F81] px-6 sm:px-8 py-3 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-[#0f766a] cursor-pointer"
+            >
+              Tutup & Kembali
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -598,328 +956,6 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
           ))}
         </div>
       </section>
-
-      {/* MODAL INPUT & DETAIL PRESENSI SANTRI */}
-      {activeJadwal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="flex flex-col max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200">
-            
-            {/* Header Modal - Consistent with Data Santri Header style */}
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-teal-50 text-[#138F81] border border-teal-100 shadow-xs">
-                  <CalendarCheck size={22} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg sm:text-xl font-extrabold text-slate-800">
-                      Presensi {activeJadwal.mapel}
-                    </h3>
-                    <span className="rounded-md bg-teal-50 border border-teal-200 px-2 py-0.5 text-xs font-black text-[#138F81]">
-                      Kelas: {activeJadwal.kelas}
-                    </span>
-                  </div>
-                  <p className="text-xs font-semibold text-slate-500 mt-0.5 flex flex-wrap items-center gap-2">
-                    <span>⏰ {activeJadwal.hari}, {activeJadwal.waktu} WIB</span>
-                    {isReadOnlyMode ? (
-                      <span className="rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-black px-2.5 py-0.5 border border-emerald-200">
-                        🔒 Tersimpan & Terkunci (Hanya Lihat)
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-teal-100 text-teal-800 text-[11px] font-black px-2.5 py-0.5 border border-teal-200">
-                        ✏️ Mode Pengisian Guru
-                      </span>
-                    )}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveJadwal(null)}
-                disabled={isSaving}
-                className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Sub-header Summary & Search Bar */}
-            <div className="border-b border-slate-200 bg-slate-50/70 px-5 py-3 sm:px-6 flex flex-wrap items-center justify-between gap-3">
-              {isReadOnlyMode ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-extrabold text-slate-600 mr-1">Rekap:</span>
-                  <span className="rounded-lg bg-emerald-100 border border-emerald-200 px-2.5 py-0.5 text-xs font-black text-emerald-800">
-                    ✅ {summaryCount.hadir} Hadir
-                  </span>
-                  {summaryCount.izin > 0 && (
-                    <span className="rounded-lg bg-amber-100 border border-amber-200 px-2.5 py-0.5 text-xs font-black text-amber-800">
-                      ⚠️ {summaryCount.izin} Izin
-                    </span>
-                  )}
-                  {summaryCount.sakit > 0 && (
-                    <span className="rounded-lg bg-rose-100 border border-rose-200 px-2.5 py-0.5 text-xs font-black text-rose-800">
-                      🏥 {summaryCount.sakit} Sakit
-                    </span>
-                  )}
-                  {summaryCount.alfa > 0 && (
-                    <span className="rounded-lg bg-slate-200 border border-slate-300 px-2.5 py-0.5 text-xs font-black text-slate-800">
-                      ❌ {summaryCount.alfa} Alfa
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <div className="flex flex-wrap items-center justify-between gap-2 w-full">
-                  <span className="text-xs font-bold text-slate-600">
-                    Total <b>{students.length} Santri</b> terdaftar
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setAllStatus('Hadir')}
-                      className="rounded-xl bg-[#138F81] px-3 py-1.5 text-xs font-black text-white hover:bg-[#0f766a] transition-colors shadow-xs cursor-pointer"
-                    >
-                      ✓ Semua Hadir
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAllStatus('Izin')}
-                      className="rounded-xl bg-amber-100 border border-amber-200 px-3 py-1.5 text-xs font-bold text-amber-800 hover:bg-amber-200 transition-colors cursor-pointer"
-                    >
-                      Semua Izin
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="relative w-full max-w-sm mt-1">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                <input
-                  type="text"
-                  className="w-full rounded-xl border border-slate-200 bg-white py-1.5 pl-9 pr-3 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:border-[#138F81] outline-none"
-                  placeholder="🔍 Cari nama santri / NIS / kamar..."
-                  value={searchStudent}
-                  onChange={(e) => setSearchStudent(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Student List - Consistent with Data Santri Card List */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2.5 bg-slate-50/40">
-              {modalError && (
-                <div className="mb-3 rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-xs font-bold text-rose-700">
-                  ⚠️ {modalError}
-                </div>
-              )}
-
-              {isLoadingStudents ? (
-                <div className="py-12 text-center text-slate-400 font-bold text-sm">
-                  Memuat daftar santri...
-                </div>
-              ) : students.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 font-bold text-sm">
-                  Belum ada santri terdaftar di kelas {activeJadwal.kelas}.
-                </div>
-              ) : filteredStudents.length === 0 ? (
-                <div className="py-8 text-center text-xs font-bold text-slate-400">
-                  Tidak ada santri yang cocok dengan pencarian "{searchStudent}".
-                </div>
-              ) : (
-                filteredStudents.map((siswa, idx) => {
-                  const sid = Number(siswa.id);
-                  const currentStatus = statuses[sid] || 'Hadir';
-                  const currentNote = notes[sid] || '';
-
-                  return (
-                    <div
-                      key={sid}
-                      className="flex flex-col p-4 rounded-2xl border border-slate-200 bg-white shadow-xs hover:border-slate-300 transition-all"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-slate-100 font-black text-xs text-slate-600">
-                            {idx + 1}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="text-sm font-black text-slate-800 truncate">{text(siswa.nama)}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[11px] font-mono font-bold text-slate-500">NIS: {text(siswa.nis)}</span>
-                              <span
-                                className={`rounded-md px-1.5 py-0.2 text-[10px] font-black ${
-                                  siswa.jenis_kelamin === 'L'
-                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                    : 'bg-pink-50 text-pink-700 border border-pink-200'
-                                }`}
-                              >
-                                {siswa.jenis_kelamin === 'L' ? 'Putra' : 'Putri'}
-                              </span>
-                              {Boolean(siswa.kamar) && (
-                                <span className="text-[10px] font-semibold text-slate-400 truncate">
-                                  • {text(siswa.kamar)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Status Badge in Read-Only Mode vs Status Pills in Editable Mode */}
-                        {isReadOnlyMode ? (
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`rounded-xl px-3.5 py-1 text-xs font-black border ${
-                                currentStatus === 'Hadir'
-                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                  : currentStatus === 'Izin'
-                                  ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                  : currentStatus === 'Sakit'
-                                  ? 'bg-rose-50 text-rose-800 border-rose-200'
-                                  : 'bg-slate-100 text-slate-800 border-slate-300'
-                              }`}
-                            >
-                              ● {currentStatus}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1 shrink-0">
-                            {(['Hadir', 'Izin', 'Sakit', 'Alfa'] as const).map((st) => {
-                              const isSelected = currentStatus === st;
-                              const colors = {
-                                Hadir: isSelected
-                                  ? 'bg-[#138F81] text-white shadow-xs'
-                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                                Izin: isSelected
-                                  ? 'bg-amber-500 text-white shadow-xs'
-                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                                Sakit: isSelected
-                                  ? 'bg-rose-500 text-white shadow-xs'
-                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                                Alfa: isSelected
-                                  ? 'bg-slate-800 text-white shadow-xs'
-                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                              };
-
-                              return (
-                                <button
-                                  key={st}
-                                  type="button"
-                                  onClick={() => {
-                                    setStatuses({ ...statuses, [sid]: st });
-                                    if (st === 'Hadir') {
-                                      const nextNotes = { ...notes };
-                                      delete nextNotes[sid];
-                                      setNotes(nextNotes);
-                                    }
-                                  }}
-                                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${colors[st]}`}
-                                >
-                                  {st}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Note / Keterangan Alasan */}
-                      {isReadOnlyMode ? (
-                        currentNote ? (
-                          <div className="mt-2.5 pt-2 border-t border-slate-100 text-xs font-semibold text-slate-600 flex items-center gap-1.5">
-                            <span className="font-bold text-slate-500">💬 Keterangan:</span>
-                            <span>{currentNote}</span>
-                          </div>
-                        ) : null
-                      ) : (
-                        currentStatus !== 'Hadir' && (
-                          <div className="mt-3 pt-2.5 border-t border-slate-100 flex flex-wrap items-center gap-2 animate-in fade-in duration-200">
-                            <span className="text-[11px] font-bold text-slate-600 shrink-0">
-                              Alasan {currentStatus}:
-                            </span>
-
-                            <select
-                              className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 outline-none focus:border-[#138F81] transition-colors shrink-0 max-w-[220px]"
-                              value={
-                                KETERANGAN_PRESETS[currentStatus].includes(currentNote)
-                                  ? currentNote
-                                  : currentNote
-                                  ? '__custom__'
-                                  : ''
-                              }
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                if (val === '__custom__') {
-                                  if (KETERANGAN_PRESETS[currentStatus].includes(currentNote)) {
-                                    setNotes({ ...notes, [sid]: '' });
-                                  }
-                                } else {
-                                  setNotes({ ...notes, [sid]: val });
-                                }
-                              }}
-                            >
-                              <option value="">-- Pilih Alasan Cepat (Opsional) --</option>
-                              {KETERANGAN_PRESETS[currentStatus].map((preset) => (
-                                <option key={preset} value={preset}>
-                                  {preset}
-                                </option>
-                              ))}
-                              <option value="__custom__">✏️ Ketik Alasan Sendiri...</option>
-                            </select>
-
-                            <input
-                              type="text"
-                              placeholder={`Ketik keterangan ${currentStatus.toLowerCase()} (opsional)...`}
-                              value={currentNote}
-                              onChange={(e) => setNotes({ ...notes, [sid]: e.target.value })}
-                              className="flex-1 min-w-[160px] rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#138F81]"
-                            />
-                          </div>
-                        )
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Footer Modal */}
-            <div className="flex shrink-0 items-center justify-between border-t border-slate-200 bg-white px-5 py-3.5 sm:px-6">
-              {isReadOnlyMode ? (
-                <div className="flex items-center justify-between w-full">
-                  <span className="text-xs font-bold text-slate-500">
-                    🔒 Mode Hanya Lihat (Data tersimpan permanen)
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setActiveJadwal(null)}
-                    className="rounded-2xl bg-[#138F81] px-6 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-[#138F81]/25 hover:bg-[#0f766a] transition-all cursor-pointer"
-                  >
-                    Tutup
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setActiveJadwal(null)}
-                    disabled={isSaving}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
-                  >
-                    Batal
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => void handleSaveAttendance()}
-                    disabled={isSaving || students.length === 0}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-6 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-[#138F81]/25 hover:bg-[#0f766a] transition-all disabled:opacity-50 cursor-pointer"
-                  >
-                    <Save size={16} />
-                    <span>{isSaving ? 'Menyimpan...' : 'Simpan Presensi Santri'}</span>
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
