@@ -171,9 +171,9 @@ class DashboardController extends Controller
             ->groupBy('class_id');
 
         $siswaPerKelasMadin = $madinClasses->map(function ($c) use ($madinCounts) {
-            $items = $madinCounts->get($c->id, collect());
-            $pa = (int) ($items->where('jenis_kelamin', 'L')->first()?->total ?? 0);
-            $pi = (int) ($items->where('jenis_kelamin', 'P')->first()?->total ?? 0);
+            $items = collect($madinCounts->get($c->id, []));
+            $pa = (int) ($items->firstWhere('jenis_kelamin', 'L')?->total ?? 0);
+            $pi = (int) ($items->firstWhere('jenis_kelamin', 'P')?->total ?? 0);
             return [
                 'id' => $c->id,
                 'name' => $c->name,
@@ -198,8 +198,9 @@ class DashboardController extends Controller
         ->get()
         ->groupBy('kelas')
         ->map(function ($items, $kelas) {
-            $pa = (int) ($items->where('jenis_kelamin', 'L')->first()?->total ?? 0);
-            $pi = (int) ($items->where('jenis_kelamin', 'P')->first()?->total ?? 0);
+            $items = collect($items);
+            $pa = (int) ($items->firstWhere('jenis_kelamin', 'L')?->total ?? 0);
+            $pi = (int) ($items->firstWhere('jenis_kelamin', 'P')?->total ?? 0);
             return [
                 'name' => $kelas,
                 'kelas' => $kelas,
