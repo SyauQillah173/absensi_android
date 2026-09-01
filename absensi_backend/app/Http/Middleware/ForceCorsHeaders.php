@@ -28,14 +28,13 @@ class ForceCorsHeaders
             'https://absensi-android.vercel.app',
             'https://sisteminformasipondok.my.id',
             'https://www.sisteminformasipondok.my.id',
-            'http://localhost:5173',
-            'http://127.0.0.1:5173',
             'http://43.156.154.97:3000',
             'https://ppqomaruddin.itqom.net'
         ];
 
-        // 1. CORS Headers (Strict Mode)
-        if ($origin && in_array($origin, $allowedOrigins)) {
+        // 1. CORS Headers (Strict Mode + Dynamic Localhost Port Support)
+        $isLocalOrigin = $origin && preg_match('#^https?://(localhost|127\.0\.0\.1)(:\d+)?$#', $origin);
+        if ($origin && (in_array($origin, $allowedOrigins) || $isLocalOrigin)) {
             $response->headers->set('Access-Control-Allow-Origin', $origin);
         }
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');

@@ -60,8 +60,12 @@ function ngajiError(err: unknown, fallback: string): string {
   return message || fallback;
 }
 
-export function NgajiKitabSection() {
-  const [activeTab, setActiveTab] = useState<NgajiTab>('input');
+export function NgajiKitabSection({ initialSection = 'input' }: { initialSection?: NgajiTab }) {
+  const [activeTab, setActiveTab] = useState<NgajiTab>(initialSection);
+
+  useEffect(() => {
+    setActiveTab(initialSection);
+  }, [initialSection]);
 
   return (
     <div className="space-y-6">

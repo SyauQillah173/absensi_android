@@ -24,6 +24,7 @@ use App\Services\MapelAccessService;
 use App\Services\PermissionService;
 use App\Services\ReferenceResolver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -55,7 +56,9 @@ class DashboardController extends Controller
             return response()->json($this->withPermissions($this->buildWaliDashboard($actor, $today), $actor));
         }
 
-        return response()->json($this->withPermissions($this->buildAdminDashboard($today), $actor));
+        $dashboardData = Cache::remember("admin_dashboard_{$today}", 15, fn () => $this->buildAdminDashboard($today));
+
+        return response()->json($this->withPermissions($dashboardData, $actor));
     }
 
     private function buildAdminDashboard(string $today): array

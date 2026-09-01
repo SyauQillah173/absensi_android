@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { AdminLayout, type PageKey } from './layout/AdminLayout';
-import type { AbsensiNavigationTarget } from './pages/AbsensiPage';
+import type { AbsensiNavigationTarget, AbsensiTab } from './pages/AbsensiPage';
 import type { BukuIndukSection } from './pages/BukuIndukPage';
 
 // Lazy-loaded page components for ultra-fast initial bundle loading
@@ -36,6 +36,7 @@ function AdminShell() {
   const [activePage, setActivePage] = useState<PageKey>('dashboard');
   const [masterSection, setMasterSection] = useState<BukuIndukSection>('siswa');
   const [financeTab, setFinanceTab] = useState<string>('today');
+  const [absensiTab, setAbsensiTab] = useState<AbsensiTab>('log-realtime');
   const [absensiTarget, setAbsensiTarget] = useState<(AbsensiNavigationTarget & { key: number }) | undefined>();
 
   if (!isAuthenticated) {
@@ -71,10 +72,13 @@ function AdminShell() {
   };
   const safePage = activePage === 'account' || canView(pagePermissionKeys[activePage] ?? activePage) ? activePage : 'dashboard';
 
-  function navigate(page: PageKey, options?: { masterSection?: BukuIndukSection; financeTab?: string }) {
+  function navigate(page: PageKey, options?: { masterSection?: BukuIndukSection; financeTab?: string; absensiTab?: AbsensiTab }) {
     setActivePage(page);
     if (page === 'absensi') {
       setAbsensiTarget(undefined);
+      if (options?.absensiTab) {
+        setAbsensiTab(options.absensiTab);
+      }
     }
     if (page === 'master') {
       setMasterSection(options?.masterSection ?? 'siswa');
@@ -89,6 +93,7 @@ function AdminShell() {
       activePage={safePage}
       activeMasterSection={masterSection}
       activeFinanceTab={financeTab}
+      activeAbsensiTab={absensiTab}
       onNavigate={navigate}
     >
       <Suspense fallback={<PageLoader />}>
@@ -97,6 +102,7 @@ function AdminShell() {
             onOpenFinance={() => navigate('keuangan', { financeTab: 'today' })}
             onOpenAttendance={(target) => {
               setAbsensiTarget({ ...target, key: Date.now() });
+              setAbsensiTab(target.tab);
               setActivePage('absensi');
             }}
           />
@@ -109,7 +115,14 @@ function AdminShell() {
         {safePage === 'guru' ? <MasterDataPage variant="guru" /> : null}
         {safePage === 'users' ? <MasterDataPage variant="users" /> : null}
         {safePage === 'pondok' ? <DataPondokPage /> : null}
-        {safePage === 'absensi' ? <AbsensiPage key={absensiTarget?.key} initialTarget={absensiTarget} /> : null}
+        {safePage === 'absensi' ? (
+          <AbsensiPage
+            key={`${absensiTarget?.key ?? ''}-${absensiTab}`}
+            initialTab={absensiTab}
+            initialTarget={absensiTarget}
+            onTabChange={setAbsensiTab}
+          />
+        ) : null}
         {safePage === 'mapel' ? <MataPelajaranPage /> : null}
         {safePage === 'jadwal' ? <JadwalPelajaranPage /> : null}
         {safePage === 'nilai' ? <NilaiHafalanPage /> : null}

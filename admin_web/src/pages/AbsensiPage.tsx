@@ -1,5 +1,7 @@
 import {
+  Activity,
   BarChart3,
+  BookMarked,
   BookOpenCheck,
   CalendarCheck,
   Check,
@@ -11,7 +13,9 @@ import {
   Power,
   RefreshCw,
   Save,
+  Settings,
   Trash2,
+  TrendingUp,
   X
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -20,7 +24,6 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
 import { ModalForm } from '../components/ModalForm';
 import { SearchInput } from '../components/SearchInput';
-import { SegmentedTabs } from '../components/SegmentedTabs';
 import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { api, type ApiRecord } from '../services/api';
@@ -29,12 +32,28 @@ import { NgajiKitabSection } from './NgajiKitabSection';
 
 import { RealtimeAttendanceLog } from '../components/RealtimeAttendanceLog';
 
-export type AbsensiTab = 'log-realtime' | 'madin-input' | 'sholat' | 'ngaji' | 'rekap-sholat' | 'madin' | 'jenis-sholat';
+export type AbsensiTab =
+  | 'log-realtime'
+  | 'madin-input'
+  | 'sholat'
+  | 'ngaji'
+  | 'rekap-madin'
+  | 'madin'
+  | 'rekap-sholat'
+  | 'rekap-ngaji'
+  | 'jenis-sholat';
+
 export interface AbsensiNavigationTarget {
   tab: AbsensiTab;
   classId?: number;
   mapelId?: number;
   jadwalId?: number;
+}
+
+export interface AbsensiPageProps {
+  initialTab?: AbsensiTab;
+  initialTarget?: AbsensiNavigationTarget;
+  onTabChange?: (tab: AbsensiTab) => void;
 }
 type PrayerStatus = '' | 'M' | 'I' | 'S';
 type MadinStatus = '' | 'Hadir' | 'Izin' | 'Sakit' | 'Alfa';
@@ -111,54 +130,120 @@ function statusTone(status: PrayerStatus | MadinStatus | string): 'success' | 'w
   return 'neutral';
 }
 
-export function AbsensiPage({ initialTarget }: { initialTarget?: AbsensiNavigationTarget }) {
+export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabChange }: AbsensiPageProps) {
   const { session } = useAuth();
   const isMadrasah = session?.role === 'admin' && String(session?.admin_type || '').toLowerCase() === 'madrasah';
 
-  const availableTabs = useMemo(() => {
-    if (isMadrasah) {
-      return [
-        { id: 'log-realtime', label: '⚡ Log Realtime Absensi' },
-        { id: 'madin', label: '📊 Rekap Madin' },
-        { id: 'rekap-sholat', label: "🕌 Rekap Sholat" },
-        { id: 'ngaji', label: '📖 Rekap Ngaji' }
-      ];
-    }
-    return tabs;
-  }, [isMadrasah]);
-
   const [activeTab, setActiveTab] = useState<AbsensiTab>(() => {
     if (initialTarget?.tab) return initialTarget.tab;
-    return 'log-realtime';
+    return initialTab;
   });
 
   useEffect(() => {
-    if (isMadrasah && !['log-realtime', 'madin', 'rekap-sholat', 'ngaji'].includes(activeTab)) {
+    if (initialTarget?.tab) {
+      setActiveTab(initialTarget.tab);
+    } else if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab, initialTarget]);
+
+  useEffect(() => {
+    if (isMadrasah && !['log-realtime', 'madin', 'rekap-madin', 'rekap-sholat', 'ngaji', 'rekap-ngaji'].includes(activeTab)) {
       setActiveTab('log-realtime');
     }
   }, [isMadrasah, activeTab]);
 
+  const currentTab = activeTab === 'rekap-madin' ? 'madin' : activeTab;
+
+  const headerInfo = useMemo(() => {
+    switch (currentTab) {
+      case 'log-realtime':
+        return {
+          badge: 'Pemantauan & Monitoring',
+          title: 'Log Pemantauan Presensi Realtime',
+          desc: 'Pemantauan riwayat kehadiran santri dan ustadz secara realtime lengkap dengan jam detik, mata pelajaran, dan status kehadiran.',
+          icon: Activity
+        };
+      case 'madin-input':
+        return {
+          badge: 'Presensi KBM Diniyah',
+          title: 'Input Presensi KBM Madin',
+          desc: 'Catat absensi santri pada jam pelajaran Madrasah Diniyah berdasarkan kelas, mata pelajaran, dan jadwal.',
+          icon: BookOpenCheck
+        };
+      case 'sholat':
+        return {
+          badge: 'Presensi Kedisiplinan Pondok',
+          title: "Input Presensi Jama'ah Sholat",
+          desc: "Catat kehadiran sholat fardhu berjama'ah santri per komplek dan kamar asrama pondok.",
+          icon: Landmark
+        };
+      case 'ngaji':
+        return {
+          badge: 'Presensi Pondok',
+          title: 'Input Presensi Ngaji Kitab',
+          desc: 'Catat absensi santri pada halaqah dan jadwal pengajian kitab kuning pondok pesantren.',
+          icon: BookMarked
+        };
+      case 'rekap-ngaji':
+        return {
+          badge: 'Laporan & Rekapitulasi',
+          title: 'Rekapitulasi Presensi Ngaji Kitab',
+          desc: 'Laporan rekap kehadiran pengajian kitab santri dengan opsi ekspor Excel.',
+          icon: BarChart3
+        };
+      case 'madin':
+        return {
+          badge: 'Laporan & Rekapitulasi',
+          title: 'Rekapitulasi Presensi Madin',
+          desc: 'Laporan rekap kehadiran KBM Madin per kelas dan semester lengkap dengan opsi export Excel.',
+          icon: BarChart3
+        };
+      case 'rekap-sholat':
+        return {
+          badge: 'Laporan & Rekapitulasi',
+          title: 'Rekapitulasi Presensi Sholat',
+          desc: "Laporan rekapitulasi kehadiran sholat jama'ah santri per kamar dan komplek asrama pondok.",
+          icon: TrendingUp
+        };
+      case 'jenis-sholat':
+        return {
+          badge: 'Pengaturan Sistem',
+          title: "Pengaturan Sesi & Waktu Jama'ah",
+          desc: "Kelola daftar sesi sholat (Subuh, Dhuhur, Ashar, Maghrib, Isya') dan konfigurasi batas waktu presensi.",
+          icon: Settings
+        };
+      default:
+        return {
+          badge: 'Presensi & Absensi',
+          title: 'Presensi Santri & Ustadz',
+          desc: 'Kelola data kehadiran santri, KBM Madin, dan sholat jamaah.',
+          icon: CalendarCheck
+        };
+    }
+  }, [currentTab]);
+
+  const HeaderIcon = headerInfo.icon;
+
   return (
     <div className="q-page-enter space-y-6">
-      <section>
-        <p className="text-sm font-bold text-[#636E72]">{isMadrasah ? 'Pemantauan & Monitoring' : 'Absensi'}</p>
-        <h1 className="text-3xl font-extrabold text-[#2D3436]">{isMadrasah ? 'Monitoring Absensi Realtime' : "Absensi Madin & Jama'ah Sholat"}</h1>
-        <p className="text-sm font-semibold text-[#636E72]">
-          {isMadrasah
-            ? 'Pemantauan riwayat kehadiran santri dan ustadz secara realtime lengkap dengan jam detik, mata pelajaran, dan status kehadiran.'
-            : 'Input, rekap, dan master absensi memakai backend yang sama dengan Android.'}
-        </p>
+      <section className="q-page-heading">
+        <p className="text-sm font-bold text-[#636E72]">{headerInfo.badge}</p>
+        <h1 className="text-3xl font-extrabold text-[#2D3436] flex items-center gap-2.5">
+          <HeaderIcon className="text-[#138F81]" size={30} />
+          {headerInfo.title}
+        </h1>
+        <p className="text-sm font-semibold text-[#636E72]">{headerInfo.desc}</p>
       </section>
 
-      <SegmentedTabs tabs={availableTabs} active={activeTab} onChange={(id) => setActiveTab(id as AbsensiTab)} />
-
-      {activeTab === 'log-realtime' ? <RealtimeAttendanceLog /> : null}
-      {activeTab === 'madin-input' ? <MadinInput initialTarget={initialTarget} /> : null}
-      {activeTab === 'sholat' ? <PrayerInput /> : null}
-      {activeTab === 'ngaji' ? <NgajiKitabSection /> : null}
-      {activeTab === 'rekap-sholat' ? <PrayerRekap /> : null}
-      {activeTab === 'madin' ? <MadinRekap /> : null}
-      {activeTab === 'jenis-sholat' ? <PrayerTypeCms /> : null}
+      {currentTab === 'log-realtime' ? <RealtimeAttendanceLog /> : null}
+      {currentTab === 'madin-input' ? <MadinInput initialTarget={initialTarget} /> : null}
+      {currentTab === 'sholat' ? <PrayerInput /> : null}
+      {currentTab === 'ngaji' ? <NgajiKitabSection initialSection="input" /> : null}
+      {currentTab === 'rekap-ngaji' ? <NgajiKitabSection initialSection="rekap" /> : null}
+      {currentTab === 'rekap-sholat' ? <PrayerRekap /> : null}
+      {currentTab === 'madin' ? <MadinRekap /> : null}
+      {currentTab === 'jenis-sholat' ? <PrayerTypeCms /> : null}
     </div>
   );
 }

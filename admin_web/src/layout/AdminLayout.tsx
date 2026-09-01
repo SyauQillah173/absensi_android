@@ -31,6 +31,7 @@ import {
   useState,
 } from "react";
 import { useAuth } from "../auth/AuthContext";
+import type { AbsensiTab } from "../pages/AbsensiPage";
 import type { BukuIndukSection } from "../pages/BukuIndukPage";
 import { api, type ApiRecord } from "../services/api";
 
@@ -59,6 +60,7 @@ export interface MenuItem {
     page: PageKey;
     masterSection?: BukuIndukSection;
     financeTab?: string;
+    absensiTab?: AbsensiTab;
   }>;
 }
 
@@ -66,9 +68,10 @@ interface AdminLayoutProps {
   activePage: PageKey;
   activeMasterSection?: BukuIndukSection;
   activeFinanceTab?: string;
+  activeAbsensiTab?: AbsensiTab;
   onNavigate: (
     page: PageKey,
-    options?: { masterSection?: BukuIndukSection; financeTab?: string },
+    options?: { masterSection?: BukuIndukSection; financeTab?: string; absensiTab?: AbsensiTab },
   ) => void;
   children: ReactNode;
 }
@@ -105,7 +108,21 @@ const allMenu: MenuItem[] = [
       { label: "Kelompok Belajar", page: "master", masterSection: "kelompok" },
     ],
   },
-  { key: "absensi", label: "Presensi & Absensi", icon: CalendarCheck, page: "absensi" },
+  {
+    key: "absensi_menu",
+    label: "Presensi & Absensi",
+    icon: CalendarCheck,
+    children: [
+      { label: "⚡ Log Pemantauan Realtime", page: "absensi", absensiTab: "log-realtime" },
+      { label: "🕌 Input Presensi Madin", page: "absensi", absensiTab: "madin-input" },
+      { label: "🕋 Input Presensi Sholat", page: "absensi", absensiTab: "sholat" },
+      { label: "📖 Input Presensi Ngaji Kitab", page: "absensi", absensiTab: "ngaji" },
+      { label: "📊 Rekap Presensi Madin", page: "absensi", absensiTab: "madin" },
+      { label: "📈 Rekap Presensi Sholat", page: "absensi", absensiTab: "rekap-sholat" },
+      { label: "📚 Rekap Presensi Ngaji", page: "absensi", absensiTab: "rekap-ngaji" },
+      { label: "⚙️ Pengaturan Waktu Sholat", page: "absensi", absensiTab: "jenis-sholat" },
+    ],
+  },
   { key: "nilai", label: "Nilai & Hafalan", icon: ListChecks, page: "nilai" },
   {
     key: "keuangan_menu",
@@ -151,6 +168,7 @@ const menuPermissionKeys: Record<string, string> = {
   kesiswaan: "buku_induk",
   guru_menu: "buku_induk",
   akademik_menu: "mata_pelajaran",
+  absensi_menu: "absensi",
   absensi: "absensi",
   nilai: "nilai",
   keuangan_menu: "keuangan",
@@ -169,6 +187,7 @@ export function AdminLayout({
   activePage,
   activeMasterSection = "siswa",
   activeFinanceTab = "today",
+  activeAbsensiTab = "log-realtime",
   onNavigate,
   children,
 }: AdminLayoutProps) {
@@ -239,7 +258,23 @@ export function AdminLayout({
   useEffect(() => {
     setProfileOpen(false);
     setNotificationOpen(false);
-  }, [activePage, activeMasterSection, activeFinanceTab]);
+  }, [activePage, activeMasterSection, activeFinanceTab, activeAbsensiTab]);
+
+  // Otomatis buka accordion menu induk saat halaman aktif
+  useEffect(() => {
+    const parentGroup = allMenu.find((m) =>
+      m.children?.some(
+        (c) =>
+          c.page === activePage &&
+          (!c.masterSection || c.masterSection === activeMasterSection) &&
+          (!c.financeTab || c.financeTab === activeFinanceTab) &&
+          (!c.absensiTab || c.absensiTab === activeAbsensiTab),
+      ),
+    );
+    if (parentGroup) {
+      setOpenGroup(parentGroup.key);
+    }
+  }, [activePage, activeMasterSection, activeFinanceTab, activeAbsensiTab]);
 
   const menu = useMemo(() => {
     return allMenu.filter((item) =>
@@ -287,7 +322,8 @@ export function AdminLayout({
             (c) =>
               c.page === activePage &&
               (!c.masterSection || c.masterSection === activeMasterSection) &&
-              (!c.financeTab || c.financeTab === activeFinanceTab),
+              (!c.financeTab || c.financeTab === activeFinanceTab) &&
+              (!c.absensiTab || c.absensiTab === activeAbsensiTab),
           );
           const isDirectActive = item.page === activePage && !hasChildren;
           const isSelected = isDirectActive || isChildActive;
@@ -340,10 +376,12 @@ export function AdminLayout({
                       (!child.masterSection ||
                         child.masterSection === activeMasterSection) &&
                       (!child.financeTab ||
-                        child.financeTab === activeFinanceTab);
+                        child.financeTab === activeFinanceTab) &&
+                      (!child.absensiTab ||
+                        child.absensiTab === activeAbsensiTab);
                     return (
                       <button
-                        key={`${child.page}-${child.financeTab ?? child.masterSection ?? child.label}`}
+                        key={`${child.page}-${child.absensiTab ?? child.financeTab ?? child.masterSection ?? child.label}`}
                         className={`flex min-h-8.5 w-full items-center rounded-xl px-2.5 py-1.5 text-left text-xs font-bold transition ${
                           childActive
                             ? "bg-[#138F81] text-white shadow-md shadow-[#138F81]/20 font-extrabold"
@@ -353,6 +391,7 @@ export function AdminLayout({
                           onNavigate(child.page, {
                             masterSection: child.masterSection,
                             financeTab: child.financeTab,
+                            absensiTab: child.absensiTab,
                           });
                           setMobileOpen(false);
                           setProfileOpen(false);
