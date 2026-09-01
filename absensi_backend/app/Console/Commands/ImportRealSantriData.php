@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class ImportRealSantriData extends Command
 {
@@ -48,6 +49,11 @@ class ImportRealSantriData extends Command
     {
         if (empty($val)) return null;
         $str = trim((string)$val);
+        if (is_numeric($str) && (int)$str > 10000 && (int)$str < 100000) {
+            try {
+                return Date::excelToDateTimeObject((int)$str)->format('Y-m-d');
+            } catch (\Throwable $e) {}
+        }
         if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $str, $m)) {
             return sprintf('%04d-%02d-%02d', $m[3], $m[1], $m[2]);
         }
@@ -138,8 +144,15 @@ class ImportRealSantriData extends Command
 
                     $key = $this->normName($nama);
                     $jk = $isPutra ? 'L' : 'P';
-                    $nisn = trim((string)$sheet->getCell("C{$r}")->getValue()) ?: null;
-                    $nik = trim((string)$sheet->getCell("D{$r}")->getValue()) ?: null;
+                    
+                    $nisnRaw = trim((string)$sheet->getCell("C{$r}")->getValue());
+                    $nisnDigits = preg_replace('/[^0-9]/', '', $nisnRaw);
+                    $nisn = (strlen($nisnDigits) >= 8 && strlen($nisnDigits) <= 20) ? $nisnDigits : null;
+
+                    $nikRaw = trim((string)$sheet->getCell("D{$r}")->getValue());
+                    $nikDigits = preg_replace('/[^0-9]/', '', $nikRaw);
+                    $nik = (strlen($nikDigits) >= 10 && strlen($nikDigits) <= 16) ? $nikDigits : null;
+
                     $sekolahTujuan = trim((string)$sheet->getCell("S{$r}")->getValue()) ?: null;
                     $waWali = trim((string)$sheet->getCell("AI{$r}")->getValue()) ?: null;
                     $emailWali = trim((string)$sheet->getCell("AJ{$r}")->getValue()) ?: null;
@@ -151,7 +164,7 @@ class ImportRealSantriData extends Command
                     $desa = trim((string)$sheet->getCell("I{$r}")->getValue());
                     $kec = trim((string)$sheet->getCell("J{$r}")->getValue());
                     $kab = trim((string)$sheet->getCell("K{$r}")->getValue());
-                    $kodePos = trim((string)$sheet->getCell("L{$r}")->getValue());
+                    $kodePos = substr(preg_replace('/[^0-9]/', '', (string)$sheet->getCell("L{$r}")->getValue()), 0, 5) ?: null;
                     $prov = trim((string)$sheet->getCell("M{$r}")->getValue());
 
                     $fullAlamat = implode(', ', array_filter([$alamatJalan, ($rt || $rw) ? "RT {$rt} / RW {$rw}" : null, $dusun, $desa, $kec, $kab, $prov]));
@@ -177,7 +190,7 @@ class ImportRealSantriData extends Command
                         'tanggal_lahir' => $this->parseDateValue($sheet->getCell("O{$r}")->getValue()),
                         'anak_ke' => (int)trim((string)$sheet->getCell("P{$r}")->getValue()) ?: null,
                         'asal_sekolah' => trim((string)$sheet->getCell("Q{$r}")->getValue()) ?: null,
-                        'tahun_lulus' => trim((string)$sheet->getCell("R{$r}")->getValue()) ?: null,
+                        'tahun_lulus' => substr(preg_replace('/[^0-9]/', '', (string)$sheet->getCell("R{$r}")->getValue()), 0, 4) ?: null,
                         'kelas' => $kelasFormal ?: $sekolahTujuan,
                         'alamat' => $fullAlamat ?: 'Pondok Pesantren Qomaruddin',
                         'provinsi' => $prov ?: 'Jawa Timur',
