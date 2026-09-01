@@ -346,14 +346,13 @@ class UserManagementController extends Controller
             ? [...$requiredRules, 'in:guru']
             : [...$requiredRules, 'in:admin,guru,wali'];
 
+        $emailRule = ($guruOnly || in_array($request->role ?? $user?->role, ['guru', 'wali'], true))
+            ? ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user?->id)]
+            : [...$requiredRules, 'email', 'max:255', Rule::unique('users', 'email')->ignore($user?->id)];
+
         return [
             'name' => [...$requiredRules, 'string', 'max:255'],
-            'email' => [
-                ...$requiredRules,
-                'email',
-                'max:255',
-                Rule::unique('users', 'email')->ignore($user?->id),
-            ],
+            'email' => $emailRule,
             'role' => $roleRule,
             'role_id' => 'nullable|integer|exists:roles,id',
             'admin_type' => 'nullable|in:utama,bendahara,akademik,pondok,absensi,lainnya',
@@ -551,10 +550,10 @@ class UserManagementController extends Controller
     private function buildPasswordDisplayMeta(User $user): array
     {
         $defaultFallback = match ($user->role) {
-            'guru' => 'guru12345',
+            'guru' => 'admin123',
             'wali' => 'siswa12345',
             'admin' => 'admin12345',
-            default => 'user12345',
+            default => 'admin123',
         };
 
         if ($user->password_changed_at) {
@@ -592,10 +591,10 @@ class UserManagementController extends Controller
     private function generateTemporaryPassword(User $user): string
     {
         return match ($user->role) {
-            'guru' => 'guru12345',
+            'guru' => 'admin123',
             'wali' => 'siswa12345',
             'admin' => 'admin12345',
-            default => 'user12345',
+            default => 'admin123',
         };
     }
 }

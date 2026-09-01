@@ -819,15 +819,14 @@ export function exportRowsExcel(rows: ApiRecord[], fileName: string, title: stri
 
   if (isGuru) {
     exportCols = [
-      { key: 'name', label: 'Nama Lengkap Guru', width: 28, getValue: (r) => String(r.name || r.nama || '-') },
-      { key: 'kode_guru', label: 'Kode Guru / NIP', width: 18, getValue: (r) => String(r.kode_guru || r.nis || '-') },
-      { key: 'email', label: 'Username / Email Login', width: 28, getValue: (r) => String(r.email || r.kode_guru || r.name || '-') },
-      { key: 'password_display', label: 'Kata Sandi Login', width: 22, getValue: (r) => String(r.password_display || (r.password_changed_at ? 'Sudah Diganti User' : 'guru12345')) },
+      { key: 'name', label: 'Nama Lengkap Guru', width: 30, getValue: (r) => String(r.name || r.nama || '-') },
+      { key: 'kode_guru', label: 'Kode Guru (Username Login)', width: 22, getValue: (r) => String(r.kode_guru || '-') },
+      { key: 'login_alternatif', label: 'Login Alternatif', width: 26, getValue: (r) => `Bisa Login dgn Kode (${r.kode_guru || '-'}) atau Nama` },
+      { key: 'password_display', label: 'Password Login Awal', width: 22, getValue: (r) => String(r.password_display || (r.password_changed_at ? 'Sudah Diganti User' : 'admin123')) },
       { key: 'password_display_label', label: 'Status Sandi', width: 20, getValue: (r) => String(r.password_display_label || (r.password_changed_at ? 'Password Privat' : 'Password Default')) },
       { key: 'status', label: 'Status Akun', width: 14, getValue: (r) => String(r.status || 'Aktif') },
+      { key: 'unit_kerja', label: 'Unit Kerja / Lembaga', width: 32, getValue: (r) => Array.isArray(r.unit_kerja) ? r.unit_kerja.join(', ') : String(r.unit_kerja || 'Madrasah Diniyah PP Qomaruddin') },
       { key: 'no_hp', label: 'No. WhatsApp / HP', width: 18, getValue: (r) => String(r.no_hp || '-') },
-      { key: 'unit_kerja', label: 'Unit Kerja / Sekolah', width: 24, getValue: (r) => Array.isArray(r.unit_kerja) ? r.unit_kerja.join(', ') : String(r.unit_kerja || '-') },
-      { key: 'kategori_guru', label: 'Kategori Pengajar', width: 20, getValue: (r) => Array.isArray(r.kategori_guru) ? r.kategori_guru.join(', ') : String(r.kategori_guru || '-') },
       { key: 'alamat', label: 'Alamat', width: 28, getValue: (r) => String(r.alamat || '-') },
     ];
   } else if (isWali) {

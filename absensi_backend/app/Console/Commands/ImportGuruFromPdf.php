@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Schema;
 
 class ImportGuruFromPdf extends Command
 {
-    protected $signature = 'guru:import-pdf {--force : Timpa password dengan default 12345678 jika akun sudah ada}';
+    protected $signature = 'guru:import-pdf {--force : Timpa data/password dengan default admin123 jika akun sudah ada}';
     protected $description = 'Import data master guru resmi Pesantren Qomaruddin dari DAFTAR GURU.pdf';
 
     public function handle(): int
@@ -23,9 +23,9 @@ class ImportGuruFromPdf extends Command
 
         $guruList = $this->getDaftarGuru();
         $total = count($guruList);
-        $this->info("Total data guru resmi: {$total} Guru/Pengajar.\n");
+        $this->info("Total data guru resmi dari PDF: {$total} Guru/Pengajar.\n");
 
-        $defaultPassword = 'password123';
+        $defaultPassword = 'admin123';
         $hashedPassword = Hash::make($defaultPassword);
         $encryptedPassword = Crypt::encryptString($defaultPassword);
 
@@ -41,31 +41,32 @@ class ImportGuruFromPdf extends Command
                 $code = strtoupper(trim($item['code']));
                 $name = trim($item['name']);
                 $gender = $item['gender'];
-                $email = 'guru.' . strtolower($code) . '@ppqomaruddin.sch.id';
 
-                // Check existing user by kode_guru or email
+                // Check existing user by kode_guru or name
                 $user = User::where('kode_guru', $code)
-                    ->orWhere('email', $email)
+                    ->orWhereRaw('LOWER(name) = ?', [strtolower($name)])
                     ->first();
 
                 if (!$user) {
                     $user = new User();
-                    $user->email = $email;
                     $user->password = $hashedPassword;
                     $user->password_default_encrypted = $encryptedPassword;
                     $user->password_current_encrypted = $encryptedPassword;
+                    $user->password_changed_at = null;
                     $inserted++;
                 } else {
-                    if ($this->option('force')) {
+                    if ($this->option('force') || empty($user->password_default_encrypted)) {
                         $user->password = $hashedPassword;
                         $user->password_default_encrypted = $encryptedPassword;
                         $user->password_current_encrypted = $encryptedPassword;
+                        $user->password_changed_at = null;
                     }
                     $updated++;
                 }
 
                 $user->name = $name;
                 $user->kode_guru = $code;
+                $user->email = null; // Email dikosongkan sesuai permintaan
                 $user->role = 'guru';
                 $user->role_id = 2;
                 $user->jenis_kelamin = $gender;
@@ -94,8 +95,9 @@ class ImportGuruFromPdf extends Command
             $this->info("   • Guru baru ditambahkan : {$inserted}");
             $this->info("   • Guru diperbarui       : {$updated}");
             $this->info("   • Total guru aktif      : {$total}");
-            $this->info("   • Default Password      : {$defaultPassword}");
-            $this->info("   • Format Email Login    : guru.[kode]@ppqomaruddin.sch.id (misal: guru.al@ppqomaruddin.sch.id)");
+            $this->info("   • Email Login           : Dikosongkan (null)");
+            $this->info("   • Username Login        : Kode Guru (misal: AL, AT, AA, NM) atau Nama Lengkap Guru");
+            $this->info("   • Password Login Awal   : {$defaultPassword}");
             $this->info('=================================================================');
 
             return 0;
@@ -110,7 +112,7 @@ class ImportGuruFromPdf extends Command
     private function getDaftarGuru(): array
     {
         return [
-            // Page 1
+            // Page 1 (43 Guru)
             ['code' => 'AL', 'name' => "K H. MUH. ALA'UDDIN", 'gender' => 'L'],
             ['code' => 'AT', 'name' => 'KH. ALI MUSTHOFA', 'gender' => 'L'],
             ['code' => 'AA', 'name' => 'KH. ASNAFI ARIF', 'gender' => 'L'],
@@ -155,7 +157,7 @@ class ImportGuruFromPdf extends Command
             ['code' => 'SO', 'name' => 'UST. FAISHOL AMIN', 'gender' => 'L'],
             ['code' => 'HH', 'name' => 'UST. HAMAM HIDYATULLAH', 'gender' => 'L'],
 
-            // Page 2
+            // Page 2 (44 Guru)
             ['code' => 'LA', 'name' => 'UST. AHMAD ADLAN ARIEF', 'gender' => 'L'],
             ['code' => 'AG', 'name' => 'UST. AGIL MUHAMMAD', 'gender' => 'L'],
             ['code' => 'BZ', 'name' => 'UST. AHMAD BAZI', 'gender' => 'L'],
@@ -201,7 +203,7 @@ class ImportGuruFromPdf extends Command
             ['code' => 'TB', 'name' => 'USTD. THOYYIBAH BINASRILLAH', 'gender' => 'P'],
             ['code' => 'US', 'name' => 'USTD. UHKUWA SAHAMA', 'gender' => 'P'],
 
-            // Page 3
+            // Page 3 (3 Guru)
             ['code' => 'NM', 'name' => 'USTD. NURUL MASRIFAH', 'gender' => 'P'],
             ['code' => 'DN', 'name' => 'USTD. DINA', 'gender' => 'P'],
             ['code' => 'DA', 'name' => 'USTD. DWI AMNI', 'gender' => 'P'],
