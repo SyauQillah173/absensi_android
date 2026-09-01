@@ -455,6 +455,7 @@ function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget
   const [mapelId, setMapelId] = useState(initialTarget?.mapelId ?? 0);
   const [jadwalId, setJadwalId] = useState(initialTarget?.jadwalId ?? 0);
   const [statuses, setStatuses] = useState<Record<number, MadinStatus>>({});
+  const [notes, setNotes] = useState<Record<number, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -526,7 +527,17 @@ function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget
   }, [statuses]);
 
   function setStudentStatus(id: number, status: MadinStatus) {
-    setStatuses((previous) => ({ ...previous, [id]: previous[id] === status ? '' : status }));
+    setStatuses((previous) => {
+      const next = { ...previous, [id]: previous[id] === status ? '' : status };
+      if (next[id] === 'Hadir' || !next[id]) {
+        setNotes((prevNotes: Record<number, string>) => {
+          const nextNotes = { ...prevNotes };
+          delete nextNotes[id];
+          return nextNotes;
+        });
+      }
+      return next;
+    });
   }
 
   async function save() {
@@ -545,6 +556,7 @@ function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget
           class_id: classId,
           mapel_id: mapelId,
           jadwal_id: jadwalId,
+          keterangan: notes[id] || undefined,
           diinput_via: 'online' as const
         };
       })
@@ -572,9 +584,9 @@ function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <Message error={error} notice={notice} />
-      <section className="q-panel grid gap-3 p-4 sm:p-6 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+      <section className="q-panel grid gap-3 p-4 sm:p-6 md:grid-cols-5">
         <input className="q-input" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
         <select className="q-input" value={classId} onChange={(event) => setClassId(Number(event.target.value))}>
           <option value={0}>Pilih kelas</option>
@@ -608,9 +620,11 @@ function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget
         rows={students}
         emptyText="Belum ada siswa aktif pada kelas ini."
         statusMap={statuses}
+        notesMap={notes}
         labels={madinStatusLabels}
         options={['Hadir', 'Izin', 'Sakit', 'Alfa']}
         onChange={setStudentStatus}
+        onNoteChange={(id: number, note: string) => setNotes((prev: Record<number, string>) => ({ ...prev, [id]: note }))}
       />
       <SaveBar
         isSaving={isSaving}
@@ -1209,50 +1223,146 @@ function AttendanceRows<TStatus extends string>({
   rows: studentRows,
   emptyText,
   statusMap,
+  notesMap = {},
   labels,
   options,
-  onChange
+  onChange,
+  onNoteChange
 }: {
   isLoading: boolean;
   rows: ApiRecord[];
   emptyText: string;
   statusMap: Record<number, TStatus>;
+  notesMap?: Record<number, string>;
   labels: Record<string, string>;
   options: TStatus[];
   onChange: (id: number, status: TStatus) => void;
+  onNoteChange?: (id: number, note: string) => void;
 }) {
   if (isLoading) return <LoadingText text="Memuat daftar..." />;
   if (studentRows.length === 0) return <div className="q-card px-4 py-8 text-center text-sm font-bold text-[#636E72]">{emptyText}</div>;
+
+  const presetsMap: Record<string, string[]> = {
+    Sakit: [
+      'Sakit di Kamar / Asrama',
+      'Dirawat di Poskestren / UKS',
+      'Dirawat di Rumah Sakit / Puskesmas',
+      'Pulang ke Rumah (Izin Sakit)',
+      'Demam / Flu / Batuk',
+      'Kecapekan / Istirahat'
+    ],
+    S: [
+      'Sakit di Kamar / Asrama',
+      'Dirawat di Poskestren / UKS',
+      'Dirawat di Rumah Sakit / Puskesmas',
+      'Pulang ke Rumah (Izin Sakit)',
+      'Demam / Flu / Batuk',
+      'Kecapekan / Istirahat'
+    ],
+    Izin: [
+      'Izin Pulang ke Rumah (Keluarga)',
+      'Izin Acara / Hajat Keluarga',
+      'Izin Mengikuti Kegiatan Pondok / Lomba',
+      'Izin Piket Pondok / Dapur',
+      'Izin Mengurus Dokumen / Keperluan'
+    ],
+    I: [
+      'Izin Pulang ke Rumah (Keluarga)',
+      'Izin Acara / Hajat Keluarga',
+      'Izin Mengikuti Kegiatan Pondok / Lomba',
+      'Izin Piket Pondok / Dapur',
+      'Izin Mengurus Dokumen / Keperluan'
+    ],
+    Alfa: [
+      'Tanpa Keterangan (Tidak Masuk)',
+      'Tertidur di Kamar',
+      'Terlambat Lebih dari 30 Menit',
+      'Bolos KBM / Menghilang'
+    ],
+    A: [
+      'Tanpa Keterangan (Tidak Masuk)',
+      'Tertidur di Kamar',
+      'Terlambat Lebih dari 30 Menit',
+      'Bolos KBM / Menghilang'
+    ]
+  };
 
   return (
     <section className="space-y-3">
       {studentRows.map((student, index) => {
         const id = num(student.id);
         const status = statusMap[id] ?? ('' as TStatus);
+        const statusStr = String(status);
+        const isNotPresent = Boolean(status) && statusStr !== 'Hadir' && statusStr !== 'M' && statusStr !== 'Masuk' && statusStr !== 'H';
+        const currentNote = notesMap[id] || '';
+        const presets = presetsMap[statusStr] || [];
+
         return (
-          <div key={id} className="q-card flex flex-wrap items-center gap-4 p-4">
-            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#E8F7F3] text-sm font-extrabold text-[#138F81]">{index + 1}</span>
-            <div className="min-w-[220px] flex-1">
-              <p className="text-base font-extrabold text-[#2D3436]">{text(student.nama ?? student.name)}</p>
-              <p className="text-sm font-semibold text-[#636E72]">{text(student.kelas ?? student.class_name)}</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <StatusBadge label={labels[String(status)] ?? 'Belum'} tone={statusTone(status)} />
+          <div key={id} className="q-card flex flex-col p-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#E8F7F3] text-sm font-extrabold text-[#138F81]">{index + 1}</span>
+              <div className="min-w-[220px] flex-1">
+                <p className="text-base font-extrabold text-[#2D3436]">{text(student.nama ?? student.name)}</p>
+                <p className="text-sm font-semibold text-[#636E72]">{text(student.kelas ?? student.class_name)}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <StatusBadge label={labels[String(status)] ?? 'Belum'} tone={statusTone(status)} />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {options.map((option) => (
+                  <button
+                    key={option}
+                    className={`grid h-12 min-w-12 place-items-center rounded-2xl px-3 text-sm font-extrabold transition ${
+                      status === option ? 'bg-[#138F81] text-white' : 'bg-[#F7FBFC] text-[#138F81] hover:bg-[#E1EFF7]'
+                    } ${option === 'Izin' || option === 'I' ? (status === option ? '!bg-[#E8590C]' : '') : ''} ${option === 'Sakit' || option === 'S' ? (status === option ? '!bg-[#D63031]' : '') : ''}`}
+                    onClick={() => onChange(id, option)}
+                    type="button"
+                  >
+                    {String(option).slice(0, 1)}
+                  </button>
+                ))}
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {options.map((option) => (
-                <button
-                  key={option}
-                  className={`grid h-12 min-w-12 place-items-center rounded-2xl px-3 text-sm font-extrabold transition ${
-                    status === option ? 'bg-[#138F81] text-white' : 'bg-[#F7FBFC] text-[#138F81] hover:bg-[#E1EFF7]'
-                  } ${option === 'Izin' || option === 'I' ? (status === option ? '!bg-[#E8590C]' : '') : ''} ${option === 'Sakit' || option === 'S' ? (status === option ? '!bg-[#D63031]' : '') : ''}`}
-                  onClick={() => onChange(id, option)}
-                  type="button"
-                >
-                  {String(option).slice(0, 1)}
-                </button>
-              ))}
-            </div>
+
+            {/* Dropdown & Input Alasan jika Izin / Sakit / Alfa */}
+            {isNotPresent && onNoteChange && (
+              <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2 animate-in fade-in duration-200">
+                <span className="text-xs font-bold text-slate-500 shrink-0">
+                  Alasan {labels[statusStr] || statusStr}:
+                </span>
+
+                {presets.length > 0 && (
+                  <select
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 outline-none focus:border-[#138F81] shrink-0 max-w-[220px]"
+                    value={presets.includes(currentNote) ? currentNote : (currentNote ? '__custom__' : '')}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '__custom__') {
+                        if (presets.includes(currentNote)) onNoteChange(id, '');
+                      } else {
+                        onNoteChange(id, val);
+                      }
+                    }}
+                  >
+                    <option value="">-- Pilih Alasan Cepat (Opsional) --</option>
+                    {presets.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                    <option value="__custom__">✏️ Ketik Alasan Sendiri...</option>
+                  </select>
+                )}
+
+                <input
+                  type="text"
+                  placeholder={`Ketik keterangan ${labels[statusStr] || statusStr} (opsional)...`}
+                  value={currentNote}
+                  onChange={(e) => onNoteChange(id, e.target.value)}
+                  className="flex-1 min-w-[160px] rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#138F81]"
+                />
+              </div>
+            )}
           </div>
         );
       })}

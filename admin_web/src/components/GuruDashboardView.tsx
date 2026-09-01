@@ -49,6 +49,30 @@ interface ScheduleCardData extends ApiRecord {
 
 type MadinStatus = 'Hadir' | 'Izin' | 'Sakit' | 'Alfa';
 
+export const KETERANGAN_PRESETS: Record<'Sakit' | 'Izin' | 'Alfa', string[]> = {
+  Sakit: [
+    'Sakit di Kamar / Asrama',
+    'Dirawat di Poskestren / UKS',
+    'Dirawat di Rumah Sakit / Puskesmas',
+    'Pulang ke Rumah (Izin Sakit)',
+    'Demam / Flu / Batuk',
+    'Kecapekan / Istirahat'
+  ],
+  Izin: [
+    'Izin Pulang ke Rumah (Keluarga)',
+    'Izin Acara / Hajat Keluarga',
+    'Izin Mengikuti Kegiatan Pondok / Lomba',
+    'Izin Piket Pondok / Dapur',
+    'Izin Mengurus Dokumen / Keperluan'
+  ],
+  Alfa: [
+    'Tanpa Keterangan (Tidak Masuk)',
+    'Tertidur di Kamar',
+    'Terlambat Lebih dari 30 Menit',
+    'Bolos KBM / Menghilang'
+  ]
+};
+
 function text(value: unknown, fallback = '-'): string {
   const clean = String(value ?? '').trim();
   return clean || fallback;
@@ -576,61 +600,125 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
                 students.map((siswa, idx) => {
                   const sid = Number(siswa.id);
                   const currentStatus = statuses[sid] || 'Hadir';
+                  const currentNote = notes[sid] || '';
 
                   return (
                     <div
                       key={sid}
-                      className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-all"
+                      className={`flex flex-col p-3.5 rounded-2xl border transition-all ${
+                        currentStatus === 'Hadir'
+                          ? 'border-slate-200 bg-white hover:border-slate-300'
+                          : currentStatus === 'Izin'
+                          ? 'border-amber-200 bg-amber-50/40'
+                          : currentStatus === 'Sakit'
+                          ? 'border-rose-200 bg-rose-50/40'
+                          : 'border-slate-300 bg-slate-100/70'
+                      }`}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-100 font-black text-xs text-slate-600">
-                          {idx + 1}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="text-sm font-black text-slate-800 truncate">{text(siswa.nama)}</p>
-                          <p className="text-[11px] font-semibold text-slate-400">
-                            NIS: {text(siswa.nis)} • {siswa.jenis_kelamin === 'L' ? 'Putra' : 'Putri'}
-                          </p>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-100 font-black text-xs text-slate-600">
+                            {idx + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-black text-slate-800 truncate">{text(siswa.nama)}</p>
+                            <p className="text-[11px] font-semibold text-slate-400">
+                              NIS: {text(siswa.nis)} • {siswa.jenis_kelamin === 'L' ? 'Putra' : 'Putri'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Status Pills */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {(['Hadir', 'Izin', 'Sakit', 'Alfa'] as const).map((st) => {
+                            const isSelected = currentStatus === st;
+                            const colors = {
+                              Hadir: isSelected
+                                ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                              Izin: isSelected
+                                ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/30'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                              Sakit: isSelected
+                                ? 'bg-rose-500 text-white shadow-sm shadow-rose-500/30'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                              Alfa: isSelected
+                                ? 'bg-slate-800 text-white shadow-sm'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            };
+
+                            return (
+                              <button
+                                key={st}
+                                type="button"
+                                onClick={() => {
+                                  setStatuses({ ...statuses, [sid]: st });
+                                  if (st === 'Hadir') {
+                                    const nextNotes = { ...notes };
+                                    delete nextNotes[sid];
+                                    setNotes(nextNotes);
+                                  }
+                                }}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${colors[st]}`}
+                              >
+                                {st === 'Hadir'
+                                  ? 'Hadir'
+                                  : st === 'Izin'
+                                  ? 'Izin'
+                                  : st === 'Sakit'
+                                  ? 'Sakit'
+                                  : 'Alfa'}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
 
-                      {/* Status Pills */}
-                      <div className="flex items-center gap-1 shrink-0">
-                        {(['Hadir', 'Izin', 'Sakit', 'Alfa'] as const).map((st) => {
-                          const isSelected = currentStatus === st;
-                          const colors = {
-                            Hadir: isSelected
-                              ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                            Izin: isSelected
-                              ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/30'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                            Sakit: isSelected
-                              ? 'bg-rose-500 text-white shadow-sm shadow-rose-500/30'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                            Alfa: isSelected
-                              ? 'bg-slate-800 text-white shadow-sm'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          };
+                      {/* Dropdown & Input Keterangan Alasan (Khusus Izin, Sakit, Alfa) */}
+                      {currentStatus !== 'Hadir' && (
+                        <div className="mt-3 pt-2.5 border-t border-slate-200/80 flex flex-wrap items-center gap-2 animate-in fade-in duration-200">
+                          <span className="text-[11px] font-bold text-slate-600 shrink-0">
+                            Alasan {currentStatus}:
+                          </span>
 
-                          return (
-                            <button
-                              key={st}
-                              type="button"
-                              onClick={() => setStatuses({ ...statuses, [sid]: st })}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${colors[st]}`}
-                            >
-                              {st === 'Hadir'
-                                ? 'Hadir'
-                                : st === 'Izin'
-                                ? 'Izin'
-                                : st === 'Sakit'
-                                ? 'Sakit'
-                                : 'Alfa'}
-                            </button>
-                          );
-                        })}
-                      </div>
+                          <select
+                            className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 outline-none focus:border-[#138F81] transition-colors shrink-0 max-w-[220px]"
+                            value={
+                              KETERANGAN_PRESETS[currentStatus].includes(currentNote)
+                                ? currentNote
+                                : currentNote
+                                ? '__custom__'
+                                : ''
+                            }
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === '__custom__') {
+                                if (KETERANGAN_PRESETS[currentStatus].includes(currentNote)) {
+                                  setNotes({ ...notes, [sid]: '' });
+                                }
+                              } else {
+                                setNotes({ ...notes, [sid]: val });
+                              }
+                            }}
+                          >
+                            <option value="">-- Pilih Alasan Cepat (Opsional) --</option>
+                            {KETERANGAN_PRESETS[currentStatus].map((preset) => (
+                              <option key={preset} value={preset}>
+                                {preset}
+                              </option>
+                            ))}
+                            <option value="__custom__">✏️ Ketik Alasan Sendiri...</option>
+                          </select>
+
+                          <input
+                            type="text"
+                            placeholder={`Ketik keterangan ${currentStatus.toLowerCase()} (opsional)...`}
+                            value={currentNote}
+                            onChange={(e) => setNotes({ ...notes, [sid]: e.target.value })}
+                            className="flex-1 min-w-[160px] rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#138F81]"
+                          />
+                        </div>
+                      )}
                     </div>
                   );
                 })
