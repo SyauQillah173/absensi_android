@@ -28,24 +28,19 @@ export function LoginPage() {
   return (
     <main className="h-[100dvh] w-full flex items-center justify-center p-3 sm:p-5 bg-[#FFDC80] font-sans select-none overflow-hidden">
       
-      {/* STANDALONE 3D NEUMORPHIC CARD */}
+      {/* STANDALONE 3D CARD */}
       <div className="w-full max-w-[380px] sm:max-w-[400px]">
         
-        {/* CARD CONTAINER (FIT VIEWPORT, NO SCROLL) */}
+        {/* CARD CONTAINER (CLEAN 3D DEPTH SHADOW WITHOUT WHITE GLOW) */}
         <div
-          className="w-full rounded-[36px] sm:rounded-[44px] bg-[#f2f5f8] px-6 py-6 sm:px-8 sm:py-8 border border-white/90"
+          className="w-full rounded-[36px] sm:rounded-[44px] bg-[#f8fafc] px-6 py-6 sm:px-8 sm:py-8"
           style={{
-            boxShadow: '16px 16px 36px rgba(165, 125, 35, 0.25), -12px -12px 30px rgba(255, 255, 255, 0.85)',
+            boxShadow: '0 22px 45px -10px rgba(150, 110, 20, 0.35), 0 10px 20px -5px rgba(0, 0, 0, 0.08)',
           }}
         >
           {/* LOGO QOMARUDDIN */}
           <div className="flex flex-col items-center text-center mb-4">
-            <div
-              className="h-16 w-16 sm:h-18 sm:w-18 rounded-full p-2 bg-[#f2f5f8] flex items-center justify-center mb-2.5 transition-transform duration-300 hover:scale-105"
-              style={{
-                boxShadow: '5px 5px 12px #d0d8e2, -5px -5px 12px #ffffff',
-              }}
-            >
+            <div className="h-16 w-16 sm:h-18 sm:w-18 rounded-full p-2 bg-white flex items-center justify-center mb-2.5 transition-transform duration-300 hover:scale-105 shadow-md shadow-black/5 border border-slate-100">
               <img
                 className="h-12 w-12 sm:h-13 sm:w-13 object-contain drop-shadow-xs"
                 src="/logo-qomaruddin.png"
@@ -65,11 +60,11 @@ export function LoginPage() {
           {/* FORM */}
           <form className="space-y-3.5 sm:space-y-4" onSubmit={handleSubmit}>
             
-            {/* USERNAME INPUT (NEUMORPHIC INSET) */}
+            {/* USERNAME INPUT */}
             <div
-              className="relative rounded-2xl bg-[#f2f5f8] transition-all focus-within:ring-2 focus-within:ring-[#138F81]/40 border border-transparent"
+              className="relative rounded-2xl bg-[#f1f5f9] transition-all focus-within:ring-2 focus-within:ring-[#138F81]/40 border border-slate-200/70"
               style={{
-                boxShadow: 'inset 3.5px 3.5px 7px #d0d8e2, inset -3.5px -3.5px 7px #ffffff',
+                boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.04)',
               }}
             >
               <UserRound
@@ -86,11 +81,11 @@ export function LoginPage() {
               />
             </div>
 
-            {/* PASSWORD INPUT (NEUMORPHIC INSET) */}
+            {/* PASSWORD INPUT */}
             <div
-              className="relative rounded-2xl bg-[#f2f5f8] transition-all focus-within:ring-2 focus-within:ring-[#138F81]/40 border border-transparent"
+              className="relative rounded-2xl bg-[#f1f5f9] transition-all focus-within:ring-2 focus-within:ring-[#138F81]/40 border border-slate-200/70"
               style={{
-                boxShadow: 'inset 3.5px 3.5px 7px #d0d8e2, inset -3.5px -3.5px 7px #ffffff',
+                boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.04)',
               }}
             >
               <LockKeyhole
@@ -135,27 +130,22 @@ export function LoginPage() {
 
             {/* ERROR MESSAGE */}
             {error && (
-              <div
-                className="rounded-xl bg-rose-50 border border-rose-200/80 px-3.5 py-2.5 text-xs font-bold text-[#D63031]"
-                style={{
-                  boxShadow: 'inset 2px 2px 4px rgba(214, 48, 49, 0.08)',
-                }}
-              >
+              <div className="rounded-xl bg-rose-50 border border-rose-200/80 px-3.5 py-2.5 text-xs font-bold text-[#D63031] shadow-xs">
                 {error}
               </div>
             )}
 
             {/* 3D TEAL BRAND ACTION BUTTON */}
             <button
-              className="mt-2 w-full py-3.5 sm:py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#138F81] to-[#0c6b60] text-xs sm:text-sm font-black tracking-widest uppercase text-white transition-all duration-200 hover:brightness-110 active:scale-[0.98] cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2 border border-teal-400/30"
+              className="mt-2 w-full py-3.5 px-6 rounded-2xl bg-[#138F81] hover:bg-[#0e7467] text-xs sm:text-sm font-black tracking-widest uppercase text-white transition-all duration-200 active:scale-[0.98] cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
               style={{
-                boxShadow: '0 8px 20px -3px rgba(19, 143, 129, 0.45), 4px 4px 10px rgba(165, 125, 35, 0.15)',
+                boxShadow: '0 10px 24px -4px rgba(19, 143, 129, 0.45)',
               }}
               disabled={isSubmitting}
               type="submit"
             >
               <span>{isSubmitting ? 'SIGNING IN...' : 'SIGN IN'}</span>
-              {!isSubmitting && <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />}
+              {!isSubmitting && <ArrowRight size={16} />}
             </button>
           </form>
 
@@ -174,6 +164,7 @@ export function LoginPage() {
     </main>
   );
 }
+
 
 
 
