@@ -223,7 +223,6 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
   const showFinance = canView('keuangan');
 
   // Chart filters & calculations
-  const [activeClassView, setActiveClassView] = useState<'sekolah' | 'madin'>('sekolah');
   const [selectedMadinTier, setSelectedMadinTier] = useState<string>('all');
   const [selectedSekolahTier, setSelectedSekolahTier] = useState<string>('all');
   const [selectedPondokView, setSelectedPondokView] = useState<'komplek' | 'kamar'>('komplek');
@@ -381,7 +380,7 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
         {showAbsensi ? <StatCard title="Absensi Sholat" value={getNumber(sholat, 'total')} subtitle={`${getNumber(sholat, 'kamar_sudah_diabsen')} kamar diabsen`} icon={CalendarCheck} tone="purple" /> : null}
       </div>
 
-      {/* SECTION 1: DEMOGRAFI GENDER & SEBARAN KELAS */}
+      {/* SECTION 1: DEMOGRAFI GENDER & SEBARAN KELAS MADIN */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mt-5">
         {/* CHART 1: TOTAL SANTRI PER JENIS KELAMIN (MODERN DONUT) */}
         <section className="q-card p-5 lg:col-span-4 flex flex-col justify-between">
@@ -468,121 +467,77 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
           </div>
         </section>
 
-        {/* CHART 2: SEBARAN SANTRI PER KELAS (MADIN & SEKOLAH FORMAL) */}
+        {/* CHART 2: SEBARAN SANTRI KELAS MADIN / DINIYAH */}
         <section className="q-card p-5 lg:col-span-8 flex flex-col justify-between">
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <h2 className="text-base font-black text-slate-800 flex items-center gap-2">
-                    <GraduationCap size={19} className="text-[#138F81]" />
-                    Sebaran Santri per Kelas
+                    <BookOpen size={19} className="text-[#138F81]" />
+                    Sebaran Santri Kelas Madin (Diniyah)
                   </h2>
                 </div>
                 <p className="text-xs font-semibold text-slate-500">
-                  {activeClassView === 'madin'
-                    ? `${filteredMadinClasses.length} rombel kelas Madin terpilih • Filter tingkatan Madin`
-                    : `${filteredSekolahClasses.length} rombel kelas Sekolah terpilih • Filter jenjang Formal`}
+                  {filteredMadinClasses.length} rombel kelas Madin terpilih • Filter tingkatan Madin
                 </p>
               </div>
 
-              {/* SEGMENTED SWITCHER: MADIN VS SEKOLAH FORMAL */}
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/50">
-                <button
-                  type="button"
-                  onClick={() => setActiveClassView('sekolah')}
-                  className={`px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all flex items-center gap-1.5 ${
-                    activeClassView === 'sekolah'
-                      ? 'bg-sky-600 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-                  }`}
-                >
-                  <Building size={13} /> Kelas Sekolah ({rawSekolahClasses.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveClassView('madin')}
-                  className={`px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all flex items-center gap-1.5 ${
-                    activeClassView === 'madin'
-                      ? 'bg-[#138F81] text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-                  }`}
-                >
-                  <BookOpen size={13} /> Kelas Madin ({rawMadinClasses.length})
-                </button>
-              </div>
+              <span className="inline-flex items-center gap-1.5 text-xs font-black text-[#138F81] bg-teal-50 border border-teal-200 px-3 py-1.5 rounded-xl shrink-0">
+                <span className="h-2 w-2 rounded-full bg-[#138F81]" />
+                {totalSantriMadin.toLocaleString('id-ID')} Santri Madin
+              </span>
             </div>
 
-            {/* FILTER PILLS */}
+            {/* FILTER PILLS MADIN */}
             <div className="flex flex-wrap items-center gap-1.5 mt-2 mb-1">
-              {activeClassView === 'madin' ? (
-                [
-                  { id: 'all', label: `Semua (${rawMadinClasses.length})` },
-                  { id: 'top10', label: 'Top 10' },
-                  { id: 'Awal', label: 'Awal' },
-                  { id: 'Tsani', label: 'Tsani' },
-                  { id: 'Tsalis', label: 'Tsalis' },
-                  { id: 'Robi', label: "Robi'" },
-                  { id: 'Khomis', label: 'Khomis' },
-                  { id: 'Sadis', label: 'Sadis' }
-                ].map((tier) => (
-                  <button
-                    key={tier.id}
-                    type="button"
-                    onClick={() => setSelectedMadinTier(tier.id)}
-                    className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
-                      selectedMadinTier === tier.id
-                        ? 'bg-[#138F81] text-white shadow-xs'
-                        : 'bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                    }`}
-                  >
-                    {tier.label}
-                  </button>
-                ))
-              ) : (
-                [
-                  { id: 'all', label: `Semua (${rawSekolahClasses.length})` },
-                  { id: 'top10', label: 'Top 10 Terbanyak' },
-                  { id: 'smp_mts', label: 'SMP / MTs' },
-                  { id: 'sma_ma_smk', label: 'SMA / MA / SMK' }
-                ].map((tier) => (
-                  <button
-                    key={tier.id}
-                    type="button"
-                    onClick={() => setSelectedSekolahTier(tier.id)}
-                    className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
-                      selectedSekolahTier === tier.id
-                        ? 'bg-sky-600 text-white shadow-xs'
-                        : 'bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                    }`}
-                  >
-                    {tier.label}
-                  </button>
-                ))
-              )}
+              {[
+                { id: 'all', label: `Semua (${rawMadinClasses.length})` },
+                { id: 'top10', label: 'Top 10' },
+                { id: 'Sifir', label: 'Sifir' },
+                { id: 'Awal', label: 'Awal' },
+                { id: 'Tsani', label: 'Tsani' },
+                { id: 'Tsalis', label: 'Tsalis' },
+                { id: 'Robi', label: "Robi'" },
+                { id: 'Khomis', label: 'Khomis' },
+                { id: 'Sadis', label: 'Sadis' }
+              ].map((tier) => (
+                <button
+                  key={tier.id}
+                  type="button"
+                  onClick={() => setSelectedMadinTier(tier.id)}
+                  className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
+                    selectedMadinTier === tier.id
+                      ? 'bg-[#138F81] text-white shadow-xs'
+                      : 'bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  {tier.label}
+                </button>
+              ))}
             </div>
 
-            {/* CHART DISPLAY */}
-            {activeClassView === 'madin' && totalSantriMadin === 0 ? (
+            {/* CHART DISPLAY MADIN */}
+            {totalSantriMadin === 0 ? (
               <div className="h-[200px] flex flex-col items-center justify-center rounded-2xl bg-teal-50/40 border border-dashed border-teal-200/80 p-6 text-center mt-2">
                 <div className="h-10 w-10 rounded-full bg-teal-100/80 flex items-center justify-center text-[#138F81] mb-2 font-black">
                   <BookOpen size={20} />
                 </div>
                 <p className="text-sm font-extrabold text-teal-900">Belum Ada Santri di Rombel Kelas Madin</p>
                 <p className="text-xs font-medium text-teal-700/80 max-w-md mt-0.5">
-                  Saat ini seluruh santri terdaftar di kelas sekolah formal masing-masing. Anda dapat mengatur penempatan rombel Madin (Awal s/d Sadis) melalui menu Data Kelas & Data Santri.
+                  Anda dapat mengatur penempatan rombel Madin (Sifir, Awal s/d Sadis) melalui menu Data Kelas & Data Santri.
                 </p>
               </div>
             ) : (
               <div className="h-[220px] w-full mt-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={activeClassView === 'madin' ? filteredMadinClasses : filteredSekolahClasses}
+                    data={filteredMadinClasses}
                     margin={{
                       top: 10,
                       right: 10,
                       left: -20,
-                      bottom: (activeClassView === 'madin' ? selectedMadinTier : selectedSekolahTier) === 'all' ? 5 : 20
+                      bottom: selectedMadinTier === 'all' ? 5 : 20
                     }}
                   >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -591,10 +546,10 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
                       axisLine={false}
                       tickLine={false}
                       interval={0}
-                      angle={(activeClassView === 'madin' ? selectedMadinTier : selectedSekolahTier) === 'all' ? 0 : -20}
-                      textAnchor={(activeClassView === 'madin' ? selectedMadinTier : selectedSekolahTier) === 'all' ? 'middle' : 'end'}
+                      angle={selectedMadinTier === 'all' ? 0 : -20}
+                      textAnchor={selectedMadinTier === 'all' ? 'middle' : 'end'}
                       tick={
-                        (activeClassView === 'madin' ? selectedMadinTier : selectedSekolahTier) === 'all'
+                        selectedMadinTier === 'all'
                           ? false
                           : { fontSize: 10, fill: '#475569', fontWeight: 700 }
                       }
@@ -603,9 +558,9 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
                     <RechartsTooltip cursor={{ fill: '#f8fafc' }} content={<CustomClassTooltip />} />
                     <Bar
                       dataKey="value"
-                      fill={activeClassView === 'madin' ? '#138F81' : '#0284c7'}
+                      fill="#138F81"
                       radius={[6, 6, 0, 0]}
-                      maxBarSize={(activeClassView === 'madin' ? selectedMadinTier : selectedSekolahTier) === 'all' ? 14 : 45}
+                      maxBarSize={selectedMadinTier === 'all' ? 14 : 45}
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -615,25 +570,126 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
 
           <div className="flex flex-wrap items-center justify-between text-xs font-bold text-slate-500 pt-2 border-t border-slate-100 gap-2">
             <span className="flex items-center gap-1.5">
-              <span className={`h-2.5 w-2.5 rounded-sm inline-block ${activeClassView === 'madin' ? 'bg-[#138F81]' : 'bg-sky-600'}`} /> Total Siswa per Rombel
-              {((activeClassView === 'madin' ? selectedMadinTier : selectedSekolahTier) === 'all') && (
+              <span className="h-2.5 w-2.5 rounded-sm inline-block bg-[#138F81]" /> Total Siswa per Rombel Madin
+              {selectedMadinTier === 'all' && (
                 <span className="text-[11px] font-medium text-slate-400 italic pl-1">
                   (Arahkan kursor ke batang grafik untuk melihat nama kelas)
                 </span>
               )}
             </span>
             <span>
-              {activeClassView === 'madin'
-                ? `Total ${rawMadinClasses.length} Rombel Madin (${totalSantriMadin} Santri)`
-                : `Total ${rawSekolahClasses.length} Rombel Sekolah Formal (${totalSantriSekolah} Santri)`}
+              Total {rawMadinClasses.length} Rombel Madin ({totalSantriMadin} Santri)
             </span>
           </div>
         </section>
       </div>
 
-      {/* SECTION 2: DATA PONDOK PESANTREN & ASRAMA */}
+      {/* SECTION 2: SEBARAN SANTRI SEKOLAH FORMAL & ASRAMA */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mt-2 mb-5">
-        {/* CHART 3: SEBARAN SANTRI PER KOMPLEK / ASRAMA */}
+        {/* CHART 3: SEBARAN SANTRI SEKOLAH FORMAL */}
+        <section className="q-card p-5 lg:col-span-6 flex flex-col justify-between">
+          <div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+              <div className="min-w-0">
+                <h2 className="text-base font-black text-slate-800 flex items-center gap-2">
+                  <Building size={18} className="text-sky-600 shrink-0" />
+                  <span>Sebaran Santri Sekolah Formal</span>
+                </h2>
+                <p className="text-xs font-semibold text-slate-500">
+                  Distribusi santri di setiap jenjang sekolah formal
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1.5 text-xs font-black text-sky-800 bg-sky-50 border border-sky-200 px-3 py-1.5 rounded-xl shrink-0">
+                <span className="h-2 w-2 rounded-full bg-sky-600" />
+                {totalSantriSekolah.toLocaleString('id-ID')} Santri Formal
+              </span>
+            </div>
+
+            {/* FILTER PILLS SEKOLAH FORMAL */}
+            <div className="flex flex-wrap items-center gap-1.5 mt-2 mb-1">
+              {[
+                { id: 'all', label: `Semua (${rawSekolahClasses.length})` },
+                { id: 'top10', label: 'Top 10 Terbanyak' },
+                { id: 'smp_mts', label: 'SMP / MTs' },
+                { id: 'sma_ma_smk', label: 'SMA / MA / SMK' }
+              ].map((tier) => (
+                <button
+                  key={tier.id}
+                  type="button"
+                  onClick={() => setSelectedSekolahTier(tier.id)}
+                  className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
+                    selectedSekolahTier === tier.id
+                      ? 'bg-sky-600 text-white shadow-xs'
+                      : 'bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  {tier.label}
+                </button>
+              ))}
+            </div>
+
+            {/* CHART DISPLAY SEKOLAH FORMAL */}
+            {totalSantriSekolah === 0 ? (
+              <div className="h-[200px] flex flex-col items-center justify-center rounded-2xl bg-sky-50/40 border border-dashed border-sky-200/80 p-6 text-center mt-2">
+                <div className="h-10 w-10 rounded-full bg-sky-100/80 flex items-center justify-center text-sky-600 mb-2 font-black">
+                  <Building size={20} />
+                </div>
+                <p className="text-sm font-extrabold text-sky-900">Belum Ada Santri di Kelas Sekolah Formal</p>
+                <p className="text-xs font-medium text-sky-700/80 max-w-md mt-0.5">
+                  Data santri saat ini belum diisi kolom Sekolah Formal. Anda dapat mengisi kelas sekolah formal santri melalui menu Data Santri.
+                </p>
+              </div>
+            ) : (
+              <div className="h-[220px] w-full mt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={filteredSekolahClasses}
+                    margin={{
+                      top: 10,
+                      right: 10,
+                      left: -20,
+                      bottom: selectedSekolahTier === 'all' ? 5 : 20
+                    }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis
+                      dataKey="name"
+                      axisLine={false}
+                      tickLine={false}
+                      interval={0}
+                      angle={selectedSekolahTier === 'all' ? 0 : -20}
+                      textAnchor={selectedSekolahTier === 'all' ? 'middle' : 'end'}
+                      tick={
+                        selectedSekolahTier === 'all'
+                          ? false
+                          : { fontSize: 10, fill: '#475569', fontWeight: 700 }
+                      }
+                    />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+                    <RechartsTooltip cursor={{ fill: '#f8fafc' }} content={<CustomClassTooltip />} />
+                    <Bar
+                      dataKey="value"
+                      fill="#0284c7"
+                      radius={[6, 6, 0, 0]}
+                      maxBarSize={selectedSekolahTier === 'all' ? 14 : 45}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between text-xs font-bold text-slate-500 pt-2 border-t border-slate-100 gap-2">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm inline-block bg-sky-600" /> Total Siswa per Rombel Formal
+            </span>
+            <span>
+              Total {rawSekolahClasses.length} Rombel ({totalSantriSekolah} Santri)
+            </span>
+          </div>
+        </section>
+
+        {/* CHART 4: SEBARAN SANTRI PER KOMPLEK / ASRAMA */}
         <section className="q-card p-5 lg:col-span-6 flex flex-col justify-between">
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2 mb-2">

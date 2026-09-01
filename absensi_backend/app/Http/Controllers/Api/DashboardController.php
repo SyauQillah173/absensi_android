@@ -161,7 +161,7 @@ class DashboardController extends Controller
         $madinClasses = \App\Models\SchoolClass::where(function ($q) {
             $q->where('category', '!=', 'Formal')
               ->orWhere('name', 'ilike', 'Sifir%');
-        })->get(['id', 'name', 'category', 'gender_group']);
+        })->orderBy('id')->get(['id', 'name', 'category', 'gender_group']);
 
         $madinClassIds = $madinClasses->pluck('id')->toArray();
 
@@ -179,7 +179,7 @@ class DashboardController extends Controller
                 'id' => $c->id,
                 'name' => $c->name,
                 'kelas' => $c->name,
-                'category' => $c->category,
+                'category' => $c->category ?: 'Madin',
                 'gender_group' => $c->gender_group,
                 'value' => $pa + $pi,
                 'putra' => $pa,
@@ -187,35 +187,59 @@ class DashboardController extends Controller
             ];
         })->values();
 
-        $siswaPerKelasSekolah = Siswa::query()
-            ->where(function ($q) {
-                $q->where(function ($sub) {
-                    $sub->whereNotNull('sekolah_formal')->where('sekolah_formal', '!=', '');
-                })->orWhere(function ($sub) {
-                    $sub->whereNotNull('kelas')->where('kelas', '!=', '');
-                });
-            })
-            ->select(
-                DB::raw("COALESCE(NULLIF(sekolah_formal, ''), NULLIF(kelas, '')) as formal_name"),
-                'jenis_kelamin',
-                DB::raw('count(*) as total')
-            )
-            ->groupBy(DB::raw("COALESCE(NULLIF(sekolah_formal, ''), NULLIF(kelas, ''))"), 'jenis_kelamin')
-            ->orderBy(DB::raw("COALESCE(NULLIF(sekolah_formal, ''), NULLIF(kelas, ''))"))
+        $formalClasses = \App\Models\SchoolClass::where('category', 'Formal')
+            ->orderBy('id')
+            ->get(['id', 'name', 'category', 'gender_group']);
+
+        $formalCounts = Siswa::whereNotNull('sekolah_formal')
+            ->where('sekolah_formal', '!=', '')
+            ->where('sekolah_formal', 'not ilike', 'Sifir%')
+            ->where('sekolah_formal', 'not ilike', '%Awal%')
+            ->where('sekolah_formal', 'not ilike', '%Tsani%')
+            ->where('sekolah_formal', 'not ilike', '%Tsalis%')
+            ->where('sekolah_formal', 'not ilike', '%Robi%')
+            ->where('sekolah_formal', 'not ilike', '%Khomis%')
+            ->where('sekolah_formal', 'not ilike', '%Sadis%')
+            ->select('sekolah_formal', 'jenis_kelamin', DB::raw('count(*) as total'))
+            ->groupBy('sekolah_formal', 'jenis_kelamin')
             ->get()
-            ->groupBy('formal_name')
-            ->map(function ($items, $sekolah) {
-                $items = collect($items);
-                $pa = (int) ($items->firstWhere('jenis_kelamin', 'L')?->total ?? 0);
-                $pi = (int) ($items->firstWhere('jenis_kelamin', 'P')?->total ?? 0);
-                return [
-                    'name' => (string) $sekolah,
-                    'kelas' => (string) $sekolah,
+            ->groupBy('sekolah_formal');
+
+        $siswaPerKelasSekolah = $formalClasses->map(function ($c) use ($formalCounts) {
+            $items = collect($formalCounts->get($c->name, []));
+            $pa = (int) ($items->firstWhere('jenis_kelamin', 'L')?->total ?? 0);
+            $pi = (int) ($items->firstWhere('jenis_kelamin', 'P')?->total ?? 0);
+            return [
+                'id' => $c->id,
+                'name' => $c->name,
+                'kelas' => $c->name,
+                'category' => 'Formal',
+                'gender_group' => $c->gender_group,
+                'value' => $pa + $pi,
+                'putra' => $pa,
+                'putri' => $pi,
+            ];
+        })->values();
+
+        $existingFormalNames = $formalClasses->pluck('name')->toArray();
+        $customFormal = $formalCounts->keys()->filter(fn ($k) => !in_array($k, $existingFormalNames));
+        foreach ($customFormal as $customName) {
+            $items = collect($formalCounts->get($customName, []));
+            $pa = (int) ($items->firstWhere('jenis_kelamin', 'L')?->total ?? 0);
+            $pi = (int) ($items->firstWhere('jenis_kelamin', 'P')?->total ?? 0);
+            if ($pa + $pi > 0) {
+                $siswaPerKelasSekolah->push([
+                    'id' => 0,
+                    'name' => (string) $customName,
+                    'kelas' => (string) $customName,
+                    'category' => 'Formal',
+                    'gender_group' => null,
                     'value' => $pa + $pi,
                     'putra' => $pa,
                     'putri' => $pi,
-                ];
-            })->values();
+                ]);
+            }
+        }
 
         return [
             'success' => true,
