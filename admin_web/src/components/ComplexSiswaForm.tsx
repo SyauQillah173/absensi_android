@@ -50,6 +50,31 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
   const isFirstTab = currentTabIndex === 0;
   const isLastTab = currentTabIndex === tabList.length - 1;
 
+  const scrollToTop = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      scrollContainerRef.current.scrollTop = 0;
+    }
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    if (typeof document !== 'undefined') {
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+      const mainContainer = document.querySelector('main') || document.getElementById('root');
+      if (mainContainer) {
+        mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
+        mainContainer.scrollTop = 0;
+      }
+    }
+  };
+
+  useEffect(() => {
+    scrollToTop();
+    const timer = setTimeout(() => scrollToTop(), 60);
+    return () => clearTimeout(timer);
+  }, [activeTab]);
+
   const handleNext = (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
@@ -68,7 +93,6 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
     setError('');
     if (currentTabIndex < tabList.length - 1) {
       setActiveTab(tabList[currentTabIndex + 1].key);
-      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -80,7 +104,6 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
     setError('');
     if (currentTabIndex > 0) {
       setActiveTab(tabList[currentTabIndex - 1].key);
-      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -756,16 +779,16 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Tahun Akademik Masuk Madin</span>
-                      <input list="tahun-akademik-list" className="q-input uppercase" name="tahun_akademik_masuk" value={String(form.tahun_akademik_masuk || '')} onChange={handleChange} placeholder="Misal: 2026/2027" />
+                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Tahun Masuk Madin</span>
+                      <input list="tahun-akademik-list" className="q-input uppercase" name="tahun_akademik_masuk" value={String(form.tahun_akademik_masuk || '')} onChange={handleChange} placeholder="Misal: 2025/2026" />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Sekolah Formal / Unit Pendidikan</span>
-                      <input list="sekolah-formal-list" className="q-input uppercase" name="sekolah_formal" value={String(form.sekolah_formal || form.kelas || '')} onChange={handleChange} placeholder="Misal: MTS ASSA'ADAH, SMA ASSA'ADAH, VII MTS, dll" />
+                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Sekolah / Kampus Formal Aktif</span>
+                      <input list="sekolah-formal-list" className="q-input uppercase" name="sekolah_formal" value={String(form.sekolah_formal || form.kelas || '')} onChange={handleChange} placeholder="Misal: Universitas Qomaruddin, SMA Assa'adah, MTs Assa'adah I, Semester 3 UQ, dll" />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Tahun Akademik Masuk Sekolah Formal</span>
-                      <input list="tahun-akademik-list" className="q-input uppercase" name="tahun_akademik_masuk_formal" value={String(form.tahun_akademik_masuk_formal || '')} onChange={handleChange} placeholder="Misal: 2026/2027" />
+                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Tahun Masuk Pendidikan Formal (Sekolah / Kuliah)</span>
+                      <input list="tahun-akademik-list" className="q-input uppercase" name="tahun_akademik_masuk_formal" value={String(form.tahun_akademik_masuk_formal || '')} onChange={handleChange} placeholder="Misal: 2025/2026" />
                     </label>
                     <label className="block">
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Jenis Santri</span>
