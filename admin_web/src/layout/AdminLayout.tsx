@@ -443,8 +443,8 @@ export function AdminLayout({
   );
 
   return (
-    <div className="q-app-shell min-h-screen bg-[#FFDC80] p-4 lg:p-6 theme-light">
-      <div className="mx-auto flex max-w-360 gap-6">
+    <div className="q-app-shell min-h-screen bg-[#FFDC80] p-2.5 sm:p-4 lg:p-6 theme-light overflow-x-hidden">
+      <div className="mx-auto flex max-w-360 gap-4 lg:gap-6">
         <div className="hidden shrink-0 lg:block">{nav}</div>
         {mobileOpen ? (
           <div
@@ -468,11 +468,11 @@ export function AdminLayout({
           </div>
         ) : null}
 
-        <main className="min-w-0 flex-1">
-          <header className="q-topbar mb-6 flex min-h-16 items-center justify-between gap-3 rounded-[26px] bg-[#FFFDF7] px-4 shadow-xl shadow-black/5 sm:px-6">
-            <div className="min-w-0 flex flex-1 items-center gap-3">
+        <main className="min-w-0 flex-1 max-w-full overflow-x-hidden">
+          <header className="q-topbar mb-4 sm:mb-6 flex min-h-14 sm:min-h-16 items-center justify-between gap-2 sm:gap-3 rounded-2xl sm:rounded-[26px] bg-[#FFFDF7] px-3 sm:px-6 shadow-xl shadow-black/5">
+            <div className="min-w-0 flex flex-1 items-center gap-2 sm:gap-3">
               <button
-                className="q-icon-button grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#E1EFF7] text-[#138F81]"
+                className="q-icon-button grid h-9 w-9 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-xl sm:rounded-2xl bg-[#E1EFF7] text-[#138F81]"
                 onClick={() => {
                   if (window.innerWidth >= 1024) {
                     setSidebarCollapsed((value) => !value);
@@ -483,10 +483,10 @@ export function AdminLayout({
                 type="button"
                 aria-label="Buka atau tutup menu"
               >
-                <Menu size={20} />
+                <Menu size={18} />
               </button>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-extrabold text-[#138F81]">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs sm:text-sm font-extrabold text-[#138F81]">
                   Pondok Qomaruddin
                 </p>
                 <p className="hidden text-xs font-semibold text-[#636E72] sm:block">
@@ -494,10 +494,10 @@ export function AdminLayout({
                 </p>
               </div>
             </div>
-            <div className="q-topbar-actions flex shrink-0 items-center gap-2">
+            <div className="q-topbar-actions flex shrink-0 items-center gap-1.5 sm:gap-2">
               <div className="relative">
                 <button
-                  className="q-icon-button relative grid h-10 w-10 place-items-center rounded-2xl bg-[#E8F7F3] text-[#138F81]"
+                  className="q-icon-button relative grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl sm:rounded-2xl bg-[#E8F7F3] text-[#138F81]"
                   onClick={() => {
                     setNotificationOpen((value) => {
                       const next = !value;
@@ -508,7 +508,7 @@ export function AdminLayout({
                   type="button"
                   aria-label="Buka notifikasi"
                 >
-                  <Bell size={18} />
+                  <Bell size={16} />
                   {unreadNotifications > 0 ? (
                     <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#E8590C] px-1 text-[10px] font-extrabold text-white">
                       {unreadNotifications > 99 ? "99+" : unreadNotifications}

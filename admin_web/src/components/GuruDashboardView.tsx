@@ -71,72 +71,78 @@ export function GuruDashboardView({
   const unitKerja = String(guru.unit_kerja || 'Madrasah Diniyah PP Qomaruddin');
 
   return (
-    <div className="space-y-6">
-      {/* 1. HERO WELCOME BANNER FOR GURU */}
-      <section className="relative overflow-hidden rounded-[28px] bg-gradient-to-r from-[#0C6B60] via-[#138F81] to-[#1BB5A4] p-6 lg:p-8 text-white shadow-xl shadow-[#138F81]/15">
-        <div className="absolute right-0 top-0 -mr-16 -mt-16 h-64 w-64 rounded-full bg-white/10 blur-3xl pointer-events-none" />
-        <div className="absolute right-20 bottom-0 -mb-16 h-48 w-48 rounded-full bg-emerald-300/10 blur-2xl pointer-events-none" />
+    <div className="w-full max-w-full space-y-4 sm:space-y-6 overflow-hidden">
+      {/* 1. HERO WELCOME BANNER FOR GURU (FULL RESPONSIVE) */}
+      <section className="relative overflow-hidden rounded-2xl sm:rounded-[28px] bg-gradient-to-r from-[#0C6B60] via-[#138F81] to-[#1BB5A4] p-4 sm:p-6 lg:p-8 text-white shadow-xl shadow-[#138F81]/15">
+        <div className="absolute right-0 top-0 -mr-16 -mt-16 h-48 w-48 sm:h-64 sm:w-64 rounded-full bg-white/10 blur-3xl pointer-events-none" />
+        <div className="absolute right-12 bottom-0 -mb-16 h-36 w-36 sm:h-48 sm:w-48 rounded-full bg-emerald-300/10 blur-2xl pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2.5">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3.5 py-1 text-xs font-extrabold backdrop-blur-md border border-white/20">
-              <Sparkles size={14} className="text-amber-300" />
-              <span>Portal Ustadz & Ustadzah Pengajar</span>
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
+          <div className="min-w-0 flex-1 space-y-2 sm:space-y-2.5">
+            {/* Badges */}
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] sm:text-xs font-extrabold backdrop-blur-md border border-white/20">
+                <Sparkles size={13} className="text-amber-300 shrink-0" />
+                <span>Portal Guru & Ustadz</span>
+              </div>
               {guruCode ? (
-                <span className="rounded-full bg-amber-400 text-slate-900 px-2 py-0.5 text-[11px] font-black">
+                <span className="rounded-full bg-amber-400 text-slate-900 px-2 py-0.5 text-[10px] sm:text-[11px] font-black shrink-0">
                   Kode: {guruCode}
                 </span>
               ) : null}
             </div>
 
-            <h1 className="text-2xl lg:text-3xl font-black tracking-tight text-white drop-shadow-sm">
-              Assalamu'alaikum, {guruName}
+            {/* Teacher Name */}
+            <h1 className="text-lg sm:text-2xl lg:text-3xl font-black tracking-tight text-white drop-shadow-sm break-words leading-tight">
+              Assalamu'alaikum, <span className="block sm:inline">{guruName}</span>
             </h1>
 
-            <p className="text-sm font-medium text-emerald-50 max-w-2xl leading-relaxed">
-              Selamat mengajar dan berkhidmah di Madrasah Diniyah Pondok Pesantren Qomaruddin.
-              Semoga setiap ilmu yang diajarkan membawa keberkahan dunia dan akhirat.
+            {/* Description */}
+            <p className="text-xs sm:text-sm font-medium text-emerald-50 max-w-2xl leading-relaxed">
+              Selamat mengajar dan berkhidmah di Madrasah Diniyah Pondok Pesantren Qomaruddin. Semoga ilmu yang diajarkan membawa keberkahan.
             </p>
 
-            <div className="flex flex-wrap items-center gap-3 pt-1 text-xs font-semibold text-emerald-100">
-              <span className="flex items-center gap-1.5 bg-black/15 px-3 py-1 rounded-xl">
-                <Calendar size={14} className="text-emerald-200" />
-                {todayFormatted}
+            {/* Sub Info Chips */}
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pt-1 text-[11px] sm:text-xs font-semibold text-emerald-100">
+              <span className="inline-flex items-center gap-1.5 bg-black/15 px-2.5 py-1 rounded-xl">
+                <Calendar size={13} className="text-emerald-200 shrink-0" />
+                <span>{todayFormatted}</span>
               </span>
-              <span className="flex items-center gap-1.5 bg-black/15 px-3 py-1 rounded-xl">
-                <GraduationCap size={14} className="text-emerald-200" />
-                {unitKerja}
+              <span className="inline-flex items-center gap-1.5 bg-black/15 px-2.5 py-1 rounded-xl max-w-full">
+                <GraduationCap size={13} className="text-emerald-200 shrink-0" />
+                <span className="truncate">{unitKerja}</span>
               </span>
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-3">
+          {/* Refresh Button */}
+          <div className="flex shrink-0 items-center self-start sm:self-auto">
             <button
               onClick={onRefresh}
               disabled={isLoading}
-              className="flex items-center gap-2 rounded-2xl bg-white/20 hover:bg-white/30 active:scale-95 px-4 py-2.5 text-xs font-extrabold text-white backdrop-blur-md transition-all border border-white/25 shadow-sm"
+              className="flex items-center gap-1.5 rounded-xl sm:rounded-2xl bg-white/20 hover:bg-white/30 active:scale-95 px-3 py-1.5 sm:px-4 sm:py-2.5 text-xs font-extrabold text-white backdrop-blur-md transition-all border border-white/25 shadow-sm"
               type="button"
             >
-              <RefreshCw size={15} className={isLoading ? 'animate-spin' : ''} />
+              <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
               <span>{isLoading ? 'Menyinkron...' : 'Perbarui'}</span>
             </button>
           </div>
         </div>
       </section>
 
-      {/* 2. STATS OVERVIEW CARDS */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 2. STATS OVERVIEW CARDS (RESPONSIVE GRID) */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Card 1: Jadwal Hari Ini */}
-        <div className="rounded-[22px] bg-white p-5 border border-slate-100 shadow-lg shadow-black/5 flex flex-col justify-between">
+        <div className="rounded-2xl sm:rounded-[22px] bg-white p-4 sm:p-5 border border-slate-100 shadow-md sm:shadow-lg shadow-black/5 flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Jadwal Mengajar</span>
-            <div className="h-10 w-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-              <CalendarCheck size={20} />
+            <span className="text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-slate-500">Jadwal Mengajar</span>
+            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl sm:rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold shrink-0">
+              <CalendarCheck size={18} />
             </div>
           </div>
-          <div className="my-3">
-            <div className="text-3xl font-black text-slate-800">{totalJadwal}</div>
-            <p className="text-xs font-bold text-slate-500 mt-1">
+          <div className="my-2.5 sm:my-3">
+            <div className="text-2xl sm:text-3xl font-black text-slate-800">{totalJadwal}</div>
+            <p className="text-[11px] sm:text-xs font-bold text-slate-500 mt-0.5">
               {totalJadwal > 0 ? (
                 <>
                   <span className="text-emerald-600 font-extrabold">{jadwalDone} Selesai</span>
@@ -161,16 +167,16 @@ export function GuruDashboardView({
         </div>
 
         {/* Card 2: Santri Diampu */}
-        <div className="rounded-[22px] bg-white p-5 border border-slate-100 shadow-lg shadow-black/5 flex flex-col justify-between">
+        <div className="rounded-2xl sm:rounded-[22px] bg-white p-4 sm:p-5 border border-slate-100 shadow-md sm:shadow-lg shadow-black/5 flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Santri Diampu</span>
-            <div className="h-10 w-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-              <Users size={20} />
+            <span className="text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-slate-500">Santri Diampu</span>
+            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0">
+              <Users size={18} />
             </div>
           </div>
-          <div className="my-3">
-            <div className="text-3xl font-black text-slate-800">{totalSantri}</div>
-            <p className="text-xs font-bold text-slate-500 mt-1">
+          <div className="my-2.5 sm:my-3">
+            <div className="text-2xl sm:text-3xl font-black text-slate-800">{totalSantri}</div>
+            <p className="text-[11px] sm:text-xs font-bold text-slate-500 mt-0.5">
               Santri aktif di kelas yang diampu
             </p>
           </div>
@@ -186,18 +192,18 @@ export function GuruDashboardView({
 
         {/* Card 3: Presensi Sholat (Jika Ada Akses) / Status */}
         {Boolean(hakAkses.absen_sholat) ? (
-          <div className="rounded-[22px] bg-white p-5 border border-slate-100 shadow-lg shadow-black/5 flex flex-col justify-between">
+          <div className="rounded-2xl sm:rounded-[22px] bg-white p-4 sm:p-5 border border-slate-100 shadow-md sm:shadow-lg shadow-black/5 flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Presensi Sholat</span>
-              <div className="h-10 w-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-                <Landmark size={20} />
+              <span className="text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-slate-500">Presensi Sholat</span>
+              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl sm:rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0">
+                <Landmark size={18} />
               </div>
             </div>
-            <div className="my-3">
-              <div className="text-3xl font-black text-slate-800">
+            <div className="my-2.5 sm:my-3">
+              <div className="text-2xl sm:text-3xl font-black text-slate-800">
                 {Number(sholatSummary?.total ?? 0)}
               </div>
-              <p className="text-xs font-bold text-slate-500 mt-1">
+              <p className="text-[11px] sm:text-xs font-bold text-slate-500 mt-0.5">
                 Santri diabsen sholat jama'ah hari ini
               </p>
             </div>
@@ -211,18 +217,18 @@ export function GuruDashboardView({
             </button>
           </div>
         ) : (
-          <div className="rounded-[22px] bg-white p-5 border border-slate-100 shadow-lg shadow-black/5 flex flex-col justify-between">
+          <div className="rounded-2xl sm:rounded-[22px] bg-white p-4 sm:p-5 border border-slate-100 shadow-md sm:shadow-lg shadow-black/5 flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Status Presensi</span>
-              <div className="h-10 w-10 rounded-2xl bg-teal-50 text-[#138F81] flex items-center justify-center font-bold">
-                <UserCheck size={20} />
+              <span className="text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-slate-500">Status Presensi</span>
+              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl sm:rounded-2xl bg-teal-50 text-[#138F81] flex items-center justify-center font-bold shrink-0">
+                <UserCheck size={18} />
               </div>
             </div>
-            <div className="my-3">
-              <div className="text-3xl font-black text-[#138F81]">
+            <div className="my-2.5 sm:my-3">
+              <div className="text-2xl sm:text-3xl font-black text-[#138F81]">
                 {jadwalPending === 0 && totalJadwal > 0 ? 'Tuntas ✓' : `${jadwalDone}/${totalJadwal}`}
               </div>
-              <p className="text-xs font-bold text-slate-500 mt-1">
+              <p className="text-[11px] sm:text-xs font-bold text-slate-500 mt-0.5">
                 Progress absensi KBM hari ini
               </p>
             </div>
@@ -238,17 +244,17 @@ export function GuruDashboardView({
         )}
 
         {/* Card 4: Nilai & Hafalan */}
-        <div className="rounded-[22px] bg-white p-5 border border-slate-100 shadow-lg shadow-black/5 flex flex-col justify-between">
+        <div className="rounded-2xl sm:rounded-[22px] bg-white p-4 sm:p-5 border border-slate-100 shadow-md sm:shadow-lg shadow-black/5 flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Nilai & Hafalan</span>
-            <div className="h-10 w-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
-              <ListChecks size={20} />
+            <span className="text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-slate-500">Nilai & Hafalan</span>
+            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl sm:rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold shrink-0">
+              <ListChecks size={18} />
             </div>
           </div>
-          <div className="my-3">
-            <div className="text-3xl font-black text-slate-800">KBM</div>
-            <p className="text-xs font-bold text-slate-500 mt-1">
-              Input nilai harian, UTS, UAS & setor hafalan
+          <div className="my-2.5 sm:my-3">
+            <div className="text-2xl sm:text-3xl font-black text-slate-800">KBM</div>
+            <p className="text-[11px] sm:text-xs font-bold text-slate-500 mt-0.5">
+              Input nilai harian, UTS, UAS & hafalan
             </p>
           </div>
           <button
@@ -269,43 +275,43 @@ export function GuruDashboardView({
       </section>
 
       {/* 3. MAIN SECTION: JADWAL MENGAJAR HARI INI */}
-      <section className="rounded-[28px] bg-white p-6 lg:p-7 border border-slate-100 shadow-xl shadow-black/5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+      <section className="rounded-2xl sm:rounded-[28px] bg-white p-4 sm:p-6 lg:p-7 border border-slate-100 shadow-xl shadow-black/5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-slate-100">
           <div>
-            <h2 className="text-lg font-black text-slate-800 flex items-center gap-2.5">
-              <BookOpenCheck className="text-[#138F81]" size={22} />
-              Jadwal Mengajar Hari Ini
+            <h2 className="text-base sm:text-lg font-black text-slate-800 flex items-center gap-2">
+              <BookOpenCheck className="text-[#138F81] shrink-0" size={20} />
+              <span>Jadwal Mengajar Hari Ini</span>
             </h2>
-            <p className="text-xs font-semibold text-slate-500 mt-0.5">
-              Daftar mata pelajaran dan kelas yang harus diabsen pada {todayFormatted}
+            <p className="text-[11px] sm:text-xs font-semibold text-slate-500 mt-0.5">
+              Daftar mata pelajaran & kelas yang harus diabsen pada {todayFormatted}
             </p>
           </div>
 
           <button
             type="button"
             onClick={() => onOpenAttendance({ tab: 'madin-input' })}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#138F81] px-4 py-2 text-xs font-extrabold text-white shadow-md shadow-[#138F81]/20 hover:bg-[#0D6B60] transition"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[#138F81] px-3.5 py-2 text-xs font-extrabold text-white shadow-md shadow-[#138F81]/20 hover:bg-[#0D6B60] transition self-start sm:self-auto shrink-0"
           >
-            <BookOpen size={15} />
+            <BookOpen size={14} />
             <span>Form Presensi KBM</span>
           </button>
         </div>
 
-        <div className="mt-5">
+        <div className="mt-4 sm:mt-5">
           {jadwalList.length === 0 ? (
-            <div className="rounded-2xl bg-slate-50/80 border border-dashed border-slate-200 p-8 text-center">
-              <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-emerald-50 text-[#138F81] mb-3">
-                <CheckCircle2 size={28} />
+            <div className="rounded-2xl bg-slate-50/80 border border-dashed border-slate-200 p-6 sm:p-8 text-center">
+              <div className="mx-auto grid h-12 w-12 sm:h-14 sm:w-14 place-items-center rounded-2xl bg-emerald-50 text-[#138F81] mb-2.5 sm:mb-3">
+                <CheckCircle2 size={26} />
               </div>
-              <h3 className="text-sm font-extrabold text-slate-700">
+              <h3 className="text-xs sm:text-sm font-extrabold text-slate-700">
                 Alhamdulillah, tidak ada jadwal KBM untuk Ustadz/Ustadzah hari ini.
               </h3>
-              <p className="text-xs font-semibold text-slate-500 mt-1 max-w-md mx-auto">
-                Anda tetap dapat melihat rekap kehadiran santri sebelumnya atau menginput nilai santri melalui menu navigasi.
+              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 mt-1 max-w-md mx-auto">
+                Anda tetap dapat melihat rekap kehadiran santri atau menginput nilai melalui menu navigasi.
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {jadwalList.map((j) => {
                 const isCompleted = String(j.status_absen) === 'completed';
                 const mapelName = String(j.mapel || '-');
@@ -320,7 +326,7 @@ export function GuruDashboardView({
                 return (
                   <div
                     key={String(j.id)}
-                    className={`rounded-2xl p-5 border transition-all flex flex-col justify-between ${
+                    className={`rounded-2xl p-4 sm:p-5 border transition-all flex flex-col justify-between ${
                       isCompleted
                         ? 'bg-emerald-50/40 border-emerald-200/80'
                         : 'bg-amber-50/40 border-amber-200/80 hover:shadow-md'
@@ -328,12 +334,12 @@ export function GuruDashboardView({
                   >
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 bg-white px-2.5 py-1 rounded-lg border border-slate-200/60 shadow-2xs">
-                          <Clock size={12} className="text-[#138F81]" />
-                          {waktuJam}
+                        <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-slate-600 bg-white px-2.5 py-1 rounded-lg border border-slate-200/60 shadow-2xs">
+                          <Clock size={11} className="text-[#138F81] shrink-0" />
+                          <span>{waktuJam}</span>
                         </span>
                         <span
-                          className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${
+                          className={`text-[10px] sm:text-[11px] font-extrabold px-2 py-0.5 rounded-full ${
                             isCompleted
                               ? 'bg-emerald-100 text-emerald-800'
                               : 'bg-amber-100 text-amber-900 animate-pulse'
@@ -343,15 +349,15 @@ export function GuruDashboardView({
                         </span>
                       </div>
 
-                      <h4 className="text-base font-black text-slate-800 line-clamp-1">
+                      <h4 className="text-sm sm:text-base font-black text-slate-800 line-clamp-1">
                         {mapelName}
                       </h4>
                       <p className="text-xs font-bold text-[#138F81] mt-0.5">
-                        Kelas / Sifir: <span className="text-slate-700">{kelasName}</span>
+                        Kelas: <span className="text-slate-700">{kelasName}</span>
                       </p>
 
                       {isCompleted && siswaTotal > 0 ? (
-                        <div className="mt-3 flex items-center gap-2 text-[11px] font-bold bg-white/80 p-2 rounded-xl border border-emerald-100">
+                        <div className="mt-2.5 flex flex-wrap items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] font-bold bg-white/80 p-2 rounded-xl border border-emerald-100">
                           <span className="text-emerald-700">Hadir: {hadirCount}</span>
                           <span className="text-slate-300">•</span>
                           <span className="text-amber-700">Izin: {izinCount}</span>
@@ -373,13 +379,13 @@ export function GuruDashboardView({
                           jadwalId: Number(j.id ?? 0)
                         })
                       }
-                      className={`w-full mt-4 py-2.5 px-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
+                      className={`w-full mt-3 sm:mt-4 py-2 sm:py-2.5 px-3 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
                         isCompleted
                           ? 'bg-white text-emerald-800 border border-emerald-200 hover:bg-emerald-50'
                           : 'bg-[#138F81] text-white hover:bg-[#0D6B60] shadow-md shadow-[#138F81]/20'
                       }`}
                     >
-                      <BookOpenCheck size={15} />
+                      <BookOpenCheck size={14} />
                       <span>{isCompleted ? 'Edit Presensi Kelas Ini' : 'Isi Presensi Kelas Ini'}</span>
                     </button>
                   </div>
@@ -392,64 +398,64 @@ export function GuruDashboardView({
 
       {/* 4. MODUL TAMBAHAN (NGAJI KITAB / SHOLAT) */}
       {(Boolean(hakAkses.absen_ngaji) || Boolean(hakAkses.absen_sholat)) && (
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
           {Boolean(hakAkses.absen_ngaji) && (
-            <div className="rounded-[28px] bg-white p-6 border border-slate-100 shadow-xl shadow-black/5 flex flex-col justify-between">
+            <div className="rounded-2xl sm:rounded-[28px] bg-white p-4 sm:p-6 border border-slate-100 shadow-xl shadow-black/5 flex flex-col justify-between">
               <div>
-                <div className="flex items-center gap-2 text-indigo-700 font-extrabold text-sm mb-2">
-                  <BookMarked size={18} />
+                <div className="flex items-center gap-2 text-indigo-700 font-extrabold text-xs sm:text-sm mb-1.5 sm:mb-2">
+                  <BookMarked size={16} />
                   <span>Pengajian Kitab Kuning</span>
                 </div>
-                <h3 className="text-lg font-black text-slate-800">
+                <h3 className="text-base sm:text-lg font-black text-slate-800">
                   Presensi Ngaji Kitab
                 </h3>
-                <p className="text-xs font-semibold text-slate-500 mt-1">
+                <p className="text-[11px] sm:text-xs font-semibold text-slate-500 mt-1">
                   Catat kehadiran santri pada halaqah dan jadwal ngaji kitab yang Anda ampu.
                 </p>
               </div>
 
-              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-600">
-                  Total diabsen hari ini: <span className="font-extrabold text-indigo-700">{Number(ngajiSummary?.total ?? 0)} Santri</span>
+              <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] sm:text-xs font-bold text-slate-600">
+                  Diabsen: <span className="font-extrabold text-indigo-700">{Number(ngajiSummary?.total ?? 0)} Santri</span>
                 </span>
                 <button
                   type="button"
                   onClick={() => onOpenAttendance({ tab: 'ngaji' })}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold shadow-sm transition flex items-center gap-1.5"
+                  className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold shadow-sm transition flex items-center gap-1.5"
                 >
-                  <span>Buka Form Ngaji</span>
-                  <ArrowRight size={14} />
+                  <span>Buka Form</span>
+                  <ArrowRight size={13} />
                 </button>
               </div>
             </div>
           )}
 
           {Boolean(hakAkses.absen_sholat) && (
-            <div className="rounded-[28px] bg-white p-6 border border-slate-100 shadow-xl shadow-black/5 flex flex-col justify-between">
+            <div className="rounded-2xl sm:rounded-[28px] bg-white p-4 sm:p-6 border border-slate-100 shadow-xl shadow-black/5 flex flex-col justify-between">
               <div>
-                <div className="flex items-center gap-2 text-teal-700 font-extrabold text-sm mb-2">
-                  <Landmark size={18} />
+                <div className="flex items-center gap-2 text-teal-700 font-extrabold text-xs sm:text-sm mb-1.5 sm:mb-2">
+                  <Landmark size={16} />
                   <span>Sholat Jama'ah Asrama</span>
                 </div>
-                <h3 className="text-lg font-black text-slate-800">
+                <h3 className="text-base sm:text-lg font-black text-slate-800">
                   Presensi Sholat Santri
                 </h3>
-                <p className="text-xs font-semibold text-slate-500 mt-1">
-                  Catat kehadiran sholat fardhu berjama'ah santri pada komplek dan kamar yang ditugaskan.
+                <p className="text-[11px] sm:text-xs font-semibold text-slate-500 mt-1">
+                  Catat kehadiran sholat fardhu berjama'ah santri pada komplek dan kamar pondok.
                 </p>
               </div>
 
-              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-600">
-                  Total diabsen: <span className="font-extrabold text-teal-700">{Number(sholatSummary?.total ?? 0)} Santri</span>
+              <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] sm:text-xs font-bold text-slate-600">
+                  Diabsen: <span className="font-extrabold text-teal-700">{Number(sholatSummary?.total ?? 0)} Santri</span>
                 </span>
                 <button
                   type="button"
                   onClick={() => onOpenAttendance({ tab: 'sholat' })}
-                  className="px-4 py-2 rounded-xl bg-[#138F81] hover:bg-[#0D6B60] text-white text-xs font-extrabold shadow-sm transition flex items-center gap-1.5"
+                  className="px-3.5 py-1.5 rounded-xl bg-[#138F81] hover:bg-[#0D6B60] text-white text-xs font-extrabold shadow-sm transition flex items-center gap-1.5"
                 >
-                  <span>Buka Presensi Sholat</span>
-                  <ArrowRight size={14} />
+                  <span>Buka Form</span>
+                  <ArrowRight size={13} />
                 </button>
               </div>
             </div>
@@ -458,11 +464,11 @@ export function GuruDashboardView({
       )}
 
       {/* 5. MUTIARA HIKMAH / DO'A GURU */}
-      <footer className="rounded-2xl bg-emerald-50/70 border border-emerald-200/50 p-4 text-center">
-        <p className="text-xs font-bold text-emerald-900 italic">
+      <footer className="rounded-xl sm:rounded-2xl bg-emerald-50/70 border border-emerald-200/50 p-3 sm:p-4 text-center">
+        <p className="text-[11px] sm:text-xs font-bold text-emerald-900 italic">
           "خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ"
         </p>
-        <p className="text-[11px] font-semibold text-emerald-700 mt-0.5">
+        <p className="text-[10px] sm:text-[11px] font-semibold text-emerald-700 mt-0.5">
           "Sebaik-baik kalian adalah orang yang mempelajari Al-Qur'an dan mengajarkannya." (HR. Bukhari)
         </p>
       </footer>
