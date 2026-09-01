@@ -7,6 +7,7 @@ use App\Models\BoardingComplex;
 use App\Models\BoardingRoom;
 use App\Models\GuardianProfile;
 use App\Models\SantriPondok;
+use App\Models\SchoolClass;
 use App\Models\Semester;
 use App\Models\Siswa;
 use App\Models\SiswaTahunAjaran;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class ImportRealSantriData extends Command
 {
@@ -32,7 +34,29 @@ class ImportRealSantriData extends Command
      *
      * @var string
      */
-    protected $description = 'Import 963 data santri real dari data sementara.xlsx dan ERA BARU 2026.xlsx';
+    protected $description = 'Import 966 data santri real langsung dari data sementara.xlsx dan ERA BARU 2026.xlsx';
+
+    private function normName(?string $name): string
+    {
+        $n = strtoupper(trim((string)$name));
+        $n = preg_replace('/[^\w\s]/u', '', $n);
+        $n = preg_replace('/\s+/', ' ', $n);
+        return trim($n);
+    }
+
+    private function parseDateValue($val): ?string
+    {
+        if (empty($val)) return null;
+        $str = trim((string)$val);
+        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $str, $m)) {
+            return sprintf('%04d-%02d-%02d', $m[3], $m[1], $m[2]);
+        }
+        if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $str, $m)) {
+            return sprintf('%04d-%02d-%02d', $m[1], $m[2], $m[3]);
+        }
+        $ts = strtotime($str);
+        return $ts ? date('Y-m-d', $ts) : null;
+    }
 
     /**
      * Execute the console command.
@@ -43,21 +67,189 @@ class ImportRealSantriData extends Command
         $this->warn("     IMPORT DATA SANTRI REAL PESANTREN QOMARUDDIN 2025/2026      ");
         $this->warn("=================================================================");
 
-        $jsonPath = database_path('data/santri_qomaruddin_real.json');
-        if (!file_exists($jsonPath)) {
-            $this->error("File santri_qomaruddin_real.json tidak ditemukan di database/data/.");
+        // Cari lokasi file Excel
+        $searchDirs = [
+            base_path('../'),
+            base_path(),
+            storage_path('app'),
+            database_path('data'),
+            '/var/www/ppqomaruddin',
+        ];
+
+        $dataSementaraPath = null;
+        $eraBaruPath = null;
+
+        foreach ($searchDirs as $dir) {
+            if (!$dataSementaraPath && file_exists($dir . '/data sementara.xlsx')) {
+                $dataSementaraPath = $dir . '/data sementara.xlsx';
+            }
+            if (!$eraBaruPath && file_exists($dir . '/ERA BARU 2026.xlsx')) {
+                $eraBaruPath = $dir . '/ERA BARU 2026.xlsx';
+            }
+        }
+
+        $santriData = [];
+
+        if ($dataSementaraPath && $eraBaruPath) {
+            $this->info("Membaca langsung dari file Excel:");
+            $this->line("1. " . $dataSementaraPath);
+            $this->line("2. " . $eraBaruPath);
+
+            // 1. Baca ERA BARU 2026 (Santri Mondok Putra)
+            $eraSpreadsheet = IOFactory::load($eraBaruPath);
+            $eraSantri = [];
+            foreach ($eraSpreadsheet->getSheetNames() as $sheetName) {
+                $sheet = $eraSpreadsheet->getSheetByName($sheetName);
+                $highestRow = $sheet->getHighestRow();
+                $currentKamar = '';
+                for ($r = 2; $r <= $highestRow; $r++) {
+                    $kamarVal = trim($sheet->getCell("A{$r}")->getFormattedValue());
+                    $namaVal = trim($sheet->getCell("C{$r}")->getFormattedValue());
+                    $kelasVal = trim($sheet->getCell("D{$r}")->getFormattedValue());
+                    if ($kamarVal !== '') $currentKamar = $kamarVal;
+                    if ($namaVal !== '') {
+                        $key = $this->normName($namaVal);
+                        $eraSantri[$key] = [
+                            'nama' => $namaVal,
+                            'kamar' => $currentKamar,
+                            'kelas_formal' => $kelasVal,
+                            'jenjang' => $sheetName,
+                        ];
+                    }
+                }
+            }
+
+            // 2. Baca data sementara.xlsx
+            $dataSpreadsheet = IOFactory::load($dataSementaraPath);
+            $nisCounter = 1;
+
+            foreach (['putra', 'putri'] as $sheetName) {
+                $sheet = $dataSpreadsheet->getSheetByName($sheetName);
+                if (!$sheet) continue;
+                $highestRow = $sheet->getHighestRow();
+                $isPutra = ($sheetName === 'putra');
+
+                for ($r = 1; $r <= $highestRow; $r++) {
+                    $nama = trim($sheet->getCell("A{$r}")->getFormattedValue());
+                    if ($nama === '' || strtoupper($nama) === 'NAMA' || strtoupper($nama) === 'NAMA LENGKAP') continue;
+
+                    $key = $this->normName($nama);
+                    $jk = $isPutra ? 'L' : 'P';
+                    $nisn = trim($sheet->getCell("C{$r}")->getFormattedValue()) ?: null;
+                    $nik = trim($sheet->getCell("D{$r}")->getFormattedValue()) ?: null;
+                    $sekolahTujuan = trim($sheet->getCell("S{$r}")->getFormattedValue()) ?: null;
+                    $waWali = trim($sheet->getCell("AI{$r}")->getFormattedValue()) ?: null;
+                    $emailWali = trim($sheet->getCell("AJ{$r}")->getFormattedValue()) ?: null;
+
+                    $alamatJalan = trim($sheet->getCell("E{$r}")->getFormattedValue());
+                    $rt = trim($sheet->getCell("F{$r}")->getFormattedValue());
+                    $rw = trim($sheet->getCell("G{$r}")->getFormattedValue());
+                    $dusun = trim($sheet->getCell("H{$r}")->getFormattedValue());
+                    $desa = trim($sheet->getCell("I{$r}")->getFormattedValue());
+                    $kec = trim($sheet->getCell("J{$r}")->getFormattedValue());
+                    $kab = trim($sheet->getCell("K{$r}")->getFormattedValue());
+                    $kodePos = trim($sheet->getCell("L{$r}")->getFormattedValue());
+                    $prov = trim($sheet->getCell("M{$r}")->getFormattedValue());
+
+                    $fullAlamat = implode(', ', array_filter([$alamatJalan, ($rt || $rw) ? "RT {$rt} / RW {$rw}" : null, $dusun, $desa, $kec, $kab, $prov]));
+
+                    $kamar = null;
+                    $kelasFormal = null;
+                    $statusMondok = 'tidak_mondok';
+
+                    if ($isPutra && isset($eraSantri[$key])) {
+                        $kamar = $eraSantri[$key]['kamar'];
+                        $kelasFormal = $eraSantri[$key]['kelas_formal'];
+                        $statusMondok = 'mondok';
+                        unset($eraSantri[$key]);
+                    }
+
+                    $santriData[$key] = [
+                        'nis' => sprintf('%04d', $nisCounter++),
+                        'nama' => $nama,
+                        'jenis_kelamin' => $jk,
+                        'nisn' => $nisn,
+                        'nik' => $nik,
+                        'tempat_lahir' => trim($sheet->getCell("N{$r}")->getFormattedValue()) ?: null,
+                        'tanggal_lahir' => $this->parseDateValue($sheet->getCell("O{$r}")->getFormattedValue()),
+                        'anak_ke' => (int)trim($sheet->getCell("P{$r}")->getFormattedValue()) ?: null,
+                        'asal_sekolah' => trim($sheet->getCell("Q{$r}")->getFormattedValue()) ?: null,
+                        'tahun_lulus' => trim($sheet->getCell("R{$r}")->getFormattedValue()) ?: null,
+                        'kelas' => $kelasFormal ?: $sekolahTujuan,
+                        'alamat' => $fullAlamat ?: 'Pondok Pesantren Qomaruddin',
+                        'provinsi' => $prov ?: 'Jawa Timur',
+                        'kota' => $kab ?: 'Gresik',
+                        'kecamatan' => $kec ?: null,
+                        'kelurahan' => $desa ?: null,
+                        'kode_pos' => $kodePos ?: null,
+                        'nama_ayah' => trim($sheet->getCell("Y{$r}")->getFormattedValue()) ?: null,
+                        'tempat_lahir_ayah' => trim($sheet->getCell("Z{$r}")->getFormattedValue()) ?: null,
+                        'pekerjaan_ayah' => trim($sheet->getCell("AB{$r}")->getFormattedValue()) ?: null,
+                        'pendidikan_ayah' => trim($sheet->getCell("AC{$r}")->getFormattedValue()) ?: null,
+                        'nama_ibu' => trim($sheet->getCell("AD{$r}")->getFormattedValue()) ?: null,
+                        'tempat_lahir_ibu' => trim($sheet->getCell("AE{$r}")->getFormattedValue()) ?: null,
+                        'pekerjaan_ibu' => trim($sheet->getCell("AG{$r}")->getFormattedValue()) ?: null,
+                        'pendidikan_ibu' => trim($sheet->getCell("AH{$r}")->getFormattedValue()) ?: null,
+                        'nama_wali' => trim($sheet->getCell("Y{$r}")->getFormattedValue()) ?: (trim($sheet->getCell("AD{$r}")->getFormattedValue()) ?: 'Wali ' . $nama),
+                        'no_telepon_wali' => $waWali,
+                        'email_wali' => $emailWali,
+                        'kamar' => $kamar,
+                        'status_mondok' => $statusMondok,
+                    ];
+                }
+            }
+
+            // Sisa Santri Pondok dari ERA BARU 2026
+            foreach ($eraSantri as $key => $data) {
+                $santriData[$key] = [
+                    'nis' => sprintf('%04d', $nisCounter++),
+                    'nama' => $data['nama'],
+                    'jenis_kelamin' => 'L',
+                    'nisn' => null,
+                    'nik' => null,
+                    'tempat_lahir' => null,
+                    'tanggal_lahir' => null,
+                    'anak_ke' => null,
+                    'asal_sekolah' => null,
+                    'tahun_lulus' => null,
+                    'kelas' => $data['kelas_formal'],
+                    'alamat' => 'Pondok Pesantren Qomaruddin, Sampurnan Bungah Gresik',
+                    'provinsi' => 'Jawa Timur',
+                    'kota' => 'Gresik',
+                    'kecamatan' => 'Bungah',
+                    'kelurahan' => 'Sampurnan',
+                    'kode_pos' => '61152',
+                    'nama_ayah' => null,
+                    'tempat_lahir_ayah' => null,
+                    'pekerjaan_ayah' => null,
+                    'pendidikan_ayah' => null,
+                    'nama_ibu' => null,
+                    'tempat_lahir_ibu' => null,
+                    'pekerjaan_ibu' => null,
+                    'pendidikan_ibu' => null,
+                    'nama_wali' => 'Wali ' . $data['nama'],
+                    'no_telepon_wali' => null,
+                    'email_wali' => null,
+                    'kamar' => $data['kamar'],
+                    'status_mondok' => 'mondok',
+                ];
+            }
+        } else {
+            // Fallback ke JSON jika file excel tidak ditemukan di server
+            $jsonPath = database_path('data/santri_qomaruddin_real.json');
+            if (file_exists($jsonPath)) {
+                $santriData = json_decode(file_get_contents($jsonPath), true) ?: [];
+            }
+        }
+
+        if (empty($santriData)) {
+            $this->error("Data santri tidak ditemukan. Pastikan file 'data sementara.xlsx' dan 'ERA BARU 2026.xlsx' tersedia.");
             return 1;
         }
 
-        $santriData = json_decode(file_get_contents($jsonPath), true);
-        if (empty($santriData) || !is_array($santriData)) {
-            $this->error("Isi file santri_qomaruddin_real.json kosong atau tidak valid.");
-            return 1;
-        }
+        $this->info("Total data santri real yang siap dimigrasi: " . count($santriData) . " santri.");
 
-        $this->info("Ditemukan " . count($santriData) . " data santri real untuk diproses.");
-
-        // 1. Complexes
+        // 1. Setup Komplek Asrama
         $complexes = [
             'KOMPLEK 1' => ['gender' => 'L', 'sort_order' => 1],
             'KOMPLEK 3' => ['gender' => 'L', 'sort_order' => 2],
@@ -73,7 +265,7 @@ class ImportRealSantriData extends Command
             $complexMap[$name] = $complex->id;
         }
 
-        // 2. Rooms
+        // 2. Setup Kamar Pondok (30 Kamar)
         $rooms = [
             // KOMPLEK 1
             'AL JAELANI' => 'KOMPLEK 1',
@@ -86,7 +278,6 @@ class ImportRealSantriData extends Command
             'SUNAN BONANG' => 'KOMPLEK 1',
             'SUNAN SENDANG' => 'KOMPLEK 1',
             'SUNAN BEJAGUNG' => 'KOMPLEK 1',
-            'SUNAN MURIA' => 'KOMPLEK 1',
             'SUNAN GIRI' => 'KOMPLEK 1',
             'SUNAN AMPEL' => 'KOMPLEK 1',
             'SUNAN KALIJAGA' => 'KOMPLEK 1',
@@ -106,16 +297,11 @@ class ImportRealSantriData extends Command
             'IMAM NAWAWI' => 'KOMPLEK 3',
             'IBNU AQIL' => 'KOMPLEK 3',
             'IMAM GHOZALI' => 'KOMPLEK 3',
-            'KAMAR ATAS KANTOR SEBELAH SELATAN' => 'KOMPLEK 3',
-            'KAMAR ATAS KANTOR SEBELAH UTARA' => 'KOMPLEK 3',
 
             // KOMPLEK TAHFIZ
             'TAHFIDZ 1' => 'KOMPLEK TAHFIZ',
-            'TAHFIDZ I' => 'KOMPLEK TAHFIZ',
             'TAHFIDZ 2' => 'KOMPLEK TAHFIZ',
-            'TAHFIDZ II' => 'KOMPLEK TAHFIZ',
             'TAHFIDZ 3' => 'KOMPLEK TAHFIZ',
-            'TAHFIDZ III' => 'KOMPLEK TAHFIZ',
         ];
 
         $roomMap = [];
@@ -130,87 +316,90 @@ class ImportRealSantriData extends Command
             }
         }
 
-        $roomMap['TAHFIDZ 1'] = $roomMap['TAHFIDZ 1'] ?? ($roomMap['TAHFIDZ I'] ?? null);
-        $roomMap['TAHFIDZ I'] = $roomMap['TAHFIDZ 1'] ?? ($roomMap['TAHFIDZ I'] ?? null);
-        $roomMap['TAHFIDZ 2'] = $roomMap['TAHFIDZ 2'] ?? ($roomMap['TAHFIDZ II'] ?? null);
-        $roomMap['TAHFIDZ II'] = $roomMap['TAHFIDZ 2'] ?? ($roomMap['TAHFIDZ II'] ?? null);
-        $roomMap['TAHFIDZ 3'] = $roomMap['TAHFIDZ 3'] ?? ($roomMap['TAHFIDZ III'] ?? null);
-        $roomMap['TAHFIDZ III'] = $roomMap['TAHFIDZ 3'] ?? ($roomMap['TAHFIDZ III'] ?? null);
-
-        // 3. Clear old student data if requested or running migration
-        $this->info("Membersihkan data santri lama dan akun wali...");
+        // 3. Bersihkan data santri lama (TETAP AMAN: Admin & Guru TIDAK DITIKET)
+        $this->info("Membersihkan data santri lama...");
         $studentChildTables = [
             'santri_pondok',
             'guardian_student',
             'guardian_profiles',
             'siswa_tahun_ajaran',
-            'absensi_sholat',
-            'absensi_ngaji',
-            'absensi',
-            'kelompok_belajar_siswa',
-            'nilai',
-            'hafalan',
-            'pembayaran',
-            'payment_bills',
+            'absensi_sholats',
+            'absensi_ngajis',
+            'absensis',
+            'nilais',
+            'nilai_hafalans',
             'payment_bill_month_items',
             'payment_bill_notifications',
             'payment_bill_rule_student',
-            'payment_transactions',
             'payment_transaction_items',
+            'payment_transactions',
+            'payment_bills',
+            'pembayaran',
+            'buku_induk_entries',
+            'siswa',
         ];
 
+        $existingTables = [];
         foreach ($studentChildTables as $table) {
             if (Schema::hasTable($table)) {
-                DB::table($table)->delete();
+                $existingTables[] = $table;
             }
         }
 
-        DB::table('siswa')->delete();
-        DB::table('users')->where('role', 'wali')->delete();
+        if (!empty($existingTables)) {
+            $driver = DB::connection()->getDriverName();
+            if ($driver === 'pgsql') {
+                $tableList = implode(', ', $existingTables);
+                DB::statement("TRUNCATE TABLE {$tableList} RESTART IDENTITY CASCADE;");
+            } else {
+                Schema::disableForeignKeyConstraints();
+                foreach ($existingTables as $tableName) {
+                    DB::table($tableName)->truncate();
+                }
+                Schema::enableForeignKeyConstraints();
+            }
+        }
 
-        $this->info("✓ Data santri lama berhasil dibersihkan (Akun Admin & Guru tetap aman).");
+        User::where('role', 'wali')->delete();
+        $this->info("✓ Data santri lama berhasil dibersihkan.");
 
-        // 4. Resolvers & Academic Period
+        // 4. Setup Tahun Ajaran
+        $activeYear = AcademicYear::firstOrCreate(
+            ['name' => '2025/2026'],
+            [
+                'start_date' => '2025-07-01',
+                'end_date' => '2026-06-30',
+                'year_start' => 2025,
+                'year_end' => 2026,
+                'active_semester' => 'Ganjil',
+                'is_active' => true,
+            ]
+        );
+
+        $activeSemester = Semester::firstOrCreate(
+            ['academic_year_id' => $activeYear->id, 'name' => 'Ganjil'],
+            ['code' => '20251', 'is_active' => true]
+        );
+
         $resolver = app(ReferenceResolver::class);
-        $activeYear = AcademicYear::query()->where('is_active', true)->first();
-        if (!$activeYear) {
-            $activeYear = AcademicYear::firstOrCreate(
-                ['name' => '2025/2026'],
-                [
-                    'start_date' => '2025-07-01',
-                    'end_date' => '2026-06-30',
-                    'year_start' => 2025,
-                    'year_end' => 2026,
-                    'active_semester' => 'Ganjil',
-                    'is_active' => true,
-                ]
-            );
-        }
-
-        $activeSemester = Semester::query()->where('academic_year_id', $activeYear->id)->where('is_active', true)->first();
-        if (!$activeSemester) {
-            $activeSemester = Semester::firstOrCreate(
-                ['academic_year_id' => $activeYear->id, 'name' => 'Ganjil'],
-                ['code' => '20251', 'is_active' => true]
-            );
-        }
-
-        $defaultPassword = config('auth.operational_default_password', 'siswa12345');
+        $defaultPassword = config('auth.operational_default_password', 'Ganti123');
         $defaultPasswordHash = Hash::make($defaultPassword);
         $defaultPasswordEncrypted = Crypt::encryptString($defaultPassword);
         $studentStatusId = $resolver->studentStatusId('Aktif');
         $studentTypeId = $resolver->studentTypeId('Santri Madin');
 
-        $this->info("Menginsert 963 santri baru...");
+        // Master Kelas Map
+        $classes = SchoolClass::all()->keyBy(fn($c) => strtoupper(trim($c->name)));
+
+        $this->info("Menginsert " . count($santriData) . " santri baru ke database...");
         $bar = $this->output->createProgressBar(count($santriData));
         $bar->start();
 
-        // 5. Insert All 963 Students and their linked accounts
         foreach ($santriData as $data) {
             $nis = $data['nis'];
             $nama = $data['nama'];
             $gender = $data['jenis_kelamin'] ?? 'L';
-            
+
             $rawNoHp = $data['no_telepon_wali'] ?? null;
             $noHp = null;
             if (!empty($rawNoHp)) {
@@ -221,10 +410,10 @@ class ImportRealSantriData extends Command
             if (empty($noHp)) {
                 $noHp = '08' . rand(1000000000, 9999999999);
             }
-            
+
             $waliEmail = 'wali_' . $nis . '@absensi.local';
 
-            // Create Wali User Account
+            // Akun User Wali
             $waliUser = User::create([
                 'name' => $data['nama_wali'] ?: 'Wali ' . $nama,
                 'email' => $waliEmail,
@@ -242,13 +431,12 @@ class ImportRealSantriData extends Command
                 'user_id' => $waliUser->id,
                 'name' => $waliUser->name,
                 'phone' => $noHp,
-                'address' => $data['alamat'],
+                'address' => $data['alamat'] ?? 'Pondok Pesantren Qomaruddin',
             ]);
 
+            // Kamar Pondok
             $roomId = null;
             $kamarName = $data['kamar'] ?? null;
-            $komplekName = $data['komplek'] ?? null;
-
             if (!empty($kamarName)) {
                 $upperKamar = strtoupper($kamarName);
                 $roomId = $roomMap[$upperKamar] ?? null;
@@ -262,18 +450,23 @@ class ImportRealSantriData extends Command
                 }
             }
 
-            $statusMondok = (!empty($data['status_mondok']) && $data['status_mondok'] === 'mondok') ? 'mondok' : 'tidak_mondok';
-            if ($roomId) {
-                $statusMondok = 'mondok';
+            $statusMondok = ($data['status_mondok'] === 'mondok' || $roomId) ? 'mondok' : 'tidak_mondok';
+
+            // Kelas Formal / Madin
+            $kelasStr = $data['kelas'] ?? null;
+            $classId = null;
+            if ($kelasStr) {
+                $upperKelas = strtoupper(trim($kelasStr));
+                if (isset($classes[$upperKelas])) {
+                    $classId = $classes[$upperKelas]->id;
+                }
             }
 
             $siswa = Siswa::create([
                 'nis' => $nis,
                 'nisn' => $data['nisn'] ?? null,
                 'nik' => !empty($data['nik']) ? substr((string)$data['nik'], 0, 16) : null,
-                'no_kk' => !empty($data['no_kk']) ? substr((string)$data['no_kk'], 0, 16) : null,
                 'nama' => $nama,
-                'nama_panggilan' => null,
                 'jenis_kelamin' => $gender,
                 'tempat_lahir' => $data['tempat_lahir'] ?? null,
                 'tanggal_lahir' => $data['tanggal_lahir'] ?? null,
@@ -286,7 +479,8 @@ class ImportRealSantriData extends Command
                 'kewarganegaraan' => 'Indonesia',
                 'status' => 'Aktif',
                 'student_status_id' => $studentStatusId,
-                'kelas' => $data['kelas'] ?? null,
+                'class_id' => $classId,
+                'kelas' => $kelasStr,
                 'asal_sekolah' => $data['asal_sekolah'] ?? null,
                 'tahun_lulus' => !empty($data['tahun_lulus']) ? substr((string)$data['tahun_lulus'], 0, 4) : null,
                 'tahun_akademik_masuk' => '2025/2026',
@@ -294,17 +488,12 @@ class ImportRealSantriData extends Command
                 'jenis_santri' => 'Santri Madin',
                 'student_type_id' => $studentTypeId,
                 'anak_ke' => $data['anak_ke'] ?? null,
-                'catatan_santri' => $data['catatan_santri'] ?? null,
                 'nama_ayah' => $data['nama_ayah'] ?? null,
-                'nik_ayah' => !empty($data['nik_ayah']) ? substr((string)$data['nik_ayah'], 0, 16) : null,
                 'tempat_lahir_ayah' => $data['tempat_lahir_ayah'] ?? null,
-                'tanggal_lahir_ayah' => $data['tanggal_lahir_ayah'] ?? null,
                 'pekerjaan_ayah' => $data['pekerjaan_ayah'] ?? null,
                 'pendidikan_ayah' => $data['pendidikan_ayah'] ?? null,
                 'nama_ibu' => $data['nama_ibu'] ?? null,
-                'nik_ibu' => $data['nik_ibu'] ?? null,
                 'tempat_lahir_ibu' => $data['tempat_lahir_ibu'] ?? null,
-                'tanggal_lahir_ibu' => $data['tanggal_lahir_ibu'] ?? null,
                 'pekerjaan_ibu' => $data['pekerjaan_ibu'] ?? null,
                 'pendidikan_ibu' => $data['pendidikan_ibu'] ?? null,
                 'nama_wali' => $waliUser->name,
@@ -314,9 +503,8 @@ class ImportRealSantriData extends Command
                 'status_mondok' => $statusMondok,
                 'boarding_room_id' => $roomId,
                 'kamar' => $kamarName,
-                'komplek' => $komplekName,
                 'tanggal_masuk' => '2025-07-01',
-                'email_siswa' => $data['email_siswa'] ?? null,
+                'email_siswa' => $data['email_wali'] ?? null,
             ]);
 
             DB::table('guardian_student')->insert([
@@ -343,22 +531,20 @@ class ImportRealSantriData extends Command
                 }
             }
 
-            if ($activeYear) {
-                SiswaTahunAjaran::create([
-                    'siswa_id' => $siswa->id,
-                    'academic_year_id' => $activeYear->id,
-                    'semester_id' => $activeSemester?->id,
-                    'tahun_ajaran' => $activeYear->name,
-                    'semester' => $activeSemester?->name ?? 'Ganjil',
-                    'class_id' => $siswa->class_id,
-                    'kelas' => $siswa->kelas,
-                    'wali_id' => $siswa->wali_id,
-                    'student_status_id' => $studentStatusId,
-                    'status_santri' => 'Aktif',
-                    'is_active' => true,
-                    'synced_at' => now(),
-                ]);
-            }
+            SiswaTahunAjaran::create([
+                'siswa_id' => $siswa->id,
+                'academic_year_id' => $activeYear->id,
+                'semester_id' => $activeSemester?->id,
+                'tahun_ajaran' => $activeYear->name,
+                'semester' => $activeSemester?->name ?? 'Ganjil',
+                'class_id' => $siswa->class_id,
+                'kelas' => $siswa->kelas,
+                'wali_id' => $siswa->wali_id,
+                'student_status_id' => $studentStatusId,
+                'status_santri' => 'Aktif',
+                'is_active' => true,
+                'synced_at' => now(),
+            ]);
 
             $bar->advance();
         }
@@ -366,7 +552,7 @@ class ImportRealSantriData extends Command
         $bar->finish();
         $this->newLine();
         $this->info("=================================================================");
-        $this->info("  SUKSES! 963 SANTRI REAL TELAH BERHASIL DIMIGRASIKAN 100%!     ");
+        $this->info("  SUKSES! " . count($santriData) . " SANTRI REAL TELAH BERHASIL DIMIGRASIKAN! ");
         $this->info("=================================================================");
 
         return 0;
