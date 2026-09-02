@@ -233,11 +233,11 @@ export function AccountPage() {
               <h2 className="text-lg font-extrabold text-[#2D3436]">Role & Permission</h2>
             </div>
             <div className="space-y-3">
-              <div className="rounded-2xl bg-[#E1EFF7] p-4">
-                <p className="text-xs font-bold text-[#636E72]">Role</p>
-                <p className="mt-1 text-xl font-extrabold capitalize text-[#2D3436]">{roleLabel}</p>
-                {adminType ? <StatusBadge label={`Admin ${adminType}`} tone="success" /> : null}
+              <div className="rounded-2xl bg-[#E8F7F3] p-4 border border-teal-200">
+                <p className="text-xs font-bold text-[#636E72]">Jabatan & Hak Akses</p>
+                <p className="mt-1 text-xl font-black text-[#138F81]">{roleLabel}</p>
               </div>
+
               <div className="flex flex-wrap gap-2">
                 {permissionMenus.slice(0, 10).map((item) => (
                   <StatusBadge key={String(item.key ?? item.menu_key)} label={String(item.label ?? item.key ?? '-')} tone="info" />

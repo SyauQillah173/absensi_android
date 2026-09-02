@@ -34,8 +34,10 @@ import {
 } from "react";
 import { useAuth } from "../auth/AuthContext";
 import type { AbsensiTab } from "../pages/AbsensiPage";
+import type { BukuIndukSection } from "../pages/BukuIndukPage";
 import { api, type ApiRecord } from "../services/api";
 import { getRoleDisplayName } from "../utils/roleHelper";
+
 
 export type PageKey =
   | "dashboard"
