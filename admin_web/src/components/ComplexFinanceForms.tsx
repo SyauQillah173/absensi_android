@@ -224,19 +224,20 @@ export function ComplexPaymentTypeForm({
   };
 
   const monthNames = [
-    { num: 7, name: 'Juli' },
-    { num: 8, name: 'Agustus' },
-    { num: 9, name: 'September' },
-    { num: 10, name: 'Oktober' },
-    { num: 11, name: 'November' },
-    { num: 12, name: 'Desember' },
-    { num: 1, name: 'Januari' },
-    { num: 2, name: 'Februari' },
-    { num: 3, name: 'Maret' },
-    { num: 4, name: 'April' },
-    { num: 5, name: 'Mei' },
-    { num: 6, name: 'Juni' },
+    { num: 7, name: 'Juli', sem: 'Ganjil' },
+    { num: 8, name: 'Agustus', sem: 'Ganjil' },
+    { num: 9, name: 'September', sem: 'Ganjil' },
+    { num: 10, name: 'Oktober', sem: 'Ganjil' },
+    { num: 11, name: 'November', sem: 'Ganjil' },
+    { num: 12, name: 'Desember', sem: 'Ganjil' },
+    { num: 1, name: 'Januari', sem: 'Genap' },
+    { num: 2, name: 'Februari', sem: 'Genap' },
+    { num: 3, name: 'Maret', sem: 'Genap' },
+    { num: 4, name: 'April', sem: 'Genap' },
+    { num: 5, name: 'Mei', sem: 'Genap' },
+    { num: 6, name: 'Juni', sem: 'Genap' },
   ];
+
 
   return (
     <div className="w-full flex-1 animate-in fade-in duration-200">
@@ -434,8 +435,89 @@ export function ComplexPaymentTypeForm({
                       );
                     })}
                   </div>
+
+                  {/* CUSTOM NOMINAL PER BULAN */}
+                  <div className="pt-4 border-t border-slate-200">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>⚙️ Atur Nominal Berbeda Per Bulan (Opsional)</span>
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                          Kosongkan jika bulan tersebut memakai Nominal Standar ({num(amount) > 0 ? formatRupiah(num(amount)) : 'Rp 0'}).
+                        </p>
+                      </div>
+                      {Object.keys(monthAmounts).length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setMonthAmounts({})}
+                          className="rounded-xl bg-amber-50 px-3 py-1.5 text-xs font-black text-amber-700 hover:bg-amber-100 transition-colors border border-amber-200/70"
+                        >
+                          Reset ke Standar
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[320px] overflow-y-auto pr-1">
+                      {monthNames.map((m) => {
+                        const isBilled = billedMonths.has(m.num);
+                        const currentVal = monthAmounts[m.num] ?? '';
+                        const hasCustom = currentVal !== '' && Number(currentVal) !== num(amount);
+
+                        return (
+                          <div
+                            key={m.num}
+                            className={`rounded-2xl border p-3 transition-all ${
+                              !isBilled
+                                ? 'border-slate-100 bg-slate-50/60 opacity-50'
+                                : hasCustom
+                                ? 'border-amber-400 bg-amber-50/60 ring-2 ring-amber-400/20 shadow-xs'
+                                : 'border-slate-200 bg-white hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-xs font-black text-slate-800 flex items-center gap-1">
+                                <span>{m.name}</span>
+                                <span className="text-[10px] font-semibold text-slate-400">({m.sem})</span>
+                              </span>
+                              {!isBilled ? (
+                                <span className="rounded-md bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">Libur</span>
+                              ) : hasCustom ? (
+                                <span className="rounded-md bg-amber-500 px-2 py-0.5 text-[10px] font-black text-white shadow-xs">Khusus</span>
+                              ) : (
+                                <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">Standar</span>
+                              )}
+                            </div>
+                            <div className="relative">
+                              <input
+                                type="text"
+                                disabled={!isBilled}
+                                placeholder={num(amount) > 0 ? formatRupiah(num(amount)) : 'Rp 0'}
+                                value={currentVal ? formatRupiah(Number(currentVal)).replace('Rp ', '') : ''}
+                                onChange={(e) => {
+                                  const raw = e.target.value.replace(/\D/g, '');
+                                  setMonthAmounts((prev) => {
+                                    const next = { ...prev };
+                                    if (!raw) delete next[m.num];
+                                    else next[m.num] = raw;
+                                    return next;
+                                  });
+                                }}
+                                className={`w-full rounded-xl border px-3 py-2 text-xs font-bold transition-all disabled:bg-slate-100 disabled:cursor-not-allowed ${
+                                  hasCustom
+                                    ? 'border-amber-400 bg-white text-amber-950 font-black focus:border-amber-500 focus:ring-2 focus:ring-amber-400/20'
+                                    : 'border-slate-200 text-slate-800 bg-white focus:border-[#138F81] focus:ring-2 focus:ring-[#138F81]/10'
+                                }`}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
+
 
               {/* Step 3: Metode Bayar & Status */}
               <div className="rounded-3xl border border-slate-200 bg-slate-50/40 p-5 sm:p-6 space-y-4">
@@ -523,7 +605,11 @@ export function ComplexPaymentTypeForm({
                   <div className="text-[11px] font-semibold text-slate-500 space-y-1">
                     <p>• Diterima via: {Array.from(methods).join(', ') || 'Semua metode'}</p>
                     <p>• Penagihan: {isBilledToAll ? 'Seluruh santri otomatis' : 'Manual santri tertentu'}</p>
+                    {isBulanan && Object.keys(monthAmounts).length > 0 && (
+                      <p className="text-amber-700 font-bold">• {Object.keys(monthAmounts).length} bulan diatur dengan nominal khusus</p>
+                    )}
                   </div>
+
                 </div>
 
                 <div className="rounded-2xl bg-teal-50/80 p-3.5 border border-teal-100 text-xs font-semibold text-teal-900 leading-relaxed">
