@@ -215,6 +215,57 @@ export function AdminLayout({
   }, [isGuru, session]);
 
   const teacherTitle = isFemaleTeacher ? 'Ustadzah' : 'Ustadz';
+
+  const roleTitle = useMemo(() => {
+    if (!session) return 'Pengguna';
+    if (isGuru) return teacherTitle;
+
+    const role = (session.role || '').toLowerCase().trim();
+    const adminType = (session.admin_type || '').toLowerCase().trim();
+
+    if (role === 'guru') return teacherTitle;
+    if (role === 'wali') return 'Wali Santri';
+
+    if (role === 'admin' || !role) {
+      if (adminType === 'bendahara_1') return 'Bendahara 1';
+      if (adminType === 'bendahara_2') return 'Bendahara 2';
+      if (adminType === 'bendahara' || adminType === 'keuangan') return 'Bendahara';
+      if (adminType === 'kasir') return 'Kasir Pembayaran';
+      if (
+        adminType === 'kepala_sekolah' ||
+        adminType === 'kepala_madrasah' ||
+        adminType === 'madrasah' ||
+        adminType === 'monitoring' ||
+        adminType === 'kepala'
+      ) {
+        return 'Kepala Madrasah';
+      }
+      if (adminType === 'it' || adminType === 'admin_it') return 'Admin IT';
+      if (adminType === 'pengurus' || adminType === 'admin_pengurus') return 'Admin Pengurus';
+      if (adminType === 'akademik' || adminType === 'admin_akademik') return 'Admin Akademik';
+      if (adminType === 'pondok' || adminType === 'admin_pondok' || adminType === 'asrama') return 'Admin Pondok';
+      if (adminType === 'absensi' || adminType === 'admin_absensi') return 'Admin Absensi';
+      if (adminType === 'superadmin') return 'Super Admin';
+      if (adminType === 'utama') return 'Admin Pengurus';
+
+      if (adminType) {
+        return adminType
+          .split('_')
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ');
+      }
+      return 'Admin Pengurus';
+    }
+
+    if (role === 'kepala_sekolah' || role === 'kepala_madrasah') {
+      return 'Kepala Madrasah';
+    }
+    if (role === 'bendahara') {
+      return 'Bendahara';
+    }
+
+    return role.charAt(0).toUpperCase() + role.slice(1);
+  }, [session, isGuru, teacherTitle]);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState<ApiRecord[]>([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -848,11 +899,11 @@ export function AdminLayout({
                     <UserRound size={15} />
                   </div>
                   <div className="hidden text-left sm:block">
-                    <p className="max-w-28 truncate text-xs font-extrabold text-[#2D3436]">
-                      {session?.name ?? (isGuru ? teacherTitle : "Admin")}
+                    <p className="max-w-36 truncate text-xs font-extrabold text-[#2D3436]">
+                      {session?.name ?? (isGuru ? teacherTitle : roleTitle)}
                     </p>
-                    <p className="text-[10px] font-semibold capitalize text-[#636E72]">
-                      {isGuru ? teacherTitle : (session?.role ?? "Superadmin")}
+                    <p className="text-[10px] font-bold text-[#138F81] tracking-wide">
+                      {roleTitle}
                     </p>
                   </div>
                   <ChevronDown
@@ -864,14 +915,19 @@ export function AdminLayout({
                 </button>
 
                 {profileOpen ? (
-                  <div className="q-popover absolute right-0 top-13 z-30 w-56 rounded-3xl bg-white p-3 shadow-2xl shadow-black/10">
+                  <div className="q-popover absolute right-0 top-13 z-30 w-60 rounded-3xl bg-white p-3.5 shadow-2xl shadow-black/10">
                     <div className="border-b border-black/5 px-2 py-2">
                       <p className="truncate text-xs font-extrabold text-[#2D3436]">
                         {session?.name}
                       </p>
-                      <p className="text-[10px] font-semibold text-[#636E72]">
-                        {session?.email}
-                      </p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="inline-block px-2 py-0.5 rounded-lg bg-teal-50 border border-teal-200 text-[#138F81] text-[10px] font-black">
+                          {roleTitle}
+                        </span>
+                        <span className="text-[10px] font-semibold text-[#636E72] truncate">
+                          {session?.email}
+                        </span>
+                      </div>
                     </div>
                     <div className="mt-1 space-y-1">
                       <button

@@ -63,8 +63,36 @@ export function AccountPage() {
   }, []);
 
   const permissionMenus = useMemo(() => permissionsOf(profile), [profile]);
-  const roleLabel = String(profile.role ?? session?.role ?? '-');
   const adminType = String(profile.admin_type ?? session?.admin_type ?? '').trim();
+  const roleLabel = useMemo(() => {
+    const role = String(profile.role ?? session?.role ?? '-').toLowerCase();
+    const type = adminType.toLowerCase();
+
+    if (role === 'guru') return 'Ustadz / Ustadzah';
+    if (role === 'wali') return 'Wali Santri';
+    if (role === 'admin' || !role) {
+      if (type === 'bendahara_1') return 'Bendahara 1';
+      if (type === 'bendahara_2') return 'Bendahara 2';
+      if (type === 'bendahara' || type === 'keuangan') return 'Bendahara';
+      if (type === 'kasir') return 'Kasir Pembayaran';
+      if (['kepala_sekolah', 'kepala_madrasah', 'madrasah', 'monitoring', 'kepala'].includes(type)) {
+        return 'Kepala Madrasah';
+      }
+      if (type === 'it' || type === 'admin_it') return 'Admin IT';
+      if (type === 'pengurus' || type === 'admin_pengurus') return 'Admin Pengurus';
+      if (type === 'akademik') return 'Admin Akademik';
+      if (type === 'pondok' || type === 'asrama') return 'Admin Pondok';
+      if (type === 'absensi') return 'Admin Absensi';
+      if (type === 'superadmin') return 'Super Admin';
+      if (type === 'utama') return 'Admin Pengurus';
+      if (type) {
+        return type.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      }
+      return 'Admin Pengurus';
+    }
+    return role.charAt(0).toUpperCase() + role.slice(1);
+  }, [profile.role, session?.role, adminType]);
+
   const photoUrl = String(profile.foto_url ?? session?.foto_url ?? '').trim();
 
   async function saveProfile() {
