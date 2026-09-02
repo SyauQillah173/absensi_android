@@ -23,8 +23,10 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
 } from 'recharts';
 import { useAuth } from '../auth/AuthContext';
+import { ComplexPaymentMethodForm, ComplexPaymentPeriodForm, ComplexPaymentTypeForm } from '../components/ComplexFinanceForms';
 import { DataTable } from '../components/DataTable';
 import { ModalForm } from '../components/ModalForm';
+
 import { formatMoney, MoneyText } from '../components/MoneyText';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { PostPaymentActionModal } from '../components/PostPaymentActionModal';
@@ -366,11 +368,65 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
     }
   }, [activeTab]);
 
+  // JIKA MODAL FORM KEUANGAN DIBUKA, TAMPILKAN IN-PAGE FORM KONSISTEN
+  if (modal === 'type') {
+
+    return (
+      <ComplexPaymentTypeForm
+        row={editing}
+        semesters={activeSemesters}
+        paymentMethods={activeMethods}
+        paymentPeriods={activePeriods}
+        onClose={() => setModal(null)}
+        onSaved={async () => {
+          setModal(null);
+          setEditing(null);
+          showToast('Tipe Pembayaran berhasil disimpan!', 'success');
+          await load();
+          if (billingStudentId) {
+            await openBilling(billingStudentId);
+          }
+        }}
+      />
+    );
+  }
+
+  if (modal === 'method') {
+    return (
+      <ComplexPaymentMethodForm
+        row={editing}
+        onClose={() => setModal(null)}
+        onSaved={async () => {
+          setModal(null);
+          setEditing(null);
+          showToast('Metode Pembayaran berhasil disimpan!', 'success');
+          await load();
+        }}
+      />
+    );
+  }
+
+  if (modal === 'period') {
+    return (
+      <ComplexPaymentPeriodForm
+        row={editing}
+        onClose={() => setModal(null)}
+        onSaved={async () => {
+          setModal(null);
+          setEditing(null);
+          showToast('Periode Pembayaran berhasil disimpan!', 'success');
+          await load();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <section className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-bold text-[#636E72]">{pageHeaderInfo.subtitle}</p>
+
           <h1 className="text-3xl font-extrabold text-[#2D3436]">{pageHeaderInfo.title}</h1>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -639,50 +695,6 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
           <DocumentSettingsPanel settings={documentSettings} onSaved={load} />
         ) : null}
       </section>
-
-
-      {modal === 'type' ? (
-        <PaymentTypeModal
-          row={editing}
-          semesters={activeSemesters}
-          paymentMethods={activeMethods}
-          paymentPeriods={activePeriods}
-          onClose={() => setModal(null)}
-          onSaved={async () => {
-            setModal(null);
-            setEditing(null);
-            showToast('Tipe Pembayaran berhasil disimpan!', 'success');
-            await load();
-            if (billingStudentId) {
-              await openBilling(billingStudentId);
-            }
-          }}
-        />
-      ) : null}
-      {modal === 'method' ? (
-        <PaymentMethodModal
-          row={editing}
-          onClose={() => setModal(null)}
-          onSaved={async () => {
-            setModal(null);
-            setEditing(null);
-            showToast('Metode Pembayaran berhasil disimpan!', 'success');
-            await load();
-          }}
-        />
-      ) : null}
-      {modal === 'period' ? (
-        <PaymentPeriodModal
-          row={editing}
-          onClose={() => setModal(null)}
-          onSaved={async () => {
-            setModal(null);
-            setEditing(null);
-            showToast('Periode Pembayaran berhasil disimpan!', 'success');
-            await load();
-          }}
-        />
-      ) : null}
 
     </div>
   );
@@ -2484,11 +2496,47 @@ function MasterPaymentTypes({ rows, onCreate, onEdit }: { rows: ApiRecord[]; onC
       <DataTable
         rows={rows}
         columns={[
-          { key: 'nama', header: 'Nama', render: (row) => <span className="font-extrabold">{str(row.nama)}</span> },
-          { key: 'nominal', header: 'Nominal', render: (row) => <MoneyText value={row.nominal_default} /> },
-          { key: 'periode', header: 'Periode', render: (row) => str(row.periode ?? record(row.periodType).name) },
-          { key: 'status', header: 'Status', render: (row) => <StatusBadge label={str(row.status, 'Aktif')} tone={statusTone(row.status)} /> },
-          { key: 'aksi', header: 'Aksi', render: (row) => <button className="rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-bold text-[#2E86DE]" onClick={() => onEdit(row)} type="button">Edit</button> }
+          {
+            key: 'nama',
+            header: 'Nama Pos Tagihan',
+            sortable: true,
+            sortValue: (row) => str(row.nama),
+            render: (row) => <span className="font-extrabold text-slate-800">{str(row.nama)}</span>
+          },
+          {
+            key: 'nominal',
+            header: 'Nominal',
+            sortable: true,
+            sortValue: (row) => num(row.nominal_default),
+            render: (row) => <MoneyText value={row.nominal_default} />
+          },
+          {
+            key: 'periode',
+            header: 'Periode',
+            sortable: true,
+            sortValue: (row) => str(row.periode ?? record(row.periodType).name),
+            render: (row) => (
+              <span className="font-bold text-xs uppercase text-[#138F81] bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-200/60">
+                {str(row.periode ?? record(row.periodType).name)}
+              </span>
+            )
+          },
+          {
+            key: 'status',
+            header: 'Status',
+            sortable: true,
+            sortValue: (row) => str(row.status, 'Aktif'),
+            render: (row) => <StatusBadge label={str(row.status, 'Aktif')} tone={statusTone(row.status)} />
+          },
+          {
+            key: 'aksi',
+            header: 'Aksi',
+            render: (row) => (
+              <button className="rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-bold text-[#2E86DE] hover:bg-blue-100 transition-colors" onClick={() => onEdit(row)} type="button">
+                Edit
+              </button>
+            )
+          }
         ]}
       />
     </div>
@@ -2546,17 +2594,41 @@ function CrudPanel({
       <DataTable
         rows={rows}
         columns={[
-          { key: 'nama', header: 'Nama', render: (row) => <span className="font-extrabold">{str(row.name)}</span> },
-          { key: 'kode', header: 'Kode', render: (row) => str(row.code) },
-          { key: 'urutan', header: 'Urutan Tampil', render: (row) => str(row.sort_order) },
-          { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.is_active === false ? 'Nonaktif' : 'Aktif'} tone={row.is_active === false ? 'danger' : 'success'} /> },
+          {
+            key: 'nama',
+            header: 'Nama',
+            sortable: true,
+            sortValue: (row) => str(row.name),
+            render: (row) => <span className="font-extrabold text-slate-800">{str(row.name)}</span>
+          },
+          {
+            key: 'kode',
+            header: 'Kode',
+            sortable: true,
+            sortValue: (row) => str(row.code),
+            render: (row) => <span className="font-mono text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{str(row.code)}</span>
+          },
+          {
+            key: 'urutan',
+            header: 'Urutan Tampil',
+            sortable: true,
+            sortValue: (row) => num(row.sort_order),
+            render: (row) => <span className="font-bold text-xs text-slate-500">{str(row.sort_order)}</span>
+          },
+          {
+            key: 'status',
+            header: 'Status',
+            sortable: true,
+            sortValue: (row) => (row.is_active === false ? 0 : 1),
+            render: (row) => <StatusBadge label={row.is_active === false ? 'Nonaktif' : 'Aktif'} tone={row.is_active === false ? 'danger' : 'success'} />
+          },
           {
             key: 'aksi',
             header: 'Aksi',
             render: (row) => (
               <div className="flex gap-2">
-                <button className="rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-bold text-[#2E86DE]" onClick={() => onEdit(row)} type="button">Edit</button>
-                <button className="rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-bold text-[#D63031]" onClick={() => void onDelete(row)} type="button"><Trash2 size={14} /></button>
+                <button className="rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-bold text-[#2E86DE] hover:bg-blue-100 transition-colors" onClick={() => onEdit(row)} type="button">Edit</button>
+                <button className="rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-bold text-[#D63031] hover:bg-rose-100 transition-colors" onClick={() => void onDelete(row)} type="button"><Trash2 size={14} /></button>
               </div>
             )
           }
