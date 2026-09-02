@@ -1,5 +1,5 @@
 import { BookOpen, Pencil, Plus, RefreshCw, Search, Trash2, UsersRound } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ComplexKelompokForm } from '../components/ComplexKelompokForm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
@@ -45,8 +45,8 @@ export function KelompokBelajarPage() {
   const [isReadOnlyForm, setIsReadOnlyForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ApiRecord | null>(null);
 
-  async function load() {
-    setIsLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
     setError('');
     try {
       const result = await api.kelompokBelajar();
@@ -54,15 +54,51 @@ export function KelompokBelajarPage() {
       setGroups(data);
       setRows(flattenGroups(data));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Kelompok belajar gagal dimuat.');
+      if (!silent) setError(err instanceof Error ? err.message : 'Kelompok belajar gagal dimuat.');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     void load();
-  }, []);
+
+    // 1. Auto-refresh saat event app:data-updated dipicu
+    const handleDataUpdate = (e: Event) => {
+      const customEvt = e as CustomEvent;
+      if (!customEvt.detail || customEvt.detail.type === 'kelompok' || customEvt.detail.type === 'all') {
+        void load(true);
+      }
+    };
+    window.addEventListener('app:data-updated', handleDataUpdate);
+
+    // 2. Auto-refresh saat tab/layar kembali aktif (window focus & visibility change)
+    const handleFocus = () => {
+      void load(true);
+    };
+    window.addEventListener('focus', handleFocus);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        void load(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // 3. Periodic Background Auto-Refresh cerdas (setiap 15 detik saat tab aktif)
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible' && activeFormData === undefined) {
+        void load(true);
+      }
+    }, 15000);
+
+    return () => {
+      window.removeEventListener('app:data-updated', handleDataUpdate);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(interval);
+    };
+  }, [load, activeFormData]);
+
 
   const filtered = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -195,12 +231,14 @@ export function KelompokBelajarPage() {
         onClose={() => {
           setActiveFormData(undefined);
           setIsReadOnlyForm(false);
+          void load(true);
         }}
         onSave={() => {
           setActiveFormData(undefined);
           setIsReadOnlyForm(false);
-          void load();
+          void load(true);
         }}
+
       />
     );
   }

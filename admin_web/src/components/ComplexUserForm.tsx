@@ -111,11 +111,13 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
         await api.createUser(payload);
       }
       
+      window.dispatchEvent(new CustomEvent('app:data-updated', { detail: { type: 'user' } }));
       setIsSuccess(true);
       setTimeout(() => {
         setIsSuccess(false);
         onSave();
-      }, 1800);
+      }, 600);
+
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal menyimpan data pengguna.');

@@ -24,7 +24,6 @@ class KelompokBelajarController extends Controller
             $query->where('kategori', $request->kategori);
         }
 
-        $data = $query->orderBy('kategori')->orderBy('nama')->get();
         $activeStatusId = app(ReferenceResolver::class)->studentStatusId('Aktif');
         $teacherId = $request->integer('user_id') ?: null;
         $teacherName = $teacherId
@@ -34,17 +33,28 @@ class KelompokBelajarController extends Controller
             $teacherId = null;
         }
 
+        // Hitung siswa murni dari relasi pivot kelompok_belajar_siswa tanpa duplikasi / ghost data
+        $query->withCount(['siswa as jumlah_siswa' => function ($q) use ($activeStatusId) {
+            $q->when(
+                $activeStatusId,
+                fn ($nested) => $nested->where('siswa.student_status_id', $activeStatusId),
+                fn ($nested) => $nested->where('siswa.status', 'Aktif')
+            );
+        }]);
+
+        $data = $query->orderBy('kategori')->orderBy('nama')->get();
+
         // Group by kategori
-        $grouped = $data->groupBy('kategori')->map(function ($items, $kategori) use ($activeStatusId, $teacherId, $teacherName) {
+        $grouped = $data->groupBy('kategori')->map(function ($items, $kategori) use ($teacherId, $teacherName) {
             return [
                 'kategori' => $kategori,
-                'kelas' => $items->map(function ($k) use ($activeStatusId, $teacherId, $teacherName) {
+                'kelas' => $items->map(function ($k) use ($teacherId, $teacherName) {
                     return [
                         'id' => $k->id,
                         'class_id' => $k->class_id,
                         'nama' => $k->nama,
                         'sifir' => $k->sifir,
-                        'jumlah_siswa' => $this->activeStudentCount($k, $activeStatusId),
+                        'jumlah_siswa' => (int) ($k->jumlah_siswa ?? 0),
                         'jumlah_mapel_aktif' => $this->activeMapelCount($k, $teacherId, $teacherName),
                     ];
                 })->values(),
@@ -56,6 +66,7 @@ class KelompokBelajarController extends Controller
             'data' => $grouped,
         ]);
     }
+
 
     // GET /api/kelompok-belajar/{id} — detail dengan list siswa
     private function activeStudentCount(KelompokBelajar $kelompokBelajar, ?int $activeStatusId): int
@@ -259,26 +270,15 @@ class KelompokBelajarController extends Controller
 
     private function activeStudentQuery(KelompokBelajar $kelompokBelajar, ?int $activeStatusId)
     {
-        return Siswa::query()
-            ->where(function ($query) use ($kelompokBelajar) {
-                if ($kelompokBelajar->class_id) {
-                    $query->where('class_id', $kelompokBelajar->class_id);
-                }
-                if ($kelompokBelajar->nama) {
-                    $method = $kelompokBelajar->class_id ? 'orWhere' : 'where';
-                    $query->{$method}('kelas', $kelompokBelajar->nama);
-                }
-                $pivotIds = $kelompokBelajar->siswa()->pluck('siswa.id');
-                if ($pivotIds->isNotEmpty()) {
-                    $query->orWhereIn('id', $pivotIds);
-                }
-            })
+        // Anggota kelompok belajar murni bersumber dari relasi tabel pivot kelompok_belajar_siswa
+        return $kelompokBelajar->siswa()
             ->when(
                 $activeStatusId,
-                fn ($query) => $query->where('student_status_id', $activeStatusId),
-                fn ($query) => $query->where('status', 'Aktif')
+                fn ($query) => $query->where('siswa.student_status_id', $activeStatusId),
+                fn ($query) => $query->where('siswa.status', 'Aktif')
             );
     }
+
 
     // PUT /api/kelompok-belajar/{id} — update kelompok
     public function update(Request $request, KelompokBelajar $kelompokBelajar)

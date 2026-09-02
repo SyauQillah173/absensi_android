@@ -187,15 +187,17 @@ export function ComplexKelompokForm({
         await api.createKelompokBelajar(payload);
       }
 
+      window.dispatchEvent(new CustomEvent('app:data-updated', { detail: { type: 'kelompok' } }));
       setIsSuccess(true);
       setTimeout(() => {
         setIsSuccess(false);
         onSave();
-      }, 1200);
+      }, 500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal menyimpan kelompok belajar.');
       setIsSaving(false);
     }
+
   };
 
   const selectedClassName = useMemo(() => {

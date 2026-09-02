@@ -209,8 +209,23 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
 
   useEffect(() => {
     void load();
+
+    const handleDataUpdate = () => {
+      void load();
+    };
+    window.addEventListener('app:data-updated', handleDataUpdate);
+    const handleFocus = () => {
+      void load();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('app:data-updated', handleDataUpdate);
+      window.removeEventListener('focus', handleFocus);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variant]);
+
 
   const statusCounts = useMemo(() => {
     let aktif = 0;
