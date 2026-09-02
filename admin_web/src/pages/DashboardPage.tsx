@@ -35,12 +35,15 @@ import {
   YAxis
 } from 'recharts';
 import { useAuth } from '../auth/AuthContext';
+import { DataTable } from '../components/DataTable';
+import { MoneyText, formatCompactMoney, formatMoney } from '../components/MoneyText';
 import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { GuruDashboardView } from '../components/GuruDashboardView';
 import { KepalaSekolahDashboardView } from '../components/KepalaSekolahDashboardView';
 import { api, type ApiRecord } from '../services/api';
 import type { AbsensiNavigationTarget } from './AbsensiPage';
+
 
 
 
