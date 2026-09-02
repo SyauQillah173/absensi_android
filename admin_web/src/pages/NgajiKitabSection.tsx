@@ -28,6 +28,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { api, type ApiRecord } from '../services/api';
 import { exportNgajiRekapExcel } from '../utils/excel';
 import { getTodayDateString } from '../utils/formatters';
+import { ComplexNgajiForm } from '../components/ComplexNgajiForm';
 
 type NgajiTab = 'input' | 'rekap' | 'master';
 type NgajiStatus = '' | 'H' | 'I' | 'S' | 'A';
@@ -339,34 +340,25 @@ function NgajiMaster() {
   const [sessions, setSessions] = useState<ApiRecord[]>([]);
   const [books, setBooks] = useState<ApiRecord[]>([]);
   const [schedules, setSchedules] = useState<ApiRecord[]>([]);
-  const [teachers, setTeachers] = useState<ApiRecord[]>([]);
-  const [complexes, setComplexes] = useState<ApiRecord[]>([]);
-  const [classes, setClasses] = useState<ApiRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [form, setForm] = useState<{ type: 'book' | 'schedule'; data: ApiRecord } | null>(null);
+  const [activeFormData, setActiveFormData] = useState<ApiRecord | null | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'book' | 'schedule'; row: ApiRecord } | null>(null);
 
   async function load() {
     setIsLoading(true);
     setError('');
     try {
-      const [sessionResult, bookResult, scheduleResult, teacherResult, complexResult, classResult] = await Promise.all([
+      const [sessionResult, bookResult, scheduleResult] = await Promise.all([
         api.ngajiSessions(),
         api.ngajiBooks(),
-        api.ngajiSchedules(),
-        api.users({ role: 'guru', status: 'Aktif' }),
-        api.boardingComplexes(),
-        api.classes()
+        api.ngajiSchedules()
       ]);
       setSessions(rows(sessionResult.data));
       setBooks(rows(bookResult.data));
       setSchedules(rows(scheduleResult.data));
-      setTeachers(rows(teacherResult.data));
-      setComplexes(rows(complexResult.data));
-      setClasses(rows(classResult.data));
     } catch (err) {
       setError(ngajiError(err, 'Master ngaji gagal dimuat.'));
     } finally {
@@ -377,42 +369,6 @@ function NgajiMaster() {
   useEffect(() => {
     void load();
   }, []);
-
-  async function save() {
-    if (!form) return;
-    setIsSaving(true);
-    setError('');
-    setNotice('');
-    try {
-      const id = num(form.data.id);
-      if (form.type === 'book') {
-        const bookCode = text(form.data.code, String(form.data.name).toLowerCase().replace(/[^a-z0-9]+/g, '_'));
-        const payload = { ...form.data, code: bookCode };
-        id ? await api.updateNgajiBook(id, payload) : await api.createNgajiBook(payload);
-
-        // Save cover photo locally if present
-        if (form.data._photo_base64) {
-          saveBookCover(bookCode, String(form.data._photo_base64));
-          if (id) saveBookCover(String(id), String(form.data._photo_base64));
-        } else if (form.data._photo_removed) {
-          removeBookCover(bookCode);
-          if (id) removeBookCover(String(id));
-        }
-        setNotice(`Kitab "${String(form.data.name)}" berhasil disimpan.`);
-      } else {
-        // Schedule form
-        const payload = { ...form.data };
-        id ? await api.updateNgajiSchedule(id, payload) : await api.createNgajiSchedule(payload);
-        setNotice('Jadwal pengajian santri berhasil disimpan.');
-      }
-      setForm(null);
-      await load();
-    } catch (err) {
-      setError(ngajiError(err, 'Master ngaji gagal disimpan.'));
-    } finally {
-      setIsSaving(false);
-    }
-  }
 
   async function deactivate() {
     if (!deleteTarget) return;
@@ -434,6 +390,20 @@ function NgajiMaster() {
     } finally {
       setIsSaving(false);
     }
+  }
+
+  // JIKA FORM AKTIF TERBUKA, TAMPILKAN COMPLEX NGAJI FORM (IN-PAGE MULTI-STEP FORM)
+  if (activeFormData !== undefined) {
+    return (
+      <ComplexNgajiForm
+        initialData={activeFormData}
+        onClose={() => setActiveFormData(undefined)}
+        onSave={() => {
+          setActiveFormData(undefined);
+          void load();
+        }}
+      />
+    );
   }
 
   const scheduleColumns: DataColumn<ApiRecord>[] = [
@@ -474,16 +444,30 @@ function NgajiMaster() {
     {
       key: 'aksi',
       header: 'Aksi',
-      render: (row) => (
-        <div className="flex gap-2 justify-end">
-          <button className="rounded-xl bg-[#EAF4FF] px-3.5 py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors" type="button" onClick={() => setForm({ type: 'schedule', data: row })}>
-            <Pencil size={13} className="inline mr-1" /> Edit
-          </button>
-          <button className="rounded-xl bg-[#FDECEC] px-3.5 py-2 text-xs font-extrabold text-[#D63031] hover:bg-[#fad4d4] transition-colors" type="button" onClick={() => setDeleteTarget({ type: 'schedule', row })}>
-            <Trash2 size={13} className="inline mr-1" /> Hapus
-          </button>
-        </div>
-      )
+      render: (row) => {
+        const bookData = books.find((b) => num(b.id) === num(row.ngaji_book_id)) || {
+          id: row.ngaji_book_id,
+          name: row.kitab,
+        };
+        return (
+          <div className="flex gap-2 justify-end">
+            <button
+              className="rounded-xl bg-[#EAF4FF] px-3.5 py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors inline-flex items-center gap-1.5"
+              type="button"
+              onClick={() => setActiveFormData(bookData)}
+            >
+              <Pencil size={13} /> Edit & Atur Jadwal
+            </button>
+            <button
+              className="rounded-xl bg-[#FDECEC] px-3.5 py-2 text-xs font-extrabold text-[#D63031] hover:bg-[#fad4d4] transition-colors inline-flex items-center gap-1.5"
+              type="button"
+              onClick={() => setDeleteTarget({ type: 'schedule', row })}
+            >
+              <Trash2 size={13} /> Hapus
+            </button>
+          </div>
+        );
+      }
     }
   ];
 
@@ -530,16 +514,9 @@ function NgajiMaster() {
           <button
             className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-4.5 text-sm font-extrabold text-white shadow-md shadow-[#138F81]/20 hover:brightness-105 transition-all"
             type="button"
-            onClick={() => setForm({ type: 'schedule', data: { status: 'Aktif', start_time: '05:30', end_time: '06:30' } })}
+            onClick={() => setActiveFormData(null)}
           >
-            <Plus size={17} /> Tambah Jadwal Ngaji
-          </button>
-          <button
-            className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-slate-800 px-4.5 text-sm font-extrabold text-white hover:bg-slate-700 transition-all shadow-xs"
-            type="button"
-            onClick={() => setForm({ type: 'book', data: { is_active: true, sort_order: 0, method: 'Maknani' } })}
-          >
-            <BookOpen size={17} /> Tambah Kitab Baru
+            <Plus size={17} /> Tambah Kitab & Jadwal Ngaji
           </button>
         </div>
         <RefreshButton isLoading={isLoading} onClick={() => void load()} />
@@ -572,10 +549,10 @@ function NgajiMaster() {
           </div>
           <button
             className="rounded-2xl bg-teal-50 px-3.5 py-2 text-xs font-extrabold text-[#138F81] hover:bg-teal-100 transition-colors inline-flex items-center gap-1.5"
-            onClick={() => setForm({ type: 'book', data: { is_active: true, sort_order: 0, method: 'Maknani' } })}
+            onClick={() => setActiveFormData(null)}
             type="button"
           >
-            <Plus size={15} /> Tambah Kitab
+            <Plus size={15} /> Tambah Kitab Baru
           </button>
         </div>
 
@@ -600,15 +577,12 @@ function NgajiMaster() {
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
-                    className="rounded-xl bg-white p-2 text-slate-600 hover:bg-slate-200 shadow-xs border border-slate-200/60 transition-colors"
-                    onClick={() => {
-                      const coverImg = getBookCover(String(b.code || b.id || b.name));
-                      setForm({ type: 'book', data: { ...b, _photo_preview: coverImg } });
-                    }}
+                    className="rounded-xl bg-white px-3 py-1.5 text-xs font-extrabold text-blue-600 hover:bg-blue-50 shadow-2xs border border-slate-200 transition-colors inline-flex items-center gap-1"
+                    onClick={() => setActiveFormData(b)}
                     type="button"
-                    title="Edit Kitab"
+                    title="Edit & Atur Jadwal Kitab"
                   >
-                    <Pencil size={14} />
+                    <Pencil size={13} /> Edit
                   </button>
                   <button
                     className="rounded-xl bg-rose-50 p-2 text-rose-600 hover:bg-rose-100 transition-colors"
@@ -624,86 +598,6 @@ function NgajiMaster() {
           })}
         </div>
       </section>
-
-      {/* MODAL FORM TAMBAH / EDIT (KONSISTEN DENGAN FORM SANTRI & MADIN) */}
-      {form ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto">
-          <div className="w-full max-w-xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200 my-8">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-teal-50/70 via-emerald-50/50 to-white p-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#138F81] text-white shadow-md shadow-[#138F81]/20">
-                  {form.type === 'book' ? <BookOpen size={22} /> : <CalendarDays size={22} />}
-                </div>
-                <div>
-                  <h3 className="text-lg font-extrabold text-[#2D3436]">
-                    {form.type === 'book'
-                      ? form.data.id ? 'Edit Data Kitab Ngaji' : 'Tambah Kitab Ngaji Baru'
-                      : form.data.id ? 'Edit Jadwal Pengajian' : 'Tambah Jadwal Pengajian Baru'}
-                  </h3>
-                  <p className="text-xs font-semibold text-[#636E72]">
-                    {form.type === 'book'
-                      ? 'Daftar materi kajian kitab santri Pondok Pesantren Qomaruddin'
-                      : 'Atur sesi, pengajar, waktu, dan target santri pengajian'}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setForm(null)}
-                className="rounded-2xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-                type="button"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <form
-              id="ngaji-form"
-              className="p-6 space-y-4 max-h-[75vh] overflow-y-auto"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void save();
-              }}
-            >
-              {form.type === 'book' ? (
-                /* FORM KITAB NGAJI DENGAN FOTO */
-                <KitabFormFields data={form.data} setData={(data) => setForm({ ...form, data })} />
-              ) : (
-                /* FORM JADWAL NGAJI TERINTEGRASI */
-                <ScheduleFormFields
-                  data={form.data}
-                  setData={(data) => setForm({ ...form, data })}
-                  sessions={sessions}
-                  books={books}
-                  teachers={teachers}
-                  complexes={complexes}
-                  classes={classes}
-                />
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setForm(null)}
-                  className="w-1/3 rounded-2xl border border-slate-200 bg-white py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="w-2/3 rounded-2xl bg-[#138F81] py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/25 hover:brightness-105 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
-                >
-                  <CheckCircle2 size={18} />
-                  {isSaving ? 'Menyimpan...' : 'Simpan Data'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
 
       {/* CONFIRM DELETE DIALOG */}
       {deleteTarget ? (
@@ -723,367 +617,6 @@ function NgajiMaster() {
 /**
  * Form Fields untuk Tambah / Edit Kitab Ngaji + Foto Cover Kitab (Offline Client Storage)
  */
-function KitabFormFields({ data, setData }: { data: ApiRecord; setData: (data: ApiRecord) => void }) {
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const photoPreview = (data._photo_preview as string) || getBookCover(String(data.code || data.id || data.name));
-
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = String(reader.result);
-      setData({
-        ...data,
-        _photo_base64: base64,
-        _photo_preview: base64,
-        _photo_removed: false
-      });
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleRemovePhoto = () => {
-    setData({
-      ...data,
-      _photo_base64: null,
-      _photo_preview: null,
-      _photo_removed: true
-    });
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Upload Foto Cover Kitab (Opsional, simpan di internal HP/browser) */}
-      <div className="rounded-2xl bg-teal-50/50 p-4 border border-teal-100 flex items-center gap-4">
-        <div className="relative shrink-0">
-          {photoPreview ? (
-            <div className="relative group">
-              <img src={photoPreview} alt="Cover" className="h-20 w-16 rounded-2xl object-cover border-2 border-[#138F81] shadow-md" />
-              <button
-                type="button"
-                onClick={handleRemovePhoto}
-                className="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-1 shadow-sm hover:bg-rose-600 transition-colors"
-                title="Hapus foto"
-              >
-                <X size={13} />
-              </button>
-            </div>
-          ) : (
-            <div className="h-20 w-16 rounded-2xl bg-teal-100/70 border-2 border-dashed border-[#138F81]/40 flex flex-col items-center justify-center text-[#138F81]">
-              <ImageIcon size={22} />
-              <span className="text-[9px] font-bold mt-1">Cover</span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex-1">
-          <p className="text-xs font-extrabold text-slate-800">Foto Cover Kitab (Opsional)</p>
-          <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
-            Tersimpan langsung di memori HP/browser Anda agar cepat dan hemat server.
-          </p>
-          <div className="mt-2 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="rounded-xl bg-white px-3 py-1.5 text-xs font-extrabold text-[#138F81] border border-teal-200/80 shadow-2xs hover:bg-teal-50 transition-colors inline-flex items-center gap-1.5"
-            >
-              <Camera size={13} /> {photoPreview ? 'Ganti Foto' : 'Pilih Foto Kitab'}
-            </button>
-            {photoPreview && (
-              <button
-                type="button"
-                onClick={handleRemovePhoto}
-                className="rounded-xl bg-rose-50 px-3 py-1.5 text-xs font-extrabold text-rose-600 hover:bg-rose-100 transition-colors"
-              >
-                Hapus
-              </button>
-            )}
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handlePhotoUpload}
-          />
-        </div>
-      </div>
-
-      {/* Field: Nama Kitab */}
-      <div>
-        <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
-          Nama Kitab <span className="text-rose-500">*</span>
-        </label>
-        <input
-          className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all"
-          value={text(data.name, '')}
-          onChange={(e) => setData({ ...data, name: e.target.value })}
-          placeholder="Contoh: Fathul Qorib, Safinatun Najah, Jurumiyah..."
-          required
-        />
-      </div>
-
-      {/* Field: Kode Unik */}
-      <div>
-        <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
-          Kode Unik Kitab (Opsional)
-        </label>
-        <input
-          className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-mono font-bold text-slate-800 placeholder:text-slate-400 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all"
-          value={text(data.code, '')}
-          onChange={(e) => setData({ ...data, code: e.target.value })}
-          placeholder="Contoh: fathul_qorib (otomatis terisi jika kosong)"
-        />
-      </div>
-
-      {/* Field: Metode Pengajian */}
-      <div>
-        <label className="mb-2 block text-xs font-extrabold text-slate-700">
-          Metode Pengajian <span className="text-rose-500">*</span>
-        </label>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {['Maknani', 'Sorogan', 'Lalaran', 'Mudzakarah'].map((m) => {
-            const isSelected = text(data.method, 'Maknani') === m;
-            return (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setData({ ...data, method: m })}
-                className={`rounded-2xl p-2.5 text-center border transition-all text-xs ${
-                  isSelected
-                    ? 'bg-[#138F81]/10 border-[#138F81] text-[#138F81] font-black ring-2 ring-[#138F81]/20 shadow-xs'
-                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 font-bold'
-                }`}
-              >
-                {m === 'Maknani' ? '📖 Maknani' : m === 'Sorogan' ? '🗣️ Sorogan' : m === 'Lalaran' ? '✍️ Lalaran' : '💡 Mudzakarah'}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Field: Keterangan */}
-      <div>
-        <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
-          Keterangan Kitab (Opsional)
-        </label>
-        <textarea
-          className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all min-h-20 resize-none"
-          value={text(data.description, '')}
-          onChange={(e) => setData({ ...data, description: e.target.value })}
-          placeholder="Pengarang, bab bahasan, atau catatan materi..."
-        />
-      </div>
-
-      {/* Field: Status Aktif */}
-      <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4 border border-slate-100">
-        <div>
-          <p className="text-xs font-extrabold text-slate-800">Status Kitab</p>
-          <p className="text-[11px] font-semibold text-slate-500">
-            Aktifkan agar kitab dapat dipilih pada jadwal pengajian.
-          </p>
-        </div>
-        <label className="relative inline-flex cursor-pointer items-center">
-          <input
-            type="checkbox"
-            className="peer sr-only"
-            checked={data.is_active !== false}
-            onChange={(e) => setData({ ...data, is_active: e.target.checked })}
-          />
-          <div className="h-6 w-11 rounded-full bg-slate-200 after:absolute after:top-[2px] after:start-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-[#138F81] peer-checked:after:translate-x-full peer-focus:outline-hidden"></div>
-        </label>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Form Fields untuk Tambah / Edit Jadwal Pengajian (Terintegrasi Sesi + Kitab + Ustadz)
- */
-function ScheduleFormFields({
-  data,
-  setData,
-  sessions,
-  books,
-  teachers,
-  complexes,
-  classes
-}: {
-  data: ApiRecord;
-  setData: (data: ApiRecord) => void;
-  sessions: ApiRecord[];
-  books: ApiRecord[];
-  teachers: ApiRecord[];
-  complexes: ApiRecord[];
-  classes: ApiRecord[];
-}) {
-  const selectedComplex = complexes.find((row) => num(row.id) === num(data.boarding_complex_id));
-  const roomRows = rows(record(selectedComplex).rooms);
-
-  return (
-    <div className="space-y-4">
-      {/* 1. Sesi & Kitab */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
-            Sesi Waktu Ngaji <span className="text-rose-500">*</span>
-          </label>
-          <select
-            className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all"
-            value={text(data.ngaji_session_id, '')}
-            onChange={(e) => {
-              const sid = Number(e.target.value);
-              const ses = sessions.find((s) => num(s.id) === sid);
-              setData({
-                ...data,
-                ngaji_session_id: sid,
-                start_time: ses?.start_time ? String(ses.start_time) : data.start_time,
-                end_time: ses?.end_time ? String(ses.end_time) : data.end_time,
-              });
-            }}
-            required
-          >
-            <option value="">-- Pilih Sesi Waktu Ngaji --</option>
-            {sessions.map((row) => (
-              <option key={text(row.id)} value={text(row.id)}>
-                {text(row.name)} ({text(row.start_time, '--:--')} - {text(row.end_time, '--:--')})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
-            Kitab Kajian <span className="text-rose-500">*</span>
-          </label>
-          <select
-            className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all"
-            value={text(data.ngaji_book_id, '')}
-            onChange={(e) => setData({ ...data, ngaji_book_id: Number(e.target.value) })}
-            required
-          >
-            <option value="">-- Pilih Kitab Kajian --</option>
-            {books.map((row) => (
-              <option key={text(row.id)} value={text(row.id)}>
-                {text(row.name)} - {text(row.method, 'Maknani')}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* 2. Pengajar Ustadz */}
-      <div>
-        <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
-          Ustadz / Ustadzah Pengajar
-        </label>
-        <select
-          className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all"
-          value={text(data.teacher_id, '')}
-          onChange={(e) => setData({ ...data, teacher_id: e.target.value ? Number(e.target.value) : null })}
-        >
-          <option value="">-- Pilih Ustadz Pengajar (Opsional) --</option>
-          {teachers.map((row) => (
-            <option key={text(row.id)} value={text(row.id)}>
-              {row.jenis_kelamin === 'P' ? '🧕 Ustadzah ' : '👳‍♂️ Ustadz '} {text(row.name)}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* 3. Target Santri (Komplek / Kamar / Kelas) */}
-      <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100 space-y-3">
-        <p className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-          <UsersRound size={15} className="text-[#138F81]" /> Target Santri Pengajian (Opsional)
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-          <select
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 focus:border-[#138F81] focus:outline-hidden"
-            value={text(data.boarding_complex_id, '')}
-            onChange={(e) => setData({ ...data, boarding_complex_id: e.target.value ? Number(e.target.value) : null, boarding_room_id: null })}
-          >
-            <option value="">Semua Komplek</option>
-            {complexes.map((row) => (
-              <option key={text(row.id)} value={text(row.id)}>{text(row.name)}</option>
-            ))}
-          </select>
-
-          <select
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 focus:border-[#138F81] focus:outline-hidden"
-            value={text(data.boarding_room_id, '')}
-            onChange={(e) => setData({ ...data, boarding_room_id: e.target.value ? Number(e.target.value) : null })}
-          >
-            <option value="">Semua Kamar</option>
-            {roomRows.map((row) => (
-              <option key={text(row.id)} value={text(row.id)}>{text(row.name)}</option>
-            ))}
-          </select>
-
-          <select
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 focus:border-[#138F81] focus:outline-hidden"
-            value={text(data.class_id, '')}
-            onChange={(e) => setData({ ...data, class_id: e.target.value ? Number(e.target.value) : null })}
-          >
-            <option value="">Semua Kelas Madin</option>
-            {classes.map((row) => (
-              <option key={text(row.id)} value={text(row.id)}>{text(row.name)}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* 4. Jam Mulai, Jam Selesai, Status */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div>
-          <label className="mb-1 block text-xs font-extrabold text-slate-700">Jam Mulai</label>
-          <input
-            className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm font-bold text-slate-800 focus:border-[#138F81] focus:bg-white focus:outline-hidden"
-            type="time"
-            value={text(data.start_time, '')}
-            onChange={(e) => setData({ ...data, start_time: e.target.value })}
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-extrabold text-slate-700">Jam Selesai</label>
-          <input
-            className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm font-bold text-slate-800 focus:border-[#138F81] focus:bg-white focus:outline-hidden"
-            type="time"
-            value={text(data.end_time, '')}
-            onChange={(e) => setData({ ...data, end_time: e.target.value })}
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-extrabold text-slate-700">Status Jadwal</label>
-          <select
-            className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm font-bold text-slate-800 focus:border-[#138F81] focus:bg-white focus:outline-hidden"
-            value={text(data.status, 'Aktif')}
-            onChange={(e) => setData({ ...data, status: e.target.value })}
-          >
-            <option value="Aktif">🟢 Aktif</option>
-            <option value="Nonaktif">⚪ Nonaktif</option>
-          </select>
-        </div>
-      </div>
-
-      {/* 5. Keterangan */}
-      <div>
-        <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
-          Keterangan Jadwal (Opsional)
-        </label>
-        <textarea
-          className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all min-h-20 resize-none"
-          value={text(data.description, '')}
-          onChange={(e) => setData({ ...data, description: e.target.value })}
-          placeholder="Lokasi aula, musholla, atau keterangan tambahan..."
-        />
-      </div>
-    </div>
-  );
-}
-
 function AttendanceRows({
   rows: studentRows,
   isLoading,
