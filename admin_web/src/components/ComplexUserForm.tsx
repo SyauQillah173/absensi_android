@@ -1,6 +1,7 @@
-import { CheckCircle2, KeyRound, User, X } from 'lucide-react';
+import { CheckCircle2, KeyRound, Sparkles, User, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api, type ApiRecord } from '../services/api';
+import { SYSTEM_ROLE_OPTIONS, getRoleDisplayName, type RoleOption } from '../utils/roleHelper';
 
 interface ComplexUserFormProps {
   initialData?: ApiRecord | null;
@@ -26,14 +27,16 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
           parsed[key] = String(value);
         }
       });
-      // Set defaults for missing fields
       if (!parsed.role) parsed.role = forcedRole || 'admin';
       if (!parsed.status) parsed.status = 'Aktif';
       setForm(parsed);
     } else {
       setForm({ 
         role: forcedRole || 'admin',
-        status: 'Aktif'
+        admin_type: forcedRole === 'admin' ? 'pengurus' : '',
+        status: 'Aktif',
+        gender: 'L',
+        password: 'admin123'
       });
     }
   }, [initialData, forcedRole]);
@@ -41,6 +44,41 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Smart Role Picker handler
+  const handleRoleSelection = (selectedKey: string) => {
+    const option = SYSTEM_ROLE_OPTIONS.find(o => o.key === selectedKey);
+    if (!option) return;
+
+    setForm(prev => {
+      const updated = {
+        ...prev,
+        role: option.role,
+        admin_type: option.adminType || '',
+      };
+
+      // Set default password suggestion if creating new user
+      if (!prev.id) {
+        if (option.role === 'admin') updated.password = 'admin123';
+        else if (option.role === 'guru') updated.password = 'guru123';
+        else if (option.role === 'wali') updated.password = 'siswa123';
+      }
+
+      return updated;
+    });
+  };
+
+  // Quick email generator
+  const generateEmailFromName = () => {
+    const name = String(form.name || '').trim().toLowerCase();
+    if (!name) return;
+    const cleanName = name
+      .replace(/^(mas|bapak|pak|ibu|ustadz|ustadzah|h\.|hj\.)\s+/i, '')
+      .replace(/[^a-z0-9]/g, '');
+    if (cleanName) {
+      setForm(prev => ({ ...prev, email: `${cleanName}@absensi.com` }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,7 +95,7 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
         gender: String(form.gender || 'L').trim(),
         no_hp: String(form.no_hp || '').trim() || null,
         role: String(form.role || 'admin'),
-        admin_type: form.role === 'admin' ? (String(form.admin_type || 'utama')) : null,
+        admin_type: form.role === 'admin' ? String(form.admin_type || 'pengurus') : null,
         status: String(form.status || 'Aktif'),
         kode_guru: form.role === 'guru' ? (String(form.kode_guru || '').trim() || null) : null
       };
@@ -76,16 +114,27 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
       setTimeout(() => {
         setIsSuccess(false);
         onSave();
-      }, 2000);
+      }, 1800);
       
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Gagal menyimpan data user.');
+      setError(err instanceof Error ? err.message : 'Gagal menyimpan data pengguna.');
       setIsSaving(false);
     }
   };
 
+  // Find currently active role option
+  const currentRoleKey = (() => {
+    if (form.role === 'guru') return 'guru';
+    if (form.role === 'wali') return 'wali';
+    if (form.role === 'admin') {
+      const match = SYSTEM_ROLE_OPTIONS.find(o => o.role === 'admin' && o.adminType === String(form.admin_type || ''));
+      return match ? match.key : 'admin_pengurus';
+    }
+    return 'admin_pengurus';
+  })();
+
+  const activeRoleOption = SYSTEM_ROLE_OPTIONS.find(o => o.key === currentRoleKey) || SYSTEM_ROLE_OPTIONS[1];
   const isGuru = form.role === 'guru';
-  const isAdmin = form.role === 'admin';
 
   return (
     <div className="w-full flex-1">
@@ -93,10 +142,17 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
           
           <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
             <div>
-              <h2 className="text-xl font-extrabold text-[#2D3436]">
-                {readOnly ? 'Detail Data Pengguna' : (form.id ? 'Edit Data Pengguna' : 'Tambah Data Pengguna Baru')}
-              </h2>
-              <p className="text-sm font-semibold text-[#636E72] mt-1">Lengkapi informasi profil dan hak akses dengan detail.</p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-extrabold text-[#2D3436]">
+                  {readOnly ? 'Detail Data Pengguna' : (form.id ? 'Edit Data Pengguna' : 'Tambah Data Pengguna Baru')}
+                </h2>
+                <span className="rounded-xl bg-[#E8F7F3] px-2.5 py-0.5 text-xs font-black text-[#138F81] border border-teal-200">
+                  {getRoleDisplayName(String(form.role || ''), String(form.admin_type || ''))}
+                </span>
+              </div>
+              <p className="text-sm font-semibold text-[#636E72] mt-1">
+                Sistem cerdas otomatis menyiapkan hak akses dan antarmuka sesuai jabatan role yang dipilih.
+              </p>
             </div>
             <button className="grid h-10 w-10 place-items-center rounded-full bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors" onClick={onClose} type="button" disabled={isSuccess}>
               <X size={20} />
@@ -108,8 +164,10 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
               <div className="flex h-24 w-24 items-center justify-center rounded-full bg-green-100 text-green-500 shadow-xl shadow-green-500/20 mb-6 animate-[bounce_1s_ease-in-out_infinite]">
                 <CheckCircle2 size={56} strokeWidth={2.5} />
               </div>
-              <h2 className="text-2xl font-extrabold text-[#2D3436] animate-[pulse_2s_ease-in-out_infinite]">Berhasil!</h2>
-              <p className="mt-2 text-base font-bold text-[#636E72]">{form.id ? 'Data pengguna diperbarui.' : 'Pengguna baru ditambahkan.'}</p>
+              <h2 className="text-2xl font-extrabold text-[#2D3436] animate-[pulse_2s_ease-in-out_infinite]">Berhasil Disimpan!</h2>
+              <p className="mt-2 text-base font-bold text-[#636E72]">
+                {form.id ? 'Data pengguna berhasil diperbarui.' : `Pengguna baru dengan role ${activeRoleOption.label} telah aktif.`}
+              </p>
             </div>
           )}
 
@@ -120,7 +178,7 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
                 <User size={18} /> I. Profil Akun
               </button>
               <button type="button" onClick={() => setActiveTab('akses')} className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'akses' ? 'bg-[#138F81] text-white shadow-md' : 'text-[#636E72] hover:bg-white'}`}>
-                <KeyRound size={18} /> II. Akses & Hak
+                <KeyRound size={18} /> II. Jabatan & Hak Akses
               </button>
             </div>
 
@@ -130,7 +188,7 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
                   I. Profil Akun
                 </button>
                 <button type="button" onClick={() => setActiveTab('akses')} className={`whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-bold ${activeTab === 'akses' ? 'bg-[#138F81] text-white shadow-sm' : 'bg-white text-[#636E72] border border-slate-200'}`}>
-                  II. Akses & Hak
+                  II. Jabatan & Hak Akses
                 </button>
               </div>
             </div>
@@ -144,106 +202,152 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
 
               <form id="complex-user-form" onSubmit={handleSubmit} className="space-y-8 max-w-3xl mx-auto">
                 
+                {/* TAB 1: PROFIL PENGGUNA */}
                 <div className={activeTab === 'profil' ? 'block' : 'hidden'}>
-                  <div className="space-y-4 rounded-3xl bg-slate-50 p-5 border border-slate-200 shadow-sm">
-                    <h3 className="text-sm font-extrabold text-[#138F81] flex items-center gap-2 mb-4">
-                      <User size={16} /> Informasi Pribadi
-                    </h3>
+                  <div className="space-y-5 rounded-3xl bg-slate-50 p-5 border border-slate-200 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-extrabold text-[#138F81] flex items-center gap-2">
+                        <User size={16} /> Biodata & Identitas Akun
+                      </h3>
+                      <span className="text-xs font-bold text-[#636E72]">Langkah 1 dari 2</span>
+                    </div>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <label className="block">
-                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Nama Lengkap</span>
-                        <input className="q-input" name="name" value={String(form.name || '')} onChange={handleChange} required disabled={readOnly} />
+                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Nama Lengkap Pengguna</span>
+                        <input className="q-input" name="name" value={String(form.name || '')} onChange={handleChange} required disabled={readOnly} placeholder="Misal: Abdullah Syauqillah / Mas Fahmi" />
                       </label>
                       <label className="block">
                         <span className="mb-2 block text-sm font-bold text-[#636E72]">Jenis Kelamin</span>
                         <select className="q-input" name="gender" value={String(form.gender || 'L')} onChange={handleChange} disabled={readOnly}>
-                          <option value="L">Laki-laki (Ustadz / Ikhwan)</option>
-                          <option value="P">Perempuan (Ustadzah / Akhwat)</option>
+                          <option value="L">Laki-laki (Ikhwan / Ustadz)</option>
+                          <option value="P">Perempuan (Akhwat / Ustadzah)</option>
                         </select>
                       </label>
                     </div>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <label className="block">
-                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Email Akun / Username Login</span>
-                        <input type="text" className="q-input" name="email" value={String(form.email || '')} onChange={handleChange} required disabled={readOnly} />
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="block text-sm font-bold text-[#636E72]">Email Login (Username)</span>
+                          {!readOnly && form.name && (
+                            <button
+                              type="button"
+                              onClick={generateEmailFromName}
+                              className="text-[11px] font-extrabold text-[#138F81] hover:underline flex items-center gap-1"
+                            >
+                              <Sparkles size={12} /> Buat Otomatis
+                            </button>
+                          )}
+                        </div>
+                        <input type="text" className="q-input" name="email" value={String(form.email || '')} onChange={handleChange} required disabled={readOnly} placeholder="contoh: fahmi@absensi.com" />
                       </label>
                       <label className="block">
                         <span className="mb-2 block text-sm font-bold text-[#636E72]">Nomor WhatsApp / HP</span>
-                        <input type="tel" className="q-input" name="no_hp" value={String(form.no_hp || '')} onChange={handleChange} disabled={readOnly} />
+                        <input type="tel" className="q-input" name="no_hp" value={String(form.no_hp || '')} onChange={handleChange} disabled={readOnly} placeholder="08xxxxxxxxxx" />
                       </label>
                     </div>
 
                     {!readOnly && (
-                      <div className="pt-4 border-t border-slate-200 mt-4">
-                        <label className="block">
-                          <span className="mb-2 block text-sm font-bold text-[#636E72]">{form.id ? 'Ganti Password (Opsional)' : 'Password Baru'}</span>
-                          <input type="password" className="q-input" name="password" value={String(form.password || '')} onChange={handleChange} required={!form.id} placeholder={form.id ? 'Kosongkan jika tidak ingin mengubah password' : 'Masukkan password untuk akun ini...'} />
-                        </label>
+                      <div className="pt-4 border-t border-slate-200 mt-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-[#636E72]">{form.id ? 'Ganti Password (Opsional)' : 'Password Akun'}</span>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setForm(prev => ({ ...prev, password: 'admin123' }))}
+                              className="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-teal-50 text-[#138F81] hover:bg-teal-100"
+                            >
+                              admin123
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setForm(prev => ({ ...prev, password: 'guru123' }))}
+                              className="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-teal-50 text-[#138F81] hover:bg-teal-100"
+                            >
+                              guru123
+                            </button>
+                          </div>
+                        </div>
+                        <input type="text" className="q-input" name="password" value={String(form.password || '')} onChange={handleChange} required={!form.id} placeholder={form.id ? 'Kosongkan jika tidak ingin mengubah password' : 'Masukkan password login...'} />
                       </div>
                     )}
                   </div>
                 </div>
 
+                {/* TAB 2: JABATAN & HAK AKSES */}
                 <div className={activeTab === 'akses' ? 'block' : 'hidden'}>
-                  <div className="space-y-4 rounded-3xl bg-slate-50 p-5 border border-slate-200 shadow-sm">
-                    <h3 className="text-sm font-extrabold text-[#138F81] flex items-center gap-2 mb-4">
-                      <KeyRound size={16} /> Peran & Hak Akses
-                    </h3>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-6 rounded-3xl bg-slate-50 p-5 border border-slate-200 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-extrabold text-[#138F81] flex items-center gap-2">
+                        <KeyRound size={16} /> Pemilihan Role & Jabatan Cerdas
+                      </h3>
+                      <span className="text-xs font-bold text-[#636E72]">Langkah 2 dari 2</span>
+                    </div>
+
+                    <div>
+                      <span className="mb-2 block text-sm font-bold text-[#2D3436]">Pilih Jabatan Resmi Pengguna:</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {SYSTEM_ROLE_OPTIONS.map((opt) => {
+                          const isSelected = currentRoleKey === opt.key;
+                          return (
+                            <button
+                              key={opt.key}
+                              type="button"
+                              onClick={() => handleRoleSelection(opt.key)}
+                              disabled={readOnly || (forcedRole && forcedRole !== opt.role)}
+                              className={`text-left p-3.5 rounded-2xl border transition-all ${
+                                isSelected
+                                  ? 'border-[#138F81] bg-teal-50/70 shadow-sm ring-2 ring-[#138F81]/20'
+                                  : 'border-slate-200 bg-white hover:border-slate-300'
+                              } ${(forcedRole && forcedRole !== opt.role) ? 'opacity-40 cursor-not-allowed' : ''}`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-base">{opt.icon}</span>
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                                  isSelected ? 'bg-[#138F81] text-white' : 'bg-slate-100 text-slate-600'
+                                }`}>
+                                  {opt.badge}
+                                </span>
+                              </div>
+                              <p className="text-xs font-black text-[#2D3436] mt-2">{opt.label}</p>
+                              <p className="text-[11px] font-semibold text-[#636E72] mt-1 line-clamp-2">{opt.description}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* LIVE PREVIEW BANNER */}
+                    <div className="rounded-2xl bg-white p-4 border border-teal-200 shadow-sm space-y-3">
+                      <div className="flex items-center gap-2 text-xs font-black text-[#138F81]">
+                        <Sparkles size={16} />
+                        <span>INFORMASI TAMPILAN SISTEM OTOMATIS:</span>
+                      </div>
+                      <div className="text-xs space-y-1.5 text-[#2D3436]">
+                        <p><strong className="text-[#636E72]">Peran Database:</strong> <code className="bg-slate-100 px-1.5 py-0.5 rounded font-bold">{form.role}</code> {form.admin_type ? <>| Tipe Admin: <code className="bg-slate-100 px-1.5 py-0.5 rounded font-bold">{form.admin_type}</code></> : null}</p>
+                        <p><strong className="text-[#636E72]">Tampilan Saat Login:</strong> <span className="font-bold text-[#138F81]">{activeRoleOption.loginView}</span></p>
+                        <p><strong className="text-[#636E72]">Status Akun:</strong> <span className="font-bold text-emerald-600">Aktif & Siap Digunakan</span></p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200">
                       <label className="block">
-                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Hak Akses (Role)</span>
-                        <select className="q-input" name="role" value={String(form.role || '')} onChange={handleChange} disabled={readOnly || !!forcedRole}>
-                          <option value="admin">Administrator</option>
-                          <option value="guru">Guru / Ustadz</option>
-                          <option value="wali">Wali Santri</option>
-                        </select>
-                      </label>
-                      <label className="block">
-                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Status Akun</span>
+                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Status Login</span>
                         <select className="q-input" name="status" value={String(form.status || 'Aktif')} onChange={handleChange} disabled={readOnly}>
-                          <option value="Aktif">Aktif (Bisa Login)</option>
+                          <option value="Aktif">Aktif (Dapat Login)</option>
                           <option value="Nonaktif">Nonaktif (Diblokir)</option>
                         </select>
                       </label>
-                    </div>
 
-                      {(form.role === 'admin' || form.role === 'guru') && (
-                        <label className="block sm:col-span-2">
-                          <span className="mb-2 block text-sm font-bold text-[#636E72]">{form.role === 'admin' ? 'Tipe Admin / Jabatan' : 'Hak Akses Spesifik Guru'}</span>
-                          <select className="q-input" name="admin_type" value={String(form.admin_type || (form.role === 'admin' ? 'utama' : 'umum'))} onChange={handleChange} disabled={readOnly}>
-                            {form.role === 'admin' ? (
-                              <>
-                                <option value="utama">👑 Admin Utama (Full Akses Seluruh Sistem)</option>
-                                <option value="bendahara_1">💵 Bendahara 1 (Input Transaksi & Tagihan Siswa Saja)</option>
-                                <option value="bendahara_2">💰 Bendahara 2 (Kepala Bendahara - Full Kas & Pengeluaran)</option>
-                                <option value="kepala_sekolah">🎓 Kepala Madrasah / Sekolah (Monitoring & Rekap Saja)</option>
-                                <option value="akademik">📚 Admin Akademik (KBM & Nilai)</option>
-                                <option value="pondok">🕌 Admin Pondok (Asrama & Santri)</option>
-                                <option value="absensi">📅 Admin Absensi (Rekap Kehadiran)</option>
-                                <option value="it">💻 Admin IT (Super Admin)</option>
-                              </>
-                            ) : (
-                              <>
-                                <option value="umum">Guru Umum (Sesuai Jadwal Mengajar)</option>
-                                <option value="madin">Guru Madin (Absensi Madin)</option>
-                                <option value="ngaji">Guru Ngaji Kitab (Absensi Ngaji)</option>
-                                <option value="sholat">Guru Pembina Sholat (Absensi Sholat)</option>
-                                <option value="asrama">Pembina Asrama / Musyrif</option>
-                              </>
-                            )}
-                          </select>
+                      {isGuru && (
+                        <label className="block">
+                          <span className="mb-2 block text-sm font-bold text-[#636E72]">Kode Guru (Opsional)</span>
+                          <input className="q-input" name="kode_guru" value={String(form.kode_guru || '')} onChange={handleChange} disabled={readOnly} placeholder="Misal: GR-001" />
                         </label>
                       )}
+                    </div>
 
-                    {isGuru && (
-                      <label className="block">
-                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Kode Guru (Opsional)</span>
-                        <input className="q-input" name="kode_guru" value={String(form.kode_guru || '')} onChange={handleChange} disabled={readOnly} placeholder="Misal: GR-001" />
-                      </label>
-                    )}
                   </div>
                 </div>
 

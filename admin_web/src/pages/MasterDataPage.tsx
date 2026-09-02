@@ -28,6 +28,7 @@ import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { api, type ApiRecord, type ImportResult } from '../services/api';
 import { downloadImportTemplate, exportRowsExcel, parseImportFile, type ImportTemplateType } from '../utils/importTemplates';
+import { getRoleDisplayName } from '../utils/roleHelper';
 
 export type MasterVariant = 'siswa' | 'alumni' | 'guru' | 'users' | 'login-admin' | 'login-guru' | 'login-wali' | 'pondok';
 type SiswaStatus = 'Aktif' | 'Nonaktif' | 'Lulus';
@@ -1156,14 +1157,18 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
       { key: 'phone', header: 'No HP', className: 'w-[140px]', render: (row) => <span className="text-xs font-mono">{text(row.no_hp)}</span> },
       {
         key: 'role',
-        header: 'Role & Akses',
-        className: 'w-[160px]',
-        render: (row) => (
-          <div className="flex items-center gap-1.5">
-            <StatusBadge label={text(row.role)} tone={text(row.role) === 'admin' ? 'success' : 'info'} />
-            {row.admin_type ? <span className="text-[11px] font-bold text-[#636E72] bg-gray-100 px-1.5 py-0.5 rounded">{text(row.admin_type)}</span> : null}
-          </div>
-        )
+        header: 'Role & Jabatan',
+        className: 'w-[180px]',
+        render: (row) => {
+          const formalName = getRoleDisplayName(String(row.role || ''), String(row.admin_type || ''));
+          return (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-black text-[#138F81] bg-[#E8F7F3] border border-teal-200 px-2 py-0.5 rounded-lg">
+                {formalName}
+              </span>
+            </div>
+          );
+        }
       },
       {
         key: 'status',

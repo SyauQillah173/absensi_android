@@ -34,8 +34,8 @@ import {
 } from "react";
 import { useAuth } from "../auth/AuthContext";
 import type { AbsensiTab } from "../pages/AbsensiPage";
-import type { BukuIndukSection } from "../pages/BukuIndukPage";
 import { api, type ApiRecord } from "../services/api";
+import { getRoleDisplayName } from "../utils/roleHelper";
 
 export type PageKey =
   | "dashboard"
@@ -217,55 +217,9 @@ export function AdminLayout({
   const teacherTitle = isFemaleTeacher ? 'Ustadzah' : 'Ustadz';
 
   const roleTitle = useMemo(() => {
-    if (!session) return 'Pengguna';
-    if (isGuru) return teacherTitle;
+    return getRoleDisplayName(session?.role, session?.admin_type, isGuru, teacherTitle);
+  }, [session?.role, session?.admin_type, isGuru, teacherTitle]);
 
-    const role = (session.role || '').toLowerCase().trim();
-    const adminType = (session.admin_type || '').toLowerCase().trim();
-
-    if (role === 'guru') return teacherTitle;
-    if (role === 'wali') return 'Wali Santri';
-
-    if (role === 'admin' || !role) {
-      if (adminType === 'bendahara_1') return 'Bendahara 1';
-      if (adminType === 'bendahara_2') return 'Bendahara 2';
-      if (adminType === 'bendahara' || adminType === 'keuangan') return 'Bendahara';
-      if (adminType === 'kasir') return 'Kasir Pembayaran';
-      if (
-        adminType === 'kepala_sekolah' ||
-        adminType === 'kepala_madrasah' ||
-        adminType === 'madrasah' ||
-        adminType === 'monitoring' ||
-        adminType === 'kepala'
-      ) {
-        return 'Kepala Madrasah';
-      }
-      if (adminType === 'it' || adminType === 'admin_it') return 'Admin IT';
-      if (adminType === 'pengurus' || adminType === 'admin_pengurus') return 'Admin Pengurus';
-      if (adminType === 'akademik' || adminType === 'admin_akademik') return 'Admin Akademik';
-      if (adminType === 'pondok' || adminType === 'admin_pondok' || adminType === 'asrama') return 'Admin Pondok';
-      if (adminType === 'absensi' || adminType === 'admin_absensi') return 'Admin Absensi';
-      if (adminType === 'superadmin') return 'Super Admin';
-      if (adminType === 'utama') return 'Admin Pengurus';
-
-      if (adminType) {
-        return adminType
-          .split('_')
-          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(' ');
-      }
-      return 'Admin Pengurus';
-    }
-
-    if (role === 'kepala_sekolah' || role === 'kepala_madrasah') {
-      return 'Kepala Madrasah';
-    }
-    if (role === 'bendahara') {
-      return 'Bendahara';
-    }
-
-    return role.charAt(0).toUpperCase() + role.slice(1);
-  }, [session, isGuru, teacherTitle]);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState<ApiRecord[]>([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
