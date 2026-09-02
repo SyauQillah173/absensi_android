@@ -1,5 +1,12 @@
 import type { LucideIcon } from 'lucide-react';
 
+export interface StatBreakdownItem {
+  label: string;
+  value: number | string;
+  tone?: 'success' | 'warning' | 'danger' | 'neutral' | 'blue' | 'purple' | 'teal' | 'rose' | 'sky';
+  tooltip?: string;
+}
+
 interface StatCardProps {
   title: string;
   value: string | number;
@@ -8,6 +15,7 @@ interface StatCardProps {
   icon: LucideIcon;
   tone?: 'teal' | 'blue' | 'orange' | 'purple' | 'red';
   compactValue?: boolean;
+  breakdown?: StatBreakdownItem[];
 }
 
 const toneMap: Record<string, string> = {
@@ -26,7 +34,28 @@ const subtitleToneMap: Record<string, string> = {
   red: 'text-[#D63031]'
 };
 
-export function StatCard({ title, value, valueTitle, subtitle, icon: Icon, tone = 'teal', compactValue = false }: StatCardProps) {
+const pillToneMap: Record<string, { bg: string; text: string; border: string }> = {
+  success: { bg: 'bg-emerald-50/80', text: 'text-emerald-700', border: 'border-emerald-200/80' },
+  warning: { bg: 'bg-amber-50/80', text: 'text-amber-700', border: 'border-amber-200/80' },
+  danger: { bg: 'bg-rose-50/80', text: 'text-rose-700', border: 'border-rose-200/80' },
+  neutral: { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200/80' },
+  blue: { bg: 'bg-sky-50/80', text: 'text-sky-700', border: 'border-sky-200/80' },
+  purple: { bg: 'bg-purple-50/80', text: 'text-purple-700', border: 'border-purple-200/80' },
+  teal: { bg: 'bg-teal-50/80', text: 'text-teal-700', border: 'border-teal-200/80' },
+  rose: { bg: 'bg-rose-50/80', text: 'text-rose-700', border: 'border-rose-200/80' },
+  sky: { bg: 'bg-sky-50/80', text: 'text-sky-700', border: 'border-sky-200/80' },
+};
+
+export function StatCard({
+  title,
+  value,
+  valueTitle,
+  subtitle,
+  icon: Icon,
+  tone = 'teal',
+  compactValue = false,
+  breakdown
+}: StatCardProps) {
   const valueStr = String(value ?? '');
   // Dynamically scale font size for long currency text so it NEVER clips or truncates
   const isLongValue = valueStr.length > 11;
@@ -37,6 +66,13 @@ export function StatCard({ title, value, valueTitle, subtitle, icon: Icon, tone 
     : isLongValue
     ? 'text-xl sm:text-2xl font-black'
     : 'text-2xl sm:text-3xl font-extrabold';
+
+  const gridColsClass =
+    breakdown && breakdown.length === 2
+      ? 'grid-cols-2 gap-1.5'
+      : breakdown && breakdown.length === 3
+      ? 'grid-cols-3 gap-1'
+      : 'grid-cols-4 gap-1';
 
   return (
     <section className="q-card q-stat-card flex flex-col justify-between p-4 sm:p-5 rounded-3xl border border-gray-100/90 bg-white shadow-xs hover:shadow-md transition-all duration-200">
@@ -58,13 +94,36 @@ export function StatCard({ title, value, valueTitle, subtitle, icon: Icon, tone 
             {value}
           </p>
         </div>
+
+        {subtitle ? (
+          <p className={`q-stat-subtitle mt-2 text-xs font-bold leading-tight ${subtitleToneMap[tone] || 'text-[#138F81]'}`}>
+            {subtitle}
+          </p>
+        ) : null}
       </div>
 
-      {subtitle ? (
-        <p className={`q-stat-subtitle mt-3.5 text-xs font-bold leading-tight ${subtitleToneMap[tone] || 'text-[#138F81]'}`}>
-          {subtitle}
-        </p>
+      {breakdown && breakdown.length > 0 ? (
+        <div className={`mt-3.5 pt-3 border-t border-slate-100 grid ${gridColsClass}`}>
+          {breakdown.map((item, idx) => {
+            const style = pillToneMap[item.tone ?? 'neutral'] || pillToneMap.neutral;
+            return (
+              <div
+                key={idx}
+                className={`flex flex-col items-center justify-center py-1 px-1 rounded-xl border ${style.bg} ${style.border} transition-transform hover:scale-105`}
+                title={item.tooltip || `${item.label}: ${item.value}`}
+              >
+                <span className={`text-xs font-black leading-none ${style.text}`}>
+                  {item.value}
+                </span>
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight mt-0.5 leading-none">
+                  {item.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       ) : null}
     </section>
   );
 }
+
