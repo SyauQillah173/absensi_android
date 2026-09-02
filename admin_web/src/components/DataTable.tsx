@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 
@@ -7,7 +7,10 @@ export interface DataColumn<T> {
   header: string;
   render: (row: T) => ReactNode;
   className?: string;
+  sortable?: boolean;
+  sortValue?: (row: T) => string | number;
 }
+
 
 interface DataTableProps<T> {
   columns: DataColumn<T>[];
@@ -20,9 +23,12 @@ interface DataTableProps<T> {
   isRowExpandable?: (row: T) => boolean;
   pageSize?: number;
   enablePagination?: boolean;
+  defaultSortKey?: string;
+  defaultSortDirection?: 'asc' | 'desc';
 }
 
 export function DataTable<T extends { id?: string | number }>({
+
   columns,
   rows,
   emptyText = 'Belum ada data.',
@@ -32,27 +38,68 @@ export function DataTable<T extends { id?: string | number }>({
   renderExpandedRow,
   isRowExpandable,
   pageSize: initialPageSize = 25,
-  enablePagination = true
+  enablePagination = true,
+  defaultSortKey,
+  defaultSortDirection = 'desc',
 }: DataTableProps<T>) {
   const [expandedRows, setExpandedRows] = useState<Set<string | number>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(initialPageSize);
+  const [sortKey, setSortKey] = useState<string | null>(defaultSortKey ?? null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(defaultSortDirection);
 
-  // Reset to page 1 whenever rows array changes (e.g. searching/filtering)
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('desc');
+    }
+  };
+
+  const sortedRows = useMemo(() => {
+    if (!sortKey) return rows;
+    const col = columns.find((c) => c.key === sortKey);
+    if (!col) return rows;
+
+    return [...rows].sort((a, b) => {
+      let valA: unknown;
+      let valB: unknown;
+
+      if (col.sortValue) {
+        valA = col.sortValue(a);
+        valB = col.sortValue(b);
+      } else {
+        valA = (a as Record<string, unknown>)[sortKey];
+        valB = (b as Record<string, unknown>)[sortKey];
+      }
+
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        return sortDir === 'asc' ? valA - valB : valB - valA;
+      }
+
+      const strA = String(valA ?? '').toLowerCase();
+      const strB = String(valB ?? '').toLowerCase();
+      return sortDir === 'asc' ? strA.localeCompare(strB) : strB.localeCompare(strA);
+    });
+  }, [rows, sortKey, sortDir, columns]);
+
+  // Reset to page 1 whenever rows array changes (e.g. searching/filtering/sorting)
   useEffect(() => {
     setCurrentPage(1);
-  }, [rows.length, pageSize]);
+  }, [sortedRows.length, pageSize, sortKey, sortDir]);
 
-  const totalRows = rows.length;
+  const totalRows = sortedRows.length;
   const isPaging = enablePagination && pageSize > 0 && totalRows > pageSize;
   const totalPages = isPaging ? Math.ceil(totalRows / pageSize) : 1;
   const safePage = Math.min(Math.max(1, currentPage), totalPages);
 
   const paginatedRows = useMemo(() => {
-    if (!isPaging) return rows;
+    if (!isPaging) return sortedRows;
     const start = (safePage - 1) * pageSize;
-    return rows.slice(start, start + pageSize);
-  }, [rows, isPaging, safePage, pageSize]);
+    return sortedRows.slice(start, start + pageSize);
+  }, [sortedRows, isPaging, safePage, pageSize]);
+
 
   const toggleRow = (id: string | number) => {
     setExpandedRows((prev) => {
@@ -78,11 +125,41 @@ export function DataTable<T extends { id?: string | number }>({
               {renderExpandedRow ? (
                 <th className="sticky top-0 z-10 w-12 bg-[#E1EFF7] px-4 py-2"></th>
               ) : null}
-              {columns.map((column) => (
-                <th key={column.key} className={`sticky top-0 z-10 bg-[#E1EFF7] px-4 py-2 text-left text-xs font-bold uppercase text-[#636E72] ${column.className ?? ''}`}>
-                  {column.header}
-                </th>
-              ))}
+              {columns.map((column) => {
+                const isCurrentSort = sortKey === column.key;
+                return (
+                  <th
+                    key={column.key}
+                    onClick={() => column.sortable && handleSort(column.key)}
+                    className={`sticky top-0 z-10 bg-[#E1EFF7] px-4 py-2.5 text-left text-xs font-bold uppercase text-[#636E72] select-none ${
+                      column.sortable ? 'cursor-pointer hover:bg-[#d2e4f0] transition-colors' : ''
+                    } ${column.className ?? ''}`}
+                    title={column.sortable ? `Klik untuk urutkan berdasarkan ${column.header}` : undefined}
+                  >
+                    <div className="inline-flex items-center gap-1.5">
+                      <span>{column.header}</span>
+                      {column.sortable && (
+                        <span
+                          className={`inline-flex items-center transition-all ${
+                            isCurrentSort ? 'text-[#138F81] font-black scale-110' : 'text-slate-400 opacity-60'
+                          }`}
+                        >
+                          {isCurrentSort ? (
+                            sortDir === 'asc' ? (
+                              <ArrowUp size={14} className="stroke-[2.5]" />
+                            ) : (
+                              <ArrowDown size={14} className="stroke-[2.5]" />
+                            )
+                          ) : (
+                            <ArrowUpDown size={14} />
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                );
+              })}
+
             </tr>
           </thead>
           <tbody>

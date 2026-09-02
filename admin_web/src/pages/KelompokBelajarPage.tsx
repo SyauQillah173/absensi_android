@@ -45,6 +45,10 @@ export function KelompokBelajarPage() {
   const [isReadOnlyForm, setIsReadOnlyForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ApiRecord | null>(null);
 
+  // Status Filter: semua / ada santri / belum terisi
+  const [filterStatus, setFilterStatus] = useState<'all' | 'filled' | 'empty'>('all');
+
+
   const load = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     setError('');
@@ -100,10 +104,22 @@ export function KelompokBelajarPage() {
   }, [load, activeFormData]);
 
 
+  const filledCount = useMemo(() => rows.filter(r => asNumber(r.jumlah_siswa) > 0).length, [rows]);
+  const emptyCount = useMemo(() => rows.filter(r => asNumber(r.jumlah_siswa) === 0).length, [rows]);
+
   const filtered = useMemo(() => {
+    let result = rows;
+
+    if (filterStatus === 'filled') {
+      result = result.filter((row) => asNumber(row.jumlah_siswa) > 0);
+    } else if (filterStatus === 'empty') {
+      result = result.filter((row) => asNumber(row.jumlah_siswa) === 0);
+    }
+
     const keyword = search.trim().toLowerCase();
-    if (!keyword) return rows;
-    return rows.filter((row) => {
+    if (!keyword) return result;
+
+    return result.filter((row) => {
       const nama = String(row.nama ?? '').toLowerCase();
       const kategori = String(row.kategori ?? '').toLowerCase();
       const sifir = String(row.sifir ?? '').toLowerCase();
@@ -115,7 +131,8 @@ export function KelompokBelajarPage() {
         pembina.includes(keyword)
       );
     });
-  }, [rows, search]);
+  }, [rows, search, filterStatus]);
+
 
   const openDetail = (row: ApiRecord) => {
     setActiveFormData(row);
@@ -137,6 +154,8 @@ export function KelompokBelajarPage() {
       {
         key: 'nama',
         header: 'Nama Kelompok',
+        sortable: true,
+        sortValue: (row) => String(row.nama ?? ''),
         render: (row) => (
           <div>
             <span className="font-extrabold text-slate-800 text-sm block">{text(row.nama)}</span>
@@ -149,6 +168,8 @@ export function KelompokBelajarPage() {
       {
         key: 'kategori',
         header: 'Kategori',
+        sortable: true,
+        sortValue: (row) => String(row.kategori ?? ''),
         render: (row) => (
           <span className="rounded-lg bg-teal-50 border border-teal-200 px-2.5 py-1 text-xs font-black text-teal-800 whitespace-nowrap">
             {text(row.kategori)}
@@ -156,17 +177,30 @@ export function KelompokBelajarPage() {
         ),
       },
       {
-        key: 'siswa',
+        key: 'jumlah_siswa',
         header: 'Jumlah Santri',
-        render: (row) => (
-          <span className="font-bold text-slate-700 text-xs">
-            👥 {asNumber(row.jumlah_siswa)} santri
-          </span>
-        ),
+        sortable: true,
+        sortValue: (row) => asNumber(row.jumlah_siswa),
+        render: (row) => {
+          const count = asNumber(row.jumlah_siswa);
+          return (
+            <span
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black ${
+                count > 0
+                  ? 'bg-emerald-100/90 text-emerald-800 border border-emerald-300 ring-2 ring-emerald-500/20 shadow-xs'
+                  : 'bg-slate-100 text-slate-400 border border-slate-200'
+              }`}
+            >
+              👥 {count} santri
+            </span>
+          );
+        },
       },
       {
-        key: 'mapel',
+        key: 'jumlah_mapel_aktif',
         header: 'Mapel Aktif',
+        sortable: true,
+        sortValue: (row) => asNumber(row.jumlah_mapel_aktif),
         render: (row) => (
           <span className="font-bold text-slate-700 text-xs">
             📖 {asNumber(row.jumlah_mapel_aktif)} mapel
@@ -311,18 +345,70 @@ export function KelompokBelajarPage() {
       </div>
 
       {/* Filter & Table */}
-      <section className="space-y-4 rounded-3xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-        <div className="mb-2">
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Cari nama kelompok / kategori / sifir..."
-          />
+      <section className="space-y-4 rounded-3xl bg-white p-4 sm:p-6 shadow-sm ring-1 ring-black/5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex-1 min-w-[260px]">
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Cari nama kelompok / kategori / sifir..."
+            />
+          </div>
+
+          {/* Quick Filter Status Santri */}
+          <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 shrink-0 self-start md:self-auto">
+            <button
+              type="button"
+              onClick={() => setFilterStatus('all')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+                filterStatus === 'all'
+                  ? 'bg-white text-slate-800 shadow-xs ring-1 ring-black/5'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Semua ({rows.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterStatus('filled')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+                filterStatus === 'filled'
+                  ? 'bg-[#138F81] text-white shadow-xs'
+                  : 'text-slate-600 hover:text-[#138F81]'
+              }`}
+              title="Tampilkan hanya kelompok yang ada santrinya"
+            >
+              <span className={`h-2 w-2 rounded-full ${filterStatus === 'filled' ? 'bg-white' : 'bg-emerald-500'}`} />
+              Ada Santri ({filledCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterStatus('empty')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+                filterStatus === 'empty'
+                  ? 'bg-slate-700 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+              title="Tampilkan kelompok yang belum terisi / masih kosong"
+            >
+              <span className={`h-2 w-2 rounded-full ${filterStatus === 'empty' ? 'bg-white' : 'bg-slate-400'}`} />
+              Belum Terisi ({emptyCount})
+            </button>
+          </div>
         </div>
+
         <DataTable
           rows={filtered}
           columns={columns}
-          emptyText={isLoading ? 'Memuat kelompok...' : 'Belum ada kelompok belajar.'}
+          emptyText={
+            isLoading
+              ? 'Memuat kelompok...'
+              : filterStatus === 'filled'
+              ? 'Tidak ada kelompok belajar yang terisi santri.'
+              : filterStatus === 'empty'
+              ? 'Seluruh kelompok belajar sudah terisi santri.'
+              : 'Belum ada kelompok belajar.'
+          }
           minWidth="860px"
           mobileRender={(row) => (
             <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
