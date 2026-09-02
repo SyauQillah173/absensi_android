@@ -86,6 +86,8 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
     Route::delete('profile/foto', [UserProfileController::class, 'deleteFoto']);
     Route::get('notifications', [NotificationController::class, 'index']);
     Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
+    Route::post('notifications/clear-all', [NotificationController::class, 'clearAll']);
+    Route::delete('notifications/clear-all', [NotificationController::class, 'clearAll']);
     Route::patch('notifications/{notification}/read', [NotificationController::class, 'markRead']);
     Route::delete('notifications/{notification}', [NotificationController::class, 'destroy']);
 

@@ -97,6 +97,29 @@ class NotificationController extends Controller
         ]);
     }
 
+    public function clearAll(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+
+        $query = AppNotification::query();
+
+        if ($user->role === 'admin' && $request->input('scope') === 'all_system') {
+            $deletedCount = $query->delete();
+        } else {
+            $deletedCount = $query->where('user_id', $user->id)->delete();
+        }
+
+        return response()->json([
+            'success' => true,
+            'deleted_count' => $deletedCount,
+            'message' => 'Seluruh riwayat notifikasi berhasil dibersihkan',
+        ]);
+    }
+
+
     /**
      * Otomatis sinkronisasi notifikasi pengingat jadwal KBM untuk Ustadz / Guru
      */

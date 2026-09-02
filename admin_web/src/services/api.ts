@@ -357,6 +357,13 @@ export const api = {
   deleteNotification(id: number) {
     return request<{ success: boolean; message?: string }>(`/notifications/${id}`, { method: 'DELETE' });
   },
+  clearAllNotifications(scope?: 'my' | 'all_system') {
+    return request<{ success: boolean; deleted_count?: number; message?: string }>('/notifications/clear-all', {
+      method: 'POST',
+      body: JSON.stringify(scope ? { scope } : {})
+    });
+  },
+
   activeAcademicPeriod() {
     return request<ApiRecord>('/academic-periods/active');
   },

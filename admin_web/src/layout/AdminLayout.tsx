@@ -265,6 +265,23 @@ export function AdminLayout({
     }
   }, []);
 
+  const [confirmClearNotifOpen, setConfirmClearNotifOpen] = useState(false);
+  const [isClearingNotif, setIsClearingNotif] = useState(false);
+
+  const clearAllNotificationsHandler = useCallback(async (scope: 'my' | 'all_system' = 'my') => {
+    setIsClearingNotif(true);
+    try {
+      await api.clearAllNotifications(scope);
+      setNotifications([]);
+      setUnreadNotifications(0);
+      setConfirmClearNotifOpen(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal membersihkan riwayat notifikasi');
+    } finally {
+      setIsClearingNotif(false);
+    }
+  }, []);
+
   const deleteNotificationItem = useCallback(async (id: number) => {
     try {
       await api.deleteNotification(id);
@@ -279,6 +296,7 @@ export function AdminLayout({
       // Ignore
     }
   }, [notifications]);
+
 
   const handleNotificationClick = useCallback((item: ApiRecord) => {
     void markNotificationRead(item);
@@ -669,20 +687,34 @@ export function AdminLayout({
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1.5">
-                          {unreadNotifications > 0 && (
+                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                          {unreadNotifications > 0 && !confirmClearNotifOpen && (
                             <button
-                              className="rounded-lg bg-teal-50 px-2.5 py-1 text-[11px] font-extrabold text-[#138F81] hover:bg-teal-100 transition-colors"
+                              className="rounded-lg bg-teal-50 px-2 py-1 text-[11px] font-extrabold text-[#138F81] hover:bg-teal-100 transition-colors"
                               onClick={() => void markAllNotificationsRead()}
                               type="button"
                               title="Tandai semua sudah dibaca"
                             >
-                              ✓ Baca Semua
+                              ✓ Baca
+                            </button>
+                          )}
+                          {notifications.length > 0 && !confirmClearNotifOpen && (
+                            <button
+                              className="rounded-lg bg-rose-50 px-2 py-1 text-[11px] font-extrabold text-rose-600 hover:bg-rose-100 transition-colors flex items-center gap-1"
+                              onClick={() => setConfirmClearNotifOpen(true)}
+                              type="button"
+                              title="Bersihkan seluruh riwayat notifikasi"
+                            >
+                              <Trash2 size={11} />
+                              <span>Hapus Semua</span>
                             </button>
                           )}
                           <button
                             className="rounded-lg bg-slate-100 p-1.5 text-slate-500 hover:bg-slate-200 transition-colors"
-                            onClick={() => void loadNotifications(true)}
+                            onClick={() => {
+                              setConfirmClearNotifOpen(false);
+                              void loadNotifications(true);
+                            }}
                             type="button"
                             title="Refresh notifikasi"
                           >
@@ -690,6 +722,40 @@ export function AdminLayout({
                           </button>
                         </div>
                       </div>
+
+                      {/* Confirmation Banner for Clear All */}
+                      {confirmClearNotifOpen && (
+                        <div className="mb-3 rounded-2xl border border-rose-200 bg-rose-50/90 p-3 text-left">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm">⚠️</span>
+                            <p className="text-xs font-extrabold text-rose-800">
+                              Bersihkan Seluruh Riwayat?
+                            </p>
+                          </div>
+                          <p className="mt-1 text-[11px] font-medium leading-relaxed text-rose-700">
+                            Semua {notifications.length} notifikasi akan dihapus permanen agar tidak menumpuk.
+                          </p>
+                          <div className="mt-2.5 flex items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={isClearingNotif}
+                              onClick={() => void clearAllNotificationsHandler('my')}
+                              className="flex-1 rounded-xl bg-rose-600 py-1.5 text-center text-[11px] font-extrabold text-white shadow-sm hover:bg-rose-700 disabled:opacity-50 transition"
+                            >
+                              {isClearingNotif ? 'Menghapus...' : 'Ya, Hapus Semua'}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isClearingNotif}
+                              onClick={() => setConfirmClearNotifOpen(false)}
+                              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-50 transition"
+                            >
+                              Batal
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
 
                       {/* List */}
                       <div className="q-scrollbar flex-1 space-y-2 overflow-y-auto pr-1">
