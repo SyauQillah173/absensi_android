@@ -1,25 +1,24 @@
 import {
   BookOpen,
-  Building,
+  CheckCircle2,
   GraduationCap,
   Pencil,
   Plus,
   RefreshCw,
-  Search,
+  Sparkles,
   Trash2,
   Users,
+  X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
-import { ModalForm } from '../components/ModalForm';
 import { SearchInput } from '../components/SearchInput';
 import { api, type ApiRecord } from '../services/api';
 
 export function MasterKelasPage() {
   const [classes, setClasses] = useState<ApiRecord[]>([]);
   const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<'all' | 'Madin' | 'Formal'>('all');
   const [genderFilter, setGenderFilter] = useState<'all' | 'PA' | 'PI' | 'Campur'>('all');
   const [form, setForm] = useState<ApiRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ApiRecord | null>(null);
@@ -31,12 +30,21 @@ export function MasterKelasPage() {
   async function load() {
     setIsLoading(true);
     setError('');
-    setNotice('');
     try {
       const result = await api.classes();
-      setClasses(Array.isArray(result.data) ? result.data : []);
+      const raw = Array.isArray(result.data) ? result.data : [];
+      // Filter classes to only include Madin / Diniyah
+      const madinOnly = raw.filter(
+        (c) =>
+          String(c.category || '').toLowerCase() !== 'formal' ||
+          String(c.name || '').toLowerCase().startsWith('sifir') ||
+          String(c.name || '').toLowerCase().includes('ibtidaiyah') ||
+          String(c.name || '').toLowerCase().includes('tsanawiyah') ||
+          String(c.name || '').toLowerCase().includes('aliyah')
+      );
+      setClasses(madinOnly.length > 0 ? madinOnly : raw);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Data kelas gagal dimuat');
+      setError(err instanceof Error ? err.message : 'Data kelas Madin gagal dimuat');
     } finally {
       setIsLoading(false);
     }
@@ -46,20 +54,12 @@ export function MasterKelasPage() {
     void load();
   }, []);
 
-  const totalMadin = useMemo(() => {
-    return classes.filter(
-      (c) =>
-        String(c.category || '').toLowerCase() !== 'formal' ||
-        String(c.name || '').toLowerCase().startsWith('sifir')
-    ).length;
+  const totalPa = useMemo(() => {
+    return classes.filter((c) => String(c.gender_group || '').toUpperCase() === 'PA').length;
   }, [classes]);
 
-  const totalFormal = useMemo(() => {
-    return classes.filter(
-      (c) =>
-        String(c.category || '').toLowerCase() === 'formal' ||
-        !String(c.name || '').toLowerCase().startsWith('sifir')
-    ).length;
+  const totalPi = useMemo(() => {
+    return classes.filter((c) => String(c.gender_group || '').toUpperCase() === 'PI').length;
   }, [classes]);
 
   const totalSiswa = useMemo(() => {
@@ -69,16 +69,6 @@ export function MasterKelasPage() {
   const filtered = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     return classes.filter((row) => {
-      const isMadin =
-        String(row.category || '').toLowerCase() !== 'formal' ||
-        String(row.name || '').toLowerCase().startsWith('sifir');
-      const isFormal =
-        String(row.category || '').toLowerCase() === 'formal' ||
-        !String(row.name || '').toLowerCase().startsWith('sifir');
-
-      if (categoryFilter === 'Madin' && !isMadin) return false;
-      if (categoryFilter === 'Formal' && !isFormal) return false;
-
       if (genderFilter !== 'all') {
         const rowGender = String(row.gender_group || '').toUpperCase();
         if (genderFilter === 'PA' && rowGender !== 'PA') return false;
@@ -89,19 +79,18 @@ export function MasterKelasPage() {
       if (!keyword) return true;
       const name = String(row.name ?? '').toLowerCase();
       const code = String(row.code ?? '').toLowerCase();
-      const cat = String(row.category ?? '').toLowerCase();
-      return name.includes(keyword) || code.includes(keyword) || cat.includes(keyword);
+      return name.includes(keyword) || code.includes(keyword);
     });
-  }, [classes, search, categoryFilter, genderFilter]);
+  }, [classes, search, genderFilter]);
 
   const columns: DataColumn<ApiRecord>[] = [
     {
       key: 'name',
-      header: 'Nama Kelas',
+      header: 'Nama Kelas Madin',
       render: (row) => (
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-[#138F81] font-black text-xs border border-teal-100">
-            {String(row.name || '').slice(0, 2).toUpperCase()}
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-[#138F81] font-black text-sm border border-teal-100 shadow-xs">
+            <BookOpen size={18} />
           </div>
           <div>
             <p className="font-extrabold text-slate-800 text-sm">{String(row.name)}</p>
@@ -111,44 +100,26 @@ export function MasterKelasPage() {
       ),
     },
     {
-      key: 'category',
-      header: 'Kategori',
-      render: (row) => {
-        const isFormal =
-          String(row.category || '').toLowerCase() === 'formal' ||
-          !String(row.name || '').toLowerCase().startsWith('sifir');
-        return isFormal ? (
-          <span className="inline-flex items-center gap-1 rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700 border border-sky-200/60">
-            <Building size={13} /> Formal / Sekolah
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 border border-emerald-200/60">
-            <BookOpen size={13} /> Madin / Diniyah
-          </span>
-        );
-      },
-    },
-    {
       key: 'gender_group',
-      header: 'Kelompok Gender',
+      header: 'Kelompok Santri',
       render: (row) => {
         const g = String(row.gender_group || '').toUpperCase();
         if (g === 'PA') {
           return (
-            <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700">
+            <span className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 px-3 py-1 text-xs font-extrabold text-blue-700 border border-blue-200/60">
               👦 Putra (PA)
             </span>
           );
         }
         if (g === 'PI') {
           return (
-            <span className="inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700">
+            <span className="inline-flex items-center gap-1.5 rounded-xl bg-rose-50 px-3 py-1 text-xs font-extrabold text-rose-700 border border-rose-200/60">
               👧 Putri (PI)
             </span>
           );
         }
         return (
-          <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">
+          <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1 text-xs font-extrabold text-slate-600 border border-slate-200/60">
             👥 Campur / Umum
           </span>
         );
@@ -161,11 +132,13 @@ export function MasterKelasPage() {
         const count = Number(row.siswa_count ?? 0);
         return (
           <span
-            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-extrabold ${
-              count > 0 ? 'bg-teal-50 text-teal-800 border border-teal-200/60' : 'bg-slate-50 text-slate-400'
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-extrabold ${
+              count > 0
+                ? 'bg-teal-50 text-teal-800 border border-teal-200/60'
+                : 'bg-slate-50 text-slate-400 border border-slate-200/40'
             }`}
           >
-            <Users size={13} /> {count} Santri
+            <Users size={14} /> {count} Santri
           </span>
         );
       },
@@ -175,11 +148,14 @@ export function MasterKelasPage() {
       header: 'Status',
       render: (row) => (
         <span
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
-            row.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
+          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-extrabold ${
+            row.is_active !== false
+              ? 'bg-emerald-100 text-emerald-800'
+              : 'bg-slate-100 text-slate-500'
           }`}
         >
-          {row.is_active ? 'Aktif' : 'Nonaktif'}
+          <span className={`h-2 w-2 rounded-full ${row.is_active !== false ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+          {row.is_active !== false ? 'Aktif' : 'Nonaktif'}
         </span>
       ),
     },
@@ -187,22 +163,20 @@ export function MasterKelasPage() {
       key: 'actions',
       header: 'Aksi',
       render: (row) => (
-        <div className="flex justify-end gap-1.5">
+        <div className="flex justify-end gap-2">
           <button
-            className="rounded-xl bg-slate-100 p-2 text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition-colors"
+            className="rounded-xl bg-[#EAF4FF] px-3.5 py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors inline-flex items-center gap-1.5"
             onClick={() => setForm(row)}
-            title="Edit Kelas"
             type="button"
           >
-            <Pencil size={16} />
+            <Pencil size={13} /> Edit Kelas
           </button>
           <button
-            className="rounded-xl bg-rose-50 p-2 text-rose-600 hover:bg-rose-100 hover:text-rose-800 transition-colors"
+            className="rounded-xl bg-[#FDECEC] px-3.5 py-2 text-xs font-extrabold text-[#D63031] hover:bg-[#fad4d4] transition-colors inline-flex items-center gap-1.5"
             onClick={() => setDeleteTarget(row)}
-            title="Hapus / Nonaktifkan Kelas"
             type="button"
           >
-            <Trash2 size={16} />
+            <Trash2 size={13} /> Hapus
           </button>
         </div>
       ),
@@ -215,29 +189,25 @@ export function MasterKelasPage() {
     setIsSaving(true);
     setError('');
     try {
+      const payload = {
+        name: form.name,
+        code: form.code || String(form.name).toLowerCase().replace(/[^a-z0-9]+/g, '_'),
+        category: 'Madin',
+        gender_group: form.gender_group || 'Campur',
+        is_active: form.is_active !== false,
+      };
+
       if (form.id) {
-        await api.updateClass(Number(form.id), {
-          name: form.name,
-          code: form.code,
-          category: form.category,
-          gender_group: form.gender_group,
-          is_active: form.is_active !== false,
-        });
-        setNotice(`Kelas "${String(form.name)}" berhasil diperbarui.`);
+        await api.updateClass(Number(form.id), payload);
+        setNotice(`Kelas Madin "${String(form.name)}" berhasil diperbarui.`);
       } else {
-        await api.createClass({
-          name: form.name,
-          code: form.code,
-          category: form.category,
-          gender_group: form.gender_group,
-          is_active: form.is_active !== false,
-        });
-        setNotice(`Kelas "${String(form.name)}" berhasil ditambahkan.`);
+        await api.createClass(payload);
+        setNotice(`Kelas Madin "${String(form.name)}" berhasil ditambahkan.`);
       }
       setForm(null);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Gagal menyimpan kelas.');
+      setError(err instanceof Error ? err.message : 'Gagal menyimpan data kelas Madin.');
     } finally {
       setIsSaving(false);
     }
@@ -264,13 +234,13 @@ export function MasterKelasPage() {
       {/* HEADER SECTION */}
       <section className="q-page-heading flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-bold text-[#636E72]">Master Data Akademik</p>
+          <p className="text-sm font-bold text-[#636E72]">Master Data Akademik & KBM</p>
           <h1 className="text-3xl font-extrabold text-[#2D3436] flex items-center gap-2.5">
             <GraduationCap className="text-[#138F81]" size={32} />
-            Data Kelas (Madin & Sekolah)
+            Data Kelas Madin (Diniyah)
           </h1>
           <p className="text-sm font-semibold text-[#636E72]">
-            Kelola daftar rombel kelas Madrasah Diniyah (Madin) dan kelas Sekolah Formal santri.
+            Kelola daftar rombel kelas Madrasah Diniyah santri Pondok Pesantren Qomaruddin.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -280,17 +250,17 @@ export function MasterKelasPage() {
               setForm({
                 name: '',
                 code: '',
-                category: categoryFilter === 'Formal' ? 'Formal' : 'Madin',
-                gender_group: 'Campur',
+                category: 'Madin',
+                gender_group: 'PA',
                 is_active: true,
               })
             }
             type="button"
           >
-            <Plus size={17} /> Tambah Kelas Baru
+            <Plus size={17} /> Tambah Kelas Madin
           </button>
           <button
-            className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#138F81] ${
+            className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#138F81] border border-slate-200/70 shadow-xs ${
               isLoading ? 'is-loading' : ''
             }`}
             onClick={() => void load()}
@@ -307,31 +277,31 @@ export function MasterKelasPage() {
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-3xl bg-white p-4.5 border border-slate-100 shadow-xs flex items-center gap-3.5">
           <div className="h-12 w-12 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-[#138F81] font-black">
-            <GraduationCap size={24} />
+            <BookOpen size={24} />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400">Total Rombel Kelas</p>
+            <p className="text-xs font-bold text-slate-400">Total Rombel Madin</p>
             <p className="text-xl font-black text-slate-800">{classes.length} Kelas</p>
           </div>
         </div>
 
         <div className="rounded-3xl bg-white p-4.5 border border-slate-100 shadow-xs flex items-center gap-3.5">
-          <div className="h-12 w-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700 font-black">
-            <BookOpen size={24} />
+          <div className="h-12 w-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 font-black">
+            <span className="text-xl">👦</span>
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400">Kelas Madin (Diniyah)</p>
-            <p className="text-xl font-black text-emerald-800">{totalMadin} Rombel</p>
+            <p className="text-xs font-bold text-slate-400">Kelas Putra (PA)</p>
+            <p className="text-xl font-black text-blue-800">{totalPa} Rombel</p>
           </div>
         </div>
 
         <div className="rounded-3xl bg-white p-4.5 border border-slate-100 shadow-xs flex items-center gap-3.5">
-          <div className="h-12 w-12 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-700 font-black">
-            <Building size={24} />
+          <div className="h-12 w-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-700 font-black">
+            <span className="text-xl">👧</span>
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400">Kelas Sekolah Formal</p>
-            <p className="text-xl font-black text-sky-800">{totalFormal} Rombel</p>
+            <p className="text-xs font-bold text-slate-400">Kelas Putri (PI)</p>
+            <p className="text-xl font-black text-rose-800">{totalPi} Rombel</p>
           </div>
         </div>
 
@@ -347,203 +317,208 @@ export function MasterKelasPage() {
       </section>
 
       {error ? (
-        <div className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-800 border border-rose-100">
-          {error}
+        <div className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-800 border border-rose-100 flex items-center gap-2">
+          <span>⚠️</span> {error}
         </div>
       ) : null}
 
       {notice ? (
-        <div className="rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800 border border-emerald-100">
-          {notice}
+        <div className="rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800 border border-emerald-100 flex items-center gap-2">
+          <span>✅</span> {notice}
         </div>
       ) : null}
 
       {/* FILTER & SEARCH CONTROLS */}
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* CATEGORY TABS */}
-          <div className="flex flex-wrap items-center gap-1.5 bg-slate-100/90 p-1 rounded-2xl border border-slate-200/50">
+      <section className="flex flex-wrap items-center justify-between gap-3">
+        {/* GENDER FILTER PILLS */}
+        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl border border-slate-200/70">
+          {[
+            { id: 'all', label: `Semua Rombel (${classes.length})` },
+            { id: 'PA', label: `👦 Putra (${totalPa})` },
+            { id: 'PI', label: `👧 Putri (${totalPi})` },
+            { id: 'Campur', label: '👥 Campur' },
+          ].map((g) => (
             <button
+              key={g.id}
               type="button"
-              onClick={() => setCategoryFilter('all')}
+              onClick={() => setGenderFilter(g.id as typeof genderFilter)}
               className={`px-3.5 py-1.5 text-xs font-extrabold rounded-xl transition-all ${
-                categoryFilter === 'all'
+                genderFilter === g.id
                   ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Semua Kelas ({classes.length})
+              {g.label}
             </button>
-            <button
-              type="button"
-              onClick={() => setCategoryFilter('Madin')}
-              className={`px-3.5 py-1.5 text-xs font-extrabold rounded-xl transition-all flex items-center gap-1.5 ${
-                categoryFilter === 'Madin'
-                  ? 'bg-[#138F81] text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <BookOpen size={13} /> Kelas Madin ({totalMadin})
-            </button>
-            <button
-              type="button"
-              onClick={() => setCategoryFilter('Formal')}
-              className={`px-3.5 py-1.5 text-xs font-extrabold rounded-xl transition-all flex items-center gap-1.5 ${
-                categoryFilter === 'Formal'
-                  ? 'bg-sky-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Building size={13} /> Kelas Sekolah ({totalFormal})
-            </button>
-          </div>
-
-          {/* GENDER FILTER PILLS */}
-          <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200/70">
-            {[
-              { id: 'all', label: 'Semua Gender' },
-              { id: 'PA', label: '👦 Putra' },
-              { id: 'PI', label: '👧 Putri' },
-              { id: 'Campur', label: '👥 Campur' },
-            ].map((g) => (
-              <button
-                key={g.id}
-                type="button"
-                onClick={() => setGenderFilter(g.id as typeof genderFilter)}
-                className={`px-2.5 py-1 text-xs font-bold rounded-xl transition-all ${
-                  genderFilter === g.id
-                    ? 'bg-slate-800 text-white'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                {g.label}
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
 
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Cari nama kelas (contoh: VII MTS, Sifir Awal, IX SMP)..."
-        />
+        <div className="w-full sm:w-80">
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Cari kelas Madin (Sifir, Awal, PA/PI)..."
+          />
+        </div>
       </section>
 
       {/* DATA TABLE */}
       <section className="q-table-container rounded-3xl bg-white p-4 shadow-sm md:p-6 lg:p-8">
         {isLoading ? (
           <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-bold text-[#636E72]">
-            Memuat data rombel kelas...
+            Memuat data rombel kelas Madin...
           </div>
         ) : (
           <DataTable
             columns={columns}
             rows={filtered}
-            emptyText="Tidak ada data kelas yang sesuai filter."
+            emptyText="Tidak ada data kelas Madin yang sesuai filter."
           />
         )}
       </section>
 
-      {/* MODAL FORM TAMBAH / EDIT */}
+      {/* MODAL FORM TAMBAH / EDIT KELAS (KONSISTEN DENGAN FORM SANTRI & MADIN) */}
       {form ? (
-        <ModalForm
-          title={form.id ? 'Edit Data Kelas' : 'Tambah Kelas Baru'}
-          onClose={() => setForm(null)}
-          footer={
-            <button
-              className="min-h-12 w-full rounded-2xl bg-[#138F81] text-sm font-extrabold text-white disabled:opacity-60 hover:brightness-105 shadow-md shadow-[#138F81]/20"
-              disabled={isSaving}
-              form="kelas-form"
-              type="submit"
-            >
-              {isSaving ? 'Menyimpan...' : 'Simpan Data Kelas'}
-            </button>
-          }
-        >
-          <form id="kelas-form" className="grid gap-4" onSubmit={saveRecord}>
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-extrabold text-slate-700">
-                Nama Kelas <span className="text-rose-500">*</span>
-              </span>
-              <input
-                className="q-input font-bold"
-                type="text"
-                value={String(form.name || '')}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                required
-                placeholder="Misal: VII MTS, Sifir Awal A PA, X SMA, MA Assa'adah..."
-              />
-            </label>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-extrabold text-slate-700">
-                  Kategori Kelas <span className="text-rose-500">*</span>
-                </span>
-                <select
-                  className="q-input font-bold"
-                  value={String(form.category || 'Formal')}
-                  onChange={(e) => setForm({ ...form, category: e.target.value })}
-                  required
-                >
-                  <option value="Madin">🕌 Madin / Diniyah</option>
-                  <option value="Formal">🏫 Formal / Sekolah</option>
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-extrabold text-slate-700">
-                  Kelompok Gender
-                </span>
-                <select
-                  className="q-input font-bold"
-                  value={String(form.gender_group || 'Campur')}
-                  onChange={(e) => setForm({ ...form, gender_group: e.target.value })}
-                >
-                  <option value="Campur">👥 Campur / Umum</option>
-                  <option value="PA">👦 Putra Saja (PA)</option>
-                  <option value="PI">👧 Putri Saja (PI)</option>
-                </select>
-              </label>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200">
+            {/* Modal Header Banner */}
+            <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-teal-50/70 via-emerald-50/50 to-white p-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#138F81] text-white shadow-md shadow-[#138F81]/20">
+                  <GraduationCap size={22} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-extrabold text-[#2D3436]">
+                    {form.id ? 'Edit Data Kelas Madin' : 'Tambah Kelas Madin Baru'}
+                  </h3>
+                  <p className="text-xs font-semibold text-[#636E72]">
+                    Atur nama rombel dan pengelompokan kelas santri
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setForm(null)}
+                className="rounded-2xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                type="button"
+              >
+                <X size={20} />
+              </button>
             </div>
 
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-extrabold text-slate-700">
-                Kode Kelas (Opsional)
-              </span>
-              <input
-                className="q-input font-mono text-sm"
-                type="text"
-                value={String(form.code || '')}
-                onChange={(e) => setForm({ ...form, code: e.target.value })}
-                placeholder="Kosongkan untuk generate otomatis..."
-              />
-            </label>
+            {/* Modal Form Body */}
+            <form id="kelas-madin-form" className="p-6 space-y-4.5" onSubmit={saveRecord}>
+              {/* Field: Nama Kelas */}
+              <div>
+                <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
+                  Nama Kelas Madin <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all"
+                    type="text"
+                    value={String(form.name || '')}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    required
+                    placeholder="Contoh: Sifir Awal A PA, 1 Ibtidaiyah B PI..."
+                  />
+                </div>
+                <p className="mt-1 text-[11px] font-semibold text-slate-400">
+                  Format nama rombel dianjurkan mencantumkan tingkatan dan gender (PA / PI).
+                </p>
+              </div>
 
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-extrabold text-slate-700">Status Aktif</span>
-              <select
-                className="q-input font-bold"
-                value={form.is_active !== false ? '1' : '0'}
-                onChange={(e) => setForm({ ...form, is_active: e.target.value === '1' })}
-              >
-                <option value="1">Aktif</option>
-                <option value="0">Nonaktif</option>
-              </select>
-            </label>
-          </form>
-        </ModalForm>
+              {/* Field: Kode Kelas */}
+              <div>
+                <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
+                  Kode Unik Kelas (Opsional)
+                </label>
+                <input
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-mono font-bold text-slate-800 placeholder:text-slate-400 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all"
+                  type="text"
+                  value={String(form.code || '')}
+                  onChange={(e) => setForm({ ...form, code: e.target.value })}
+                  placeholder="Contoh: sifir_awal_a_pa (otomatis diisi jika kosong)"
+                />
+              </div>
+
+              {/* Field: Kelompok Gender Santri */}
+              <div>
+                <label className="mb-2 block text-xs font-extrabold text-slate-700">
+                  Kelompok Santri <span className="text-rose-500">*</span>
+                </label>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {[
+                    { id: 'PA', label: '👦 Putra (PA)', desc: 'Santri Putra' },
+                    { id: 'PI', label: '👧 Putri (PI)', desc: 'Santri Putri' },
+                    { id: 'Campur', label: '👥 Campur', desc: 'Umum' },
+                  ].map((g) => {
+                    const isSelected = String(form.gender_group || 'PA').toUpperCase() === g.id;
+                    return (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => setForm({ ...form, gender_group: g.id })}
+                        className={`rounded-2xl p-3 text-center border transition-all ${
+                          isSelected
+                            ? 'bg-[#138F81]/10 border-[#138F81] text-[#138F81] font-black shadow-xs ring-2 ring-[#138F81]/20'
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 font-bold'
+                        }`}
+                      >
+                        <p className="text-xs">{g.label}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Field: Status Aktif Toggle */}
+              <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                <div>
+                  <p className="text-xs font-extrabold text-slate-800">Status Kelas</p>
+                  <p className="text-[11px] font-semibold text-slate-500">
+                    Kelas aktif dapat dipilih pada jadwal KBM dan presensi santri.
+                  </p>
+                </div>
+                <label className="relative inline-flex cursor-pointer items-center">
+                  <input
+                    type="checkbox"
+                    className="peer sr-only"
+                    checked={form.is_active !== false}
+                    onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                  />
+                  <div className="h-6 w-11 rounded-full bg-slate-200 after:absolute after:top-[2px] after:start-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-[#138F81] peer-checked:after:translate-x-full peer-focus:outline-hidden"></div>
+                </label>
+              </div>
+
+              {/* Modal Actions Footer */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setForm(null)}
+                  className="w-1/3 rounded-2xl border border-slate-200 bg-white py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="w-2/3 rounded-2xl bg-[#138F81] py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/25 hover:brightness-105 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  <CheckCircle2 size={18} />
+                  {isSaving ? 'Menyimpan...' : 'Simpan Data Kelas'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       ) : null}
 
-      {/* CONFIRM DIALOG HAPUS */}
+      {/* CONFIRM DELETE DIALOG */}
       {deleteTarget ? (
         <ConfirmDialog
-          title="Hapus / Nonaktifkan Kelas?"
-          message={`Apakah Anda yakin ingin menghapus kelas "${String(
-            deleteTarget.name
-          )}"? Jika terdapat santri di kelas ini, sistem akan menonaktifkannya secara aman.`}
+          title="Hapus Kelas Madin"
+          message={`Apakah Anda yakin ingin menghapus kelas "${String(deleteTarget.name)}"? Data relasi presensi santri lama tetap dijaga.`}
           tone="danger"
-          confirmLabel="Hapus / Nonaktifkan"
           isBusy={isSaving}
           onCancel={() => setDeleteTarget(null)}
           onConfirm={() => void deleteRecord()}

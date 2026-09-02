@@ -104,7 +104,7 @@ const allMenu: MenuItem[] = [
     label: "Akademik & KBM",
     icon: BookOpen,
     children: [
-      { label: "Data Kelas (Madin & Sekolah)", page: "master", masterSection: "kelas" },
+      { label: "Data Kelas Madin", page: "master", masterSection: "kelas" },
       { label: "Mata Pelajaran & Jadwal Madin", page: "mapel" },
       { label: "Jadwal & Kitab Ngaji Santri", page: "absensi", absensiTab: "jadwal-ngaji" },
       { label: "Jadwal & Waktu Sholat Jamaah", page: "absensi", absensiTab: "jenis-sholat" },

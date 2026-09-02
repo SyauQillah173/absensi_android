@@ -5,6 +5,7 @@ import {
   BookOpenCheck,
   CalendarCheck,
   Check,
+  CheckCircle2,
   ClipboardList,
   Download,
   Edit3,
@@ -258,201 +259,6 @@ export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabC
         </h1>
         <p className="text-sm font-semibold text-[#636E72]">{headerInfo.desc}</p>
       </section>
-
-      {/* Dynamic Tab Navigation Based on Role */}
-      {isGuru ? (
-        // Guru: HANYA TAB INPUT (Tanpa Rekap)
-        <div className="flex flex-wrap items-center gap-2 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
-          <button
-            type="button"
-            onClick={() => handleTabSelect('madin-input')}
-            className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
-              currentTab === 'madin-input'
-                ? 'bg-[#138F81] text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            🕌 Input Presensi Madin
-          </button>
-          {session?.hak_akses?.absen_sholat === true && (
-            <button
-              type="button"
-              onClick={() => handleTabSelect('sholat')}
-              className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
-                currentTab === 'sholat'
-                  ? 'bg-[#138F81] text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              🕋 Input Presensi Sholat
-            </button>
-          )}
-          {session?.hak_akses?.absen_ngaji === true && (
-            <button
-              type="button"
-              onClick={() => handleTabSelect('ngaji')}
-              className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
-                currentTab === 'ngaji'
-                  ? 'bg-[#138F81] text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              📖 Input Presensi Ngaji
-            </button>
-          )}
-        </div>
-      ) : isKepalaSekolah ? (
-        // Kepala Sekolah: HANYA MONITORING & REKAP (Tanpa Input)
-        <div className="flex flex-wrap items-center gap-2 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
-          <button
-            type="button"
-            onClick={() => handleTabSelect('log-realtime')}
-            className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
-              currentTab === 'log-realtime'
-                ? 'bg-[#138F81] text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            ⚡ Log Pemantauan Realtime
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabSelect('madin')}
-            className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
-              currentTab === 'madin'
-                ? 'bg-[#138F81] text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            📊 Rekap Presensi Madin
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabSelect('rekap-sholat')}
-            className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
-              currentTab === 'rekap-sholat'
-                ? 'bg-[#138F81] text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            📈 Rekap Presensi Sholat
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabSelect('rekap-ngaji')}
-            className={`px-4 py-2 text-xs font-extrabold rounded-xl transition ${
-              currentTab === 'rekap-ngaji'
-                ? 'bg-[#138F81] text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            📚 Rekap Presensi Ngaji
-          </button>
-        </div>
-      ) : (
-        // Admin Utama: Full Access Semua Tab
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm overflow-x-auto q-scrollbar">
-          <button
-            type="button"
-            onClick={() => handleTabSelect('log-realtime')}
-            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition shrink-0 ${
-              currentTab === 'log-realtime'
-                ? 'bg-[#138F81] text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            ⚡ Log Realtime
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabSelect('madin-input')}
-            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition shrink-0 ${
-              currentTab === 'madin-input'
-                ? 'bg-[#138F81] text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            🕌 Form Madin
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabSelect('sholat')}
-            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition shrink-0 ${
-              currentTab === 'sholat'
-                ? 'bg-[#138F81] text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            🕋 Form Sholat
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabSelect('ngaji')}
-            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition shrink-0 ${
-              currentTab === 'ngaji'
-                ? 'bg-[#138F81] text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            📖 Form Ngaji
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabSelect('madin')}
-            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition shrink-0 ${
-              currentTab === 'madin'
-                ? 'bg-[#138F81] text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            📊 Rekap Madin
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabSelect('rekap-sholat')}
-            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition shrink-0 ${
-              currentTab === 'rekap-sholat'
-                ? 'bg-[#138F81] text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            📈 Rekap Sholat
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabSelect('rekap-ngaji')}
-            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition shrink-0 ${
-              currentTab === 'rekap-ngaji'
-                ? 'bg-[#138F81] text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            📚 Rekap Ngaji
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabSelect('jenis-sholat')}
-            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition shrink-0 ${
-              currentTab === 'jenis-sholat'
-                ? 'bg-[#138F81] text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            ⚙️ Atur Waktu Sholat
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabSelect('jadwal-ngaji')}
-            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition shrink-0 ${
-              currentTab === 'jadwal-ngaji'
-                ? 'bg-[#138F81] text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            📖 Atur Jadwal Ngaji
-          </button>
-        </div>
-      )}
 
       {currentTab === 'log-realtime' ? <RealtimeAttendanceLog /> : null}
       {currentTab === 'madin-input' ? <MadinInput initialTarget={initialTarget} /> : null}
@@ -1200,30 +1006,125 @@ function PrayerTypeCms() {
         {isLoading ? <LoadingText text="Memuat waktu jama'ah..." /> : <DataTable rows={items} columns={columns} emptyText="Belum ada waktu jama'ah sholat." />}
       </section>
       {form ? (
-        <ModalForm
-          title={num(form.id) ? "Edit Waktu Jama'ah" : "Tambah Waktu Jama'ah"}
-          onClose={() => setForm(null)}
-          footer={
-            <button className="min-h-12 w-full rounded-2xl bg-[#138F81] text-sm font-extrabold text-white disabled:opacity-60" onClick={() => void save()} disabled={isSaving} type="button">
-              {isSaving ? 'Menyimpan...' : "Simpan Waktu Jama'ah"}
-            </button>
-          }
-        >
-          <div className="grid gap-4">
-            <input className="q-input" value={text(form.name, '')} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Nama, contoh: Subuh" />
-            <input className="q-input" value={text(form.code, '')} onChange={(event) => setForm({ ...form, code: event.target.value })} placeholder="Kode, contoh: subuh" />
-            <textarea className="q-input min-h-24 py-3" value={text(form.description, '')} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Keterangan opsional" />
-            <label className="grid gap-2">
-              <span className="text-xs font-extrabold text-[#636E72]">Urutan tampil</span>
-              <input className="q-input" inputMode="numeric" value={num(form.sort_order)} onChange={(event) => setForm({ ...form, sort_order: Number(event.target.value) })} placeholder="Contoh: 10, 20, 30" />
-              <span className="text-xs font-bold text-[#87939A]">Angka kecil tampil lebih dulu pada pilihan waktu jama'ah.</span>
-            </label>
-            <label className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 text-sm font-extrabold text-[#2D3436]">
-              Aktif
-              <input type="checkbox" checked={form.is_active !== false} onChange={(event) => setForm({ ...form, is_active: event.target.checked })} />
-            </label>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200">
+            {/* Modal Header Banner */}
+            <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-teal-50/70 via-emerald-50/50 to-white p-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#138F81] text-white shadow-md shadow-[#138F81]/20">
+                  <Landmark size={22} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-extrabold text-[#2D3436]">
+                    {num(form.id) ? "Edit Waktu Jama'ah" : "Tambah Waktu Jama'ah Baru"}
+                  </h3>
+                  <p className="text-xs font-semibold text-[#636E72]">
+                    Atur nama sesi sholat jama'ah santri pondok
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setForm(null)}
+                className="rounded-2xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                type="button"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Form Body */}
+            <form id="sholat-form" className="p-6 space-y-4" onSubmit={(e) => { e.preventDefault(); void save(); }}>
+              <div>
+                <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
+                  Nama Waktu Sholat <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all"
+                  value={text(form.name, '')}
+                  onChange={(event) => setForm({ ...form, name: event.target.value })}
+                  placeholder="Contoh: Subuh, Dhuhur, Ashar, Maghrib, Isya..."
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
+                  Kode Unik (Opsional)
+                </label>
+                <input
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-mono font-bold text-slate-800 placeholder:text-slate-400 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all"
+                  value={text(form.code, '')}
+                  onChange={(event) => setForm({ ...form, code: event.target.value })}
+                  placeholder="Contoh: subuh (otomatis diisi jika kosong)"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
+                  Keterangan (Opsional)
+                </label>
+                <textarea
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all min-h-20 resize-none"
+                  value={text(form.description, '')}
+                  onChange={(event) => setForm({ ...form, description: event.target.value })}
+                  placeholder="Keterangan tambahan untuk sesi sholat..."
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
+                  Urutan Tampil
+                </label>
+                <input
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all"
+                  inputMode="numeric"
+                  value={num(form.sort_order)}
+                  onChange={(event) => setForm({ ...form, sort_order: Number(event.target.value) })}
+                  placeholder="Contoh: 10, 20, 30"
+                />
+                <p className="mt-1 text-[11px] font-semibold text-slate-400">
+                  Angka kecil muncul lebih dulu di urutan form absensi.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                <div>
+                  <p className="text-xs font-extrabold text-slate-800">Status Waktu Sholat</p>
+                  <p className="text-[11px] font-semibold text-slate-500">
+                    Aktifkan agar muncul pada pilihan input absensi sholat santri.
+                  </p>
+                </div>
+                <label className="relative inline-flex cursor-pointer items-center">
+                  <input
+                    type="checkbox"
+                    className="peer sr-only"
+                    checked={form.is_active !== false}
+                    onChange={(event) => setForm({ ...form, is_active: event.target.checked })}
+                  />
+                  <div className="h-6 w-11 rounded-full bg-slate-200 after:absolute after:top-[2px] after:start-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-[#138F81] peer-checked:after:translate-x-full peer-focus:outline-hidden"></div>
+                </label>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setForm(null)}
+                  className="w-1/3 rounded-2xl border border-slate-200 bg-white py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="w-2/3 rounded-2xl bg-[#138F81] py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/25 hover:brightness-105 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  <CheckCircle2 size={18} />
+                  {isSaving ? 'Menyimpan...' : "Simpan Waktu Jama'ah"}
+                </button>
+              </div>
+            </form>
           </div>
-        </ModalForm>
+        </div>
       ) : null}
       {confirmAction ? (
         <ConfirmDialog
