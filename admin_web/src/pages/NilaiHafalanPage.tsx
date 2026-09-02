@@ -18,9 +18,12 @@ import {
   Trash2,
   UsersRound
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { ComplexHafalanForm } from '../components/ComplexHafalanForm';
+import { ComplexNilaiForm } from '../components/ComplexNilaiForm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+
 import { DataTable, type DataColumn } from '../components/DataTable';
 import { ModalForm } from '../components/ModalForm';
 import { SearchInput } from '../components/SearchInput';
@@ -124,8 +127,8 @@ export function NilaiHafalanPage() {
   const [hafalanForm, setHafalanForm] = useState<HafalanFormState | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ type: TabKey; row: ApiRecord } | null>(null);
 
-  async function load() {
-    setIsLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
     setError('');
     setNotice('');
     try {
@@ -142,15 +145,47 @@ export function NilaiHafalanPage() {
       setMapelRows(list(mapelResult.data));
       setAcademicRows(list(academicResult.data));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Data nilai dan hafalan gagal dimuat.');
+      if (!silent) setError(err instanceof Error ? err.message : 'Data nilai dan hafalan gagal dimuat.');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     void load();
-  }, []);
+
+    // 1. Auto-refresh saat event app:data-updated dipicu
+    const handleDataUpdate = (e: Event) => {
+      const customEvt = e as CustomEvent;
+      if (!customEvt.detail || customEvt.detail.type === 'nilai' || customEvt.detail.type === 'hafalan' || customEvt.detail.type === 'all') {
+        void load(true);
+      }
+    };
+    window.addEventListener('app:data-updated', handleDataUpdate);
+
+    // 2. Auto-refresh saat window fokus atau tab kembali aktif
+    const handleFocus = () => void load(true);
+    window.addEventListener('focus', handleFocus);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') void load(true);
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // 3. Periodic Background Auto-Refresh (setiap 15 detik)
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible' && nilaiForm === null && hafalanForm === null) {
+        void load(true);
+      }
+    }, 15000);
+
+    return () => {
+      window.removeEventListener('app:data-updated', handleDataUpdate);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(interval);
+    };
+  }, [load, nilaiForm, hafalanForm]);
+
 
   const activeAcademic = useMemo(() => {
     return academicRows.find((row) => row.is_active === true || text(row.status).toLowerCase() === 'aktif') ?? academicRows[0] ?? {};
@@ -444,6 +479,8 @@ export function NilaiHafalanPage() {
     {
       key: 'siswa',
       header: 'Santri & Kelas',
+      sortable: true,
+      sortValue: (row) => String(record(row.siswa).nama ?? row.siswa_nama ?? ''),
       render: (row) => {
         const student = record(row.siswa);
         const name = text(student.nama ?? row.siswa_nama, 'Santri');
@@ -469,6 +506,8 @@ export function NilaiHafalanPage() {
     {
       key: 'mapel',
       header: 'Mata Pelajaran',
+      sortable: true,
+      sortValue: (row) => String(record(row.mata_pelajaran).nama ?? row.mapel_nama ?? ''),
       render: (row) => {
         const mapel = record(row.mata_pelajaran);
         const mapelName = text(mapel.nama ?? row.mapel_nama ?? row.nama_mapel, '-');
@@ -483,6 +522,8 @@ export function NilaiHafalanPage() {
     {
       key: 'jenis_ujian',
       header: 'Jenis Ujian',
+      sortable: true,
+      sortValue: (row) => String(row.jenis_ujian ?? ''),
       render: (row) => (
         <span className="inline-flex items-center gap-1 rounded-xl bg-blue-50 border border-blue-200 px-2.5 py-1 text-xs font-bold text-blue-700">
           {text(row.jenis_ujian, 'Harian')}
@@ -492,6 +533,8 @@ export function NilaiHafalanPage() {
     {
       key: 'nilai',
       header: 'Nilai & Skor',
+      sortable: true,
+      sortValue: (row) => num(row.nilai),
       render: (row) => {
         const val = num(row.nilai);
         const tone = scoreTone(val);
@@ -518,6 +561,9 @@ export function NilaiHafalanPage() {
     {
       key: 'penilai',
       header: 'Penguji & Periode',
+      sortable: true,
+      sortValue: (row) => String(row.penilai_nama ?? ''),
+
       render: (row) => (
         <div className="flex flex-col">
           <span className="font-bold text-xs text-slate-800">{text(row.penilai_nama ?? record(row.user).name, 'Ustadz Pengampu')}</span>
@@ -559,6 +605,8 @@ export function NilaiHafalanPage() {
     {
       key: 'siswa',
       header: 'Santri & Kelas',
+      sortable: true,
+      sortValue: (row) => String(record(row.siswa).nama ?? row.nama_siswa ?? ''),
       render: (row) => {
         const student = record(row.siswa);
         const name = text(student.nama ?? row.nama_siswa, 'Santri');
@@ -584,6 +632,8 @@ export function NilaiHafalanPage() {
     {
       key: 'juz_surah',
       header: 'Juz & Surah Al-Qur\'an',
+      sortable: true,
+      sortValue: (row) => num(row.juz),
       render: (row) => {
         const juzVal = text(row.juz, '-');
         const surahVal = text(row.surah ?? row.nama_surah, '-');
@@ -603,11 +653,15 @@ export function NilaiHafalanPage() {
     {
       key: 'status',
       header: 'Status Setoran',
+      sortable: true,
+      sortValue: (row) => String(row.status ?? ''),
       render: (row) => <StatusBadge label={text(row.status, 'Proses')} tone={statusTone(text(row.status))} />
     },
     {
       key: 'nilai_hafalan',
       header: 'Nilai Setoran',
+      sortable: true,
+      sortValue: (row) => num(row.nilai_hafalan),
       render: (row) => {
         const val = text(row.nilai_hafalan, '-');
         return <span className="font-black text-sm text-slate-800 bg-slate-100 px-2.5 py-1 rounded-xl">{val}</span>;
@@ -616,6 +670,8 @@ export function NilaiHafalanPage() {
     {
       key: 'tanggal_setor',
       header: 'Tanggal & Penguji',
+      sortable: true,
+      sortValue: (row) => String(row.tanggal_setor ?? ''),
       render: (row) => (
         <div className="flex flex-col">
           <span className="font-bold text-xs text-slate-800">{formatDateIndo(row.tanggal_setor)}</span>
@@ -623,6 +679,7 @@ export function NilaiHafalanPage() {
         </div>
       )
     },
+
     ...(isMadrasah
       ? []
       : [
@@ -651,8 +708,42 @@ export function NilaiHafalanPage() {
         ])
   ];
 
+  // JIKA FORM NILAI AKTIF, TAMPILKAN IN-PAGE FORM KONSISTEN
+  if (nilaiForm !== null) {
+    return (
+      <ComplexNilaiForm
+        initialData={nilaiForm.id ? (nilaiRows.find((r) => num(r.id) === nilaiForm.id) || (nilaiForm as unknown as ApiRecord)) : null}
+        students={students}
+        mapelRows={mapelRows}
+        activeAcademic={activeAcademic}
+        onClose={() => setNilaiForm(null)}
+        onSave={() => {
+          setNilaiForm(null);
+          void load(true);
+        }}
+      />
+    );
+  }
+
+  // JIKA FORM HAFALAN AKTIF, TAMPILKAN IN-PAGE FORM KONSISTEN
+  if (hafalanForm !== null) {
+    return (
+      <ComplexHafalanForm
+        initialData={hafalanForm.id ? (hafalanRows.find((r) => num(r.id) === hafalanForm.id) || (hafalanForm as unknown as ApiRecord)) : null}
+        students={students}
+        activeAcademic={activeAcademic}
+        onClose={() => setHafalanForm(null)}
+        onSave={() => {
+          setHafalanForm(null);
+          void load(true);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
+
       {/* HERO GRADIENT BANNER (CONSISTENT WITH ABSENSI MONITORING) */}
       <section className="rounded-3xl bg-linear-to-r from-[#0F7A6E] via-[#138F81] to-[#1AB3A3] p-6 text-white shadow-lg shadow-[#138F81]/15">
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -957,166 +1048,6 @@ export function NilaiHafalanPage() {
         </div>
       ) : null}
 
-      {/* FORM MODAL NILAI */}
-      {nilaiForm ? (
-        <ModalForm
-          title={nilaiForm.id ? 'Edit Nilai Ujian' : 'Tambah Nilai Ujian'}
-          onClose={() => setNilaiForm(null)}
-          footer={
-            <button
-              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#138F81] px-5 text-sm font-extrabold text-white disabled:opacity-60"
-              onClick={() => void saveNilai()}
-              type="button"
-              disabled={isSaving}
-            >
-              <Save size={17} /> {isSaving ? 'Menyimpan...' : 'Simpan Nilai'}
-            </button>
-          }
-        >
-          <div className="grid gap-4">
-            <select
-              className="q-input"
-              value={nilaiForm.siswa_id}
-              onChange={(e) => setNilaiForm({ ...nilaiForm, siswa_id: e.target.value })}
-            >
-              <option value="">Pilih santri</option>
-              {students.map((row) => (
-                <option key={text(row.id)} value={text(row.id)}>
-                  {text(row.nama)} ({text(row.nis)}) - {text(row.kelas)}
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="q-input"
-              value={nilaiForm.mapel_id}
-              onChange={(e) => setNilaiForm({ ...nilaiForm, mapel_id: e.target.value })}
-            >
-              <option value="">Pilih mata pelajaran</option>
-              {mapelRows.map((row) => (
-                <option key={text(row.id)} value={text(row.id)}>
-                  {text(row.nama)}
-                </option>
-              ))}
-            </select>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <select
-                className="q-input"
-                value={nilaiForm.jenis_ujian}
-                onChange={(e) => setNilaiForm({ ...nilaiForm, jenis_ujian: e.target.value })}
-              >
-                <option value="Harian">Ujian Harian</option>
-                <option value="UTS">UTS (Tengah Semester)</option>
-                <option value="UAS">UAS (Akhir Semester)</option>
-              </select>
-
-              <input
-                type="number"
-                min="0"
-                max="100"
-                placeholder="Skor Nilai (0 - 100)"
-                className="q-input"
-                value={nilaiForm.nilai}
-                onChange={(e) => setNilaiForm({ ...nilaiForm, nilai: e.target.value })}
-              />
-            </div>
-
-            <textarea
-              className="q-input"
-              rows={2}
-              placeholder="Catatan / Keterangan evaluasi (opsional)"
-              value={nilaiForm.keterangan}
-              onChange={(e) => setNilaiForm({ ...nilaiForm, keterangan: e.target.value })}
-            />
-          </div>
-        </ModalForm>
-      ) : null}
-
-      {/* FORM MODAL HAFALAN */}
-      {hafalanForm ? (
-        <ModalForm
-          title={hafalanForm.id ? 'Edit Setoran Hafalan' : 'Tambah Setoran Hafalan'}
-          onClose={() => setHafalanForm(null)}
-          footer={
-            <button
-              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#138F81] px-5 text-sm font-extrabold text-white disabled:opacity-60"
-              onClick={() => void saveHafalan()}
-              type="button"
-              disabled={isSaving}
-            >
-              <Save size={17} /> {isSaving ? 'Menyimpan...' : 'Simpan Setoran'}
-            </button>
-          }
-        >
-          <div className="grid gap-4">
-            <select
-              className="q-input"
-              value={hafalanForm.siswa_id}
-              onChange={(e) => setHafalanForm({ ...hafalanForm, siswa_id: e.target.value })}
-            >
-              <option value="">Pilih santri</option>
-              {students.map((row) => (
-                <option key={text(row.id)} value={text(row.id)}>
-                  {text(row.nama)} ({text(row.nis)}) - {text(row.kelas)}
-                </option>
-              ))}
-            </select>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <input
-                type="text"
-                placeholder="Juz (contoh: 30)"
-                className="q-input"
-                value={hafalanForm.juz}
-                onChange={(e) => setHafalanForm({ ...hafalanForm, juz: e.target.value })}
-              />
-              <input
-                type="text"
-                placeholder="Nama Surah (contoh: An-Naba')"
-                className="q-input"
-                value={hafalanForm.surah}
-                onChange={(e) => setHafalanForm({ ...hafalanForm, surah: e.target.value })}
-              />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <select
-                className="q-input"
-                value={hafalanForm.status}
-                onChange={(e) => setHafalanForm({ ...hafalanForm, status: e.target.value })}
-              >
-                <option value="Proses">Sedang Proses</option>
-                <option value="Selesai">Selesai / Mutqin</option>
-                <option value="Belum">Belum / Mengulang</option>
-              </select>
-
-              <input
-                type="text"
-                placeholder="Nilai Setoran (contoh: 90 / Mumtaz)"
-                className="q-input"
-                value={hafalanForm.nilai_hafalan}
-                onChange={(e) => setHafalanForm({ ...hafalanForm, nilai_hafalan: e.target.value })}
-              />
-            </div>
-
-            <input
-              type="date"
-              className="q-input"
-              value={hafalanForm.tanggal_setor}
-              onChange={(e) => setHafalanForm({ ...hafalanForm, tanggal_setor: e.target.value })}
-            />
-
-            <textarea
-              className="q-input"
-              rows={2}
-              placeholder="Catatan tajwid / kelancaran (opsional)"
-              value={hafalanForm.keterangan}
-              onChange={(e) => setHafalanForm({ ...hafalanForm, keterangan: e.target.value })}
-            />
-          </div>
-        </ModalForm>
-      ) : null}
 
       {/* CONFIRM DELETE DIALOG */}
       {deleteTarget ? (
