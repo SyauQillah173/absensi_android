@@ -206,7 +206,7 @@ class DashboardController extends Controller
             ->groupBy('sekolah_formal');
 
         $siswaPerKelasSekolah = $formalClasses->map(function ($c) use ($formalCounts) {
-            $items = collect($formalCounts->get($c->name, []));
+            $items = collect($formalCounts->get((string) $c->name, []));
             $pa = (int) ($items->firstWhere('jenis_kelamin', 'L')?->total ?? 0);
             $pi = (int) ($items->firstWhere('jenis_kelamin', 'P')?->total ?? 0);
             return [
@@ -221,10 +221,10 @@ class DashboardController extends Controller
             ];
         })->values();
 
-        $existingFormalNames = $formalClasses->pluck('name')->toArray();
-        $customFormal = $formalCounts->keys()->filter(fn ($k) => !in_array($k, $existingFormalNames));
+        $existingFormalNames = $formalClasses->pluck('name')->map(fn ($n) => (string) $n)->toArray();
+        $customFormal = $formalCounts->keys()->map(fn ($k) => (string) $k)->filter(fn ($k) => !in_array($k, $existingFormalNames));
         foreach ($customFormal as $customName) {
-            $items = collect($formalCounts->get($customName, []));
+            $items = collect($formalCounts->get((string) $customName, []));
             $pa = (int) ($items->firstWhere('jenis_kelamin', 'L')?->total ?? 0);
             $pi = (int) ($items->firstWhere('jenis_kelamin', 'P')?->total ?? 0);
             if ($pa + $pi > 0) {
@@ -429,7 +429,7 @@ class DashboardController extends Controller
             })
             ->get();
 
-        $formatCard = function (Jadwal $j, bool $isToday = true, bool $isTomorrow = false) use ($absensiHariIni, $currentTime) {
+        $formatCard = function (Jadwal $j, bool $isToday = true, bool $isTomorrow = false) use ($absensiHariIni, $currentTime, $guru) {
             $absensi = $absensiHariIni->filter(function ($a) use ($j) {
                 if ($a->jadwal_id && (int) $a->jadwal_id === (int) $j->id) {
                     return true;
