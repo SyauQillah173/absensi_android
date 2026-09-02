@@ -1,5 +1,16 @@
-import { CalendarDays, CheckCircle2, GraduationCap, Pencil, Plus, RefreshCw, RotateCw, Sparkles, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import {
+  CalendarDays,
+  CheckCircle2,
+  GraduationCap,
+  Pencil,
+  Plus,
+  RefreshCw,
+  RotateCw,
+  Sparkles,
+  Trash2
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ComplexTahunAjaranForm } from '../components/ComplexTahunAjaranForm';
 import { DataTable, type DataColumn } from '../components/DataTable';
 import { ModalForm } from '../components/ModalForm';
 import { StatCard } from '../components/StatCard';
@@ -21,13 +32,14 @@ function normalizeSemester(value: unknown): 'ganjil' | 'genap' {
   return clean.includes('genap') ? 'genap' : 'ganjil';
 }
 
-interface AcademicFormState {
+interface AcademicFormState extends ApiRecord {
   id?: number;
   name: string;
   year_start: string;
   year_end: string;
   active_semester: 'ganjil' | 'genap';
 }
+
 
 export function AcademicPage() {
   const [years, setYears] = useState<ApiRecord[]>([]);
@@ -64,63 +76,77 @@ export function AcademicPage() {
   const activeSemester = normalizeSemester(active?.semester ?? active?.semester_label ?? (active?.academic_year as ApiRecord | undefined)?.active_semester);
   const activeAcademicYear = active?.academic_year && typeof active.academic_year === 'object' ? (active.academic_year as ApiRecord) : null;
 
-  const columns = useMemo<DataColumn<ApiRecord>[]>(
-    () => [
-      { key: 'name', header: 'Tahun Ajaran', render: (row) => <span className="font-extrabold">{text(row.name)}</span> },
-      { key: 'range', header: 'Periode', render: (row) => `${text(row.year_start)} - ${text(row.year_end)}` },
-      { key: 'semester', header: 'Semester Aktif', render: (row) => <StatusBadge label={text(row.active_semester).toUpperCase()} tone="info" /> },
-      { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.is_active ? 'Aktif' : 'Arsip'} tone={row.is_active ? 'success' : 'neutral'} /> },
-      {
-        key: 'actions',
-        header: 'Aksi',
-        render: (row) => {
-          const id = asNumber(row.id);
-          const activeSemester = normalizeSemester(row.active_semester);
-          return (
-            <div className="flex flex-wrap gap-2">
-              <button
-                className="q-soft-action rounded-xl bg-[#F0ECFF] px-3 py-2 text-xs font-extrabold text-[#6C5CE7] hover:bg-[#e2dbff] disabled:opacity-60 transition-colors inline-flex items-center gap-1"
-                onClick={() => setAutoPromoteTarget(row)}
-                type="button"
-                disabled={isSaving || isPromoting}
-                title="Naikkan semua santri madin secara otomatis & luluskan santri tingkat akhir"
-              >
-                <Sparkles size={13} /> Naik Kelas Otomatis
-              </button>
-              <button className="q-soft-action rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-extrabold text-[#2E86DE]" onClick={() => openForm(row)} type="button">
-                <Pencil size={14} className="inline" /> Edit
-              </button>
-              <button
-                className="q-soft-action rounded-xl bg-[#E8F7F3] px-3 py-2 text-xs font-extrabold text-[#138F81] disabled:opacity-60"
-                onClick={() => void activate(id, activeSemester)}
-                type="button"
-                disabled={isSaving || row.is_active === true}
-              >
-                Aktifkan
-              </button>
-              <button
-                className="q-soft-action rounded-xl bg-white px-3 py-2 text-xs font-extrabold text-[#138F81] disabled:opacity-60"
-                onClick={() => void syncSiswa(row)}
-                type="button"
-                disabled={syncingId === id}
-              >
-                <RotateCw size={14} className={`inline ${syncingId === id ? 'animate-spin' : ''}`} /> Sinkron
-              </button>
-              <button
-                className="q-soft-action rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-extrabold text-[#D63031] hover:bg-[#FCD8D8] disabled:opacity-60 transition-colors"
-                onClick={() => setDeletingYear(row)}
-                type="button"
-                disabled={isSaving || isDeleting || isPromoting}
-              >
-                <Trash2 size={14} className="inline" /> Hapus
-              </button>
-            </div>
-          );
-        }
+  const columns: DataColumn<ApiRecord>[] = [
+    {
+      key: 'name',
+      header: 'Tahun Ajaran',
+      sortable: true,
+      sortValue: (row) => String(row.name ?? ''),
+      render: (row) => <span className="font-extrabold text-slate-800">{text(row.name)}</span>
+    },
+    {
+      key: 'active_semester',
+      header: 'Semester Aktif',
+      sortable: true,
+      sortValue: (row) => String(row.active_semester ?? ''),
+      render: (row) => <span className="font-bold text-xs uppercase text-[#138F81] bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-200/60">{text(row.active_semester)}</span>
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      sortable: true,
+      sortValue: (row) => (row.is_active ? 1 : 0),
+      render: (row) => <StatusBadge label={row.is_active ? 'Aktif' : 'Nonaktif'} tone={row.is_active ? 'success' : 'neutral'} />
+    },
+    {
+      key: 'actions',
+      header: 'Aksi',
+      render: (row) => {
+        const id = asNumber(row.id);
+        const activeSemester = normalizeSemester(row.active_semester);
+        return (
+          <div className="flex flex-wrap gap-2">
+            <button
+              className="q-soft-action rounded-xl bg-[#F0ECFF] px-3 py-2 text-xs font-extrabold text-[#6C5CE7] hover:bg-[#e2dbff] disabled:opacity-60 transition-colors inline-flex items-center gap-1"
+              onClick={() => setAutoPromoteTarget(row)}
+              type="button"
+              disabled={isSaving || isPromoting}
+              title="Naikkan semua santri madin secara otomatis & luluskan santri tingkat akhir"
+            >
+              <Sparkles size={13} /> Naik Kelas Otomatis
+            </button>
+            <button className="q-soft-action rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-extrabold text-[#2E86DE]" onClick={() => openForm(row)} type="button">
+              <Pencil size={14} className="inline" /> Edit
+            </button>
+            <button
+              className="q-soft-action rounded-xl bg-[#E8F7F3] px-3 py-2 text-xs font-extrabold text-[#138F81] disabled:opacity-60"
+              onClick={() => void activate(id, activeSemester)}
+              type="button"
+              disabled={isSaving || row.is_active === true}
+            >
+              Aktifkan
+            </button>
+            <button
+              className="q-soft-action rounded-xl bg-white px-3 py-2 text-xs font-extrabold text-[#138F81] disabled:opacity-60"
+              onClick={() => void syncSiswa(row)}
+              type="button"
+              disabled={syncingId === id}
+            >
+              <RotateCw size={14} className={`inline ${syncingId === id ? 'animate-spin' : ''}`} /> Sinkron
+            </button>
+            <button
+              className="q-soft-action rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-extrabold text-[#D63031] hover:bg-[#FCD8D8] disabled:opacity-60 transition-colors"
+              onClick={() => setDeletingYear(row)}
+              type="button"
+              disabled={isSaving || isDeleting || isPromoting}
+            >
+              <Trash2 size={14} className="inline" /> Hapus
+            </button>
+          </div>
+        );
       }
-    ],
-    [isSaving, isDeleting, isPromoting, syncingId]
-  );
+    }
+  ];
 
   function openForm(year?: ApiRecord) {
     const start = text(year?.year_start, String(new Date().getFullYear()));
@@ -132,38 +158,6 @@ export function AcademicPage() {
       year_end: end,
       active_semester: normalizeSemester(year?.active_semester)
     });
-  }
-
-  async function saveForm() {
-    if (!form || isSaving) return;
-    const start = Number(form.year_start);
-    const end = Number(form.year_end);
-    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
-      setError('Tahun ajaran tidak valid.');
-      return;
-    }
-    setIsSaving(true);
-    setError('');
-    try {
-      const payload = {
-        name: form.name.trim() || `${start}/${end}`,
-        year_start: start,
-        year_end: end,
-        active_semester: form.active_semester
-      };
-      if (form.id) {
-        await api.updateAcademicPeriod(form.id, payload);
-      } else {
-        await api.createAcademicPeriod(payload);
-      }
-      setForm(null);
-      setNotice('Tahun ajaran berhasil disimpan.');
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Tahun ajaran gagal disimpan.');
-    } finally {
-      setIsSaving(false);
-    }
   }
 
   async function activate(id: number, semester: string) {
@@ -252,9 +246,22 @@ export function AcademicPage() {
     }
   }
 
+  if (form !== null) {
+    return (
+      <ComplexTahunAjaranForm
+        initialData={form.id ? form : null}
+        onClose={() => setForm(null)}
+        onSave={() => {
+          setForm(null);
+          void load();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <section className="flex flex-wrap items-end justify-between gap-4">
+      <section className="q-page-heading flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-bold text-[#636E72]">Buku Induk</p>
           <h1 className="text-3xl font-extrabold text-[#2D3436]">Setting Akademik</h1>
@@ -335,49 +342,7 @@ export function AcademicPage() {
         </section>
       ) : null}
 
-      {form ? (
-        <ModalForm
-          title={form.id ? 'Edit Tahun Ajaran' : 'Tambah Tahun Ajaran'}
-          onClose={() => setForm(null)}
-          footer={
-            <button className="min-h-12 w-full rounded-2xl bg-[#138F81] text-sm font-extrabold text-white disabled:opacity-60" onClick={() => void saveForm()} type="button" disabled={isSaving}>
-              {isSaving ? 'Menyimpan...' : 'Simpan Tahun Ajaran'}
-            </button>
-          }
-        >
-          <div className="grid gap-4">
-            <label className="grid gap-2 text-sm font-bold text-[#636E72]">
-              Nama Tahun Ajaran
-              <input className="q-input min-h-12 rounded-2xl bg-white px-4 text-[#2D3436]" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="2025/2026" />
-            </label>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="grid gap-2 text-sm font-bold text-[#636E72]">
-                Tahun Mulai
-                <input className="q-input min-h-12 rounded-2xl bg-white px-4 text-[#2D3436]" value={form.year_start} onChange={(event) => setForm({ ...form, year_start: event.target.value })} inputMode="numeric" />
-              </label>
-              <label className="grid gap-2 text-sm font-bold text-[#636E72]">
-                Tahun Selesai
-                <input className="q-input min-h-12 rounded-2xl bg-white px-4 text-[#2D3436]" value={form.year_end} onChange={(event) => setForm({ ...form, year_end: event.target.value })} inputMode="numeric" />
-              </label>
-            </div>
-            <div>
-              <p className="text-sm font-bold text-[#636E72]">Semester Aktif</p>
-              <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                {(['ganjil', 'genap'] as const).map((semester) => (
-                  <button
-                    key={semester}
-                    className={`min-h-12 rounded-2xl text-sm font-extrabold capitalize transition ${form.active_semester === semester ? 'bg-[#138F81] text-white shadow-lg shadow-[#138F81]/20' : 'bg-white text-[#636E72]'}`}
-                    onClick={() => setForm({ ...form, active_semester: semester })}
-                    type="button"
-                  >
-                    {semester}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </ModalForm>
-      ) : null}
+
 
       {autoPromoteTarget ? (
         <ModalForm
