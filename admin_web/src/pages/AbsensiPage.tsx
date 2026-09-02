@@ -21,7 +21,8 @@ import {
   TrendingUp,
   X
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ComplexSholatForm } from '../components/ComplexSholatForm';
 import { useAuth } from '../auth/AuthContext';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
@@ -1271,6 +1272,8 @@ function MadinRekap() {
 
 function PrayerTypeCms() {
   const [items, setItems] = useState<ApiRecord[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'Aktif' | 'Nonaktif'>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState<ApiRecord | null>(null);
@@ -1279,8 +1282,8 @@ function PrayerTypeCms() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
-  async function load() {
-    setIsLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
     setError('');
     try {
       const result = await api.prayerAttendanceTypes();
@@ -1289,43 +1292,70 @@ function PrayerTypeCms() {
     } catch (err) {
       setBackendReady(false);
       setItems(legacyPrayerTypes);
-      setNotice("Pengaturan waktu jama'ah menunggu backend terbaru. Setelah backend dideploy dan migration jalan, tambah/edit waktu jama'ah akan langsung tersimpan ke database pusat.");
+      if (!silent) {
+        setNotice("Pengaturan waktu jama'ah menunggu backend terbaru. Setelah backend dideploy dan migration jalan, tambah/edit waktu jama'ah akan langsung tersimpan ke database pusat.");
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     void load();
-  }, []);
 
-  async function save() {
-    if (!form) return;
-    setIsSaving(true);
-    setError('');
-    setNotice('');
-    try {
-      const payload = {
-        name: text(form.name, ''),
-        code: text(form.code, '').toLowerCase().replace(/\s+/g, '_'),
-        description: text(form.description, ''),
-        is_active: form.is_active !== false,
-        sort_order: num(form.sort_order)
-      };
-      if (num(form.id)) {
-        await api.updatePrayerAttendanceType(num(form.id), payload);
-      } else {
-        await api.createPrayerAttendanceType(payload);
+    // 1. Auto-refresh saat event app:data-updated dipicu
+    const handleDataUpdate = (e: Event) => {
+      const customEvt = e as CustomEvent;
+      if (!customEvt.detail || customEvt.detail.type === 'sholat' || customEvt.detail.type === 'all') {
+        void load(true);
       }
-      setForm(null);
-      setNotice("Waktu jama'ah berhasil disimpan.");
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Waktu jama'ah gagal disimpan");
-    } finally {
-      setIsSaving(false);
+    };
+    window.addEventListener('app:data-updated', handleDataUpdate);
+
+    // 2. Auto-refresh saat window fokus atau tab kembali aktif
+    const handleFocus = () => void load(true);
+    window.addEventListener('focus', handleFocus);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') void load(true);
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // 3. Periodic Background Auto-Refresh (setiap 15 detik)
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible' && form === null) {
+        void load(true);
+      }
+    }, 15000);
+
+    return () => {
+      window.removeEventListener('app:data-updated', handleDataUpdate);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(interval);
+    };
+  }, [load, form]);
+
+  const activeCount = useMemo(() => items.filter((i) => i.is_active !== false).length, [items]);
+  const inactiveCount = useMemo(() => items.filter((i) => i.is_active === false).length, [items]);
+
+  const filteredItems = useMemo(() => {
+    let list = items;
+    if (statusFilter === 'Aktif') {
+      list = list.filter((i) => i.is_active !== false);
+    } else if (statusFilter === 'Nonaktif') {
+      list = list.filter((i) => i.is_active === false);
     }
-  }
+
+    const kw = searchQuery.trim().toLowerCase();
+    if (!kw) return list;
+    return list.filter((i) => {
+      const name = text(i.name).toLowerCase();
+      const code = text(i.code).toLowerCase();
+      const desc = text(i.description).toLowerCase();
+      return name.includes(kw) || code.includes(kw) || desc.includes(kw);
+    });
+  }, [items, searchQuery, statusFilter]);
+
 
   async function runConfirmAction() {
     if (!confirmAction) return;
@@ -1349,10 +1379,35 @@ function PrayerTypeCms() {
   }
 
   const columns: DataColumn<ApiRecord>[] = [
-    { key: 'name', header: "Waktu Jama'ah", render: (row) => <span className="font-extrabold">{text(row.name)}</span> },
-    { key: 'code', header: 'Kode', render: (row) => text(row.code) },
-    { key: 'status', header: 'Status', render: (row) => <StatusBadge label={row.is_active === false ? 'Nonaktif' : 'Aktif'} tone={row.is_active === false ? 'neutral' : 'success'} /> },
-    { key: 'order', header: 'Urutan Tampil', render: (row) => num(row.sort_order) },
+    {
+      key: 'name',
+      header: "Waktu Jama'ah",
+      sortable: true,
+      sortValue: (row) => String(row.name ?? ''),
+      render: (row) => <span className="font-extrabold text-slate-800">{text(row.name)}</span>
+    },
+    {
+      key: 'code',
+      header: 'Kode',
+      sortable: true,
+      sortValue: (row) => String(row.code ?? ''),
+      render: (row) => <span className="font-mono text-xs text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded">{text(row.code)}</span>
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      sortable: true,
+      sortValue: (row) => (row.is_active !== false ? 1 : 0),
+      render: (row) => <StatusBadge label={row.is_active === false ? 'Nonaktif' : 'Aktif'} tone={row.is_active === false ? 'neutral' : 'success'} />
+    },
+    {
+      key: 'order',
+      header: 'Urutan Tampil',
+      sortable: true,
+      sortValue: (row) => num(row.sort_order),
+      render: (row) => <span className="font-bold text-xs text-slate-700 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">#{num(row.sort_order)}</span>
+    },
+
     {
       key: 'actions',
       header: 'Aksi',
@@ -1389,149 +1444,137 @@ function PrayerTypeCms() {
     }
   ];
 
+  if (form !== null) {
+    return (
+      <ComplexSholatForm
+        initialData={form.id ? form : null}
+        onClose={() => {
+          setForm(null);
+          void load(true);
+        }}
+        onSave={() => {
+          setForm(null);
+          void load(true);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-5">
       <Message error={error} notice={notice} />
-      <section className="q-panel flex flex-wrap items-center justify-between gap-3 p-4 sm:p-6">
+
+      {/* Header Banner */}
+      <section className="q-panel flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6 rounded-3xl bg-white border border-slate-100 shadow-xs">
         <div>
-          <h2 className="text-xl font-extrabold text-[#2D3436]">Pengaturan Waktu Jama'ah Sholat</h2>
-          <p className="text-sm font-semibold text-[#636E72]">Subuh, Maghrib, Isya, atau tambahan lain tetap memakai ID master database.</p>
-          <p className="mt-1 text-xs font-bold text-[#138F81]">Urutan tampil: angka kecil muncul lebih dulu di pilihan absensi.</p>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#138F81]/10 text-[#138F81]">
+              <Landmark size={20} />
+            </div>
+            <h2 className="text-xl font-extrabold text-[#2D3436]">Pengaturan Waktu Jama'ah Sholat</h2>
+          </div>
+          <p className="text-sm font-semibold text-[#636E72]">
+            Subuh, Dhuhur, Ashar, Maghrib, Isya, atau sesi sholat khusus santri pondok.
+          </p>
+          <p className="mt-1 text-xs font-bold text-[#138F81]">
+            Urutan tampil: angka kecil muncul lebih dulu di pilihan form absensi sholat santri.
+          </p>
         </div>
+
         <button
-          className="flex min-h-12 items-center gap-2 rounded-2xl bg-[#138F81] px-5 text-sm font-extrabold text-white disabled:opacity-60"
+          className="flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-5 text-sm font-extrabold text-white shadow-md shadow-[#138F81]/20 hover:brightness-105 transition-all disabled:opacity-60"
           onClick={() => setForm({ is_active: true, sort_order: items.length * 10 + 10 })}
           type="button"
           disabled={!backendReady}
           title={!backendReady ? "Deploy backend terbaru dulu agar route master waktu jama'ah tersedia." : undefined}
         >
-          <Plus size={18} /> Tambah Waktu
+          <Plus size={18} /> Tambah Waktu Sholat
         </button>
       </section>
-      <section className="q-panel p-4 sm:p-6">
-        {isLoading ? <LoadingText text="Memuat waktu jama'ah..." /> : <DataTable rows={items} columns={columns} emptyText="Belum ada waktu jama'ah sholat." />}
-      </section>
-      {form ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200">
-            {/* Modal Header Banner */}
-            <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-teal-50/70 via-emerald-50/50 to-white p-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#138F81] text-white shadow-md shadow-[#138F81]/20">
-                  <Landmark size={22} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-extrabold text-[#2D3436]">
-                    {num(form.id) ? "Edit Waktu Jama'ah" : "Tambah Waktu Jama'ah Baru"}
-                  </h3>
-                  <p className="text-xs font-semibold text-[#636E72]">
-                    Atur nama sesi sholat jama'ah santri pondok
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setForm(null)}
-                className="rounded-2xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-                type="button"
-              >
-                <X size={20} />
-              </button>
-            </div>
 
-            {/* Modal Form Body */}
-            <form id="sholat-form" className="p-6 space-y-4" onSubmit={(e) => { e.preventDefault(); void save(); }}>
-              <div>
-                <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
-                  Nama Waktu Sholat <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all"
-                  value={text(form.name, '')}
-                  onChange={(event) => setForm({ ...form, name: event.target.value })}
-                  placeholder="Contoh: Subuh, Dhuhur, Ashar, Maghrib, Isya..."
-                  required
-                />
-              </div>
+      {/* Action & Filter Controls */}
+      <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-3xl border border-slate-100 shadow-xs">
+        <div className="flex flex-1 flex-wrap items-center gap-2.5">
+          <div className="flex-1 min-w-[220px]">
+            <SearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Cari waktu jama'ah (Subuh, Maghrib)..."
+            />
+          </div>
 
-              <div>
-                <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
-                  Kode Unik (Opsional)
-                </label>
-                <input
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-mono font-bold text-slate-800 placeholder:text-slate-400 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all"
-                  value={text(form.code, '')}
-                  onChange={(event) => setForm({ ...form, code: event.target.value })}
-                  placeholder="Contoh: subuh (otomatis diisi jika kosong)"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
-                  Keterangan (Opsional)
-                </label>
-                <textarea
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all min-h-20 resize-none"
-                  value={text(form.description, '')}
-                  onChange={(event) => setForm({ ...form, description: event.target.value })}
-                  placeholder="Keterangan tambahan untuk sesi sholat..."
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
-                  Urutan Tampil
-                </label>
-                <input
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all"
-                  inputMode="numeric"
-                  value={num(form.sort_order)}
-                  onChange={(event) => setForm({ ...form, sort_order: Number(event.target.value) })}
-                  placeholder="Contoh: 10, 20, 30"
-                />
-                <p className="mt-1 text-[11px] font-semibold text-slate-400">
-                  Angka kecil muncul lebih dulu di urutan form absensi.
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4 border border-slate-100">
-                <div>
-                  <p className="text-xs font-extrabold text-slate-800">Status Waktu Sholat</p>
-                  <p className="text-[11px] font-semibold text-slate-500">
-                    Aktifkan agar muncul pada pilihan input absensi sholat santri.
-                  </p>
-                </div>
-                <label className="relative inline-flex cursor-pointer items-center">
-                  <input
-                    type="checkbox"
-                    className="peer sr-only"
-                    checked={form.is_active !== false}
-                    onChange={(event) => setForm({ ...form, is_active: event.target.checked })}
-                  />
-                  <div className="h-6 w-11 rounded-full bg-slate-200 after:absolute after:top-[2px] after:start-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-[#138F81] peer-checked:after:translate-x-full peer-focus:outline-hidden"></div>
-                </label>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setForm(null)}
-                  className="w-1/3 rounded-2xl border border-slate-200 bg-white py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="w-2/3 rounded-2xl bg-[#138F81] py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/25 hover:brightness-105 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
-                >
-                  <CheckCircle2 size={18} />
-                  {isSaving ? 'Menyimpan...' : "Simpan Waktu Jama'ah"}
-                </button>
-              </div>
-            </form>
+          <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 shrink-0">
+            <button
+              type="button"
+              onClick={() => setStatusFilter('all')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+                statusFilter === 'all'
+                  ? 'bg-white text-slate-800 shadow-xs ring-1 ring-black/5'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Semua ({items.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('Aktif')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+                statusFilter === 'Aktif'
+                  ? 'bg-[#138F81] text-white shadow-xs'
+                  : 'text-slate-600 hover:text-[#138F81]'
+              }`}
+            >
+              <span className={`h-2 w-2 rounded-full ${statusFilter === 'Aktif' ? 'bg-white' : 'bg-emerald-500'}`} />
+              Aktif ({activeCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('Nonaktif')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+                statusFilter === 'Nonaktif'
+                  ? 'bg-slate-700 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <span className={`h-2 w-2 rounded-full ${statusFilter === 'Nonaktif' ? 'bg-white' : 'bg-slate-400'}`} />
+              Nonaktif ({inactiveCount})
+            </button>
           </div>
         </div>
-      ) : null}
+
+        <button
+          className={`flex h-10 items-center gap-2 rounded-2xl bg-white px-3.5 text-xs font-extrabold text-[#138F81] border border-slate-200 shadow-xs hover:bg-slate-50 transition-colors shrink-0 ${
+            isLoading ? 'animate-pulse' : ''
+          }`}
+          onClick={() => void load(true)}
+          type="button"
+          disabled={isLoading}
+        >
+          <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+          <span>Refresh</span>
+        </button>
+      </section>
+
+      {/* Data Table */}
+      <section className="q-table-container rounded-3xl bg-white p-4 shadow-sm md:p-6 lg:p-8">
+        {isLoading ? (
+          <LoadingText text="Memuat waktu jama'ah..." />
+        ) : (
+          <DataTable
+            rows={filteredItems}
+            columns={columns}
+            defaultSortKey="order"
+            defaultSortDirection="asc"
+            emptyText={
+              statusFilter === 'Aktif'
+                ? "Tidak ada waktu jama'ah yang aktif."
+                : statusFilter === 'Nonaktif'
+                ? "Tidak ada waktu jama'ah yang nonaktif."
+                : "Belum ada waktu jama'ah sholat."
+            }
+          />
+        )}
+      </section>
       {confirmAction ? (
         <ConfirmDialog
           title={confirmAction.kind === 'delete' ? "Hapus Waktu Jama'ah" : confirmAction.nextActive ? "Aktifkan Waktu Jama'ah" : "Nonaktifkan Waktu Jama'ah"}
