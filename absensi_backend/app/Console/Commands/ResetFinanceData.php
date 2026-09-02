@@ -66,11 +66,14 @@ class ResetFinanceData extends Command
                     'pemasukan_lains',
                     'pengeluaran',
                     'pengeluarans',
+                    'app_notifications',
                 ];
 
                 if (!$keepBills) {
                     $candidateTables[] = 'tagihan_santris';
                     $candidateTables[] = 'payment_bills';
+                    $candidateTables[] = 'payment_bill_rule_student';
+                    $candidateTables[] = 'payment_bill_rules';
                 }
 
                 $this->info("▶ Membersihkan seluruh transaksi pembayaran, kas masuk lain, dan pengeluaran...");
@@ -97,7 +100,10 @@ class ResetFinanceData extends Command
                 }
             }
 
-            // If keepBills is active, reset the paid status of bills to 0 / Unpaid
+            // Flush Laravel Cache agar ringkasan keuangan dashboard langsung update seketika
+            \Illuminate\Support\Facades\Cache::flush();
+
+
             if ($keepBills && Schema::hasTable('tagihan_santris')) {
                 DB::table('tagihan_santris')->update([
                     'terbayar' => 0,

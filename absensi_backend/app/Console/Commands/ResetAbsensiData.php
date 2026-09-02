@@ -47,18 +47,22 @@ class ResetAbsensiData extends Command
 
         try {
             $candidateTables = [
+                'absensi',
                 'absensis',
                 'absensi_sholat',
                 'absensi_ngaji',
+                'app_notifications',
             ];
 
             if ($withSchedules) {
+                $candidateTables[] = 'jadwal';
+                $candidateTables[] = 'jadwals';
                 $candidateTables[] = 'jadwal_pelajarans';
                 $candidateTables[] = 'ngaji_schedules';
                 $candidateTables[] = 'guru_mata_pelajaran';
-                $this->info("▶ Membersihkan seluruh Log Absensi dan Susunan Jadwal...");
+                $this->info("▶ Membersihkan seluruh Log Absensi, Notifikasi, dan Susunan Jadwal...");
             } else {
-                $this->info("▶ Membersihkan seluruh Log Absensi (Madin, Sholat, Ngaji)...");
+                $this->info("▶ Membersihkan seluruh Log Absensi (Madin, Sholat, Ngaji) & Notifikasi...");
             }
 
             $existingTables = [];
@@ -82,6 +86,9 @@ class ResetAbsensiData extends Command
                 }
             }
 
+            // Flush Laravel Cache agar dashboard & notifikasi langsung 0 seketika
+            \Illuminate\Support\Facades\Cache::flush();
+
             $this->newLine();
             $this->info("-----------------------------------------------------------------");
             $this->info("  STATUS HASIL PEMBERSIHAN ABSENSI:");
@@ -89,6 +96,8 @@ class ResetAbsensiData extends Command
             $this->info("  ✓ Log Absensi KBM Madin                  : [BERSIH / KOSONG]");
             $this->info("  ✓ Log Absensi Sholat Jama'ah Santri      : [BERSIH / KOSONG]");
             $this->info("  ✓ Log Absensi Ngaji Kitab Santri         : [BERSIH / KOSONG]");
+            $this->info("  ✓ Notifikasi & Log Aktivitas Absensi     : [BERSIH / KOSONG]");
+            $this->info("  ✓ Cache Dashboard & Sistem               : [FLUSHED / FRESH]");
             if ($withSchedules) {
                 $this->info("  ✓ Susunan Jadwal KBM Madin & Ngaji       : [BERSIH / KOSONG]");
             } else {
