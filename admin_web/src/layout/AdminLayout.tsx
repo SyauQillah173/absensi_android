@@ -907,8 +907,38 @@ export function AdminLayout({
           </header>
 
           <div className="q-content-area">{children}</div>
+
+          {/* MODERN & PROFESSIONAL FOOTER */}
+          <footer className="mt-8 pt-5 pb-3 border-t border-[#138F81]/15 text-[#2D3436]">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+              <div className="flex items-center gap-2.5">
+                <div className="h-7 w-7 rounded-xl bg-[#138F81] text-white font-black text-xs grid place-items-center shadow-md shadow-[#138F81]/25">
+                  IQ
+                </div>
+                <div>
+                  <p className="text-xs font-black text-[#2D3436] tracking-tight">
+                    Sistem Informasi & Presensi Pesantren Qomaruddin
+                  </p>
+                  <p className="text-[11px] font-semibold text-[#636E72]">
+                    Managed & Engineered <span className="font-extrabold text-[#138F81] tracking-wide">BY: IQOM</span> (Pusat TI PP. Qomaruddin)
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 text-[11px] font-bold">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/90 border border-slate-200/80 shadow-2xs">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[10px] font-extrabold text-slate-700">Production Live</span>
+                </span>
+                <span className="text-[11px] font-semibold text-[#636E72]">
+                  © 2026 Yayasan PP Qomaruddin
+                </span>
+              </div>
+            </div>
+          </footer>
         </main>
       </div>
     </div>
   );
 }
+
