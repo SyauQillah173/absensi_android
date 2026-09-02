@@ -52,7 +52,7 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
     if (!option) return;
 
     setForm(prev => {
-      const updated = {
+      const updated: Record<string, string | number> = {
         ...prev,
         role: option.role,
         admin_type: option.adminType || '',
@@ -67,6 +67,7 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
 
       return updated;
     });
+
   };
 
   // Quick email generator
@@ -295,7 +296,7 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
                               key={opt.key}
                               type="button"
                               onClick={() => handleRoleSelection(opt.key)}
-                              disabled={readOnly || (forcedRole && forcedRole !== opt.role)}
+                              disabled={readOnly || Boolean(forcedRole && forcedRole !== opt.role)}
                               className={`text-left p-3.5 rounded-2xl border transition-all ${
                                 isSelected
                                   ? 'border-[#138F81] bg-teal-50/70 shadow-sm ring-2 ring-[#138F81]/20'
