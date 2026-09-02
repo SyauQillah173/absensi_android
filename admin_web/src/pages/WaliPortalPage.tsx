@@ -1125,22 +1125,17 @@ export function WaliPortalPage() {
         {/* MODERN & PROFESSIONAL FOOTER */}
         <footer className="mt-12 pt-6 pb-2 border-t border-slate-200/80 text-slate-600">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
-            <div className="flex items-center gap-2.5">
-              <div className="h-7 w-7 rounded-xl bg-[#138F81] text-white font-black text-xs grid place-items-center shadow-md shadow-[#138F81]/20">
-                IQ
-              </div>
-              <div>
-                <p className="text-xs font-black text-slate-800 tracking-tight">
-                  Portal Informasi & Presensi Santri Terpadu
-                </p>
-                <p className="text-[11px] font-semibold text-slate-500">
-                  Yayasan Pondok Pesantren Qomaruddin • Managed by <span className="font-extrabold text-[#138F81]">IT QOMARUDDIN ( ITQOM )</span>
-                </p>
-              </div>
-
+            <div>
+              <p className="text-xs font-black text-slate-800 tracking-tight">
+                Portal Informasi & Presensi Santri Terpadu
+              </p>
+              <p className="text-[11px] font-semibold text-slate-500">
+                Yayasan Pondok Pesantren Qomaruddin • Managed by <span className="font-extrabold text-[#138F81]">IT QOMARUDDIN ( ITQOM )</span>
+              </p>
             </div>
 
             <div className="flex items-center gap-2.5 text-[11px] font-bold">
+
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 text-[#138F81] border border-teal-200/60 font-extrabold text-[10px]">
                 <span className="h-2 w-2 rounded-full bg-[#138F81] animate-pulse" />
                 Live Monitoring
