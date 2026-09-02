@@ -125,10 +125,9 @@ const allMenu: MenuItem[] = [
       { label: "📊 Rekap Presensi Madin", page: "absensi", absensiTab: "madin" },
       { label: "📈 Rekap Presensi Sholat", page: "absensi", absensiTab: "rekap-sholat" },
       { label: "📚 Rekap Presensi Ngaji", page: "absensi", absensiTab: "rekap-ngaji" },
-      { label: "🕋 Atur Jadwal & Waktu Sholat", page: "absensi", absensiTab: "jenis-sholat" },
-      { label: "📖 Atur Jadwal & Kitab Ngaji", page: "absensi", absensiTab: "jadwal-ngaji" },
     ],
   },
+
   { key: "nilai", label: "Nilai & Hafalan", icon: ListChecks, page: "nilai" },
   {
     key: "keuangan_menu",
