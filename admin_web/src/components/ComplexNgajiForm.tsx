@@ -58,6 +58,25 @@ function num(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function formatTeacherOption(name: string, jenisKelamin?: string): string {
+  const clean = text(name);
+  if (!clean) return '-';
+
+  // Cek apakah nama sudah memiliki gelar penghormatan (misal: UST., USTADZ, KH., BU NYAI, NYAI, MAS, dll.)
+  const alreadyHasTitle = /^(ust|ustadz|ustadzah|kh|k\.h|k\s*h|kyai|kiai|bu\s*nyai|nyai|ning|gus|habib|mas|pak|bapak|ibu|drs|dra|prof|dr)\b/i.test(clean);
+
+  // Jika nama sudah ada gelarnya (seperti "UST. ABD. RAHMAN", "KH. ABDUL QODIR", "BU NYAI ..."),
+  // gunakan nama tersebut langsung tanpa menambah kata "Ustadz/Ustadzah" agar TIDAK DOUBLE!
+  if (alreadyHasTitle) {
+    return clean;
+  }
+
+  // Jika nama polos tanpa gelar, tambahkan gelar sesuai jenis kelamin
+  const prefix = jenisKelamin === 'P' ? 'Ustadzah ' : 'Ustadz ';
+  return `${prefix}${clean}`;
+}
+
+
 function getBookCover(key: string): string | null {
   try {
     return localStorage.getItem(`kitab_img_${key}`);
@@ -745,10 +764,11 @@ export function ComplexNgajiForm({ initialData, onClose, onSave }: ComplexNgajiF
                       <option value="">-- Pilih Ustadz Pengajar --</option>
                       {teachers.map((t) => (
                         <option key={text(t.id)} value={text(t.id)}>
-                          {t.jenis_kelamin === 'P' ? '🧕 Ustadzah ' : '👳‍♂️ Ustadz '} {text(t.name)}
+                          {formatTeacherOption(text(t.name), text(t.jenis_kelamin))}
                         </option>
                       ))}
                     </select>
+
                   </div>
 
                   {/* Hari */}
@@ -889,8 +909,9 @@ export function ComplexNgajiForm({ initialData, onClose, onSave }: ComplexNgajiF
                             <Clock3 size={14} className="text-slate-400" /> {item.start_time} - {item.end_time} WIB
                           </p>
                           <p className="text-xs font-bold text-slate-700">
-                            👳‍♂️ {item.pengajar || 'Ustadz Pengajar'}
+                            👤 {item.pengajar || 'Ustadz / Pengajar'}
                           </p>
+
                           <p className="text-xs font-semibold text-slate-500">
                             🎯 Target: {item.kamar ? `Kamar ${item.kamar}` : item.komplek ? `Komplek ${item.komplek}` : item.kelas ? `Kelas ${item.kelas}` : 'Semua Santri'}
                           </p>
