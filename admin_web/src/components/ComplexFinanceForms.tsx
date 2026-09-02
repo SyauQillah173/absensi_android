@@ -693,20 +693,8 @@ export function ComplexPaymentMethodForm({
               />
             </div>
 
-            <div>
-              <label className="mb-1.5 block text-xs font-black text-slate-700 uppercase tracking-wider">
-                Urutan Tampil
-              </label>
-              <input
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-[#138F81] focus:outline-hidden"
-                type="number"
-                value={sort}
-                onChange={(e) => setSort(e.target.value.replace(/\D/g, ''))}
-                placeholder="10, 20, 30"
-              />
-            </div>
-
             <div className="flex items-center justify-between rounded-2xl bg-white p-4 border border-slate-200">
+
               <div>
                 <p className="text-xs font-black text-slate-800 uppercase tracking-wider">Status Aktif</p>
                 <p className="text-[11px] font-semibold text-slate-400">Metode aktif dapat dipilih di kasir saat input pembayaran.</p>

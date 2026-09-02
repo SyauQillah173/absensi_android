@@ -1400,13 +1400,6 @@ function PrayerTypeCms() {
       sortValue: (row) => (row.is_active !== false ? 1 : 0),
       render: (row) => <StatusBadge label={row.is_active === false ? 'Nonaktif' : 'Aktif'} tone={row.is_active === false ? 'neutral' : 'success'} />
     },
-    {
-      key: 'order',
-      header: 'Urutan Tampil',
-      sortable: true,
-      sortValue: (row) => num(row.sort_order),
-      render: (row) => <span className="font-bold text-xs text-slate-700 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">#{num(row.sort_order)}</span>
-    },
 
     {
       key: 'actions',
@@ -1476,10 +1469,8 @@ function PrayerTypeCms() {
           <p className="text-sm font-semibold text-[#636E72]">
             Subuh, Dhuhur, Ashar, Maghrib, Isya, atau sesi sholat khusus santri pondok.
           </p>
-          <p className="mt-1 text-xs font-bold text-[#138F81]">
-            Urutan tampil: angka kecil muncul lebih dulu di pilihan form absensi sholat santri.
-          </p>
         </div>
+
 
         <button
           className="flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-5 text-sm font-extrabold text-white shadow-md shadow-[#138F81]/20 hover:brightness-105 transition-all disabled:opacity-60"

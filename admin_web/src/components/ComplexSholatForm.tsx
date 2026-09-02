@@ -154,8 +154,9 @@ export function ComplexSholatForm({
                   {form.id ? `Edit Waktu Jama'ah: ${form.name}` : "Tambah Waktu Jama'ah Baru"}
                 </h2>
                 <p className="text-xs sm:text-sm font-semibold text-[#636E72]">
-                  Atur sesi sholat jama'ah santri pondok, kode sistem, dan urutan tampil secara terpadu.
+                  Atur jadwal dan sesi waktu sholat jama'ah santri pondok secara terpadu.
                 </p>
+
               </div>
             </div>
           </div>
@@ -258,30 +259,15 @@ export function ComplexSholatForm({
                 </div>
               </div>
 
-              {/* Card 2: Urutan Tampil & Operasional */}
+              {/* Card 2: Pengaturan Status & Operasional */}
               <div className="rounded-3xl border border-slate-200 bg-slate-50/40 p-5 sm:p-6 space-y-4 shadow-xs">
                 <div className="flex items-center gap-2 border-b border-slate-200/60 pb-3">
                   <Clock size={18} className="text-[#138F81]" />
                   <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
-                    II. Urutan & Pengaturan Operasional
+                    II. Pengaturan Status & Operasional
                   </h3>
                 </div>
 
-                {/* Urutan Tampil */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-black text-slate-700 uppercase tracking-wider">
-                    Urutan Tampil (Sort Order)
-                  </label>
-                  <input
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-[#138F81] focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all"
-                    type="number"
-                    value={form.sort_order}
-                    onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) || 0 })}
-                  />
-                  <p className="mt-1.5 text-[11px] font-semibold text-slate-400">
-                    Angka lebih kecil (misal: 10 untuk Subuh, 20 untuk Dzuhur) akan muncul lebih dulu pada form absensi pengurus.
-                  </p>
-                </div>
 
                 {/* Status Aktif Switch */}
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 flex items-center justify-between gap-4 shadow-xs">
@@ -324,8 +310,9 @@ export function ComplexSholatForm({
                         {form.name || "Nama Waktu Jama'ah"}
                       </p>
                       <p className="text-xs font-mono text-slate-400">
-                        Kode: {form.code || 'otomatis'} • Urutan: #{form.sort_order}
+                        Kode: {form.code || 'otomatis'}
                       </p>
+
                     </div>
                   </div>
 

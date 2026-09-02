@@ -2609,19 +2609,13 @@ function CrudPanel({
             render: (row) => <span className="font-mono text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{str(row.code)}</span>
           },
           {
-            key: 'urutan',
-            header: 'Urutan Tampil',
-            sortable: true,
-            sortValue: (row) => num(row.sort_order),
-            render: (row) => <span className="font-bold text-xs text-slate-500">{str(row.sort_order)}</span>
-          },
-          {
             key: 'status',
             header: 'Status',
             sortable: true,
             sortValue: (row) => (row.is_active === false ? 0 : 1),
             render: (row) => <StatusBadge label={row.is_active === false ? 'Nonaktif' : 'Aktif'} tone={row.is_active === false ? 'danger' : 'success'} />
           },
+
           {
             key: 'aksi',
             header: 'Aksi',
@@ -3021,8 +3015,8 @@ function PaymentMethodModal({ row, onClose, onSaved }: { row: ApiRecord | null; 
       <form id="method-form" className="space-y-4" onSubmit={submit}>
         <TextField label="Nama Metode" value={name} onChange={setName} required />
         <TextField label="Kode" value={code} onChange={setCode} />
-        <TextField label="Urutan Tampil" value={sort} onChange={(value) => setSort(value.replace(/\D/g, ''))} />
         <Toggle label="Aktif" checked={active} onChange={setActive} />
+
         {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
       </form>
     </ModalForm>
