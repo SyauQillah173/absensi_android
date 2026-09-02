@@ -95,7 +95,7 @@ export function KelompokBelajarPage() {
         key: 'kategori',
         header: 'Kategori',
         render: (row) => (
-          <span className="rounded-lg bg-teal-50 border border-teal-200 px-2.5 py-1 text-xs font-black text-teal-800">
+          <span className="rounded-lg bg-teal-50 border border-teal-200 px-2.5 py-1 text-xs font-black text-teal-800 whitespace-nowrap">
             {text(row.kategori)}
           </span>
         ),
@@ -274,6 +274,53 @@ export function KelompokBelajarPage() {
           columns={columns}
           emptyText={isLoading ? 'Memuat kelompok...' : 'Belum ada kelompok belajar.'}
           minWidth="860px"
+          mobileRender={(row) => (
+            <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-base font-black text-slate-800 leading-snug">{text(row.nama)}</p>
+                  <p className="text-xs font-bold text-slate-400 mt-0.5">Sifir / Level: {text(row.sifir)}</p>
+                </div>
+                <span className="shrink-0 rounded-lg bg-teal-50 border border-teal-200 px-2.5 py-1 text-xs font-black text-teal-800 whitespace-nowrap">
+                  {text(row.kategori)}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs font-bold text-slate-600">
+                <div className="rounded-xl bg-slate-50 p-2 border border-slate-100 flex items-center gap-1.5">
+                  <span>👥 {asNumber(row.jumlah_siswa)} Santri</span>
+                </div>
+                <div className="rounded-xl bg-slate-50 p-2 border border-slate-100 flex items-center gap-1.5">
+                  <span>📖 {asNumber(row.jumlah_mapel_aktif)} Mapel</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                <button
+                  className="flex-1 rounded-xl bg-[#E8F7F3] py-2 text-xs font-extrabold text-[#138F81] hover:bg-[#d0f2e9] transition-colors text-center"
+                  onClick={() => void openDetail(row)}
+                  type="button"
+                >
+                  Detail
+                </button>
+                <button
+                  className="flex-1 rounded-xl bg-[#EAF4FF] py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors inline-flex items-center justify-center gap-1"
+                  onClick={() => setActiveFormData(row)}
+                  type="button"
+                >
+                  <Pencil size={13} /> Edit
+                </button>
+                <button
+                  className="rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-extrabold text-[#D63031] hover:bg-[#fad4d4] transition-colors inline-flex items-center justify-center"
+                  onClick={() => setDeleteTarget(row)}
+                  type="button"
+                  title="Hapus"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </article>
+          )}
         />
       </section>
 

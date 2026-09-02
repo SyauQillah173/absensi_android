@@ -486,14 +486,14 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
                   key={sid}
                   className="flex flex-col p-4 sm:p-5 rounded-3xl border border-slate-200 bg-white shadow-xs hover:border-slate-300 transition-all"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 font-black text-xs text-slate-600">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 font-black text-xs text-slate-600 shadow-2xs">
                         {idx + 1}
                       </span>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm sm:text-base font-black text-slate-800 truncate">{text(siswa.nama)}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                           <span className="text-xs font-mono font-bold text-slate-500">NIS: {text(siswa.nis)}</span>
                           <span
                             className={`rounded-md px-2 py-0.5 text-[10px] font-black ${
@@ -515,9 +515,9 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
 
                     {/* Status Badge in Read-Only Mode vs Status Pills in Editable Mode */}
                     {isReadOnlyMode ? (
-                      <div className="flex items-center gap-2">
+                      <div className="shrink-0 ml-auto">
                         <span
-                          className={`rounded-2xl px-4 py-1.5 text-xs font-black border ${
+                          className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-black border whitespace-nowrap shadow-2xs ${
                             currentStatus === 'Hadir'
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                               : currentStatus === 'Izin'
@@ -527,11 +527,22 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
                               : 'bg-slate-100 text-slate-800 border-slate-300'
                           }`}
                         >
-                          ● {currentStatus}
+                          <span
+                            className={`h-2 w-2 rounded-full ${
+                              currentStatus === 'Hadir'
+                                ? 'bg-emerald-500'
+                                : currentStatus === 'Izin'
+                                ? 'bg-amber-500'
+                                : currentStatus === 'Sakit'
+                                ? 'bg-rose-500'
+                                : 'bg-slate-500'
+                            }`}
+                          />
+                          {currentStatus}
                         </span>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="grid grid-cols-4 sm:flex items-center gap-1.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                         {(['Hadir', 'Izin', 'Sakit', 'Alfa'] as const).map((st) => {
                           const isSelected = currentStatus === st;
                           const colors = {
@@ -561,7 +572,7 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
                                   setNotes(nextNotes);
                                 }
                               }}
-                              className={`px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-black transition-all cursor-pointer ${colors[st]}`}
+                              className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer text-center ${colors[st]}`}
                             >
                               {st}
                             </button>

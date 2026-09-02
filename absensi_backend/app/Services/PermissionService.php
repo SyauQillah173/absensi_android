@@ -207,7 +207,7 @@ class PermissionService
         $viewDefaults = [
             'admin_bendahara' => ['dashboard', 'keuangan'],
             'admin_pondok' => ['dashboard', 'buku_induk', 'absensi'],
-            'admin_absensi' => ['dashboard', 'absensi', 'nilai'],
+            'admin_absensi' => ['dashboard', 'absensi', 'nilai', 'mata_pelajaran', 'buku_induk', 'ruang_sifir'],
             'admin_akademik' => ['dashboard', 'buku_induk', 'mata_pelajaran', 'ruang_sifir', 'nilai'],
             'admin_lainnya' => ['dashboard'],
             'guru' => ['dashboard', 'absensi', 'mata_pelajaran', 'nilai', 'data_diri_guru', 'materi_kegiatan', 'ruang_sifir'],
@@ -321,13 +321,13 @@ class PermissionService
     {
         if ($user->role === 'admin') {
             $type = strtolower($user->admin_type ?: 'utama');
-            if (in_array($type, ['it', 'pengurus', 'utama'], true)) {
+            if (in_array($type, ['it', 'pengurus', 'utama', 'superadmin'], true)) {
                 return 'admin_utama';
             }
-            if (in_array($type, ['keuangan', 'bendahara', 'bendahara_1'], true)) {
+            if (in_array($type, ['keuangan', 'bendahara', 'bendahara_1', 'bendahara_2', 'kasir'], true)) {
                 return 'admin_bendahara';
             }
-            if (in_array($type, ['madrasah', 'absensi', 'kepala_madrasah'], true)) {
+            if (in_array($type, ['madrasah', 'absensi', 'kepala_madrasah', 'kepala_sekolah', 'monitoring', 'kepala'], true)) {
                 return 'admin_absensi';
             }
             return 'admin_' . $type;

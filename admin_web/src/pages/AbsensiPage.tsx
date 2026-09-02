@@ -1,5 +1,6 @@
 import {
   Activity,
+  AlertTriangle,
   BarChart3,
   BookMarked,
   BookOpenCheck,
@@ -12,6 +13,7 @@ import {
   Landmark,
   Plus,
   Power,
+  Printer,
   RefreshCw,
   Save,
   Settings,
@@ -273,6 +275,180 @@ export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabC
   );
 }
 
+function AbsensiSessionPrintModal({
+  isOpen,
+  onClose,
+  sessionInfo,
+  students,
+  statuses,
+  notes
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  sessionInfo: {
+    tanggal: string;
+    kelas: string;
+    mapel: string;
+    jadwal: string;
+    guru: string;
+    diinputOleh: string;
+  };
+  students: ApiRecord[];
+  statuses: Record<number, string>;
+  notes: Record<number, string>;
+}) {
+  if (!isOpen) return null;
+
+  const counts = {
+    Hadir: Object.values(statuses).filter((s) => s === 'Hadir').length,
+    Izin: Object.values(statuses).filter((s) => s === 'Izin').length,
+    Sakit: Object.values(statuses).filter((s) => s === 'Sakit').length,
+    Alfa: Object.values(statuses).filter((s) => s === 'Alfa').length,
+    Total: students.length
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs overflow-y-auto print:p-0 print:bg-transparent">
+      <div className="relative w-full max-w-4xl rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 print:border-none print:shadow-none print:p-4 my-8">
+        {/* Header Actions (Hidden in Print) */}
+        <div className="flex items-center justify-between pb-4 border-b border-slate-100 print:hidden">
+          <div className="flex items-center gap-2">
+            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-teal-50 text-[#138F81]">
+              <Printer size={20} />
+            </span>
+            <div>
+              <h3 className="text-base font-black text-slate-800">Pratinjau Rekapitulasi Presensi Sesi</h3>
+              <p className="text-xs font-semibold text-slate-500">Format resmi Berita Acara Presensi Madrasah Diniyah</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#138F81] px-4 py-2 text-xs font-black text-white shadow-xs hover:bg-[#0f766a] transition-all cursor-pointer"
+            >
+              <Printer size={15} /> Cetak Dokumen / PDF
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* PRINTABLE OFFICIAL SHEET */}
+        <div className="p-4 sm:p-6 text-slate-900 font-sans" id="printable-attendance-sheet">
+          {/* KOP SURAT */}
+          <div className="text-center pb-4 border-b-2 border-slate-900">
+            <h2 className="text-sm font-bold tracking-wider uppercase text-slate-600">YAYASAN PONDOK PESANTREN QOMARUDDIN</h2>
+            <h1 className="text-xl font-black uppercase text-slate-900 tracking-tight mt-0.5">MADRASAH DINIYAH PONDOK PESANTREN</h1>
+            <p className="text-[11px] text-slate-600 mt-0.5">Sampurnan, Bungah, Kabupaten Gresik, Jawa Timur • Website: ppqomaruddin.itqom.net</p>
+          </div>
+
+          <div className="text-center my-4">
+            <h3 className="text-base font-black uppercase underline decoration-1">BERITA ACARA & JURNAL PRESENSI KELAS</h3>
+            <p className="text-xs font-bold text-slate-600 mt-0.5">Tanggal: {sessionInfo.tanggal}</p>
+          </div>
+
+          {/* SESSION METADATA */}
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs font-semibold bg-slate-50 p-3.5 rounded-xl border border-slate-200 my-4">
+            <div><span className="text-slate-500 font-normal">Rombel Kelas:</span> <b className="text-slate-800">{sessionInfo.kelas}</b></div>
+            <div><span className="text-slate-500 font-normal">Mata Pelajaran:</span> <b className="text-slate-800">{sessionInfo.mapel}</b></div>
+            <div><span className="text-slate-500 font-normal">Guru/Ustadz Pengampu:</span> <b className="text-[#138F81]">{sessionInfo.guru}</b></div>
+            <div><span className="text-slate-500 font-normal">Jadwal & Waktu:</span> <b className="text-slate-800">{sessionInfo.jadwal}</b></div>
+          </div>
+
+          {/* STATS SUMMARY BOXES */}
+          <div className="grid grid-cols-5 gap-2 text-center my-4">
+            <div className="p-2 rounded-xl bg-slate-100 border border-slate-200">
+              <span className="text-[10px] uppercase font-bold text-slate-500 block">Total Santri</span>
+              <span className="text-base font-black text-slate-800">{counts.Total}</span>
+            </div>
+            <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200">
+              <span className="text-[10px] uppercase font-bold text-emerald-700 block">Hadir (H)</span>
+              <span className="text-base font-black text-emerald-800">{counts.Hadir}</span>
+            </div>
+            <div className="p-2 rounded-xl bg-amber-50 border border-amber-200">
+              <span className="text-[10px] uppercase font-bold text-amber-700 block">Izin (I)</span>
+              <span className="text-base font-black text-amber-800">{counts.Izin}</span>
+            </div>
+            <div className="p-2 rounded-xl bg-rose-50 border border-rose-200">
+              <span className="text-[10px] uppercase font-bold text-rose-700 block">Sakit (S)</span>
+              <span className="text-base font-black text-rose-800">{counts.Sakit}</span>
+            </div>
+            <div className="p-2 rounded-xl bg-slate-200 border border-slate-300">
+              <span className="text-[10px] uppercase font-bold text-slate-700 block">Alfa (A)</span>
+              <span className="text-base font-black text-slate-900">{counts.Alfa}</span>
+            </div>
+          </div>
+
+          {/* STUDENT TABLE */}
+          <table className="w-full text-left text-xs border-collapse border border-slate-300 my-4">
+            <thead>
+              <tr className="bg-slate-100 border-b border-slate-300 text-slate-800 font-black">
+                <th className="p-2 border-r border-slate-300 text-center w-10">No</th>
+                <th className="p-2 border-r border-slate-300">Nama Santri</th>
+                <th className="p-2 border-r border-slate-300 w-24">NIS</th>
+                <th className="p-2 border-r border-slate-300 text-center w-14">L/P</th>
+                <th className="p-2 border-r border-slate-300 w-24 text-center">Status</th>
+                <th className="p-2">Keterangan</th>
+              </tr>
+            </thead>
+            <tbody>
+              {students.map((st, i) => {
+                const sid = num(st.id);
+                const s = statuses[sid] || '-';
+                return (
+                  <tr key={sid} className="border-b border-slate-200 hover:bg-slate-50">
+                    <td className="p-2 border-r border-slate-300 text-center font-bold">{i + 1}</td>
+                    <td className="p-2 border-r border-slate-300 font-extrabold">{String(st.nama ?? st.name ?? '-')}</td>
+                    <td className="p-2 border-r border-slate-300 font-mono">{String(st.nis ?? '-')}</td>
+                    <td className="p-2 border-r border-slate-300 text-center font-bold">{st.jenis_kelamin === 'L' ? 'L' : 'P'}</td>
+                    <td className="p-2 border-r border-slate-300 text-center font-black">
+                      <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                        s === 'Hadir' ? 'bg-emerald-100 text-emerald-900' :
+                        s === 'Izin' ? 'bg-amber-100 text-amber-900' :
+                        s === 'Sakit' ? 'bg-rose-100 text-rose-900' :
+                        s === 'Alfa' ? 'bg-slate-200 text-slate-900' : 'text-slate-400'
+                      }`}>
+                        {s}
+                      </span>
+                    </td>
+                    <td className="p-2 text-slate-600 font-medium">{notes[sid] || '-'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {/* SIGNATURE SECTION */}
+          <div className="grid grid-cols-2 gap-8 text-center text-xs mt-10 pt-4">
+            <div>
+              <p className="font-medium text-slate-600">Mengetahui,</p>
+              <p className="font-bold text-slate-800">Kepala Madrasah Diniyah</p>
+              <div className="h-16"></div>
+              <p className="font-black text-slate-900 underline">( ............................................ )</p>
+            </div>
+            <div>
+              <p className="font-medium text-slate-600">Gresik, {sessionInfo.tanggal}</p>
+              <p className="font-bold text-slate-800">Ustadz / Guru Pengampu</p>
+              <div className="h-16"></div>
+              <p className="font-black text-slate-900 underline">( {sessionInfo.guru} )</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget }) {
   const { session, isGuru } = useAuth();
 
@@ -292,6 +468,15 @@ function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget
   const [notes, setNotes] = useState<Record<number, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeletingSession, setIsDeletingSession] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [existingAttendance, setExistingAttendance] = useState<{
+    isExisting: boolean;
+    count: number;
+    pengabsen: string;
+    createdAt: string;
+  } | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -299,7 +484,11 @@ function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget
     setIsLoading(true);
     setError('');
     try {
-      const [classResult, mapelResult, jadwalResult] = await Promise.all([api.classes(), api.mataPelajaran(), api.jadwal()]);
+      const [classResult, mapelResult, jadwalResult] = await Promise.all([
+        api.classes(),
+        api.mataPelajaran(),
+        api.jadwal()
+      ]);
       const nextClasses = rows(classResult.data);
       const nextMapel = rows(mapelResult.data);
       const nextJadwal = rows(jadwalResult.data);
@@ -316,24 +505,74 @@ function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget
     }
   }
 
-  async function loadStudents(nextClassId = classId) {
-    if (!nextClassId) {
+  async function loadSessionData(
+    targetClassId = classId,
+    targetMapelId = mapelId,
+    targetJadwalId = jadwalId,
+    targetDate = date
+  ) {
+    if (!targetClassId) {
       setStudents([]);
       setStatuses({});
+      setExistingAttendance(null);
       return;
     }
     setIsLoading(true);
     setError('');
     try {
-      const result = await api.siswa({ class_id: nextClassId, status: 'Aktif' });
-      const nextStudents = rows(result.data);
+      const [siswaRes, absensiRes] = await Promise.all([
+        api.siswa({ class_id: targetClassId, status: 'Aktif' }),
+        targetClassId && targetMapelId && targetJadwalId
+          ? api
+              .absensi({
+                tanggal: targetDate,
+                class_id: targetClassId,
+                mapel_id: targetMapelId,
+                jadwal_id: targetJadwalId
+              })
+              .catch(() => ({ data: [] }))
+          : Promise.resolve({ data: [] })
+      ]);
+
+      const nextStudents = rows(siswaRes.data);
       setStudents(nextStudents);
-      const initial: Record<number, MadinStatus> = {};
-      nextStudents.forEach((student) => {
-        const id = num(student.id);
-        if (id) initial[id] = '';
-      });
-      setStatuses(initial);
+
+      const existingList = Array.isArray(absensiRes.data) ? (absensiRes.data as ApiRecord[]) : [];
+      const nextStatuses: Record<number, MadinStatus> = {};
+      const nextNotes: Record<number, string> = {};
+
+      if (existingList.length > 0) {
+        existingList.forEach((row) => {
+          const sid = num(row.siswa_id);
+          if (sid) {
+            nextStatuses[sid] = (row.status as MadinStatus) || '';
+            if (row.keterangan) nextNotes[sid] = String(row.keterangan);
+          }
+        });
+        nextStudents.forEach((student) => {
+          const id = num(student.id);
+          if (id && nextStatuses[id] === undefined) {
+            nextStatuses[id] = '';
+          }
+        });
+
+        const first = existingList[0];
+        setExistingAttendance({
+          isExisting: true,
+          count: existingList.length,
+          pengabsen: String(first?.diinput_oleh ?? record(first?.actor).name ?? 'Ustadz Pengampu'),
+          createdAt: String(first?.created_at ?? '')
+        });
+      } else {
+        nextStudents.forEach((student) => {
+          const id = num(student.id);
+          if (id) nextStatuses[id] = '';
+        });
+        setExistingAttendance(null);
+      }
+
+      setStatuses(nextStatuses);
+      setNotes(nextNotes);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Data siswa kelas gagal dimuat');
     } finally {
@@ -346,8 +585,27 @@ function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget
   }, []);
 
   useEffect(() => {
-    void loadStudents(classId);
-  }, [classId]);
+    if (classId) {
+      void loadSessionData(classId, mapelId, jadwalId, date);
+    }
+  }, [classId, mapelId, jadwalId, date]);
+
+  const selectedJadwal = useMemo(() => {
+    return jadwal.find((j) => num(j.id) === jadwalId);
+  }, [jadwal, jadwalId]);
+
+  const selectedMapel = useMemo(() => {
+    return mapel.find((m) => num(m.id) === mapelId);
+  }, [mapel, mapelId]);
+
+  const selectedClass = useMemo(() => {
+    return classes.find((c) => num(c.id) === classId);
+  }, [classes, classId]);
+
+  const teacherName = useMemo(() => {
+    if (!selectedJadwal) return 'Belum Dipilih';
+    return String(selectedJadwal.guru || selectedJadwal.teacher_name || 'Ustadz Pengampu');
+  }, [selectedJadwal]);
 
   const counts = useMemo(() => {
     const values = Object.values(statuses);
@@ -409,7 +667,8 @@ function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget
         actor_user_id: session?.id,
         absensi: absensi as Parameters<typeof api.createAbsensiBulk>[0]['absensi']
       });
-      setNotice(text(result.message, 'Absensi Madin berhasil disimpan.'));
+      setNotice(text(result.message, 'Absensi Madin berhasil disimpan & diperbarui.'));
+      await loadSessionData(classId, mapelId, jadwalId, date);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Absensi Madin gagal disimpan');
     } finally {
@@ -417,31 +676,142 @@ function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget
     }
   }
 
+  async function handleDeleteSession() {
+    if (!classId || !mapelId || !jadwalId || !date || isDeletingSession) return;
+    setIsDeletingSession(true);
+    setError('');
+    try {
+      await api.cancelAbsensiSession({
+        tanggal: date,
+        class_id: classId,
+        mapel_id: mapelId,
+        jadwal_id: jadwalId
+      });
+      setShowDeleteConfirm(false);
+      setNotice('Absensi sesi KBM ini berhasil dihapus & direset. Database telah bersih.');
+      await loadSessionData(classId, mapelId, jadwalId, date);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal mereset absensi sesi');
+    } finally {
+      setIsDeletingSession(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <Message error={error} notice={notice} />
+
+      {/* Selector Filters */}
       <section className="q-panel grid gap-3 p-4 sm:p-6 md:grid-cols-5">
-        <input className="q-input" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-        <select className="q-input" value={classId} onChange={(event) => setClassId(Number(event.target.value))}>
-          <option value={0}>Pilih kelas</option>
-          {classes.map((item) => (
-            <option key={num(item.id)} value={num(item.id)}>{text(item.name ?? item.nama)}</option>
-          ))}
-        </select>
-        <select className="q-input" value={mapelId} onChange={(event) => setMapelId(Number(event.target.value))}>
-          <option value={0}>Pilih mapel</option>
-          {mapel.map((item) => (
-            <option key={num(item.id)} value={num(item.id)}>{text(item.nama ?? item.name)}</option>
-          ))}
-        </select>
-        <select className="q-input" value={jadwalId} onChange={(event) => setJadwalId(Number(event.target.value))}>
-          <option value={0}>Pilih jadwal</option>
-          {jadwal.map((item) => (
-            <option key={num(item.id)} value={num(item.id)}>{text(item.hari ?? item.day ?? item.nama)} {text(item.jam_mulai ?? item.start_time, '')}</option>
-          ))}
-        </select>
-        <RefreshButton isLoading={isLoading} onClick={() => void loadStudents(classId)} />
+        <div>
+          <label className="text-[11px] font-bold text-slate-500 mb-1 block">Tanggal KBM</label>
+          <input className="q-input" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+        </div>
+        <div>
+          <label className="text-[11px] font-bold text-slate-500 mb-1 block">Rombel Kelas</label>
+          <select className="q-input" value={classId} onChange={(event) => setClassId(Number(event.target.value))}>
+            <option value={0}>Pilih kelas</option>
+            {classes.map((item) => (
+              <option key={num(item.id)} value={num(item.id)}>
+                {text(item.name ?? item.nama)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-[11px] font-bold text-slate-500 mb-1 block">Mata Pelajaran</label>
+          <select className="q-input" value={mapelId} onChange={(event) => setMapelId(Number(event.target.value))}>
+            <option value={0}>Pilih mapel</option>
+            {mapel.map((item) => (
+              <option key={num(item.id)} value={num(item.id)}>
+                {text(item.nama ?? item.name)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-[11px] font-bold text-slate-500 mb-1 block">Jadwal & Waktu</label>
+          <select className="q-input" value={jadwalId} onChange={(event) => setJadwalId(Number(event.target.value))}>
+            <option value={0}>Pilih jadwal</option>
+            {jadwal.map((item) => (
+              <option key={num(item.id)} value={num(item.id)}>
+                {text(item.hari ?? item.day ?? item.nama)} {text(item.jam_mulai ?? item.start_time, '')}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-end">
+          <RefreshButton isLoading={isLoading} onClick={() => void loadSessionData(classId, mapelId, jadwalId, date)} />
+        </div>
       </section>
+
+      {/* Teacher Assignment & Status Bar */}
+      {selectedJadwal && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-3xl bg-white border border-slate-200 shadow-xs">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs">
+            <span className="font-bold text-slate-700 flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-xl">
+              👨‍🏫 Ustadz Pengampu:
+              <span className="text-[#138F81] font-black">{teacherName}</span>
+            </span>
+            <span className="font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl">
+              ⏰ {String(selectedJadwal.hari ?? '')}, {String(selectedJadwal.jam_mulai ?? '')} - {String(selectedJadwal.jam_selesai ?? '')} WIB
+            </span>
+            {Boolean(selectedJadwal.ruangan) && (
+              <span className="font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl">
+                📍 Ruang: {String(selectedJadwal.ruangan ?? '')}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {existingAttendance ? (
+              <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs font-black text-emerald-800">
+                <CheckCircle2 size={14} className="text-emerald-600" />
+                Sudah Diabsen oleh {existingAttendance.pengabsen}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-black text-amber-800">
+                <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                Belum Diabsen (Siap Input)
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Existing Attendance Action Banner */}
+      {existingAttendance && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-3xl bg-emerald-50/80 border border-emerald-200 shadow-xs animate-in fade-in">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-black text-emerald-900 flex items-center gap-2">
+              <CheckCircle2 className="text-emerald-600 shrink-0" size={18} />
+              Sesi KBM ini sudah memiliki riwayat presensi tersimpan ({existingAttendance.count} santri).
+            </p>
+            <p className="text-xs font-semibold text-emerald-700 mt-0.5">
+              Diinput oleh <b>{existingAttendance.pengabsen}</b>. Admin dapat mengedit status santri atau mereset absensi jika ada perbaikan data.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowPrintModal(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-black text-emerald-800 border border-emerald-300 hover:bg-emerald-100 transition-all shadow-2xs cursor-pointer"
+            >
+              <Printer size={14} /> Cetak / Preview Rekap
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-2 text-xs font-black text-white hover:bg-rose-700 transition-all shadow-xs cursor-pointer"
+            >
+              <Trash2 size={14} /> Hapus & Reset Absensi
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Stats Counter */}
       <div className="grid gap-4 md:grid-cols-5">
         <StatCard title="Hadir" value={counts.Hadir} subtitle="Status H" icon={Check} tone="teal" />
         <StatCard title="Izin" value={counts.Izin} subtitle="Status I" icon={ClipboardList} tone="orange" />
@@ -449,6 +819,8 @@ function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget
         <StatCard title="Alfa" value={counts.Alfa} subtitle="Status A" icon={CalendarCheck} tone="blue" />
         <StatCard title="Belum" value={counts.Belum} subtitle="Belum dipilih" icon={BookOpenCheck} tone="blue" />
       </div>
+
+      {/* Attendance Rows */}
       <AttendanceRows
         isLoading={isLoading}
         rows={students}
@@ -460,13 +832,47 @@ function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget
         onChange={setStudentStatus}
         onNoteChange={(id: number, note: string) => setNotes((prev: Record<number, string>) => ({ ...prev, [id]: note }))}
       />
+
+      {/* Save Bar */}
       <SaveBar
         isSaving={isSaving}
         disabled={students.length === 0}
-        primaryLabel="Simpan Absensi Madin"
+        primaryLabel={existingAttendance ? '💾 Simpan Perubahan (Update Absensi)' : '💾 Simpan Absensi Madin'}
         onReset={() => setStatuses(Object.fromEntries(students.map((student) => [num(student.id), ''])))}
         onSave={() => void save()}
       />
+
+      {/* Delete / Reset Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          title="Hapus & Reset Absensi Sesi Ini?"
+          message={`Apakah Anda yakin ingin menghapus seluruh data absensi untuk kelas "${selectedClass?.name ?? classId}" - mapel "${selectedMapel?.nama ?? mapelId}" pada tanggal ${date}? Data presensi di database akan dibersihkan dan dapat diabsen ulang.`}
+          confirmLabel={isDeletingSession ? 'Menghapus...' : 'Ya, Hapus & Reset'}
+          tone="danger"
+          isBusy={isDeletingSession}
+          onConfirm={() => void handleDeleteSession()}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
+
+      {/* Print / Preview PDF Modal */}
+      {showPrintModal && (
+        <AbsensiSessionPrintModal
+          isOpen={showPrintModal}
+          onClose={() => setShowPrintModal(false)}
+          sessionInfo={{
+            tanggal: date,
+            kelas: String(selectedClass?.name ?? selectedClass?.nama ?? `Kelas ${classId}`),
+            mapel: String(selectedMapel?.nama ?? selectedMapel?.name ?? `Mapel ${mapelId}`),
+            jadwal: `${selectedJadwal?.hari ?? ''}, ${selectedJadwal?.jam_mulai ?? ''} - ${selectedJadwal?.jam_selesai ?? ''} WIB`,
+            guru: teacherName,
+            diinputOleh: existingAttendance?.pengabsen ?? session?.name ?? 'Admin'
+          }}
+          students={students}
+          statuses={statuses}
+          notes={notes}
+        />
+      )}
     </div>
   );
 }

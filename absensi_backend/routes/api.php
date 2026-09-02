@@ -142,6 +142,7 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::get('absensi/rekap', [AbsensiController::class, 'rekap'])->middleware('permission:absensi,view');
         Route::put('absensi/{absensi}', [AbsensiController::class, 'update'])->middleware('permission:absensi,update');
         Route::delete('absensi/{absensi}', [AbsensiController::class, 'destroy'])->middleware('permission:absensi,cancel');
+        Route::post('absensi/cancel-session', [AbsensiController::class, 'cancelSession'])->middleware('permission:absensi,cancel');
 
         Route::get('boarding/complexes', [BoardingController::class, 'complexes'])->middleware('permission:absensi,view');
         Route::get('boarding/students', [BoardingController::class, 'students'])->middleware('permission:absensi,view');

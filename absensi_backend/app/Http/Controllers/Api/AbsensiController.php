@@ -360,6 +360,41 @@ class AbsensiController extends Controller
         ]);
     }
 
+    public function cancelSession(Request $request)
+    {
+        $validated = $request->validate([
+            'tanggal' => 'required|date',
+            'class_id' => 'required|integer|exists:classes,id',
+            'mapel_id' => 'required|integer|exists:mata_pelajaran,id',
+            'jadwal_id' => 'required|integer|exists:jadwal,id',
+        ]);
+
+        $actor = $this->resolveActor($request);
+        if (!$actor || !$this->canInputAbsensi($actor)) {
+            return $this->forbiddenResponse('Hanya admin atau guru aktif yang boleh membatalkan absensi sesi');
+        }
+
+        $count = Absensi::where('tanggal', $validated['tanggal'])
+            ->where('class_id', $validated['class_id'])
+            ->where('mapel_id', $validated['mapel_id'])
+            ->where('jadwal_id', $validated['jadwal_id'])
+            ->delete();
+
+        app(AuditLogService::class)->record($request, 'absensi', 'cancel_session', null, null, [
+            'tanggal' => $validated['tanggal'],
+            'class_id' => $validated['class_id'],
+            'mapel_id' => $validated['mapel_id'],
+            'jadwal_id' => $validated['jadwal_id'],
+            'deleted_count' => $count,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Absensi sesi berhasil dihapus ($count data santri dibersihkan).",
+            'deleted_count' => $count,
+        ]);
+    }
+
     public function rekap(Request $request)
     {
         $request->validate([

@@ -620,6 +620,9 @@ export const api = {
   createAbsensiBulk(data: AbsensiMadinBulkPayload) {
     return request<ApiRecord>('/absensi/bulk', { method: 'POST', body: JSON.stringify(data) });
   },
+  cancelAbsensiSession(data: { tanggal: string; class_id: number; mapel_id: number; jadwal_id: number }) {
+    return request<ApiRecord>('/absensi/cancel-session', { method: 'POST', body: JSON.stringify(data) });
+  },
   rekapAbsensi(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord>('/absensi/rekap', {}, params);
   },
