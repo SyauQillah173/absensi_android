@@ -35,12 +35,13 @@ import {
   YAxis
 } from 'recharts';
 import { useAuth } from '../auth/AuthContext';
-import { DataTable } from '../components/DataTable';
-import { MoneyText, formatCompactMoney, formatMoney } from '../components/MoneyText';
+import { StatCard } from '../components/StatCard';
+import { StatusBadge } from '../components/StatusBadge';
 import { GuruDashboardView } from '../components/GuruDashboardView';
 import { KepalaSekolahDashboardView } from '../components/KepalaSekolahDashboardView';
 import { api, type ApiRecord } from '../services/api';
 import type { AbsensiNavigationTarget } from './AbsensiPage';
+
 
 
 function CustomClassTooltip({ active, payload }: any) {
@@ -317,6 +318,8 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
   const totalMondok = Number(statistik?.total_santri_mondok ?? 0);
   const totalAsrama = Number(statistik?.total_asrama ?? komplekData.length);
   const totalKamar = Number(statistik?.total_kamar ?? kamarData.length);
+  const KOMPLEK_COLORS = ['#138F81', '#0EA5E9', '#8B5CF6', '#F59E0B', '#EC4899', '#10B981', '#6366F1', '#14B8A6'];
+
 
   if (session?.role === 'guru' || dashboard?.role === 'guru') {
     return (
