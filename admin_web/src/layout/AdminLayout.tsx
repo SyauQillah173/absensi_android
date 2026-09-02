@@ -429,7 +429,7 @@ export function AdminLayout({
       ];
     }
 
-    // 3. Role Kepala Sekolah / Madrasah: Monitoring Pemantauan & Rekap Only
+    // 3. Role Kepala Sekolah / Madrasah: Khusus Monitoring Pemantauan (Tanpa Rekap Ruwet)
     if (isKepalaSekolah) {
       return [
         {
@@ -439,18 +439,15 @@ export function AdminLayout({
           page: "dashboard",
         },
         {
-          key: "absensi_menu",
+          key: "absensi",
           label: "Pemantauan Presensi",
           icon: CalendarCheck,
-          children: [
-            { label: "⚡ Log Realtime", page: "absensi", absensiTab: "log-realtime" },
-            { label: "📊 Rekap Presensi Madin", page: "absensi", absensiTab: "madin" },
-            { label: "📈 Rekap Presensi Sholat", page: "absensi", absensiTab: "rekap-sholat" },
-            { label: "📚 Rekap Presensi Ngaji", page: "absensi", absensiTab: "rekap-ngaji" },
-          ],
+          page: "absensi",
+          absensiTab: "log-realtime",
         },
       ];
     }
+
 
     // 4. Role Admin Utama (Super Admin): Full Access Semua Menu
     return allMenu.filter((item) =>
