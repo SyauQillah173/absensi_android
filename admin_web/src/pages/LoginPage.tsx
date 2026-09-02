@@ -158,11 +158,12 @@ export function LoginPage() {
               Sampurnan Bungah Gresik • Jawa Timur
             </p>
             <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-center gap-1.5 text-[10px] font-bold text-slate-400">
-              <span>Managed & Engineered</span>
+              <span>Managed & Engineered by</span>
               <span className="px-2 py-0.5 rounded-lg bg-teal-50 text-[#138F81] font-black border border-teal-200/60 text-[10px] tracking-wide">
-                BY: IQOM
+                IT QOMARUDDIN ( ITQOM )
               </span>
             </div>
+
           </div>
 
 

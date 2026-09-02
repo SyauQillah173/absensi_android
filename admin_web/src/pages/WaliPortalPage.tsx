@@ -1134,9 +1134,10 @@ export function WaliPortalPage() {
                   Portal Informasi & Presensi Santri Terpadu
                 </p>
                 <p className="text-[11px] font-semibold text-slate-500">
-                  Yayasan Pondok Pesantren Qomaruddin • Managed <span className="font-extrabold text-[#138F81]">BY: IQOM</span>
+                  Yayasan Pondok Pesantren Qomaruddin • Managed by <span className="font-extrabold text-[#138F81]">IT QOMARUDDIN ( ITQOM )</span>
                 </p>
               </div>
+
             </div>
 
             <div className="flex items-center gap-2.5 text-[11px] font-bold">

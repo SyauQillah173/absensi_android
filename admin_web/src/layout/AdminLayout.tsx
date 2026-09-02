@@ -920,9 +920,10 @@ export function AdminLayout({
                     Sistem Informasi & Presensi Pesantren Qomaruddin
                   </p>
                   <p className="text-[11px] font-semibold text-[#636E72]">
-                    Managed & Engineered <span className="font-extrabold text-[#138F81] tracking-wide">BY: IQOM</span> (Pusat TI PP. Qomaruddin)
+                    Managed & Engineered by <span className="font-extrabold text-[#138F81] tracking-wide">IT QOMARUDDIN ( ITQOM )</span>
                   </p>
                 </div>
+
               </div>
 
               <div className="flex items-center gap-2.5 text-[11px] font-bold">
