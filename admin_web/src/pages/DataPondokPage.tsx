@@ -1,8 +1,22 @@
-import { Building2, Check, DoorOpen, Pencil, Plus, RefreshCw, Save, Trash2, UserPlus, UsersRound, X, Download, Upload } from 'lucide-react';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { DataTable, type DataColumn } from '../components/DataTable';
+import {
+  Building2,
+  Check,
+  DoorOpen,
+  Download,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Trash2,
+  Upload,
+  UserPlus,
+  UsersRound,
+  X
+} from 'lucide-react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { ComplexAssignSantriInPageForm, ComplexImportSantriForm, ComplexKamarForm, ComplexKomplekForm } from '../components/ComplexPondokKamarForms';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { ModalForm } from '../components/ModalForm';
+import { DataTable, type DataColumn } from '../components/DataTable';
+
 import { SearchInput } from '../components/SearchInput';
 import { SegmentedTabs } from '../components/SegmentedTabs';
 import { StatCard } from '../components/StatCard';
@@ -67,8 +81,8 @@ export function DataPondokPage() {
 
   const rooms = useMemo(() => complexes.flatMap((complex) => roomsOf(complex).map((room) => ({ ...room, complex }))), [complexes]);
 
-  async function load() {
-    setIsLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
     setError('');
     try {
       const [complexResult, santriResult, siswaResult] = await Promise.all([
@@ -80,15 +94,47 @@ export function DataPondokPage() {
       setSantri(Array.isArray(santriResult.data) ? santriResult.data : []);
       setStudents(Array.isArray(siswaResult.data) ? siswaResult.data : []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Data pondok gagal dimuat');
+      if (!silent) setError(err instanceof Error ? err.message : 'Data pondok gagal dimuat');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     void load();
-  }, []);
+
+    // 1. Auto-refresh saat event app:data-updated dipicu
+    const handleDataUpdate = (e: Event) => {
+      const customEvt = e as CustomEvent;
+      if (!customEvt.detail || customEvt.detail.type === 'pondok' || customEvt.detail.type === 'all') {
+        void load(true);
+      }
+    };
+    window.addEventListener('app:data-updated', handleDataUpdate);
+
+    // 2. Auto-refresh saat window fokus atau tab kembali aktif
+    const handleFocus = () => void load(true);
+    window.addEventListener('focus', handleFocus);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') void load(true);
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // 3. Periodic Background Auto-Refresh (setiap 15 detik)
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible' && complexModal === null && roomModal === null && !assignOpen && !importOpen) {
+        void load(true);
+      }
+    }, 15000);
+
+    return () => {
+      window.removeEventListener('app:data-updated', handleDataUpdate);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(interval);
+    };
+  }, [load, complexModal, roomModal, assignOpen, importOpen]);
+
 
   const filteredSantri = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -155,19 +201,43 @@ export function DataPondokPage() {
   }
 
   const complexColumns: DataColumn<ApiRecord>[] = [
-    { key: 'name', header: 'Komplek', render: (row) => <span className="font-extrabold">{text(row.name)}</span> },
-    { key: 'rooms', header: 'Kamar', render: (row) => roomsOf(row).length },
-    { key: 'jumlah', header: 'Santri', render: (row) => num(row.jumlah_santri) },
-    { key: 'status', header: 'Status', render: (row) => <StatusBadge label={bool(row.is_active) ? 'Aktif' : 'Nonaktif'} tone={bool(row.is_active) ? 'success' : 'danger'} /> },
+    {
+      key: 'name',
+      header: 'Komplek Asrama',
+      sortable: true,
+      sortValue: (row) => String(row.name ?? ''),
+      render: (row) => <span className="font-extrabold text-slate-800">{text(row.name)}</span>
+    },
+    {
+      key: 'rooms',
+      header: 'Jumlah Kamar',
+      sortable: true,
+      sortValue: (row) => roomsOf(row).length,
+      render: (row) => <span className="font-bold text-xs bg-slate-100 px-2.5 py-1 rounded-lg text-slate-700">{roomsOf(row).length} Kamar</span>
+    },
+    {
+      key: 'jumlah',
+      header: 'Jumlah Santri',
+      sortable: true,
+      sortValue: (row) => num(row.jumlah_santri),
+      render: (row) => <span className="font-extrabold text-xs text-[#138F81] bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-200/60">{num(row.jumlah_santri)} Santri</span>
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      sortable: true,
+      sortValue: (row) => (bool(row.is_active) ? 1 : 0),
+      render: (row) => <StatusBadge label={bool(row.is_active) ? 'Aktif' : 'Nonaktif'} tone={bool(row.is_active) ? 'success' : 'danger'} />
+    },
     {
       key: 'aksi',
       header: 'Aksi',
       render: (row) => (
         <div className="flex gap-2">
-          <button className="rounded-xl bg-[#E1EFF7] px-3 py-2 text-[#2E86DE]" onClick={() => setComplexModal(row)} type="button">
+          <button className="rounded-xl bg-[#E1EFF7] px-3 py-2 text-[#2E86DE] hover:bg-[#cde4f2] transition-colors" onClick={() => setComplexModal(row)} type="button">
             <Pencil size={16} />
           </button>
-          <button className="rounded-xl bg-[#FFF0E8] px-3 py-2 text-[#E8590C]" onClick={() => void deleteComplex(row)} type="button">
+          <button className="rounded-xl bg-[#FFF0E8] px-3 py-2 text-[#E8590C] hover:bg-[#ffe0d1] transition-colors" onClick={() => void deleteComplex(row)} type="button">
             <Trash2 size={16} />
           </button>
         </div>
@@ -176,20 +246,50 @@ export function DataPondokPage() {
   ];
 
   const roomColumns: DataColumn<ApiRecord>[] = [
-    { key: 'name', header: 'Kamar', render: (row) => <span className="font-extrabold">{text(row.name)}</span> },
-    { key: 'complex', header: 'Komplek', render: (row) => text(record(row.complex).name) },
-    { key: 'capacity', header: 'Kapasitas', render: (row) => text(row.capacity, 'Tidak diatur') },
-    { key: 'jumlah', header: 'Santri', render: (row) => num(row.jumlah_santri) },
-    { key: 'status', header: 'Status', render: (row) => <StatusBadge label={bool(row.is_active) ? 'Aktif' : 'Nonaktif'} tone={bool(row.is_active) ? 'success' : 'danger'} /> },
+    {
+      key: 'name',
+      header: 'Kamar Pondok',
+      sortable: true,
+      sortValue: (row) => String(row.name ?? ''),
+      render: (row) => <span className="font-extrabold text-slate-800">{text(row.name)}</span>
+    },
+    {
+      key: 'complex',
+      header: 'Komplek Asrama',
+      sortable: true,
+      sortValue: (row) => String(record(row.complex).name ?? ''),
+      render: (row) => <span className="font-semibold text-xs text-slate-600">{text(record(row.complex).name)}</span>
+    },
+    {
+      key: 'capacity',
+      header: 'Kapasitas',
+      sortable: true,
+      sortValue: (row) => num(row.capacity),
+      render: (row) => <span className="font-bold text-xs text-slate-600">{text(row.capacity, 'Bebas')}</span>
+    },
+    {
+      key: 'jumlah',
+      header: 'Santri Terisi',
+      sortable: true,
+      sortValue: (row) => num(row.jumlah_santri),
+      render: (row) => <span className="font-black text-xs text-[#138F81] bg-teal-50 px-2 py-0.5 rounded-md">{num(row.jumlah_santri)} Santri</span>
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      sortable: true,
+      sortValue: (row) => (bool(row.is_active) ? 1 : 0),
+      render: (row) => <StatusBadge label={bool(row.is_active) ? 'Aktif' : 'Nonaktif'} tone={bool(row.is_active) ? 'success' : 'danger'} />
+    },
     {
       key: 'aksi',
       header: 'Aksi',
       render: (row) => (
         <div className="flex gap-2">
-          <button className="rounded-xl bg-[#E1EFF7] px-3 py-2 text-[#2E86DE]" onClick={() => setRoomModal(row)} type="button">
+          <button className="rounded-xl bg-[#E1EFF7] px-3 py-2 text-[#2E86DE] hover:bg-[#cde4f2] transition-colors" onClick={() => setRoomModal(row)} type="button">
             <Pencil size={16} />
           </button>
-          <button className="rounded-xl bg-[#FFF0E8] px-3 py-2 text-[#E8590C]" onClick={() => void deleteRoom(row)} type="button">
+          <button className="rounded-xl bg-[#FFF0E8] px-3 py-2 text-[#E8590C] hover:bg-[#ffe0d1] transition-colors" onClick={() => void deleteRoom(row)} type="button">
             <Trash2 size={16} />
           </button>
         </div>
@@ -198,14 +298,46 @@ export function DataPondokPage() {
   ];
 
   const santriColumns: DataColumn<ApiRecord>[] = [
-    { key: 'nama', header: 'Santri', render: (row) => <span className="font-extrabold">{text(row.siswa_nama ?? row.nama)}</span> },
-    { key: 'nis', header: 'NIS', render: (row) => text(row.nis ?? record(row.siswa).nis) },
-    { key: 'kelas', header: 'Kelas', render: (row) => text(row.kelas ?? record(row.siswa).kelas) },
-    { key: 'komplek', header: 'Komplek', render: (row) => text(row.complex_name ?? row.komplek ?? record(row.complex).name) },
-    { key: 'kamar', header: 'Kamar', render: (row) => text(row.room_name ?? row.kamar ?? record(row.room).name) },
+    {
+      key: 'nama',
+      header: 'Santri',
+      sortable: true,
+      sortValue: (row) => String(row.siswa_nama ?? row.nama ?? ''),
+      render: (row) => <span className="font-extrabold text-slate-800">{text(row.siswa_nama ?? row.nama)}</span>
+    },
+    {
+      key: 'nis',
+      header: 'NIS',
+      sortable: true,
+      sortValue: (row) => String(row.nis ?? record(row.siswa).nis ?? ''),
+      render: (row) => <span className="font-mono text-xs text-slate-500 font-bold">{text(row.nis ?? record(row.siswa).nis)}</span>
+    },
+    {
+      key: 'kelas',
+      header: 'Kelas',
+      sortable: true,
+      sortValue: (row) => String(row.kelas ?? record(row.siswa).kelas ?? ''),
+      render: (row) => <span className="text-xs font-bold text-slate-600">{text(row.kelas ?? record(row.siswa).kelas)}</span>
+    },
+    {
+      key: 'komplek',
+      header: 'Komplek',
+      sortable: true,
+      sortValue: (row) => String(row.complex_name ?? row.komplek ?? record(row.complex).name ?? ''),
+      render: (row) => <span className="text-xs font-bold text-slate-700">{text(row.complex_name ?? row.komplek ?? record(row.complex).name)}</span>
+    },
+    {
+      key: 'kamar',
+      header: 'Kamar',
+      sortable: true,
+      sortValue: (row) => String(row.room_name ?? row.kamar ?? record(row.room).name ?? ''),
+      render: (row) => <span className="font-bold text-xs text-[#138F81] bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200/60">{text(row.room_name ?? row.kamar ?? record(row.room).name)}</span>
+    },
     {
       key: 'status',
       header: 'Status',
+      sortable: true,
+      sortValue: (row) => (text(row.status).toLowerCase() !== 'nonaktif' && row.is_active !== false ? 1 : 0),
       render: (row) => (
         <div className="flex flex-wrap gap-2">
           <StatusBadge label={text(row.status, bool(row.is_active) ? 'Aktif' : 'Nonaktif')} tone={text(row.status).toLowerCase() === 'nonaktif' || row.is_active === false ? 'danger' : 'success'} />
@@ -213,6 +345,7 @@ export function DataPondokPage() {
         </div>
       )
     },
+
     {
       key: 'aksi',
       header: 'Aksi',
@@ -295,9 +428,53 @@ export function DataPondokPage() {
     }
   }
 
+  // JIKA FORM IN-PAGE SEDANG TERBUKA, RENDER IN-PAGE CONTAINER TANPA POPUP
+  if (complexModal !== null) {
+    return (
+      <ComplexKomplekForm
+        initial={complexModal === 'new' ? null : complexModal}
+        onClose={() => setComplexModal(null)}
+        onSaved={() => void load(true)}
+      />
+    );
+  }
+
+  if (roomModal !== null) {
+    return (
+      <ComplexKamarForm
+        complexes={complexes}
+        initial={roomModal === 'new' ? null : roomModal}
+        onClose={() => setRoomModal(null)}
+        onSaved={() => void load(true)}
+      />
+    );
+  }
+
+  if (assignOpen) {
+    return (
+      <ComplexAssignSantriInPageForm
+        complexes={complexes}
+        students={students}
+        santri={santri}
+        onClose={() => setAssignOpen(false)}
+        onSaved={() => void load(true)}
+      />
+    );
+  }
+
+  if (importOpen) {
+    return (
+      <ComplexImportSantriForm
+        onClose={() => setImportOpen(false)}
+        onSaved={() => void load(true)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <section className="flex flex-wrap items-end justify-between gap-4">
+      <section className="q-page-heading flex flex-wrap items-end justify-between gap-4">
+
         <div>
           <p className="text-sm font-bold text-[#636E72]">Buku Induk</p>
           <h1 className="text-3xl font-extrabold text-[#2D3436]">Data Pondok</h1>
@@ -372,10 +549,6 @@ export function DataPondokPage() {
         )}
       </section>
 
-      {complexModal ? <ComplexForm initial={complexModal === 'new' ? null : complexModal} onClose={() => setComplexModal(null)} onSaved={() => void load()} /> : null}
-      {roomModal ? <RoomForm complexes={complexes} initial={roomModal === 'new' ? null : roomModal} onClose={() => setRoomModal(null)} onSaved={() => void load()} /> : null}
-      {assignOpen ? <AssignSantriForm complexes={complexes} students={students} santri={santri} onClose={() => setAssignOpen(false)} onSaved={() => void load()} /> : null}
-      {importOpen ? <ImportSantriForm onClose={() => setImportOpen(false)} onSaved={() => void load()} /> : null}
       {confirmState ? (
         <ConfirmDialog
           title={confirmState.title}
@@ -388,352 +561,5 @@ export function DataPondokPage() {
         />
       ) : null}
     </div>
-  );
-}
-
-function ComplexForm({ initial, onClose, onSaved }: { initial: ApiRecord | null; onClose: () => void; onSaved: () => void }) {
-  const [name, setName] = useState(text(initial?.name, ''));
-  const [description, setDescription] = useState(text(initial?.description, ''));
-  const [isActive, setIsActive] = useState(bool(initial?.is_active));
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    if (isSaving) return;
-    setIsSaving(true);
-    setError('');
-    try {
-      const payload = { name, description, is_active: isActive };
-      if (initial?.id) await api.updateBoardingComplex(num(initial.id), payload);
-      else await api.createBoardingComplex(payload);
-      onSaved();
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Komplek gagal disimpan');
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  return (
-    <ModalForm
-      title={initial ? 'Edit Komplek' : 'Tambah Komplek'}
-      onClose={onClose}
-      footer={
-        <button className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white disabled:opacity-60" disabled={isSaving} form="complex-form" type="submit">
-          <Save size={18} />
-          {isSaving ? 'Menyimpan...' : 'Simpan Komplek'}
-        </button>
-      }
-    >
-      <form className="space-y-4" id="complex-form" onSubmit={(event) => void submit(event)}>
-        {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
-        <label className="block text-sm font-bold text-[#636E72]">
-          Nama Komplek
-          <input className="q-input mt-2" value={name} onChange={(event) => setName(event.target.value)} required />
-        </label>
-        <label className="block text-sm font-bold text-[#636E72]">
-          Keterangan
-          <textarea className="q-input mt-2 min-h-24 py-3" value={description} onChange={(event) => setDescription(event.target.value)} />
-        </label>
-        <label className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 text-sm font-bold text-[#2D3436]">
-          Status aktif
-          <input checked={isActive} onChange={(event) => setIsActive(event.target.checked)} type="checkbox" />
-        </label>
-      </form>
-    </ModalForm>
-  );
-}
-
-function RoomForm({ complexes, initial, onClose, onSaved }: { complexes: ApiRecord[]; initial: ApiRecord | null; onClose: () => void; onSaved: () => void }) {
-  const initialComplex = num(initial?.boarding_complex_id ?? record(initial?.complex).id ?? complexes[0]?.id);
-  const [complexId, setComplexId] = useState(initialComplex);
-  const [name, setName] = useState(text(initial?.name, ''));
-  const [capacity, setCapacity] = useState(text(initial?.capacity, ''));
-  const [isActive, setIsActive] = useState(bool(initial?.is_active));
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    if (isSaving) return;
-    setIsSaving(true);
-    setError('');
-    try {
-      const payload = { boarding_complex_id: complexId, name, capacity: capacity ? Number(capacity) : null, is_active: isActive };
-      if (initial?.id) await api.updateBoardingRoom(num(initial.id), payload);
-      else await api.createBoardingRoom(payload);
-      onSaved();
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Kamar gagal disimpan');
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  return (
-    <ModalForm
-      title={initial ? 'Edit Kamar' : 'Tambah Kamar'}
-      onClose={onClose}
-      footer={
-        <button className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white disabled:opacity-60" disabled={isSaving} form="room-form" type="submit">
-          <Save size={18} />
-          {isSaving ? 'Menyimpan...' : 'Simpan Kamar'}
-        </button>
-      }
-    >
-      <form className="space-y-4" id="room-form" onSubmit={(event) => void submit(event)}>
-        {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
-        <label className="block text-sm font-bold text-[#636E72]">
-          Komplek
-          <select className="q-input mt-2" value={complexId} onChange={(event) => setComplexId(Number(event.target.value))} required>
-            {complexes.map((complex) => (
-              <option key={num(complex.id)} value={num(complex.id)}>
-                {text(complex.name)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-sm font-bold text-[#636E72]">
-          Nama / Nomor Kamar
-          <input className="q-input mt-2" value={name} onChange={(event) => setName(event.target.value)} required />
-        </label>
-        <label className="block text-sm font-bold text-[#636E72]">
-          Kapasitas
-          <input className="q-input mt-2" inputMode="numeric" value={capacity} onChange={(event) => setCapacity(event.target.value.replace(/\D/g, ''))} />
-        </label>
-        <label className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 text-sm font-bold text-[#2D3436]">
-          Status aktif
-          <input checked={isActive} onChange={(event) => setIsActive(event.target.checked)} type="checkbox" />
-        </label>
-      </form>
-    </ModalForm>
-  );
-}
-
-function AssignSantriForm({
-  complexes,
-  students,
-  santri,
-  onClose,
-  onSaved
-}: {
-  complexes: ApiRecord[];
-  students: ApiRecord[];
-  santri: ApiRecord[];
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [complexId, setComplexId] = useState(num(complexes[0]?.id));
-  const selectedComplex = complexes.find((row) => num(row.id) === complexId) ?? complexes[0];
-  const availableRooms = roomsOf(selectedComplex ?? {});
-  const [roomId, setRoomId] = useState(num(availableRooms[0]?.id));
-  const [search, setSearch] = useState('');
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [isResident, setIsResident] = useState(true);
-  const [participatesPrayer, setParticipatesPrayer] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    const rooms = roomsOf(selectedComplex ?? {});
-    setRoomId(num(rooms[0]?.id));
-    setSelectedIds(new Set());
-  }, [complexId]);
-
-  const activeSantriIds = useMemo(
-    () =>
-      new Set(
-        santri
-          .filter((row) => text(row.status).toLowerCase() !== 'nonaktif' && row.is_active !== false)
-          .map((row) => num(row.siswa_id ?? record(row.siswa).id))
-      ),
-    [santri]
-  );
-
-  const availableStudents = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    return students
-      .filter((student) => !activeSantriIds.has(num(student.id)))
-      .filter((student) => {
-        if (!keyword) return true;
-        const nama = String(student.nama ?? student.name ?? '').toLowerCase();
-        const nis = String(student.nis ?? '').toLowerCase();
-        const kelas = String(student.kelas ?? '').toLowerCase();
-        return nama.includes(keyword) || nis.includes(keyword) || kelas.includes(keyword);
-      });
-  }, [activeSantriIds, search, students]);
-
-  function toggle(id: number) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    if (isSaving) return;
-    if (!roomId || selectedIds.size === 0) {
-      setError('Pilih kamar dan minimal satu santri dulu.');
-      return;
-    }
-    setIsSaving(true);
-    setError('');
-    try {
-      await api.assignBoardingStudents({
-        boarding_room_id: roomId,
-        siswa_ids: Array.from(selectedIds),
-        status: 'Aktif',
-        is_resident: isResident,
-        participates_prayer: participatesPrayer
-      });
-      onSaved();
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Santri pondok gagal disimpan');
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  return (
-    <ModalForm
-      title="Atur Santri Pondok"
-      onClose={onClose}
-      footer={
-        <button className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white disabled:opacity-60" disabled={isSaving || selectedIds.size === 0} form="assign-santri-form" type="submit">
-          <Save size={18} />
-          {isSaving ? 'Menyimpan...' : `Simpan ${selectedIds.size} Santri`}
-        </button>
-      }
-    >
-      <form className="space-y-4" id="assign-santri-form" onSubmit={(event) => void submit(event)}>
-        {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <select className="q-input" value={complexId} onChange={(event) => setComplexId(Number(event.target.value))} required>
-            {complexes.map((complex) => (
-              <option key={num(complex.id)} value={num(complex.id)}>
-                {text(complex.name)}
-              </option>
-            ))}
-          </select>
-          <select className="q-input" value={roomId} onChange={(event) => setRoomId(Number(event.target.value))} required>
-            {availableRooms.map((room) => (
-              <option key={num(room.id)} value={num(room.id)}>
-                {text(room.name)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <SearchInput value={search} onChange={setSearch} placeholder="Cari nama / NIS / NISN / kelas" />
-        <div className="flex flex-wrap items-center justify-between gap-3 text-sm font-bold">
-          <span>{selectedIds.size} santri dipilih</span>
-          <div className="flex gap-2">
-            <button className="rounded-xl bg-white px-3 py-2 text-[#138F81]" onClick={() => setSelectedIds(new Set(availableStudents.map((student) => num(student.id))))} type="button">
-              Pilih Semua Hasil
-            </button>
-            <button className="rounded-xl bg-white px-3 py-2 text-[#E8590C]" onClick={() => setSelectedIds(new Set())} type="button">
-              Bersihkan
-            </button>
-          </div>
-        </div>
-        <div className="max-h-72 overflow-y-auto rounded-2xl bg-white p-2 q-scrollbar">
-          {availableStudents.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm font-bold text-[#636E72]">Semua santri sudah terdaftar aktif di data pondok.</div>
-          ) : (
-            availableStudents.map((student) => {
-              const id = num(student.id);
-              return (
-                <label key={id} className="flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-3 hover:bg-[#E1EFF7]">
-                  <input checked={selectedIds.has(id)} onChange={() => toggle(id)} type="checkbox" />
-                  <span>
-                    <span className="block text-sm font-extrabold text-[#2D3436]">{text(student.nama)}</span>
-                    <span className="text-xs font-semibold text-[#636E72]">
-                      NIS: {text(student.nis)} - NISN: {text(student.nisn)} - {text(student.kelas)}
-                    </span>
-                  </span>
-                </label>
-              );
-            })
-          )}
-        </div>
-        <label className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 text-sm font-bold text-[#2D3436]">
-          Penghuni pondok utama
-          <input checked={isResident} onChange={(event) => setIsResident(event.target.checked)} type="checkbox" />
-        </label>
-        <label className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 text-sm font-bold text-[#2D3436]">
-          Ikut kegiatan sholat
-          <input checked={participatesPrayer} onChange={(event) => setParticipatesPrayer(event.target.checked)} type="checkbox" />
-        </label>
-      </form>
-    </ModalForm>
-  );
-}
-
-function ImportSantriForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [file, setFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [error, setError] = useState('');
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!file) {
-      setError('Pilih file Excel terlebih dahulu.');
-      return;
-    }
-    setIsUploading(true);
-    setError('');
-    try {
-      const response = await api.importBoardingSantri(file);
-      if (response.success) {
-        onSaved();
-        onClose();
-      } else {
-        setError(response.message ?? 'Gagal mengimport data');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Terjadi kesalahan saat upload');
-    } finally {
-      setIsUploading(false);
-    }
-  }
-
-  return (
-    <ModalForm
-      title="Import Data Santri Pondok"
-      onClose={onClose}
-      footer={
-        <button className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white disabled:opacity-60" disabled={isUploading || !file} form="import-santri-form" type="submit">
-          <Upload size={18} />
-          {isUploading ? 'Mengupload...' : 'Upload Data'}
-        </button>
-      }
-    >
-      <form className="space-y-4" id="import-santri-form" onSubmit={(event) => void submit(event)}>
-        {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
-        
-        <div className="rounded-2xl border-2 border-dashed border-[#B2BEC3] bg-[#F8F9FA] p-8 text-center">
-          <input
-            type="file"
-            accept=".xlsx, .xls, .csv"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="mb-4 block w-full text-sm text-[#636E72] file:mr-4 file:rounded-xl file:border-0 file:bg-[#E1EFF7] file:px-4 file:py-2 file:text-sm file:font-bold file:text-[#2E86DE] hover:file:bg-[#C9E2F1]"
-          />
-          <p className="text-xs text-[#636E72]">
-            Format yang didukung: .xlsx, .xls, .csv<br />
-            Ukuran maksimal: 5MB
-          </p>
-        </div>
-
-        <div className="rounded-xl bg-[#E8F7F3] p-4 text-xs font-medium text-[#138F81]">
-          <strong>Tips:</strong> Anda bisa mengekspor data santri pondok terlebih dahulu, mengeditnya di Excel, lalu mengimpornya kembali di sini untuk melakukan update secara massal.
-        </div>
-      </form>
-    </ModalForm>
   );
 }
