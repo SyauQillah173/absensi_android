@@ -380,6 +380,44 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
         {showAbsensi ? <StatCard title="Absensi Sholat" value={getNumber(sholat, 'total')} subtitle={`${getNumber(sholat, 'kamar_sudah_diabsen')} kamar diabsen`} icon={CalendarCheck} tone="purple" /> : null}
       </div>
 
+      {showAbsensi ? (
+        <div className="q-dashboard-summary-grid grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <AbsensiSummaryCard
+            icon={<BookOpenCheck className="text-[#2E86DE]" size={20} />}
+            title="Absensi Madin/Diniyah"
+            subtitle="Ringkasan kelas hari ini"
+            items={[
+              ['H', getNumber(absensi, 'hadir'), 'success'],
+              ['I', getNumber(absensi, 'izin'), 'warning'],
+              ['S', getNumber(absensi, 'sakit'), 'danger'],
+              ['A', getNumber(absensi, 'alfa'), 'neutral']
+            ]}
+          />
+          <AbsensiSummaryCard
+            icon={<BookMarked className="text-[#138F81]" size={20} />}
+            title="Absensi Ngaji Kitab"
+            subtitle={`${getNumber(ngaji, 'jadwal_sudah_diabsen')} jadwal sudah diabsen`}
+            items={[
+              ['H', getNumber(ngaji, 'H'), 'success'],
+              ['I', getNumber(ngaji, 'I'), 'warning'],
+              ['S', getNumber(ngaji, 'S'), 'danger'],
+              ['A', getNumber(ngaji, 'A') || getNumber(ngaji, 'kosong'), 'neutral']
+            ]}
+          />
+          <AbsensiSummaryCard
+            icon={<CalendarCheck className="text-[#138F81]" size={20} />}
+            title="Absensi Jama'ah Sholat"
+            subtitle={`${getNumber(sholat, 'kamar_sudah_diabsen')} kamar sudah diabsen`}
+            items={[
+              ['M', getNumber(sholat, 'M'), 'success'],
+              ['I', getNumber(sholat, 'I'), 'warning'],
+              ['S', getNumber(sholat, 'S'), 'danger'],
+              ['Kosong', getNumber(sholat, 'kosong'), 'neutral']
+            ]}
+          />
+        </div>
+      ) : null}
+
       {/* SECTION 1: DEMOGRAFI GENDER & SEBARAN KELAS MADIN */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mt-5">
         {/* CHART 1: TOTAL SANTRI PER JENIS KELAMIN (MODERN DONUT) */}
@@ -831,44 +869,6 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
           </div>
         </section>
       </div>
-
-      {showAbsensi ? (
-        <div className="q-dashboard-summary-grid grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          <AbsensiSummaryCard
-            icon={<BookOpenCheck className="text-[#2E86DE]" size={20} />}
-            title="Absensi Madin/Diniyah"
-            subtitle="Ringkasan kelas hari ini"
-            items={[
-              ['H', getNumber(absensi, 'hadir'), 'success'],
-              ['I', getNumber(absensi, 'izin'), 'warning'],
-              ['S', getNumber(absensi, 'sakit'), 'danger'],
-              ['A', getNumber(absensi, 'alfa'), 'neutral']
-            ]}
-          />
-          <AbsensiSummaryCard
-            icon={<BookMarked className="text-[#138F81]" size={20} />}
-            title="Absensi Ngaji Kitab"
-            subtitle={`${getNumber(ngaji, 'jadwal_sudah_diabsen')} jadwal sudah diabsen`}
-            items={[
-              ['H', getNumber(ngaji, 'H'), 'success'],
-              ['I', getNumber(ngaji, 'I'), 'warning'],
-              ['S', getNumber(ngaji, 'S'), 'danger'],
-              ['A', getNumber(ngaji, 'A') || getNumber(ngaji, 'kosong'), 'neutral']
-            ]}
-          />
-          <AbsensiSummaryCard
-            icon={<CalendarCheck className="text-[#138F81]" size={20} />}
-            title="Absensi Jama'ah Sholat"
-            subtitle={`${getNumber(sholat, 'kamar_sudah_diabsen')} kamar sudah diabsen`}
-            items={[
-              ['M', getNumber(sholat, 'M'), 'success'],
-              ['I', getNumber(sholat, 'I'), 'warning'],
-              ['S', getNumber(sholat, 'S'), 'danger'],
-              ['Kosong', getNumber(sholat, 'kosong'), 'neutral']
-            ]}
-          />
-        </div>
-      ) : null}
 
       <div className={`q-dashboard-bottom-grid grid grid-cols-1 items-start gap-5 ${showFinance ? 'xl:grid-cols-[minmax(0,1fr)_360px]' : ''}`}>
         {showFinance ? (
