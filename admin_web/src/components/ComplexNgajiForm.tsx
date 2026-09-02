@@ -62,19 +62,22 @@ function formatTeacherOption(name: string, jenisKelamin?: string): string {
   const clean = text(name);
   if (!clean) return '-';
 
+  // Tentukan icon khas: 🧕 untuk Ustadzah/Bu Nyai, 👳‍♂️ untuk Ustadz/Kiai
+  const icon = (jenisKelamin === 'P' || /^(bu\s*nyai|nyai|ning|hj\.|ustadzah)/i.test(clean)) ? '🧕 ' : '👳‍♂️ ';
+
   // Cek apakah nama sudah memiliki gelar penghormatan (misal: UST., USTADZ, KH., BU NYAI, NYAI, MAS, dll.)
   const alreadyHasTitle = /^(ust|ustadz|ustadzah|kh|k\.h|k\s*h|kyai|kiai|bu\s*nyai|nyai|ning|gus|habib|mas|pak|bapak|ibu|drs|dra|prof|dr)\b/i.test(clean);
 
-  // Jika nama sudah ada gelarnya (seperti "UST. ABD. RAHMAN", "KH. ABDUL QODIR", "BU NYAI ..."),
-  // gunakan nama tersebut langsung tanpa menambah kata "Ustadz/Ustadzah" agar TIDAK DOUBLE!
+  // Jika sudah ada gelar, pertahankan icon + nama asli agar tidak double!
   if (alreadyHasTitle) {
-    return clean;
+    return `${icon}${clean}`;
   }
 
   // Jika nama polos tanpa gelar, tambahkan gelar sesuai jenis kelamin
   const prefix = jenisKelamin === 'P' ? 'Ustadzah ' : 'Ustadz ';
-  return `${prefix}${clean}`;
+  return `${icon}${prefix}${clean}`;
 }
+
 
 
 function getBookCover(key: string): string | null {
