@@ -1,8 +1,9 @@
-import { Plus, RefreshCw, Trash2, Pencil } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ComplexReferensiForm } from '../components/ComplexReferensiForm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
-import { ModalForm } from '../components/ModalForm';
+
 import { SearchInput } from '../components/SearchInput';
 import { api, type ApiRecord } from '../services/api';
 
@@ -54,14 +55,37 @@ export function MasterReferensiPage() {
   }, [rows, search, kategoriFilter]);
 
   const columns: DataColumn<ApiRecord>[] = [
-    { key: 'kategori', header: 'Kategori', render: (row) => String(row.kategori) },
-    { key: 'nilai', header: 'Nilai Referensi', render: (row) => String(row.nilai) },
+    {
+      key: 'kategori',
+      header: 'Kategori',
+      sortable: true,
+      sortValue: (row) => String(row.kategori ?? ''),
+      render: (row) => (
+        <span className="font-extrabold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg text-xs">
+          {String(row.kategori).toUpperCase()}
+        </span>
+      ),
+    },
+    {
+      key: 'nilai',
+      header: 'Nilai (Label Opsi)',
+      sortable: true,
+      sortValue: (row) => String(row.nilai ?? ''),
+      render: (row) => <span className="font-extrabold text-slate-900 text-sm">{String(row.nilai)}</span>,
+    },
     {
       key: 'is_active',
       header: 'Status',
+      sortable: true,
+      sortValue: (row) => (row.is_active !== false ? 1 : 0),
       render: (row) => (
-        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ${row.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-          {row.is_active ? 'Aktif' : 'Nonaktif'}
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-black ${
+            row.is_active !== false ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+          }`}
+        >
+          <span className={`h-1.5 w-1.5 rounded-full ${row.is_active !== false ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+          {row.is_active !== false ? 'Aktif' : 'Nonaktif'}
         </span>
       ),
     },
@@ -126,9 +150,25 @@ export function MasterReferensiPage() {
     }
   }
 
+  // JIKA FORM REFERENSI TERBUKA, TAMPILKAN IN-PAGE FORM KONSISTEN
+  if (form !== null) {
+    return (
+      <ComplexReferensiForm
+        initialData={form.id ? form : null}
+        kategoriOptions={kategoriOptions}
+        onClose={() => setForm(null)}
+        onSave={() => {
+          setForm(null);
+          void load();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <section className="q-page-heading flex flex-wrap items-end justify-between gap-4">
+
         <div>
           <p className="text-sm font-bold text-[#636E72]">Master Data</p>
           <h1 className="text-3xl font-extrabold text-[#2D3436]">Data Referensi</h1>
@@ -189,52 +229,7 @@ export function MasterReferensiPage() {
         )}
       </section>
 
-      {form ? (
-        <ModalForm
-          title={form.id ? 'Edit Referensi' : 'Tambah Referensi'}
-          onClose={() => setForm(null)}
-          footer={
-            <button className="min-h-12 w-full rounded-2xl bg-[#138F81] text-sm font-extrabold text-white disabled:opacity-60" disabled={isSaving} form="referensi-form" type="submit">
-              {isSaving ? 'Menyimpan...' : 'Simpan Data'}
-            </button>
-          }
-        >
-          <form id="referensi-form" className="grid gap-4" onSubmit={saveRecord}>
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[#636E72]">Kategori</span>
-              <input 
-                list="kategori-list"
-                className="q-input" 
-                value={String(form.kategori || '')} 
-                onChange={(e) => setForm({ ...form, kategori: e.target.value.toLowerCase() })} 
-                required 
-                placeholder="Pilih atau ketik kategori baru..."
-              />
-              <datalist id="kategori-list">
-                {kategoriOptions.map(kat => <option key={kat} value={kat} />)}
-              </datalist>
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[#636E72]">Nilai (Opsi Dropdown)</span>
-              <input
-                className="q-input"
-                type="text"
-                value={String(form.nilai || '')}
-                onChange={(e) => setForm({ ...form, nilai: e.target.value })}
-                required
-                placeholder="Misal: Jakarta, Indonesia, 12345"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[#636E72]">Status Aktif</span>
-              <select className="q-input" value={form.is_active !== false ? '1' : '0'} onChange={(e) => setForm({ ...form, is_active: e.target.value === '1' })}>
-                <option value="1">Aktif</option>
-                <option value="0">Nonaktif</option>
-              </select>
-            </label>
-          </form>
-        </ModalForm>
-      ) : null}
+
 
       {deleteTarget ? (
         <ConfirmDialog
