@@ -1,9 +1,25 @@
-import { BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Plus, Save, Search, Trash2, UserPlus, Users, X } from 'lucide-react';
+import {
+  BookOpen,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Pencil,
+  Plus,
+  Save,
+  Search,
+  Trash2,
+  UserPlus,
+  Users,
+  X,
+  AlertTriangle,
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, type ApiRecord } from '../services/api';
 
 interface ComplexKelompokFormProps {
   initialData?: ApiRecord | null;
+  readOnly?: boolean;
   onClose: () => void;
   onSave: () => void;
 }
@@ -18,7 +34,14 @@ function num(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-export function ComplexKelompokForm({ initialData, onClose, onSave }: ComplexKelompokFormProps) {
+export function ComplexKelompokForm({
+  initialData,
+  readOnly = false,
+  onClose,
+  onSave,
+}: ComplexKelompokFormProps) {
+  const [isReadOnly, setIsReadOnly] = useState(readOnly);
+
   const [form, setForm] = useState<{
     id?: number;
     nama: string;
@@ -37,18 +60,21 @@ export function ComplexKelompokForm({ initialData, onClose, onSave }: ComplexKel
   const [allStudents, setAllStudents] = useState<ApiRecord[]>([]);
   const [memberStudents, setMemberStudents] = useState<ApiRecord[]>([]);
   const [classes, setClasses] = useState<ApiRecord[]>([]);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
   const [searchMember, setSearchMember] = useState('');
   const [searchAvailable, setSearchAvailable] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Load classes & all students & current members
   useEffect(() => {
     async function loadData() {
       try {
+        setIsLoadingDetails(true);
         const [studentRes, classRes] = await Promise.all([
           api.siswa({ status: 'Aktif' }),
           api.classes(),
@@ -60,12 +86,23 @@ export function ComplexKelompokForm({ initialData, onClose, onSave }: ComplexKel
         if (initialData?.id) {
           const detailRes = await api.kelompokBelajarDetail(num(initialData.id));
           const detailData = detailRes.data as ApiRecord;
-          if (detailData && Array.isArray(detailData.siswa)) {
-            setMemberStudents(detailData.siswa as ApiRecord[]);
+          if (detailData) {
+            setForm({
+              id: num(detailData.id ?? initialData.id),
+              nama: text(detailData.nama ?? initialData.nama),
+              kategori: text(detailData.kategori ?? initialData.kategori, 'Sifir'),
+              sifir: text(detailData.sifir ?? initialData.sifir ?? initialData.nama),
+              class_id: detailData.class_id ? num(detailData.class_id) : undefined,
+            });
+            if (Array.isArray(detailData.siswa)) {
+              setMemberStudents(detailData.siswa as ApiRecord[]);
+            }
           }
         }
       } catch {
         // handle fallback
+      } finally {
+        setIsLoadingDetails(false);
       }
     }
     void loadData();
@@ -90,7 +127,9 @@ export function ComplexKelompokForm({ initialData, onClose, onSave }: ComplexKel
     const kw = searchMember.toLowerCase().trim();
     if (!kw) return memberStudents;
     return memberStudents.filter((s) =>
-      `${s.nama ?? ''} ${s.nis ?? ''} ${s.nisn ?? ''} ${s.kamar ?? ''}`.toLowerCase().includes(kw)
+      `${s.nama ?? ''} ${s.nis ?? ''} ${s.nisn ?? ''} ${s.kamar ?? ''} ${s.komplek ?? ''}`
+        .toLowerCase()
+        .includes(kw)
     );
   }, [memberStudents, searchMember]);
 
@@ -100,9 +139,11 @@ export function ComplexKelompokForm({ initialData, onClose, onSave }: ComplexKel
       .filter((s) => !memberIds.has(num(s.id)))
       .filter((s) => {
         if (!kw) return true;
-        return `${s.nama ?? ''} ${s.nis ?? ''} ${s.nisn ?? ''} ${s.kelas ?? ''}`.toLowerCase().includes(kw);
+        return `${s.nama ?? ''} ${s.nis ?? ''} ${s.nisn ?? ''} ${s.kelas ?? ''}`
+          .toLowerCase()
+          .includes(kw);
       })
-      .slice(0, 30);
+      .slice(0, 40);
   }, [allStudents, memberIds, searchAvailable]);
 
   const handleAddStudent = (student: ApiRecord) => {
@@ -113,9 +154,14 @@ export function ComplexKelompokForm({ initialData, onClose, onSave }: ComplexKel
     setMemberStudents((prev) => prev.filter((s) => num(s.id) !== studentId));
   };
 
+  const handleClearAllStudents = () => {
+    setMemberStudents([]);
+    setConfirmClearOpen(false);
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (isSaving) return;
+    if (isSaving || isReadOnly) return;
 
     if (!form.nama.trim()) {
       setError('Nama kelompok belajar wajib diisi.');
@@ -152,8 +198,14 @@ export function ComplexKelompokForm({ initialData, onClose, onSave }: ComplexKel
     }
   };
 
+  const selectedClassName = useMemo(() => {
+    if (!form.class_id) return 'Otomatis / Tidak Terikat';
+    const found = classes.find((c) => num(c.id) === form.class_id);
+    return found ? `${text(found.name ?? found.nama)} (${text(found.category, 'Madin')})` : '-';
+  }, [classes, form.class_id]);
+
   return (
-    <div className="w-full flex-1">
+    <div className="w-full flex-1 animate-in fade-in duration-200">
       {/* Top-Right Floating Toast Notification */}
       {isSuccess && (
         <div className="fixed top-5 right-5 z-[99999] flex items-center gap-3.5 rounded-2xl bg-white p-4 shadow-2xl border border-emerald-200 shadow-emerald-900/15 transition-all animate-in fade-in slide-in-from-top-4 duration-300 max-w-sm">
@@ -174,22 +226,55 @@ export function ComplexKelompokForm({ initialData, onClose, onSave }: ComplexKel
       <div className="flex min-h-[calc(100vh-10rem)] w-full flex-col overflow-hidden bg-white shadow-sm ring-1 ring-slate-200 sm:rounded-3xl">
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-3.5 sm:px-6 sm:py-4">
-          <div>
-            <h2 className="text-lg sm:text-xl font-extrabold text-[#2D3436]">
-              {form.id ? 'Edit Kelompok Belajar & Anggota' : 'Tambah Kelompok Belajar Baru'}
-            </h2>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h2 className="text-lg sm:text-xl font-extrabold text-[#2D3436]">
+                {isReadOnly
+                  ? `Detail Kelompok Belajar: ${form.nama || 'Kelompok'}`
+                  : form.id
+                  ? 'Edit Kelompok Belajar & Anggota'
+                  : 'Tambah Kelompok Belajar Baru'}
+              </h2>
+              {isReadOnly ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-[11px] font-extrabold">
+                  <Eye size={12} />
+                  Mode Pratinjau
+                </span>
+              ) : form.id ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-800 text-[11px] font-extrabold">
+                  <Pencil size={12} />
+                  Mode Edit
+                </span>
+              ) : null}
+            </div>
             <p className="text-xs sm:text-sm font-semibold text-[#636E72] mt-0.5">
-              Atur nama kelompok, level/sifir, dan kelola santri yang tergabung di kelompok ini.
+              {isReadOnly
+                ? 'Lihat rincian informasi kelompok sifir dan seluruh daftar anggota santri aktif.'
+                : 'Atur nama kelompok, level/sifir, dan kelola santri yang tergabung di kelompok ini.'}
             </p>
           </div>
-          <button
-            className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-full bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors shrink-0"
-            onClick={onClose}
-            type="button"
-            disabled={isSuccess}
-          >
-            <X size={18} />
-          </button>
+
+          <div className="flex items-center gap-2 shrink-0 ml-2">
+            {isReadOnly && (
+              <button
+                type="button"
+                onClick={() => setIsReadOnly(false)}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-extrabold rounded-xl bg-[#138F81] text-white hover:bg-[#0f766a] transition-all shadow-sm"
+              >
+                <Pencil size={13} />
+                <span>Edit Kelompok Ini</span>
+              </button>
+            )}
+            <button
+              className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-full bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors shrink-0"
+              onClick={onClose}
+              type="button"
+              disabled={isSuccess}
+              title="Tutup form"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Tab Navigation */}
@@ -234,197 +319,355 @@ export function ComplexKelompokForm({ initialData, onClose, onSave }: ComplexKel
 
           {/* TAB 1: INFORMASI KELOMPOK */}
           {activeTab === 'info' && (
-            <div className="max-w-3xl space-y-6 animate-in fade-in duration-200">
-              <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-5 sm:p-6 space-y-5">
-                <h3 className="text-sm sm:text-base font-extrabold text-slate-800 flex items-center gap-2">
-                  <BookOpen className="text-[#138F81]" size={18} /> Detail Kelompok Belajar
-                </h3>
+            <div className="max-w-4xl space-y-6 animate-in fade-in duration-200">
+              {isReadOnly ? (
+                /* READ-ONLY INFO CARDS */
+                <div className="space-y-5">
+                  <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-5 sm:p-6 space-y-5">
+                    <h3 className="text-sm sm:text-base font-extrabold text-slate-800 flex items-center gap-2">
+                      <BookOpen className="text-[#138F81]" size={18} /> Detail Data Kelompok Belajar
+                    </h3>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
-                      Nama Kelompok <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-bold text-slate-800 placeholder-slate-400 focus:border-[#138F81] focus:ring-2 focus:ring-[#138F81]/20 outline-none"
-                      placeholder="Contoh: Sifir Awal A PA, Madin Wustho 1..."
-                      value={form.nama}
-                      onChange={(e) => setForm({ ...form, nama: e.target.value })}
-                      required
-                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
+                        <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                          NAMA KELOMPOK
+                        </p>
+                        <p className="text-sm sm:text-base font-black text-slate-800 mt-1">
+                          {text(form.nama)}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
+                        <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                          KATEGORI
+                        </p>
+                        <span className="inline-block mt-1 px-2.5 py-0.5 rounded-lg bg-teal-50 border border-teal-200 text-teal-800 text-xs font-black">
+                          {text(form.kategori)}
+                        </span>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
+                        <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                          SIFIR / LEVEL
+                        </p>
+                        <p className="text-sm sm:text-base font-black text-[#138F81] mt-1">
+                          {text(form.sifir)}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
+                        <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                          TOTAL ANGGOTA
+                        </p>
+                        <p className="text-sm sm:text-base font-black text-blue-700 mt-1 flex items-center gap-1.5">
+                          <Users size={16} />
+                          {memberStudents.length} Santri
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
+                      <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                        MASTER KELAS TERIKAT
+                      </p>
+                      <p className="text-xs sm:text-sm font-bold text-slate-700 mt-1">
+                        🏛️ {selectedClassName}
+                      </p>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
-                      Kategori Kelompok
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-bold text-slate-800 placeholder-slate-400 focus:border-[#138F81] focus:ring-2 focus:ring-[#138F81]/20 outline-none"
-                      placeholder="Contoh: Sifir Awal PA, Madin Ula..."
-                      value={form.kategori}
-                      onChange={(e) => setForm({ ...form, kategori: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
-                      Sifir / Level
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-bold text-slate-800 placeholder-slate-400 focus:border-[#138F81] focus:ring-2 focus:ring-[#138F81]/20 outline-none"
-                      placeholder="Contoh: awal, wustho, ula..."
-                      value={form.sifir}
-                      onChange={(e) => setForm({ ...form, sifir: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
-                      Hubungkan ke Master Kelas Resmi (Opsional)
-                    </label>
-                    <select
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none"
-                      value={form.class_id ?? ''}
-                      onChange={(e) =>
-                        setForm({ ...form, class_id: e.target.value ? Number(e.target.value) : undefined })
-                      }
+                  <div className="rounded-2xl border border-teal-200 bg-teal-50/60 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="grid h-10 w-10 place-items-center rounded-xl bg-teal-500 text-white shrink-0">
+                        <Users size={20} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black text-teal-900">
+                          Lihat Daftar Anggota Santri ({memberStudents.length} santri)
+                        </p>
+                        <p className="text-[11px] font-semibold text-teal-700">
+                          Buka Tab II untuk melihat biodata santri, NIS, komplek kamar, dan presensi.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('santri')}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#138F81] text-white text-xs font-black hover:bg-[#0f766a] transition"
                     >
-                      <option value="">-- Otomatis Sinkronisasi / Tidak Terikat --</option>
-                      {classes.map((c) => (
-                        <option key={c.id as number} value={c.id as number}>
-                          {text(c.name ?? c.nama)} ({text(c.category, 'Madin')})
-                        </option>
-                      ))}
-                    </select>
+                      <span>Buka Anggota Santri</span>
+                      <ChevronRight size={15} />
+                    </button>
                   </div>
                 </div>
-              </div>
+              ) : (
+                /* EDITABLE FORM INPUTS */
+                <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-5 sm:p-6 space-y-5">
+                  <h3 className="text-sm sm:text-base font-extrabold text-slate-800 flex items-center gap-2">
+                    <BookOpen className="text-[#138F81]" size={18} /> Detail Kelompok Belajar
+                  </h3>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                        Nama Kelompok <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-bold text-slate-800 placeholder-slate-400 focus:border-[#138F81] focus:ring-2 focus:ring-[#138F81]/20 outline-none"
+                        placeholder="Contoh: Sifir Awal A PA, Madin Wustho 1..."
+                        value={form.nama}
+                        onChange={(e) => setForm({ ...form, nama: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                        Kategori Kelompok
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-bold text-slate-800 placeholder-slate-400 focus:border-[#138F81] focus:ring-2 focus:ring-[#138F81]/20 outline-none"
+                        placeholder="Contoh: Sifir Awal PA, Madin Ula..."
+                        value={form.kategori}
+                        onChange={(e) => setForm({ ...form, kategori: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                        Sifir / Level
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-bold text-slate-800 placeholder-slate-400 focus:border-[#138F81] focus:ring-2 focus:ring-[#138F81]/20 outline-none"
+                        placeholder="Contoh: awal, wustho, ula..."
+                        value={form.sifir}
+                        onChange={(e) => setForm({ ...form, sifir: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                        Hubungkan ke Master Kelas Resmi (Opsional)
+                      </label>
+                      <select
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none"
+                        value={form.class_id ?? ''}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            class_id: e.target.value ? Number(e.target.value) : undefined,
+                          })
+                        }
+                      >
+                        <option value="">-- Otomatis Sinkronisasi / Tidak Terikat --</option>
+                        {classes.map((c) => (
+                          <option key={c.id as number} value={c.id as number}>
+                            {text(c.name ?? c.nama)} ({text(c.category, 'Madin')})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* TAB 2: ANGGOTA SANTRI */}
           {activeTab === 'santri' && (
-            <div className="max-w-5xl space-y-6 animate-in fade-in duration-200">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Panel Kiri: Santri Terdaftar dalam Kelompok */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <div className={`grid gap-6 ${isReadOnly ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
+                {/* Panel Anggota Terdaftar */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm space-y-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                     <div>
                       <h4 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
                         <Users className="text-[#138F81]" size={17} /> Anggota Terdaftar ({memberStudents.length})
                       </h4>
                       <p className="text-xs text-slate-400 font-semibold mt-0.5">
-                        Santri yang saat ini masuk di kelompok ini.
+                        {isReadOnly
+                          ? 'Daftar seluruh santri yang aktif di kelompok ini.'
+                          : 'Santri yang saat ini masuk di kelompok ini.'}
                       </p>
                     </div>
+
+                    {/* Tombol Hapus / Kosongkan Semua Anggota */}
+                    {!isReadOnly && memberStudents.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmClearOpen(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-rose-600 bg-rose-50 border border-rose-200 rounded-xl hover:bg-rose-100 transition-colors shadow-2xs"
+                        title="Keluarkan seluruh santri dari kelompok ini sekaligus"
+                      >
+                        <Trash2 size={13} />
+                        <span>Kosongkan Semua</span>
+                      </button>
+                    )}
                   </div>
+
+                  {/* Konfirmasi Kosongkan Semua */}
+                  {confirmClearOpen && (
+                    <div className="rounded-2xl border border-rose-300 bg-rose-50 p-3.5 space-y-2 animate-in fade-in duration-200">
+                      <div className="flex items-center gap-2 text-rose-800 text-xs font-extrabold">
+                        <AlertTriangle size={16} />
+                        <span>Konfirmasi Kosongkan Seluruh Anggota?</span>
+                      </div>
+                      <p className="text-[11px] font-medium text-rose-700 leading-relaxed">
+                        Semua {memberStudents.length} santri akan dikeluarkan dari kelompok ini. Klik tombol di bawah untuk menyetujui.
+                      </p>
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleClearAllStudents}
+                          className="flex-1 rounded-xl bg-rose-600 py-1.5 text-xs font-extrabold text-white hover:bg-rose-700 transition"
+                        >
+                          Ya, Kosongkan Semua ({memberStudents.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmClearOpen(false)}
+                          className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+                        >
+                          Batal
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                     <input
                       type="text"
                       className="w-full rounded-xl border border-slate-200 bg-slate-50/60 py-2 pl-8 pr-3 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:border-[#138F81] outline-none"
-                      placeholder="Cari anggota terdaftar..."
+                      placeholder="Cari anggota terdaftar (nama, NIS, kamar)..."
                       value={searchMember}
                       onChange={(e) => setSearchMember(e.target.value)}
                     />
                   </div>
 
-                  <div className="max-h-[380px] overflow-y-auto space-y-2 pr-1">
+                  {/* List / Grid of Member Students */}
+                  <div
+                    className={`overflow-y-auto space-y-2 pr-1 ${
+                      isReadOnly
+                        ? 'max-h-[500px] grid grid-cols-1 md:grid-cols-2 gap-2.5 space-y-0'
+                        : 'max-h-[380px]'
+                    }`}
+                  >
                     {memberStudents.length === 0 ? (
-                      <div className="p-8 text-center text-slate-400">
+                      <div className="col-span-full p-8 text-center text-slate-400">
                         <Users className="mx-auto text-slate-300 mb-2" size={28} />
                         <p className="text-xs font-bold text-slate-600">Belum ada santri di kelompok ini.</p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          Tambahkan santri dari panel sebelah kanan.
-                        </p>
+                        {!isReadOnly && (
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            Tambahkan santri dari panel sebelah kanan.
+                          </p>
+                        )}
                       </div>
                     ) : filteredMembers.length === 0 ? (
-                      <p className="py-6 text-center text-xs font-bold text-slate-400">
-                        Tidak ada santri yang cocok.
+                      <p className="col-span-full py-6 text-center text-xs font-bold text-slate-400">
+                        Tidak ada santri yang cocok dengan pencarian "{searchMember}".
                       </p>
                     ) : (
                       filteredMembers.map((s, idx) => (
                         <div
                           key={String(s.id ?? idx)}
-                          className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50/80 hover:bg-slate-100/70 transition-colors"
+                          className="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 bg-slate-50/80 hover:bg-slate-100/80 transition-colors"
                         >
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs font-extrabold text-slate-800 truncate">{text(s.nama)}</p>
-                            <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
-                              NIS: {text(s.nis)} • {s.jenis_kelamin === 'L' ? 'L (Putra)' : 'P (Putri)'} {s.kamar ? `• ${s.kamar}` : ''}
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-extrabold text-slate-800 truncate">
+                                {text(s.nama)}
+                              </span>
+                              <span
+                                className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
+                                  s.jenis_kelamin === 'L'
+                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                    : 'bg-rose-50 text-rose-700 border border-rose-200'
+                                }`}
+                              >
+                                {s.jenis_kelamin === 'L' ? 'L' : 'P'}
+                              </span>
+                            </div>
+                            <p className="text-[11px] font-semibold text-slate-500 mt-0.5 truncate">
+                              NIS: {text(s.nis)} {s.kamar ? `• ${s.kamar}` : ''} {s.komplek ? `(${s.komplek})` : ''}
                             </p>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveStudent(num(s.id))}
-                            className="grid h-7 w-7 place-items-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-colors ml-2 shrink-0"
-                            title="Keluarkan santri dari kelompok ini"
-                          >
-                            <Trash2 size={13} />
-                          </button>
+
+                          {!isReadOnly && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveStudent(num(s.id))}
+                              className="grid h-7 w-7 place-items-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-colors ml-2 shrink-0"
+                              title="Keluarkan santri dari kelompok ini"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
                         </div>
                       ))
                     )}
                   </div>
                 </div>
 
-                {/* Panel Kanan: Tambah Santri dari Database */}
-                <div className="rounded-2xl border border-teal-200/80 bg-teal-50/40 p-5 shadow-sm space-y-4">
-                  <div className="flex items-center justify-between border-b border-teal-100 pb-3">
-                    <div>
-                      <h4 className="text-sm font-extrabold text-[#138F81] flex items-center gap-2">
-                        <UserPlus size={17} /> + Tambah Santri ke Kelompok
-                      </h4>
-                      <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                        Pilih santri aktif untuk dimasukkan ke kelompok ini.
-                      </p>
+                {/* Panel Tambah Santri dari Database (Hanya saat Mode Edit/Tambah) */}
+                {!isReadOnly && (
+                  <div className="rounded-2xl border border-teal-200/80 bg-teal-50/40 p-4 sm:p-5 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between border-b border-teal-100 pb-3">
+                      <div>
+                        <h4 className="text-sm font-extrabold text-[#138F81] flex items-center gap-2">
+                          <UserPlus size={17} /> + Tambah Santri ke Kelompok
+                        </h4>
+                        <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                          Pilih santri aktif untuk dimasukkan ke kelompok ini.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                      <input
+                        type="text"
+                        className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-3 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:border-[#138F81] outline-none"
+                        placeholder="Cari nama santri / NIS / kelas santri..."
+                        value={searchAvailable}
+                        onChange={(e) => setSearchAvailable(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="max-h-[380px] overflow-y-auto space-y-2 pr-1">
+                      {availableStudents.length === 0 ? (
+                        <p className="p-8 text-center text-xs font-bold text-slate-400">
+                          Tidak ada santri yang cocok atau semua santri sudah masuk.
+                        </p>
+                      ) : (
+                        availableStudents.map((s, idx) => (
+                          <div
+                            key={String(s.id ?? idx)}
+                            className="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-white hover:border-[#138F81] transition-all"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-extrabold text-slate-800 truncate">{text(s.nama)}</p>
+                              <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
+                                NIS: {text(s.nis)} • {s.jenis_kelamin === 'L' ? 'Putra' : 'Putri'} • Kelas: {text(s.kelas, 'Belum ada')}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleAddStudent(s)}
+                              className="inline-flex items-center gap-1 rounded-lg bg-[#138F81] px-2.5 py-1 text-[11px] font-black text-white hover:bg-[#0f766a] transition-colors ml-2 shrink-0"
+                            >
+                              <Plus size={12} /> Tambah
+                            </button>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
-
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                    <input
-                      type="text"
-                      className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-3 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:border-[#138F81] outline-none"
-                      placeholder="Cari nama santri / NIS / kelas santri..."
-                      value={searchAvailable}
-                      onChange={(e) => setSearchAvailable(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="max-h-[380px] overflow-y-auto space-y-2 pr-1">
-                    {availableStudents.length === 0 ? (
-                      <p className="p-8 text-center text-xs font-bold text-slate-400">
-                        Tidak ada santri yang cocok atau semua santri sudah masuk.
-                      </p>
-                    ) : (
-                      availableStudents.map((s, idx) => (
-                        <div
-                          key={String(s.id ?? idx)}
-                          className="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-white hover:border-[#138F81] transition-all"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-extrabold text-slate-800 truncate">{text(s.nama)}</p>
-                            <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
-                              NIS: {text(s.nis)} • {s.jenis_kelamin === 'L' ? 'Putra' : 'Putri'} • Kelas: {text(s.kelas, 'Belum ada')}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleAddStudent(s)}
-                            className="inline-flex items-center gap-1 rounded-lg bg-[#138F81] px-2.5 py-1 text-[11px] font-black text-white hover:bg-[#0f766a] transition-colors ml-2 shrink-0"
-                          >
-                            <Plus size={12} /> Tambah
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           )}
@@ -451,10 +694,32 @@ export function ComplexKelompokForm({ initialData, onClose, onSave }: ComplexKel
               disabled={isSaving || isSuccess}
               className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
             >
-              Batal
+              {isReadOnly ? 'Tutup' : 'Batal'}
             </button>
 
-            {activeTab === 'info' ? (
+            {isReadOnly ? (
+              <>
+                {activeTab === 'info' ? (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('santri')}
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#138F81] px-5 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-[#138F81]/25 hover:bg-[#0f766a] transition-all"
+                  >
+                    <span>Lanjut ke II. Anggota Santri</span>
+                    <ChevronRight size={16} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsReadOnly(false)}
+                    className="inline-flex items-center gap-1.5 px-5 py-2.5 text-xs sm:text-sm font-black rounded-xl bg-[#138F81] text-white hover:bg-[#0f766a] transition-all shadow-md shadow-[#138F81]/25"
+                  >
+                    <Pencil size={15} />
+                    <span>Edit Kelompok Ini</span>
+                  </button>
+                )}
+              </>
+            ) : activeTab === 'info' ? (
               <button
                 type="button"
                 onClick={() => {

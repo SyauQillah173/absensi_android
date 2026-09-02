@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { ComplexKelompokForm } from '../components/ComplexKelompokForm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
-import { KelompokDetailModal } from '../components/KelompokDetailModal';
 import { SearchInput } from '../components/SearchInput';
 import { StatCard } from '../components/StatCard';
 import { api, type ApiRecord } from '../services/api';
@@ -43,7 +42,7 @@ export function KelompokBelajarPage() {
 
   // Modals & Forms state
   const [activeFormData, setActiveFormData] = useState<ApiRecord | null | undefined>(undefined);
-  const [detailData, setDetailData] = useState<ApiRecord | null>(null);
+  const [isReadOnlyForm, setIsReadOnlyForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ApiRecord | null>(null);
 
   async function load() {
@@ -73,9 +72,29 @@ export function KelompokBelajarPage() {
       const kategori = String(row.kategori ?? '').toLowerCase();
       const sifir = String(row.sifir ?? '').toLowerCase();
       const pembina = String(record(row.pembina).name ?? row.nama_pembina ?? '').toLowerCase();
-      return nama.includes(keyword) || kategori.includes(keyword) || sifir.includes(keyword) || pembina.includes(keyword);
+      return (
+        nama.includes(keyword) ||
+        kategori.includes(keyword) ||
+        sifir.includes(keyword) ||
+        pembina.includes(keyword)
+      );
     });
   }, [rows, search]);
+
+  const openDetail = (row: ApiRecord) => {
+    setActiveFormData(row);
+    setIsReadOnlyForm(true);
+  };
+
+  const openEdit = (row: ApiRecord) => {
+    setActiveFormData(row);
+    setIsReadOnlyForm(false);
+  };
+
+  const openCreate = () => {
+    setActiveFormData(null);
+    setIsReadOnlyForm(false);
+  };
 
   const columns = useMemo<DataColumn<ApiRecord>[]>(
     () => [
@@ -125,14 +144,14 @@ export function KelompokBelajarPage() {
           <div className="flex flex-wrap gap-2">
             <button
               className="rounded-xl bg-[#E8F7F3] px-3.5 py-2 text-xs font-extrabold text-[#138F81] hover:bg-[#d0f2e9] transition-colors"
-              onClick={() => void openDetail(row)}
+              onClick={() => openDetail(row)}
               type="button"
             >
               Detail
             </button>
             <button
               className="rounded-xl bg-[#EAF4FF] px-3.5 py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors inline-flex items-center gap-1"
-              onClick={() => setActiveFormData(row)}
+              onClick={() => openEdit(row)}
               type="button"
             >
               <Pencil size={13} /> Edit
@@ -150,18 +169,6 @@ export function KelompokBelajarPage() {
     ],
     []
   );
-
-  async function openDetail(row: ApiRecord) {
-    const id = asNumber(row.id);
-    if (!id) return;
-    setError('');
-    try {
-      const result = await api.kelompokBelajarDetail(id);
-      setDetailData(result.data && typeof result.data === 'object' ? (result.data as ApiRecord) : row);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Detail kelompok gagal dimuat.');
-    }
-  }
 
   async function handleDelete() {
     if (!deleteTarget?.id || isDeleting) return;
@@ -184,9 +191,14 @@ export function KelompokBelajarPage() {
     return (
       <ComplexKelompokForm
         initialData={activeFormData}
-        onClose={() => setActiveFormData(undefined)}
+        readOnly={isReadOnlyForm}
+        onClose={() => {
+          setActiveFormData(undefined);
+          setIsReadOnlyForm(false);
+        }}
         onSave={() => {
           setActiveFormData(undefined);
+          setIsReadOnlyForm(false);
           void load();
         }}
       />
@@ -215,7 +227,7 @@ export function KelompokBelajarPage() {
           </button>
           <button
             className="q-soft-action inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white shadow-md shadow-[#138F81]/25 hover:bg-[#0f766a] transition-all"
-            onClick={() => setActiveFormData(null)}
+            onClick={openCreate}
             type="button"
           >
             <Plus size={17} /> Tambah Kelompok
@@ -298,14 +310,14 @@ export function KelompokBelajarPage() {
               <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
                 <button
                   className="flex-1 rounded-xl bg-[#E8F7F3] py-2 text-xs font-extrabold text-[#138F81] hover:bg-[#d0f2e9] transition-colors text-center"
-                  onClick={() => void openDetail(row)}
+                  onClick={() => openDetail(row)}
                   type="button"
                 >
                   Detail
                 </button>
                 <button
                   className="flex-1 rounded-xl bg-[#EAF4FF] py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors inline-flex items-center justify-center gap-1"
-                  onClick={() => setActiveFormData(row)}
+                  onClick={() => openEdit(row)}
                   type="button"
                 >
                   <Pencil size={13} /> Edit
@@ -323,14 +335,6 @@ export function KelompokBelajarPage() {
           )}
         />
       </section>
-
-      {/* Detail Modal */}
-      {detailData && (
-        <KelompokDetailModal
-          data={detailData}
-          onClose={() => setDetailData(null)}
-        />
-      )}
 
       {/* Delete Confirmation */}
       {deleteTarget && (
