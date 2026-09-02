@@ -403,15 +403,17 @@ export function ComplexNgajiForm({ initialData, onClose, onSave }: ComplexNgajiF
         }
       }
 
+      window.dispatchEvent(new CustomEvent('app:data-updated', { detail: { type: 'ngaji' } }));
       setIsSuccess(true);
       setTimeout(() => {
         setIsSuccess(false);
         onSave();
-      }, 1000);
+      }, 500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal menyimpan kitab dan jadwal pengajian.');
       setIsSaving(false);
     }
+
   };
 
   const selectedComplex = complexes.find((c) => String(c.id) === String(newSchedule.boarding_complex_id));

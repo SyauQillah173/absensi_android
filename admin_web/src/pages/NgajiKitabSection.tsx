@@ -18,7 +18,7 @@ import {
   UsersRound,
   X
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
@@ -347,8 +347,11 @@ function NgajiMaster() {
   const [activeFormData, setActiveFormData] = useState<ApiRecord | null | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'book' | 'schedule'; row: ApiRecord } | null>(null);
 
-  async function load() {
-    setIsLoading(true);
+  const [searchSchedule, setSearchSchedule] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'Aktif' | 'Nonaktif'>('all');
+
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
     setError('');
     try {
       const [sessionResult, bookResult, scheduleResult] = await Promise.all([
@@ -360,15 +363,63 @@ function NgajiMaster() {
       setBooks(rows(bookResult.data));
       setSchedules(rows(scheduleResult.data));
     } catch (err) {
-      setError(ngajiError(err, 'Master ngaji gagal dimuat.'));
+      if (!silent) setError(ngajiError(err, 'Master ngaji gagal dimuat.'));
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     void load();
-  }, []);
+
+    // 1. Auto-refresh saat event app:data-updated dipicu
+    const handleDataUpdate = (e: Event) => {
+      const customEvt = e as CustomEvent;
+      if (!customEvt.detail || customEvt.detail.type === 'ngaji' || customEvt.detail.type === 'all') {
+        void load(true);
+      }
+    };
+    window.addEventListener('app:data-updated', handleDataUpdate);
+
+    // 2. Auto-refresh saat window fokus atau tab kembali aktif
+    const handleFocus = () => void load(true);
+    window.addEventListener('focus', handleFocus);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') void load(true);
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // 3. Periodic Background Auto-Refresh (setiap 15 detik)
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible' && activeFormData === undefined) {
+        void load(true);
+      }
+    }, 15000);
+
+    return () => {
+      window.removeEventListener('app:data-updated', handleDataUpdate);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(interval);
+    };
+  }, [load, activeFormData]);
+
+  const activeCount = useMemo(() => schedules.filter((s) => text(s.status, 'Aktif') === 'Aktif').length, [schedules]);
+  const inactiveCount = useMemo(() => schedules.filter((s) => text(s.status) === 'Nonaktif').length, [schedules]);
+
+  const filteredSchedules = useMemo(() => {
+    let list = schedules;
+    if (statusFilter !== 'all') {
+      list = list.filter((s) => text(s.status, 'Aktif') === statusFilter);
+    }
+    const kw = searchSchedule.trim().toLowerCase();
+    if (!kw) return list;
+    return list.filter((s) => {
+      const match = `${s.kitab ?? ''} ${s.pengajar ?? ''} ${s.sesi ?? ''} ${s.kamar ?? ''} ${s.komplek ?? ''} ${s.hari ?? ''}`.toLowerCase();
+      return match.includes(kw);
+    });
+  }, [schedules, searchSchedule, statusFilter]);
+
 
   async function deactivate() {
     if (!deleteTarget) return;
@@ -397,19 +448,25 @@ function NgajiMaster() {
     return (
       <ComplexNgajiForm
         initialData={activeFormData}
-        onClose={() => setActiveFormData(undefined)}
+        onClose={() => {
+          setActiveFormData(undefined);
+          void load(true);
+        }}
         onSave={() => {
           setActiveFormData(undefined);
-          void load();
+          void load(true);
         }}
       />
     );
   }
 
+
   const scheduleColumns: DataColumn<ApiRecord>[] = [
     {
       key: 'kitab',
       header: 'Kitab & Pengajar',
+      sortable: true,
+      sortValue: (row) => String(row.kitab ?? ''),
       render: (row) => {
         const cover = getBookCover(String(row.kitab_code || row.ngaji_book_id || row.kitab));
         return (
@@ -429,18 +486,37 @@ function NgajiMaster() {
         );
       }
     },
-    { key: 'sesi', header: 'Sesi & Waktu', render: (row) => (
-      <div>
-        <p className="font-extrabold text-slate-800 text-xs">{text(row.sesi)}</p>
-        <p className="text-[11px] font-mono text-slate-500">{text(row.start_time, '--:--')} - {text(row.end_time, '--:--')} WIB</p>
-      </div>
-    ) },
-    { key: 'target', header: 'Target Santri', render: (row) => (
-      <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-extrabold text-slate-700">
-        <UsersRound size={12} /> {text(row.kamar ?? row.komplek ?? row.kelas, 'Semua Santri')}
-      </span>
-    ) },
-    { key: 'status', header: 'Status', render: (row) => <StatusBadge label={text(row.status)} tone={statusTone(text(row.status))} /> },
+    {
+      key: 'sesi',
+      header: 'Sesi & Waktu',
+      sortable: true,
+      sortValue: (row) => String(row.start_time ?? row.sesi ?? ''),
+      render: (row) => (
+        <div>
+          <p className="font-extrabold text-slate-800 text-xs">{text(row.sesi)}</p>
+          <p className="text-[11px] font-mono text-slate-500">{text(row.start_time, '--:--')} - {text(row.end_time, '--:--')} WIB</p>
+        </div>
+      )
+    },
+    {
+      key: 'target',
+      header: 'Target Santri',
+      sortable: true,
+      sortValue: (row) => String(row.kamar ?? row.komplek ?? row.kelas ?? ''),
+      render: (row) => (
+        <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-extrabold text-slate-700">
+          <UsersRound size={12} /> {text(row.kamar ?? row.komplek ?? row.kelas, 'Semua Santri')}
+        </span>
+      )
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      sortable: true,
+      sortValue: (row) => String(row.status ?? ''),
+      render: (row) => <StatusBadge label={text(row.status)} tone={statusTone(text(row.status))} />
+    },
+
     {
       key: 'aksi',
       header: 'Aksi',
@@ -509,8 +585,56 @@ function NgajiMaster() {
       </div>
 
       {/* ACTION BAR */}
-      <section className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-3xl border border-slate-100 shadow-xs">
-        <div className="flex flex-wrap items-center gap-2.5">
+      <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-3xl border border-slate-100 shadow-xs">
+        <div className="flex flex-1 flex-wrap items-center gap-2.5">
+          <div className="flex-1 min-w-[240px]">
+            <SearchInput
+              value={searchSchedule}
+              onChange={setSearchSchedule}
+              placeholder="Cari nama kitab / ustadz / sesi / kamar / hari..."
+            />
+          </div>
+
+          <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 shrink-0">
+            <button
+              type="button"
+              onClick={() => setStatusFilter('all')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+                statusFilter === 'all'
+                  ? 'bg-white text-slate-800 shadow-xs ring-1 ring-black/5'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Semua ({schedules.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('Aktif')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+                statusFilter === 'Aktif'
+                  ? 'bg-[#138F81] text-white shadow-xs'
+                  : 'text-slate-600 hover:text-[#138F81]'
+              }`}
+            >
+              <span className={`h-2 w-2 rounded-full ${statusFilter === 'Aktif' ? 'bg-white' : 'bg-emerald-500'}`} />
+              Aktif ({activeCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('Nonaktif')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+                statusFilter === 'Nonaktif'
+                  ? 'bg-slate-700 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <span className={`h-2 w-2 rounded-full ${statusFilter === 'Nonaktif' ? 'bg-white' : 'bg-slate-400'}`} />
+              Nonaktif ({inactiveCount})
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
           <button
             className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-4.5 text-sm font-extrabold text-white shadow-md shadow-[#138F81]/20 hover:brightness-105 transition-all"
             type="button"
@@ -518,8 +642,8 @@ function NgajiMaster() {
           >
             <Plus size={17} /> Tambah Kitab & Jadwal Ngaji
           </button>
+          <RefreshButton isLoading={isLoading} onClick={() => void load(true)} />
         </div>
-        <RefreshButton isLoading={isLoading} onClick={() => void load()} />
       </section>
 
       {/* TABLE JADWAL NGAJI */}
@@ -531,9 +655,23 @@ function NgajiMaster() {
         {isLoading ? (
           <LoadingText text="Memuat susunan jadwal ngaji..." />
         ) : (
-          <DataTable rows={schedules} columns={scheduleColumns} emptyText="Belum ada jadwal ngaji santri yang dibuat." minWidth="860px" />
+          <DataTable
+            rows={filteredSchedules}
+            columns={scheduleColumns}
+            defaultSortKey="kitab"
+            defaultSortDirection="asc"
+            emptyText={
+              statusFilter === 'Aktif'
+                ? 'Tidak ada jadwal pengajian yang aktif.'
+                : statusFilter === 'Nonaktif'
+                ? 'Tidak ada jadwal pengajian yang nonaktif.'
+                : 'Belum ada jadwal ngaji santri yang dibuat.'
+            }
+            minWidth="860px"
+          />
         )}
       </section>
+
 
       {/* MASTER LIST KITAB DENGAN FOTO */}
       <section className="rounded-3xl bg-white p-6 border border-slate-100 shadow-xs space-y-4">

@@ -267,12 +267,14 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
         await api.createMataPelajaran(payload);
       }
 
+      window.dispatchEvent(new CustomEvent('app:data-updated', { detail: { type: 'mapel' } }));
       setIsSuccess(true);
       setTimeout(() => {
         setIsSuccess(false);
         onSave();
-      }, 1200);
+      }, 500);
     } catch (err) {
+
       setError(err instanceof Error ? err.message : 'Gagal menyimpan mata pelajaran & jadwal.');
       setIsSaving(false);
     }
