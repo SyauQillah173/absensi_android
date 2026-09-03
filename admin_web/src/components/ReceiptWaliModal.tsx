@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Printer, Download, X, CheckCircle, FileText, Building2, ShieldCheck } from 'lucide-react';
+import { Printer, Download, X, CheckCircle, FileText, ShieldCheck } from 'lucide-react';
 import type { ApiRecord } from '../services/api';
 
 interface ReceiptWaliModalProps {
@@ -135,20 +135,33 @@ export function ReceiptWaliModal({ transaction, child, onClose }: ReceiptWaliMod
       ctx.fillStyle = '#138F81';
       ctx.fillRect(0, 0, width, 10);
 
-      // Header Kop
+      // Load and draw official Qomaruddin logo
+      const logoImg = new Image();
+      logoImg.crossOrigin = 'anonymous';
+      logoImg.src = '/logo-qomaruddin.png';
+      await new Promise<void>((resolve) => {
+        logoImg.onload = () => resolve();
+        logoImg.onerror = () => resolve();
+      });
+
+      if (logoImg.complete && logoImg.naturalWidth > 0) {
+        ctx.drawImage(logoImg, 50, 32, 75, 75);
+      }
+
+      // Header Kop text
+      ctx.textAlign = 'left';
       ctx.fillStyle = '#138F81';
       ctx.font = 'bold 15px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('YAYASAN PONDOK PESANTREN QOMARUDDIN', width / 2, 45);
+      ctx.fillText('YAYASAN PONDOK PESANTREN QOMARUDDIN', 140, 50);
 
       ctx.fillStyle = '#1e293b';
       ctx.font = '900 18px sans-serif';
-      ctx.fillText('LEMBAGA PENDIDIKAN & MADRASAH DINIYAH', width / 2, 72);
+      ctx.fillText('LEMBAGA PENDIDIKAN & MADRASAH DINIYAH', 140, 74);
 
       ctx.fillStyle = '#64748b';
       ctx.font = 'normal 11px sans-serif';
-      ctx.fillText('Sampurnan, Bungah, Kabupaten Gresik, Jawa Timur 61152 • Telp: (031) 3949173', width / 2, 92);
-      ctx.fillText('Email: info@ppqomaruddin.itqom.net • Website: ppqomaruddin.itqom.net', width / 2, 108);
+      ctx.fillText('Sampurnan, Bungah, Kabupaten Gresik, Jawa Timur 61152 • Telp: (031) 3949173', 140, 93);
+      ctx.fillText('Email: info@ppqomaruddin.itqom.net • Website: ppqomaruddin.itqom.net', 140, 107);
 
       // Double Line Divider
       ctx.strokeStyle = '#1e293b';
@@ -400,24 +413,30 @@ export function ReceiptWaliModal({ transaction, child, onClose }: ReceiptWaliMod
             </div>
 
             {/* KOP RESMI PESANTREN */}
-            <div className="text-center pb-4 border-b-2 border-slate-900 relative">
-              <div className="flex items-center justify-center gap-3 mb-1">
-                <Building2 size={32} className="text-[#138F81] shrink-0" />
-                <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">
+            <div className="pb-4 border-b-2 border-slate-900 relative">
+              <div className="flex items-center justify-center gap-3 sm:gap-4 mb-2">
+                <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl p-1 bg-[#E1EFF7]/80 border border-[#138F81]/20 flex items-center justify-center shadow-xs shrink-0">
+                  <img
+                    src="/logo-qomaruddin.png"
+                    alt="Logo Pesantren Qomaruddin"
+                    className="h-14 w-14 sm:h-16 sm:w-16 object-contain drop-shadow-xs"
+                  />
+                </div>
+                <div className="text-center sm:text-left">
+                  <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-[#138F81]">
                     YAYASAN PONDOK PESANTREN QOMARUDDIN
                   </h4>
-                  <h1 className="text-lg sm:text-xl font-black uppercase text-slate-900 tracking-tight">
+                  <h1 className="text-lg sm:text-2xl font-black uppercase text-slate-900 tracking-tight leading-tight mt-0.5">
                     LEMBAGA PENDIDIKAN & MADRASAH DINIYAH
                   </h1>
+                  <p className="text-[11px] sm:text-xs text-slate-600 font-medium mt-0.5">
+                    Sampurnan, Bungah, Kabupaten Gresik, Jawa Timur 61152 • Telp: (031) 3949173
+                  </p>
+                  <p className="text-[10px] text-slate-500 font-medium">
+                    Website: ppqomaruddin.itqom.net • Email: info@ppqomaruddin.itqom.net
+                  </p>
                 </div>
               </div>
-              <p className="text-[11px] text-slate-600">
-                Sampurnan, Bungah, Kabupaten Gresik, Jawa Timur 61152 • Telp: (031) 3949173
-              </p>
-              <p className="text-[10px] text-slate-500">
-                Website: ppqomaruddin.itqom.net • Email: info@ppqomaruddin.itqom.net
-              </p>
             </div>
 
             {/* JUDUL KWITANSI */}
