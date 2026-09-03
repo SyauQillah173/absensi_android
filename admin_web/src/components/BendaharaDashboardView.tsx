@@ -104,25 +104,25 @@ function AtmCard({
 }: AtmCardProps) {
   const themeStyles = {
     emerald: {
-      bg: 'bg-linear-to-br from-[#064e3b] via-[#047857] to-[#022c22]',
+      bg: 'bg-linear-to-br from-[#044e3b] via-[#065f46] to-[#022c22]',
       border: 'border-emerald-400/40',
       glow: 'shadow-emerald-950/40',
       accent: 'text-emerald-200',
     },
     sapphire: {
-      bg: 'bg-linear-to-br from-[#172554] via-[#1e40af] to-[#0f172a]',
+      bg: 'bg-linear-to-br from-[#1e3a8a] via-[#1d4ed8] to-[#0f172a]',
       border: 'border-blue-400/40',
       glow: 'shadow-blue-950/40',
       accent: 'text-sky-200',
     },
     titanium: {
-      bg: 'bg-linear-to-br from-[#18181b] via-[#27272a] to-[#09090b]',
-      border: 'border-zinc-600/50',
+      bg: 'bg-linear-to-br from-[#1c1917] via-[#292524] to-[#0c0a09]',
+      border: 'border-amber-400/30',
       glow: 'shadow-black/60',
       accent: 'text-amber-200/90',
     },
     bronze: {
-      bg: 'bg-linear-to-br from-[#78350f] via-[#92400e] to-[#451a03]',
+      bg: 'bg-linear-to-br from-[#7c2d12] via-[#9a3412] to-[#431407]',
       border: 'border-amber-500/40',
       glow: 'shadow-amber-950/40',
       accent: 'text-amber-200',
@@ -137,32 +137,62 @@ function AtmCard({
 
   return (
     <div
-      className={`group relative flex flex-col justify-between overflow-hidden rounded-3xl p-5 text-white shadow-xl ${themeStyles.bg} border ${themeStyles.border} ${themeStyles.glow} hover:-translate-y-1.5 hover:shadow-2xl transition-all duration-300 min-h-[225px] select-none`}
+      className={`group relative flex flex-col justify-between overflow-hidden rounded-3xl p-5 text-white shadow-xl ${themeStyles.bg} border ${themeStyles.border} ${themeStyles.glow} hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 min-h-[235px] select-none`}
     >
       {/* Glossy lighting reflection streak */}
       <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-white/10 blur-xl group-hover:scale-110 transition-transform" />
-      <div className="pointer-events-none absolute inset-0 bg-linear-to-tr from-transparent via-white/5 to-white/15" />
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-tr from-transparent via-white/5 to-white/10" />
       <div className="pointer-events-none absolute left-0 right-0 top-0 h-[1px] bg-linear-to-r from-transparent via-white/35 to-transparent" />
 
-      {/* Decorative Guilloche concentric circles (ATM Watermark) */}
+      {/* Subtle guilloche watermark circles */}
       <div className="pointer-events-none absolute -bottom-16 -right-16 h-48 w-48 rounded-full border border-white/5 opacity-40" />
       <div className="pointer-events-none absolute -bottom-24 -right-24 h-64 w-64 rounded-full border border-white/5 opacity-20" />
 
-      {/* Top Row: Issuer & Tier & NFC Contactless Wave */}
+      {/* 1. TOP HEADER: Issuer & Tier */}
       <div className="relative z-10 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="grid h-6 w-6 place-items-center rounded-lg bg-white/15 backdrop-blur-xs border border-white/20">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-white/15 backdrop-blur-xs border border-white/20">
             <Landmark size={12} className="text-amber-300" />
           </div>
-          <span className="font-mono text-[10px] font-black tracking-widest text-white/90 uppercase">
+          <span className="font-mono text-[10px] sm:text-[11px] font-black tracking-widest text-white/95 uppercase truncate">
             {issuer}
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          {/* Contactless Waves */}
+        <span className="rounded-md bg-white/15 px-2 py-0.5 text-[9px] font-black tracking-wider text-white/95 uppercase border border-white/20 shrink-0">
+          {tier}
+        </span>
+      </div>
+
+      {/* 2. CHIP & CONTACTLESS WAVE & CARD NUMBER */}
+      <div className="relative z-10 my-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {/* Realistic EMV Smart Chip */}
+          <div
+            className={`relative h-6 w-8 rounded-md p-0.5 shadow-inner border flex flex-col justify-between overflow-hidden shrink-0 ${
+              chip === 'silver'
+                ? 'bg-linear-to-br from-slate-100 via-slate-200 to-slate-400 border-slate-200/90'
+                : chip === 'copper'
+                ? 'bg-linear-to-br from-orange-200 via-amber-600 to-amber-700 border-orange-300/80'
+                : 'bg-linear-to-br from-amber-200 via-yellow-400 to-amber-500 border-amber-300/80'
+            }`}
+          >
+            <div className="h-full w-full rounded-[2px] border border-black/20 flex flex-col justify-between p-0.5">
+              <div className="flex justify-between h-1">
+                <div className="w-1.5 border-b border-r border-black/30" />
+                <div className="w-1.5 border-b border-l border-black/30" />
+              </div>
+              <div className="h-1 w-2.5 mx-auto rounded-xs border border-black/30 bg-black/10" />
+              <div className="flex justify-between h-1">
+                <div className="w-1.5 border-t border-r border-black/30" />
+                <div className="w-1.5 border-t border-l border-black/30" />
+              </div>
+            </div>
+          </div>
+
+          {/* Contactless Wave */}
           <svg
-            className="h-4 w-4 text-white/70 rotate-90"
+            className="h-3.5 w-3.5 text-white/70 rotate-90 shrink-0"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -173,77 +203,49 @@ function AtmCard({
             <path d="M12 19a8.5 8.5 0 0 0 0-14" />
             <path d="M15.5 21.5a12 12 0 0 0 0-19" />
           </svg>
-          <span className="rounded-md bg-white/15 px-2 py-0.5 text-[9px] font-black tracking-wider text-white/95 uppercase border border-white/20">
-            {tier}
-          </span>
-        </div>
-      </div>
-
-      {/* Middle Row: EMV Metallic Chip & Masked Card Number */}
-      <div className="relative z-10 my-2.5 flex items-center justify-between">
-        {/* Realistic EMV Smart Chip */}
-        <div
-          className={`relative h-7 w-10 rounded-lg p-1 shadow-inner border flex flex-col justify-between overflow-hidden shrink-0 ${
-            chip === 'silver'
-              ? 'bg-linear-to-br from-slate-100 via-slate-300 to-slate-400 border-slate-200/80 shadow-slate-900/30'
-              : chip === 'copper'
-              ? 'bg-linear-to-br from-orange-200 via-amber-600 to-amber-700 border-orange-300/70 shadow-amber-950/40'
-              : 'bg-linear-to-br from-amber-200 via-yellow-400 to-amber-500 border-amber-300/80 shadow-amber-950/40'
-          }`}
-        >
-          <div className="absolute inset-0 opacity-40 bg-[radial-gradient(ellipse_at_center,_transparent_40%,_black_100%)]" />
-          <div className="h-[1px] w-full bg-black/25 my-auto" />
-          <div className="h-3 w-4 rounded-xs border border-black/25 mx-auto" />
         </div>
 
-        <p className="font-mono text-xs sm:text-sm font-black tracking-widest text-white/85 drop-shadow-xs">
+        <p className="font-mono text-xs font-black tracking-wider text-white/90 drop-shadow-xs">
           {numberMask}
         </p>
       </div>
 
-      {/* Balance / Metric Section */}
-      <div className="relative z-10 space-y-0.5 my-0.5">
-        <p className="text-[10px] font-black uppercase tracking-wider text-white/70">
+      {/* 3. METRIC / AMOUNT SECTION */}
+      <div className="relative z-10 space-y-0.5 my-1">
+        <p className="text-[10px] font-black uppercase tracking-wider text-white/70 leading-none">
           {label}
         </p>
-        <p className="text-xl sm:text-2xl font-black tracking-tight text-white drop-shadow-md">
+        <p className="text-xl sm:text-2xl font-black tracking-tight text-white drop-shadow-md py-0.5">
           {amount}
         </p>
-        <div className="flex items-center gap-1.5 pt-0.5">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <p className={`text-[11px] font-bold ${themeStyles.accent}`}>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+          <p className={`text-[11px] font-bold ${themeStyles.accent} truncate`}>
             {subText}
           </p>
         </div>
       </div>
 
-      {/* Bottom Row: Cardholder & Valid Thru & Network Emblem */}
-      <div className="relative z-10 mt-2 flex items-end justify-between border-t border-white/15 pt-2">
-        <div>
-          <p className="text-[8px] font-bold text-white/60 uppercase tracking-wider leading-none">
-            Cardholder
-          </p>
-          <p className="font-mono text-xs font-black tracking-wider text-white uppercase mt-0.5 truncate max-w-[130px] sm:max-w-[150px]">
+      {/* 4. BOTTOM ROW: CARDHOLDER (LEFT) & NETWORK EMBLEM (RIGHT) - 2 KOLOM RAPI ANTI-TABRAK */}
+      <div className="relative z-10 mt-2 flex items-end justify-between border-t border-white/15 pt-2 gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 text-[8px] font-bold text-white/60 uppercase tracking-wider leading-none">
+            <span>Cardholder</span>
+            <span>•</span>
+            <span className="text-white/80 font-mono">{validThru}</span>
+          </div>
+          <p className="font-mono text-[11px] sm:text-xs font-black tracking-wider text-white uppercase mt-0.5 truncate">
             {holder}
           </p>
         </div>
 
-        <div className="text-right">
-          <p className="text-[8px] font-bold text-white/60 uppercase tracking-wider leading-none">
-            Valid Thru
-          </p>
-          <p className="font-mono text-[11px] font-black text-white/95 mt-0.5">
-            {validThru}
-          </p>
-        </div>
-
         {/* Payment Network Emblem */}
-        <div className="flex items-center gap-1.5">
-          <div className="flex -space-x-2">
-            <div className="h-5 w-5 rounded-full bg-rose-500/85 backdrop-blur-xs shadow-xs" />
-            <div className="h-5 w-5 rounded-full bg-amber-400/85 backdrop-blur-xs shadow-xs" />
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex -space-x-1.5">
+            <div className="h-4.5 w-4.5 rounded-full bg-rose-500/90 shadow-xs" />
+            <div className="h-4.5 w-4.5 rounded-full bg-amber-400/90 shadow-xs" />
           </div>
-          <span className="font-mono text-[10px] font-black tracking-wider text-white/90 uppercase">
+          <span className="font-mono text-[10px] font-black tracking-wider text-white/95 uppercase">
             {network}
           </span>
         </div>
@@ -251,6 +253,7 @@ function AtmCard({
     </div>
   );
 }
+
 
 export function BendaharaDashboardView({
 
@@ -534,7 +537,7 @@ export function BendaharaDashboardView({
               label="Transaksi Santri Hari Ini"
               amount={`${todayPayments.length} Transaksi`}
               subText="Setoran SPP & Tagihan Santri"
-              holder="KASIR SANTRI HARIAN"
+              holder="KASIR SANTRI"
               validThru="TODAY"
               network="DEBIT"
             />
@@ -549,7 +552,7 @@ export function BendaharaDashboardView({
               label="Total Santri Terdaftar"
               amount={`${totalSantri.toLocaleString('id-ID')} Santri`}
               subText="Objek Wajib Tagihan Santri"
-              holder="PP QOMARUDDIN GRESIK"
+              holder="PP QOMARUDDIN"
               validThru="2026"
               network="INFINITE"
             />
@@ -564,7 +567,7 @@ export function BendaharaDashboardView({
               label="Uang Tunai di Laci Kasir"
               amount={formatRupiah(breakdownMetode.tunai)}
               subText={`${breakdownMetode.tunaiPct}% Fisik Uang di Laci Kasir`}
-              holder="TELLER CASH DRAWER"
+              holder="LACI KASIR"
               validThru="VERIFIED"
               network="CASH"
             />
@@ -611,7 +614,7 @@ export function BendaharaDashboardView({
               label="Pengeluaran Operasional Hari Ini"
               amount={`-${formatRupiah(totalKeluarHariIni)}`}
               subText={`${countKeluarHariIni} Transaksi Operasional Keluar`}
-              holder="DISBURSEMENT VAULT"
+              holder="KAS OPERASIONAL"
               validThru="APPROVED"
               network="CORP"
             />
@@ -626,13 +629,14 @@ export function BendaharaDashboardView({
               label="Total Santri Terdaftar"
               amount={`${totalSantri.toLocaleString('id-ID')} Santri`}
               subText="Objek Wajib Tagihan Santri"
-              holder="PP QOMARUDDIN GRESIK"
+              holder="PP QOMARUDDIN"
               validThru="2026"
               network="INFINITE"
             />
           </>
         )}
       </section>
+
 
 
 
