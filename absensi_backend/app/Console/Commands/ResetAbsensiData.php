@@ -89,8 +89,17 @@ class ResetAbsensiData extends Command
             // Bersihkan audit log terkait absensi
             if (Schema::hasTable('audit_logs')) {
                 DB::table('audit_logs')
-                    ->whereIn('action', ['absensi', 'absensi_sholat', 'absensi_ngaji', 'cancel_session'])
-                    ->orWhere('auditable_type', 'like', '%Absensi%')
+                    ->where(function ($q) {
+                        if (Schema::hasColumn('audit_logs', 'module')) {
+                            $q->orWhereIn('module', ['absensi', 'absensi_sholat', 'absensi_ngaji']);
+                        }
+                        if (Schema::hasColumn('audit_logs', 'action')) {
+                            $q->orWhereIn('action', ['absensi', 'absensi_sholat', 'absensi_ngaji', 'cancel_session']);
+                        }
+                        if (Schema::hasColumn('audit_logs', 'entity_type')) {
+                            $q->orWhere('entity_type', 'like', '%Absensi%');
+                        }
+                    })
                     ->delete();
                 $this->info("✓ Log riwayat audit absensi berhasil dibersihkan.");
             }

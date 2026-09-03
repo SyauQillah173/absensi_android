@@ -102,9 +102,19 @@ class ResetPaymentData extends Command
             // Bersihkan audit log terkait transaksi keuangan
             if (Schema::hasTable('audit_logs')) {
                 DB::table('audit_logs')
-                    ->whereIn('action', ['pembayaran', 'payment', 'payment_verification', 'payment_bill', 'approve_transfer'])
-                    ->orWhere('auditable_type', 'like', '%Payment%')
-                    ->orWhere('auditable_type', 'like', '%Pembayaran%')
+                    ->where(function ($q) {
+                        if (Schema::hasColumn('audit_logs', 'module')) {
+                            $q->orWhereIn('module', ['finance', 'keuangan', 'pembayaran', 'tagihan', 'pengeluaran', 'pemasukan_lain']);
+                        }
+                        if (Schema::hasColumn('audit_logs', 'action')) {
+                            $q->orWhereIn('action', ['pembayaran', 'payment', 'payment_verification', 'payment_bill', 'approve_transfer']);
+                        }
+                        if (Schema::hasColumn('audit_logs', 'entity_type')) {
+                            $q->orWhere('entity_type', 'like', '%Payment%')
+                              ->orWhere('entity_type', 'like', '%Pembayaran%')
+                              ->orWhere('entity_type', 'like', '%Finance%');
+                        }
+                    })
                     ->delete();
             }
 
