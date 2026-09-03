@@ -80,7 +80,9 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
     // Shared authenticated endpoints.
     Route::get('dashboard', [DashboardController::class, 'index']);
     Route::get('academic-periods/active', [AcademicPeriodController::class, 'active']);
+    Route::get('academic-periods', [AcademicPeriodController::class, 'index']);
     Route::get('profile', [UserProfileController::class, 'show']);
+
     Route::put('profile', [UserProfileController::class, 'update']);
     Route::post('profile/foto', [UserProfileController::class, 'uploadFoto'])->middleware('throttle:15,1');
     Route::delete('profile/foto', [UserProfileController::class, 'deleteFoto']);
@@ -224,8 +226,8 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::get('notification-settings', [WhatsAppController::class, 'settings'])->middleware('permission:whatsapp_bot,view');
         Route::put('notification-settings', [WhatsAppController::class, 'updateSettings'])->middleware('permission:whatsapp_bot,update');
 
-        Route::get('academic-periods', [AcademicPeriodController::class, 'index'])->middleware('permission:buku_induk,view');
         Route::post('academic-periods', [AcademicPeriodController::class, 'store'])->middleware('permission:buku_induk,create');
+
         Route::put('academic-periods/{academicYear}', [AcademicPeriodController::class, 'update'])->middleware('permission:buku_induk,update');
         Route::post('academic-periods/{academicYear}/activate', [AcademicPeriodController::class, 'activate'])->middleware('permission:buku_induk,update');
         Route::post('academic-periods/{academicYear}/semester', [AcademicPeriodController::class, 'semester'])->middleware('permission:buku_induk,update');

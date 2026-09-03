@@ -15,9 +15,11 @@ import {
   ShieldCheck,
   Trash2,
   TrendingUp,
+  UsersRound,
   WalletCards,
   X
 } from 'lucide-react';
+
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
@@ -154,23 +156,24 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
     if (!silent) setError('');
     try {
       const [todayResult, historyResult, typesResult, methodsResult, periodsResult, studentsResult, academicResult, chartResult, pengeluaranResult, pemasukanLainResult, documentSettingsResult] = await Promise.all([
-        api.paymentToday(),
-        api.paymentAll(),
-        api.paymentTypes(),
-        api.paymentMethods(),
-        api.paymentPeriodTypes(),
-        api.siswa({ with_wali: 1, status: 'Aktif', for_payment: 1 }),
-        api.academicPeriods(),
-        api.paymentChart(),
-        api.pengeluaran(),
-        api.pemasukanLain(),
-        api.documentSettings()
+        api.paymentToday().catch(() => ({ success: true, data: [] })),
+        api.paymentAll().catch(() => ({ success: true, data: [] })),
+        api.paymentTypes().catch(() => ({ success: true, data: [] })),
+        api.paymentMethods().catch(() => ({ success: true, data: [] })),
+        api.paymentPeriodTypes().catch(() => ({ success: true, data: [] })),
+        api.siswa({ with_wali: 1, status: 'Aktif', for_payment: 1 }).catch(() => ({ success: true, data: [] })),
+        api.academicPeriods().catch(() => ({ success: true, data: [] })),
+        api.paymentChart().catch(() => ({ success: true, data: [] })),
+        api.pengeluaran().catch(() => ({ success: true, data: [] })),
+        api.pemasukanLain().catch(() => ({ success: true, data: [] })),
+        api.documentSettings().catch(() => ({ success: true, data: {} }))
       ]);
-      setToday(Array.isArray(todayResult.data) ? todayResult.data : []);
-      setHistory(Array.isArray(historyResult.data) ? historyResult.data : []);
-      if (todayResult.financial_summary || historyResult.financial_summary) {
-        setFinancialSummary(((todayResult.financial_summary || historyResult.financial_summary) as ApiRecord) ?? null);
+
+      const finSummary = ((todayResult as ApiRecord)?.financial_summary || (historyResult as ApiRecord)?.financial_summary) as ApiRecord | undefined;
+      if (finSummary) {
+        setFinancialSummary(finSummary);
       }
+
       setPaymentTypes(Array.isArray(typesResult.data) ? typesResult.data : []);
       setPaymentMethods(Array.isArray(methodsResult.data) ? methodsResult.data : []);
       setPaymentPeriods(Array.isArray(periodsResult.data) ? periodsResult.data : []);
@@ -495,36 +498,71 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
 
       {activeTab === 'today' || activeTab === 'history' ? (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            <StatCard
-              title="Total Pembayaran Santri"
-              value={formatMoney(totalPembayaranSiswa)}
-              subtitle={`${countPembayaranSiswa} transaksi (${currentAcademicYearName})`}
-              icon={WalletCards}
-              tone="teal"
-            />
-            <StatCard
-              title="Total Kas Masuk Lain"
-              value={formatMoney(totalKasMasukLain)}
-              subtitle={`${countKasMasukLain} transaksi (${currentAcademicYearName})`}
-              icon={Landmark}
-              tone="blue"
-            />
-            <StatCard
-              title="Total Pengeluaran Kas"
-              value={formatMoney(totalPengeluaranTahunIni)}
-              subtitle={`${countPengeluaranTahunIni} pengeluaran (${currentAcademicYearName})`}
-              icon={ArrowDownCircle}
-              tone="red"
-            />
-            <StatCard
-              title="Total Saldo Kas Bersih"
-              value={formatMoney(saldoKasBersih)}
-              subtitle={`Surplus Kas (${currentAcademicYearName})`}
-              icon={ShieldCheck}
-              tone={saldoKasBersih >= 0 ? 'teal' : 'red'}
-            />
-          </div>
+          {isBendahara1 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              <StatCard
+                title="Total Pembayaran Santri"
+                value={formatMoney(totalPembayaranSiswa)}
+                subtitle={`${countPembayaranSiswa} transaksi (${currentAcademicYearName})`}
+                icon={WalletCards}
+                tone="teal"
+              />
+              <StatCard
+                title="Pembayaran Santri Hari Ini"
+                value={formatMoney(totalMasukHariIni)}
+                subtitle={`${today.length} transaksi kasir santri hari ini`}
+                icon={Landmark}
+                tone="blue"
+              />
+              <StatCard
+                title="Total Santri Terdaftar"
+                value={`${students.length || 966} Santri`}
+                subtitle="Objek Wajib Tagihan Santri"
+                icon={UsersRound}
+                tone="teal"
+              />
+              <StatCard
+                title="Uang Kasir Tunai Hari Ini"
+                value={formatMoney(
+                  today.filter((r) => String(r.via || '').toLowerCase().includes('tunai') || String(r.via || '').toLowerCase().includes('cash')).reduce((sum, r) => sum + num(r.jumlah), 0)
+                )}
+                subtitle="Fisik Uang Tunai di Laci Kasir"
+                icon={ShieldCheck}
+                tone="teal"
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              <StatCard
+                title="Total Pembayaran Santri"
+                value={formatMoney(totalPembayaranSiswa)}
+                subtitle={`${countPembayaranSiswa} transaksi (${currentAcademicYearName})`}
+                icon={WalletCards}
+                tone="teal"
+              />
+              <StatCard
+                title="Total Kas Masuk Lain"
+                value={formatMoney(totalKasMasukLain)}
+                subtitle={`${countKasMasukLain} transaksi (${currentAcademicYearName})`}
+                icon={Landmark}
+                tone="blue"
+              />
+              <StatCard
+                title="Total Pengeluaran Kas"
+                value={formatMoney(totalPengeluaranTahunIni)}
+                subtitle={`${countPengeluaranTahunIni} pengeluaran (${currentAcademicYearName})`}
+                icon={ArrowDownCircle}
+                tone="red"
+              />
+              <StatCard
+                title="Total Saldo Kas Bersih"
+                value={formatMoney(saldoKasBersih)}
+                subtitle={`Surplus Kas (${currentAcademicYearName})`}
+                icon={ShieldCheck}
+                tone={saldoKasBersih >= 0 ? 'teal' : 'red'}
+              />
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-100 bg-white/95 p-3.5 shadow-xs">
             <div className="flex flex-wrap items-center gap-2.5">
@@ -536,12 +574,15 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
                 <span>Realtime Hari Ini :</span>
               </span>
               <span className="rounded-xl bg-emerald-50 border border-emerald-200/80 px-3 py-1 text-xs font-black text-emerald-800 shadow-2xs">
-                Masuk Hari Ini: {formatMoney(totalMasukHariIni)} ({countMasukHariIni} transaksi)
+                {isBendahara1 ? 'Penerimaan Kasir Santri:' : 'Masuk Hari Ini:'} {formatMoney(totalMasukHariIni)} ({today.length} transaksi)
               </span>
-              <span className="rounded-xl bg-rose-50 border border-rose-200/80 px-3 py-1 text-xs font-black text-rose-800 shadow-2xs">
-                Keluar Hari Ini: {formatMoney(totalKeluarHariIni)}
-              </span>
+              {!isBendahara1 && (
+                <span className="rounded-xl bg-rose-50 border border-rose-200/80 px-3 py-1 text-xs font-black text-rose-800 shadow-2xs">
+                  Keluar Hari Ini: {formatMoney(totalKeluarHariIni)}
+                </span>
+              )}
             </div>
+
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-gray-500">Tahun Ajaran:</span>
               <select

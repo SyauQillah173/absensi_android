@@ -297,7 +297,9 @@ export function BendaharaDashboardView({
             </h1>
 
             <p className="text-xs sm:text-sm font-semibold text-teal-100/90 max-w-2xl">
-              {roleTitle}. Pantau arus kas masuk, input pembayaran SPP santri, dan rekonsiliasi buku kas secara aman dan presisi.
+              {isBendahara1
+                ? 'Bendahara 1 (Kasir & SPP Santri). Fokus pada transaksi pembayaran santri, setoran SPP harian, cetak kuitansi struk, dan rekonsiliasi kasir santri.'
+                : 'Bendahara 2 (Kepala Keuangan & Pembukuan Kas). Akses penuh kas masuk, pengeluaran kas operasional, pengaturan tarif SPP, dan buku besar yayasan.'}
             </p>
           </div>
 
@@ -325,76 +327,151 @@ export function BendaharaDashboardView({
         </div>
       )}
 
-      {/* 2. CORE BANKING KEY METRICS (4 KARTU UTAMA KEBERLANJUTAN KAS) */}
+      {/* 2. CORE BANKING KEY METRICS (4 KARTU METRIK: KHUSUS BENDAHARA 1 VS BENDAHARA 2) */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* KARTU 1: SALDO KAS BERSIH */}
-        <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-500">Saldo Kas Bersih</span>
-            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-teal-50 text-[#138F81]">
-              <ShieldCheck size={20} />
+        {isBendahara1 ? (
+          <>
+            {/* KARTU 1 (BENDAHARA 1): PENERIMAAN KASIR SANTRI HARI INI */}
+            <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Penerimaan Santri Hari Ini</span>
+                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-50 text-emerald-600">
+                  <ArrowDownLeft size={20} />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-emerald-700 mt-2">
+                +{formatRupiah(totalMasukHariIni)}
+              </p>
+              <div className="mt-2 flex items-center justify-between text-xs font-bold text-slate-500">
+                <span>{todayPayments.length} setoran santri</span>
+                <span className="text-[#138F81] font-black">Kasir Santri</span>
+              </div>
             </div>
-          </div>
-          <p className="text-2xl font-black text-slate-900 mt-2">
-            {formatRupiah(saldoKasBersih)}
-          </p>
-          <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-emerald-600">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            <span>Kas Utama Yayasan (Surplus Kas)</span>
-          </div>
-        </div>
 
-        {/* KARTU 2: PENERIMAAN HARI INI */}
-        <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-500">Penerimaan Hari Ini</span>
-            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-50 text-emerald-600">
-              <ArrowDownLeft size={20} />
+            {/* KARTU 2 (BENDAHARA 1): TOTAL TRANSAKSI KASIR HARI INI */}
+            <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Transaksi Santri Hari Ini</span>
+                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-teal-50 text-[#138F81]">
+                  <CreditCard size={20} />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-slate-900 mt-2">
+                {todayPayments.length} <span className="text-sm font-bold text-slate-400">Transaksi</span>
+              </p>
+              <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-emerald-600">
+                <CheckCircle2 size={13} />
+                <span>SPP & Pembayaran Santri</span>
+              </div>
             </div>
-          </div>
-          <p className="text-2xl font-black text-emerald-700 mt-2">
-            +{formatRupiah(totalMasukHariIni)}
-          </p>
-          <div className="mt-2 flex items-center justify-between text-xs font-bold text-slate-500">
-            <span>{countMasukHariIni} transaksi masuk</span>
-            <span className="text-[#138F81] font-black">Realtime</span>
-          </div>
-        </div>
 
-        {/* KARTU 3: PENGELUARAN HARI INI */}
-        <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-500">Pengeluaran Hari Ini</span>
-            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-rose-50 text-rose-600">
-              <ArrowUpRight size={20} />
+            {/* KARTU 3 (BENDAHARA 1): TOTAL SANTRI TERDAFTAR */}
+            <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Total Santri Aktif</span>
+                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-sky-50 text-sky-600">
+                  <UsersRound size={20} />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-slate-900 mt-2">
+                {totalSantri.toLocaleString('id-ID')}
+              </p>
+              <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-sky-700">
+                <UserCheck size={13} />
+                <span>Objek Wajib Tagihan Santri</span>
+              </div>
             </div>
-          </div>
-          <p className="text-2xl font-black text-rose-600 mt-2">
-            -{formatRupiah(totalKeluarHariIni)}
-          </p>
-          <div className="mt-2 flex items-center justify-between text-xs font-bold text-slate-500">
-            <span>{countKeluarHariIni} transaksi keluar</span>
-            <span className="text-slate-400">Operasional</span>
-          </div>
-        </div>
 
-        {/* KARTU 4: TOTAL SANTRI TERDAFTAR (HANYA JUMLAH SISWA SAJA TANPA GRAFIK KELAS RUWET) */}
-        <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-500">Total Santri Aktif</span>
-            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-sky-50 text-sky-600">
-              <UsersRound size={20} />
+            {/* KARTU 4 (BENDAHARA 1): UANG TUNAI DI LACI KASIR */}
+            <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Uang Tunai di Kasir</span>
+                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-50 text-emerald-600">
+                  <Banknote size={20} />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-emerald-800 mt-2">
+                {formatRupiah(breakdownMetode.tunai)}
+              </p>
+              <div className="mt-2 flex items-center justify-between text-xs font-bold text-slate-500">
+                <span>{breakdownMetode.tunaiPct}% total setoran</span>
+                <span className="text-emerald-700 font-black">Fisik di Laci</span>
+              </div>
             </div>
-          </div>
-          <p className="text-2xl font-black text-slate-900 mt-2">
-            {totalSantri.toLocaleString('id-ID')}
-          </p>
-          <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-sky-700">
-            <UserCheck size={13} />
-            <span>Objek Penagihan & SPP Santri</span>
-          </div>
-        </div>
+          </>
+        ) : (
+          <>
+            {/* KARTU 1 (BENDAHARA 2): SALDO KAS BERSIH UTAMA */}
+            <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Saldo Kas Bersih</span>
+                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-teal-50 text-[#138F81]">
+                  <ShieldCheck size={20} />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-slate-900 mt-2">
+                {formatRupiah(saldoKasBersih)}
+              </p>
+              <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-emerald-600">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <span>Kas Utama Yayasan (Surplus Kas)</span>
+              </div>
+            </div>
+
+            {/* KARTU 2 (BENDAHARA 2): TOTAL PENERIMAAN HARI INI */}
+            <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Penerimaan Hari Ini</span>
+                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-50 text-emerald-600">
+                  <ArrowDownLeft size={20} />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-emerald-700 mt-2">
+                +{formatRupiah(totalMasukHariIni)}
+              </p>
+              <div className="mt-2 flex items-center justify-between text-xs font-bold text-slate-500">
+                <span>{countMasukHariIni} transaksi masuk</span>
+                <span className="text-[#138F81] font-black">Santri + Kas Lain</span>
+              </div>
+            </div>
+
+            {/* KARTU 3 (BENDAHARA 2): PENGELUARAN OPERASIONAL HARI INI */}
+            <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Pengeluaran Hari Ini</span>
+                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-rose-50 text-rose-600">
+                  <ArrowUpRight size={20} />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-rose-600 mt-2">
+                -{formatRupiah(totalKeluarHariIni)}
+              </p>
+              <div className="mt-2 flex items-center justify-between text-xs font-bold text-slate-500">
+                <span>{countKeluarHariIni} transaksi keluar</span>
+                <span className="text-slate-400">Operasional</span>
+              </div>
+            </div>
+
+            {/* KARTU 4 (BENDAHARA 2): TOTAL SANTRI TERDAFTAR */}
+            <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Total Santri Aktif</span>
+                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-sky-50 text-sky-600">
+                  <UsersRound size={20} />
+                </div>
+              </div>
+              <p className="text-2xl font-black text-slate-900 mt-2">
+                {totalSantri.toLocaleString('id-ID')}
+              </p>
+              <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-sky-700">
+                <UserCheck size={13} />
+                <span>Objek Penagihan & SPP Santri</span>
+              </div>
+            </div>
+          </>
+        )}
       </section>
+
 
       {/* 3. TERMINAL AKSI CEPAT TRANSAKSI KASIR (QUICK ACTIONS HUB) */}
       <section className="rounded-3xl bg-white p-6 shadow-sm border border-slate-200/80">
