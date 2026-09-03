@@ -1,27 +1,54 @@
 import {
+  Activity,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Award,
+  Banknote,
+  BedDouble,
   Bell,
+  BookMarked,
   BookOpen,
   Building2,
   CalendarCheck,
+  CalendarDays,
+  CalendarRange,
+  ChartColumn,
   Check,
   ChevronDown,
+  ClipboardCheck,
   Clock3,
+  Compass,
+  CreditCard,
+  FileText,
   GraduationCap,
+  History,
   Home,
+  Inbox,
   KeyRound,
+  Landmark,
+  Layers,
   LibraryBig,
   ListChecks,
   LogOut,
   Menu,
   MessageCircle,
+  MessageSquare,
+  Printer,
+  RefreshCw,
+  ScrollText,
   Settings,
+  Shield,
+  ShieldAlert,
   ShieldCheck,
+  Tag,
+  Trash2,
+  TrendingUp,
+  UserCheck,
   UserCog,
   UserRound,
+  Users,
   UsersRound,
   WalletCards,
-  RefreshCw,
-  Trash2,
   X,
 } from "lucide-react";
 import {
@@ -62,6 +89,7 @@ export interface MenuItem {
   children?: Array<{
     label: string;
     page: PageKey;
+    icon?: ComponentType<{ size?: number; className?: string }>;
     masterSection?: BukuIndukSection;
     financeTab?: string;
     absensiTab?: AbsensiTab;
@@ -87,9 +115,9 @@ const allMenu: MenuItem[] = [
     label: "Data Santri",
     icon: UsersRound,
     children: [
-      { label: "Data Siswa/Santri", page: "master", masterSection: "siswa" },
-      { label: "Data Santri Alumni", page: "master", masterSection: "alumni" },
-      { label: "Data Kamar Pondok", page: "master", masterSection: "pondok" },
+      { label: "Data Siswa/Santri", page: "master", masterSection: "siswa", icon: UserCheck },
+      { label: "Data Santri Alumni", page: "master", masterSection: "alumni", icon: Award },
+      { label: "Data Kamar Pondok", page: "master", masterSection: "pondok", icon: BedDouble },
     ],
   },
   {
@@ -98,7 +126,7 @@ const allMenu: MenuItem[] = [
     icon: GraduationCap,
     page: "master",
     children: [
-      { label: "Daftar Guru & Ustadz", page: "master", masterSection: "guru" },
+      { label: "Daftar Guru & Ustadz", page: "master", masterSection: "guru", icon: UserCheck },
     ],
   },
   {
@@ -106,11 +134,11 @@ const allMenu: MenuItem[] = [
     label: "Akademik & KBM",
     icon: BookOpen,
     children: [
-      { label: "Data Kelas Madin", page: "master", masterSection: "kelas" },
-      { label: "Mata Pelajaran & Jadwal Madin", page: "mapel" },
-      { label: "Jadwal & Kitab Ngaji Santri", page: "absensi", absensiTab: "jadwal-ngaji" },
-      { label: "Jadwal & Waktu Sholat Jamaah", page: "absensi", absensiTab: "jenis-sholat" },
-      { label: "Kelompok Belajar", page: "master", masterSection: "kelompok" },
+      { label: "Data Kelas Madin", page: "master", masterSection: "kelas", icon: Layers },
+      { label: "Mata Pelajaran & Jadwal Madin", page: "mapel", icon: BookMarked },
+      { label: "Jadwal & Kitab Ngaji Santri", page: "absensi", absensiTab: "jadwal-ngaji", icon: LibraryBig },
+      { label: "Jadwal & Waktu Sholat Jamaah", page: "absensi", absensiTab: "jenis-sholat", icon: Compass },
+      { label: "Kelompok Belajar", page: "master", masterSection: "kelompok", icon: Users },
     ],
   },
   {
@@ -118,13 +146,13 @@ const allMenu: MenuItem[] = [
     label: "Presensi & Absensi",
     icon: CalendarCheck,
     children: [
-      { label: "⚡ Log Pemantauan Realtime", page: "absensi", absensiTab: "log-realtime" },
-      { label: "🕌 Input Presensi Madin", page: "absensi", absensiTab: "madin-input" },
-      { label: "🕋 Input Presensi Sholat", page: "absensi", absensiTab: "sholat" },
-      { label: "📖 Input Presensi Ngaji Kitab", page: "absensi", absensiTab: "ngaji" },
-      { label: "📊 Rekap Presensi Madin", page: "absensi", absensiTab: "madin" },
-      { label: "📈 Rekap Presensi Sholat", page: "absensi", absensiTab: "rekap-sholat" },
-      { label: "📚 Rekap Presensi Ngaji", page: "absensi", absensiTab: "rekap-ngaji" },
+      { label: "Log Pemantauan Realtime", page: "absensi", absensiTab: "log-realtime", icon: Activity },
+      { label: "Input Presensi Madin", page: "absensi", absensiTab: "madin-input", icon: ClipboardCheck },
+      { label: "Input Presensi Sholat", page: "absensi", absensiTab: "sholat", icon: Clock3 },
+      { label: "Input Presensi Ngaji Kitab", page: "absensi", absensiTab: "ngaji", icon: BookOpen },
+      { label: "Rekap Presensi Madin", page: "absensi", absensiTab: "madin", icon: ChartColumn },
+      { label: "Rekap Presensi Sholat", page: "absensi", absensiTab: "rekap-sholat", icon: TrendingUp },
+      { label: "Rekap Presensi Ngaji", page: "absensi", absensiTab: "rekap-ngaji", icon: FileText },
     ],
   },
 
@@ -134,13 +162,13 @@ const allMenu: MenuItem[] = [
     label: "Keuangan & Kas",
     icon: WalletCards,
     children: [
-      { label: "Transaksi Hari Ini", page: "keuangan", financeTab: "today" },
-      { label: "Verifikasi Transfer", page: "keuangan", financeTab: "verifikasi" },
-      { label: "Tagihan Santri (SPP)", page: "keuangan", financeTab: "student" },
-      { label: "Riwayat Pembayaran", page: "keuangan", financeTab: "history" },
-      { label: "Kas Masuk Lain", page: "keuangan", financeTab: "pemasukan_lain" },
-      { label: "Pengeluaran Kas", page: "keuangan", financeTab: "pengeluaran" },
-      { label: "Tipe & Tarif Tagihan", page: "keuangan", financeTab: "types" },
+      { label: "Transaksi Hari Ini", page: "keuangan", financeTab: "today", icon: Banknote },
+      { label: "Verifikasi Transfer", page: "keuangan", financeTab: "verifikasi", icon: Inbox },
+      { label: "Tagihan Santri (SPP)", page: "keuangan", financeTab: "student", icon: ScrollText },
+      { label: "Riwayat Pembayaran", page: "keuangan", financeTab: "history", icon: History },
+      { label: "Kas Masuk Lain", page: "keuangan", financeTab: "pemasukan_lain", icon: ArrowDownLeft },
+      { label: "Pengeluaran Kas", page: "keuangan", financeTab: "pengeluaran", icon: ArrowUpRight },
+      { label: "Tipe & Tarif Tagihan", page: "keuangan", financeTab: "types", icon: Tag },
     ],
   },
   {
@@ -148,9 +176,9 @@ const allMenu: MenuItem[] = [
     label: "Data Login Akun",
     icon: KeyRound,
     children: [
-      { label: "Login Admin", page: "master", masterSection: "login-admin" },
-      { label: "Login Guru", page: "master", masterSection: "login-guru" },
-      { label: "Login Wali Santri", page: "master", masterSection: "login-wali" },
+      { label: "Login Admin", page: "master", masterSection: "login-admin", icon: ShieldAlert },
+      { label: "Login Guru", page: "master", masterSection: "login-guru", icon: UserCheck },
+      { label: "Login Wali Santri", page: "master", masterSection: "login-wali", icon: Users },
     ],
   },
   {
@@ -158,14 +186,14 @@ const allMenu: MenuItem[] = [
     label: "Pengaturan & Sistem",
     icon: Settings,
     children: [
-      { label: "Pengaturan Metode Bayar", page: "keuangan", financeTab: "methods" },
-      { label: "Pengaturan Periode Bayar", page: "keuangan", financeTab: "periods" },
-      { label: "Pengaturan Struk / Nota", page: "keuangan", financeTab: "settings" },
-      { label: "Pengaturan Semester & TA", page: "master", masterSection: "akademik" },
-      { label: "Profil Identitas Lembaga", page: "master", masterSection: "referensi" },
-      { label: "Pengaturan WhatsApp Bot", page: "whatsapp" },
-      { label: "Hak Akses & Role User", page: "hak-akses" },
-      { label: "Pengaturan Akun", page: "account" },
+      { label: "Pengaturan Metode Bayar", page: "keuangan", financeTab: "methods", icon: CreditCard },
+      { label: "Pengaturan Periode Bayar", page: "keuangan", financeTab: "periods", icon: CalendarDays },
+      { label: "Pengaturan Struk / Nota", page: "keuangan", financeTab: "settings", icon: Printer },
+      { label: "Pengaturan Semester & TA", page: "master", masterSection: "akademik", icon: CalendarRange },
+      { label: "Profil Identitas Lembaga", page: "master", masterSection: "referensi", icon: Landmark },
+      { label: "Pengaturan WhatsApp Bot", page: "whatsapp", icon: MessageSquare },
+      { label: "Hak Akses & Role User", page: "hak-akses", icon: Shield },
+      { label: "Pengaturan Akun", page: "account", icon: UserCog },
     ],
   },
 ];
@@ -385,17 +413,17 @@ export function AdminLayout({
     // 1. Role Guru: Khusus KBM (Dashboard, Input Presensi, Nilai - Tanpa Rekap)
     if (isGuru) {
       const guruAbsensiChildren: NonNullable<MenuItem['children']> = [
-        { label: "🕌 Input Presensi Madin", page: "absensi", absensiTab: "madin-input" }
+        { label: "Input Presensi Madin", page: "absensi", absensiTab: "madin-input", icon: ClipboardCheck }
       ];
 
       // Absen Sholat hanya muncul jika diizinkan / ditugaskan oleh admin
       if (session?.hak_akses?.absen_sholat === true) {
-        guruAbsensiChildren.push({ label: "🕋 Input Presensi Sholat", page: "absensi", absensiTab: "sholat" });
+        guruAbsensiChildren.push({ label: "Input Presensi Sholat", page: "absensi", absensiTab: "sholat", icon: Clock3 });
       }
 
       // Absen Ngaji hanya muncul jika diizinkan / ditugaskan oleh admin
       if (session?.hak_akses?.absen_ngaji === true) {
-        guruAbsensiChildren.push({ label: "📖 Input Presensi Ngaji", page: "absensi", absensiTab: "ngaji" });
+        guruAbsensiChildren.push({ label: "Input Presensi Ngaji", page: "absensi", absensiTab: "ngaji", icon: BookOpen });
       }
 
       return [
@@ -425,21 +453,21 @@ export function AdminLayout({
       const adminType = (session?.admin_type || '').toLowerCase();
       const isBendahara1 = adminType === 'bendahara_1' || adminType === 'kasir';
 
-      const financeChildren = isBendahara1
+      const financeChildren: NonNullable<MenuItem['children']> = isBendahara1
         ? [
-            { label: "💵 Transaksi Hari Ini", page: "keuangan" as PageKey, financeTab: "today" },
-            { label: "📩 Verifikasi Transfer", page: "keuangan" as PageKey, financeTab: "verifikasi" },
-            { label: "📜 Tagihan Santri (SPP)", page: "keuangan" as PageKey, financeTab: "student" },
-            { label: "🧾 Riwayat & Rekap", page: "keuangan" as PageKey, financeTab: "history" },
+            { label: "Transaksi Hari Ini", page: "keuangan" as PageKey, financeTab: "today", icon: Banknote },
+            { label: "Verifikasi Transfer", page: "keuangan" as PageKey, financeTab: "verifikasi", icon: Inbox },
+            { label: "Tagihan Santri (SPP)", page: "keuangan" as PageKey, financeTab: "student", icon: ScrollText },
+            { label: "Riwayat & Rekap", page: "keuangan" as PageKey, financeTab: "history", icon: History },
           ]
         : [
-            { label: "💵 Transaksi Hari Ini", page: "keuangan" as PageKey, financeTab: "today" },
-            { label: "📩 Verifikasi Transfer", page: "keuangan" as PageKey, financeTab: "verifikasi" },
-            { label: "📜 Tagihan Santri (SPP)", page: "keuangan" as PageKey, financeTab: "student" },
-            { label: "🧾 Riwayat Pembayaran", page: "keuangan" as PageKey, financeTab: "history" },
-            { label: "📥 Kas Masuk Lain", page: "keuangan" as PageKey, financeTab: "pemasukan_lain" },
-            { label: "📤 Pengeluaran Kas", page: "keuangan" as PageKey, financeTab: "pengeluaran" },
-            { label: "⚙️ Tipe & Tarif Tagihan", page: "keuangan" as PageKey, financeTab: "types" },
+            { label: "Transaksi Hari Ini", page: "keuangan" as PageKey, financeTab: "today", icon: Banknote },
+            { label: "Verifikasi Transfer", page: "keuangan" as PageKey, financeTab: "verifikasi", icon: Inbox },
+            { label: "Tagihan Santri (SPP)", page: "keuangan" as PageKey, financeTab: "student", icon: ScrollText },
+            { label: "Riwayat Pembayaran", page: "keuangan" as PageKey, financeTab: "history", icon: History },
+            { label: "Kas Masuk Lain", page: "keuangan" as PageKey, financeTab: "pemasukan_lain", icon: ArrowDownLeft },
+            { label: "Pengeluaran Kas", page: "keuangan" as PageKey, financeTab: "pengeluaran", icon: ArrowUpRight },
+            { label: "Tipe & Tarif Tagihan", page: "keuangan" as PageKey, financeTab: "types", icon: Tag },
           ];
 
       return [
@@ -462,10 +490,10 @@ export function AdminLayout({
                 label: "Pengaturan & Sistem",
                 icon: Settings,
                 children: [
-                  { label: "Pengaturan Metode Bayar", page: "keuangan" as PageKey, financeTab: "methods" },
-                  { label: "Pengaturan Periode Bayar", page: "keuangan" as PageKey, financeTab: "periods" },
-                  { label: "Pengaturan Struk / Nota", page: "keuangan" as PageKey, financeTab: "settings" },
-                  { label: "Pengaturan Akun", page: "account" as PageKey },
+                  { label: "Pengaturan Metode Bayar", page: "keuangan" as PageKey, financeTab: "methods", icon: CreditCard },
+                  { label: "Pengaturan Periode Bayar", page: "keuangan" as PageKey, financeTab: "periods", icon: CalendarDays },
+                  { label: "Pengaturan Struk / Nota", page: "keuangan" as PageKey, financeTab: "settings", icon: Printer },
+                  { label: "Pengaturan Akun", page: "account" as PageKey, icon: UserCog },
                 ],
               },
             ]
@@ -599,10 +627,10 @@ export function AdminLayout({
                     return (
                       <button
                         key={`${child.page}-${child.absensiTab ?? child.financeTab ?? child.masterSection ?? child.label}`}
-                        className={`flex min-h-8.5 w-full items-center rounded-xl px-2.5 py-1.5 text-left text-xs font-bold transition ${
+                        className={`group flex min-h-8.5 w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-xs font-bold transition-all duration-150 ${
                           childActive
-                            ? "bg-[#138F81] text-white shadow-md shadow-[#138F81]/20 font-extrabold"
-                            : "text-[#636E72] hover:bg-[#E1EFF7] hover:text-[#138F81]"
+                            ? "bg-[#138F81] text-white shadow-md shadow-[#138F81]/25 font-extrabold"
+                            : "text-[#636E72] hover:bg-[#E1EFF7]/80 hover:text-[#138F81]"
                         }`}
                         onClick={() => {
                           onNavigate(child.page, {
@@ -616,9 +644,17 @@ export function AdminLayout({
                         }}
                         type="button"
                       >
+                        {child.icon ? (
+                          <child.icon
+                            size={14}
+                            className={`shrink-0 transition-transform duration-200 group-hover:scale-115 ${
+                              childActive ? "text-white" : "text-[#138F81]/70 group-hover:text-[#138F81]"
+                            }`}
+                          />
+                        ) : null}
                         <span className="min-w-0 flex-1 leading-snug">{child.label}</span>
                         {child.financeTab === 'verifikasi' && pendingVerifCount > 0 && (
-                          <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black animate-pulse">
+                          <span className="ml-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black animate-pulse">
                             {pendingVerifCount}
                           </span>
                         )}
