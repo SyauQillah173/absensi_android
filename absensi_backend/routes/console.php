@@ -403,3 +403,8 @@ Artisan::command(
     ->dailyAt('00:00')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/payments-generate-bills.log'));
+
+\Illuminate\Support\Facades\Schedule::command('finance:purge-proofs --days=60 --force')
+    ->dailyAt('02:30')
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/finance-purge-proofs.log'));

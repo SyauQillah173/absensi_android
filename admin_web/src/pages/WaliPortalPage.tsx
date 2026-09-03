@@ -122,6 +122,8 @@ export function WaliPortalPage() {
   const [selectedBillIds, setSelectedBillIds] = useState<number[]>([]);
   const [transferFile, setTransferFile] = useState<File | null>(null);
   const [transferFilePreview, setTransferFilePreview] = useState<string | null>(null);
+  const [isCompressingImage, setIsCompressingImage] = useState(false);
+  const [compressedInfo, setCompressedInfo] = useState<{ origSize: string; compSize: string; savedPercent: number } | null>(null);
   const [transferBank, setTransferBank] = useState('BSI');
   const [transferSenderName, setTransferSenderName] = useState(() => session?.name || '');
   const [transferSenderRek, setTransferSenderRek] = useState('');
@@ -490,20 +492,89 @@ export function WaliPortalPage() {
     setSelectedBillIds([]);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      setSubmitTransferError('Ukuran file maksimal 5MB.');
+  const compressImageToWebp = async (file: File, maxDimension = 1200, quality = 0.75): Promise<File> => {
+    if (!file.type.startsWith('image/')) return file;
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(file);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file);
+              return;
+            }
+            const cleanName = file.name.replace(/\.[^/.]+$/, '') + '.webp';
+            const compressedFile = new File([blob], cleanName, {
+              type: 'image/webp',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          },
+          'image/webp',
+          quality
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFile = e.target.files?.[0];
+    if (!rawFile) return;
+    if (rawFile.size > 15 * 1024 * 1024) {
+      setSubmitTransferError('Ukuran file maksimal 15MB.');
       return;
     }
-    setTransferFile(file);
-    const reader = new FileReader();
-    reader.onload = () => {
-      setTransferFilePreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    setIsCompressingImage(true);
     setSubmitTransferError(null);
+    try {
+      const compressed = await compressImageToWebp(rawFile, 1200, 0.75);
+      setTransferFile(compressed);
+
+      const origKb = (rawFile.size / 1024).toFixed(0);
+      const compKb = (compressed.size / 1024).toFixed(0);
+      const saved = Math.max(0, Math.round(((rawFile.size - compressed.size) / rawFile.size) * 100));
+      setCompressedInfo({
+        origSize: `${origKb} KB`,
+        compSize: `${compKb} KB`,
+        savedPercent: saved,
+      });
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        setTransferFilePreview(reader.result as string);
+      };
+      reader.readAsDataURL(compressed);
+    } catch {
+      setTransferFile(rawFile);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setTransferFilePreview(reader.result as string);
+      };
+      reader.readAsDataURL(rawFile);
+    } finally {
+      setIsCompressingImage(false);
+    }
   };
 
   const handleSubmitTransferProof = async (e: React.FormEvent) => {
@@ -1548,7 +1619,12 @@ export function WaliPortalPage() {
                                   required={!transferFile}
                                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                 />
-                                {transferFilePreview ? (
+                                {isCompressingImage ? (
+                                  <div className="flex flex-col items-center justify-center py-6 text-slate-500">
+                                    <RefreshCw size={24} className="animate-spin text-[#138F81] mb-2" />
+                                    <span className="text-xs font-bold text-[#138F81]">Mengompres & mengoptimasi foto...</span>
+                                  </div>
+                                ) : transferFilePreview ? (
                                   <div className="flex flex-col items-center gap-2">
                                     <img
                                       src={transferFilePreview}
@@ -1556,13 +1632,21 @@ export function WaliPortalPage() {
                                       className="max-h-44 rounded-xl object-contain border border-slate-200 shadow-xs"
                                     />
                                     <span className="text-[11px] font-bold text-emerald-700">✓ {transferFile?.name}</span>
+                                    {compressedInfo && (
+                                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold">
+                                        <span>⚡ Hemat:</span>
+                                        <span className="line-through text-slate-400 text-[10px]">{compressedInfo.origSize}</span>
+                                        <span>➔ {compressedInfo.compSize}</span>
+                                        <span className="bg-emerald-600 text-white text-[9px] px-1.5 py-0.5 rounded-full">Turun {compressedInfo.savedPercent}%</span>
+                                      </div>
+                                    )}
                                     <span className="text-[10px] text-slate-400">Klik untuk mengganti foto struk</span>
                                   </div>
                                 ) : (
                                   <div className="flex flex-col items-center justify-center py-4">
                                     <UploadCloud size={36} className="text-[#138F81] mb-2" />
                                     <span className="text-xs font-black text-[#2D3436]">Pilih atau Tarik Foto Bukti Transfer ke Sini</span>
-                                    <span className="text-[10px] text-slate-400 mt-1">Format: JPG, PNG, WEBP atau PDF (Maks. 5MB)</span>
+                                    <span className="text-[10px] text-slate-400 mt-1">Format: JPG, PNG, WEBP (Otomatis dikompres hemat server)</span>
                                   </div>
                                 )}
                               </div>
@@ -1691,24 +1775,27 @@ export function WaliPortalPage() {
                                           : 'bg-white text-slate-600 border border-slate-200'
                                       }`}>
                                         <span className="font-black">Catatan Bendahara:</span> {String(item.catatan_petugas)}
-                                      </div>
-                                    )}
-
-                                    {/* FOOTER ACTIONS & THUMBNAIL */}
-                                    {Boolean(item.bukti_url) && (
-                                      <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
-                                        <button
-                                          type="button"
-                                          onClick={() => setPreviewProofImage(String(item.bukti_url))}
-                                          className="text-xs font-bold text-[#138F81] hover:underline flex items-center gap-1 cursor-pointer"
-                                        >
-                                          <Eye size={13} /> Lihat Foto Struk
-                                        </button>
-                                        {Boolean(item.kode_transaksi) && (
-                                          <span className="text-[10px] font-mono text-emerald-700 font-bold">
-                                            No. TRX: {String(item.kode_transaksi)}
-                                          </span>
-                                        )}
+                                        <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
+                                          {Boolean(item.bukti_url) ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => setPreviewProofImage(String(item.bukti_url))}
+                                              className="text-xs font-bold text-[#138F81] hover:underline flex items-center gap-1 cursor-pointer"
+                                            >
+                                              <Eye size={13} /> Lihat Foto Struk
+                                            </button>
+                                          ) : (
+                                            <span className="text-[11px] font-semibold text-slate-500 italic flex items-center gap-1">
+                                              <CheckCircle2 size={12} className="text-emerald-600" />
+                                              {item.is_purged ? 'Arsip foto dibersihkan (Lunas & Sah)' : 'Tanpa lampiran foto'}
+                                            </span>
+                                          )}
+                                          {Boolean(item.kode_transaksi) && (
+                                            <span className="text-[10px] font-mono text-emerald-700 font-bold">
+                                              No. TRX: {String(item.kode_transaksi)}
+                                            </span>
+                                          )}
+                                        </div>
                                       </div>
                                     )}
                                   </div>

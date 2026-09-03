@@ -299,6 +299,8 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::get('pembayaran/transaksi/{paymentTransaction}', [PembayaranController::class, 'showTransaction'])->middleware('permission:keuangan,view');
         Route::delete('pembayaran/transaksi/{paymentTransaction}', [PembayaranController::class, 'destroyTransaction'])->middleware('permission:keuangan,delete');
         Route::post('pembayaran/transaksi/{paymentTransaction}/notify-wa', [PembayaranController::class, 'notifyWa'])->middleware('permission:keuangan,create');
+        Route::get('pembayaran/verifikasi/storage-status', [PaymentVerificationController::class, 'storageStatus'])->middleware('permission:keuangan,view');
+        Route::post('pembayaran/verifikasi/purge-proofs', [PaymentVerificationController::class, 'purgeProofs'])->middleware('permission:keuangan,approve');
         Route::get('pembayaran/verifikasi', [PaymentVerificationController::class, 'indexAdmin'])->middleware('permission:keuangan,view');
         Route::post('pembayaran/verifikasi/{id}/approve', [PaymentVerificationController::class, 'approve'])->middleware('permission:keuangan,approve');
         Route::post('pembayaran/verifikasi/{id}/reject', [PaymentVerificationController::class, 'reject'])->middleware('permission:keuangan,approve');

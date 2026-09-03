@@ -6,6 +6,7 @@ import {
   CreditCard,
   Download,
   FileText,
+  HardDrive,
   History,
   Landmark,
   Plus,
@@ -3686,6 +3687,52 @@ export function VerifikasiTransferPanel({
   const [rejectAlasan, setRejectAlasan] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Storage optimization & purge states
+  const [storageStats, setStorageStats] = useState<{
+    retention_days: number;
+    total_active_files: number;
+    total_size_mb: number;
+    eligible_count: number;
+    eligible_size_mb: number;
+    purged_count: number;
+  } | null>(null);
+  const [isPurgingStorage, setIsPurgingStorage] = useState(false);
+  const [showPurgeModal, setShowPurgeModal] = useState(false);
+  const [purgeDays, setPurgeDays] = useState(60);
+
+  const fetchStorageStats = async () => {
+    try {
+      const res = await api.adminGetProofStorageStatus(purgeDays);
+      if (res.success && res.data) {
+        setStorageStats(res.data as any);
+      }
+    } catch {
+      // silent fallback
+    }
+  };
+
+  useEffect(() => {
+    fetchStorageStats();
+  }, [purgeDays]);
+
+  const handlePurgeOldProofs = async () => {
+    setIsPurgingStorage(true);
+    try {
+      const res = await api.adminPurgeOldProofs(purgeDays);
+      if (res.success) {
+        showToast(res.message || 'Alhamdulillah! Pembersihan arsip bukti lama berhasil.', 'success');
+        setShowPurgeModal(false);
+        await Promise.all([fetchVerifications(), fetchStorageStats()]);
+      } else {
+        showToast(res.message || 'Gagal membersihkan arsip bukti.', 'error');
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Terjadi kesalahan saat membersihkan storage', 'error');
+    } finally {
+      setIsPurgingStorage(false);
+    }
+  };
+
   const fetchVerifications = async () => {
     setIsLoading(true);
     try {
@@ -3766,7 +3813,47 @@ export function VerifikasiTransferPanel({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* STORAGE OPTIMIZATION & AUTO-PURGE BANNER */}
+      <div className="p-4 rounded-2xl bg-slate-900 text-white border border-slate-800 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="p-2.5 rounded-xl bg-teal-500/20 text-teal-400 border border-teal-500/30">
+            <HardDrive size={22} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black tracking-wide uppercase text-teal-400">Penyimpanan Server Bersama</span>
+              <span className="px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 text-[10px] font-bold">
+                Kebijakan Retensi Aktif
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Total Foto Aktif: <strong className="text-white">{storageStats?.total_size_mb ?? 0} MB</strong> ({storageStats?.total_active_files ?? 0} file).
+              {storageStats && storageStats.purged_count > 0 && (
+                <span className="text-emerald-400 ml-1.5 font-bold">
+                  ✓ {storageStats.purged_count} arsip foto telah dibersihkan sebelumnya.
+                </span>
+              )}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Siap dibersihkan (&gt; {purgeDays} hari): <strong className="text-amber-400">{storageStats?.eligible_count ?? 0} file</strong> ({storageStats?.eligible_size_mb ?? 0} MB). Catatan transaksi &amp; kwitansi tetap aman abadi di database.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowPurgeModal(true)}
+            disabled={isPurgingStorage || (storageStats?.eligible_count ?? 0) === 0}
+            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-emerald-900/30"
+          >
+            {isPurgingStorage ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
+            <span>Bersihkan Bukti Lama (&gt; {purgeDays} Hari)</span>
+          </button>
+        </div>
+      </div>
+
       {/* STAT CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="p-5 rounded-2xl bg-amber-50/80 border border-amber-200/90 flex items-center gap-4 shadow-xs">
@@ -3977,7 +4064,10 @@ export function VerifikasiTransferPanel({
                           <span>Lihat Struk</span>
                         </button>
                       ) : (
-                        <span className="text-slate-400 text-xs">-</span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold" title="Foto fisik dibersihkan demi hemat storage server. Transaksi & kwitansi tetap sah & lunas.">
+                          <CheckCircle2 size={10} />
+                          {item.is_purged ? 'Diarsipkan (Lunas)' : 'Tanpa Foto'}
+                        </span>
                       )}
                     </td>
 
@@ -4249,6 +4339,49 @@ export function VerifikasiTransferPanel({
                     <X size={14} /> Kirim Penolakan
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL KONFIRMASI BERSIHKAN STORAGE */}
+      {showPurgeModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center gap-3 text-amber-600 mb-3">
+              <AlertTriangle size={24} />
+              <h4 className="text-base font-black text-slate-900">Konfirmasi Pembersihan Arsip Foto</h4>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed mb-4">
+              Sistem akan menghapus <strong>{storageStats?.eligible_count ?? 0} file foto fisik</strong> struk transfer yang berumur lebih dari <strong>{purgeDays} hari</strong> dan statusnya sudah disetujui atau ditolak.
+            </p>
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-1 mb-5">
+              <div className="flex justify-between">
+                <span>Estimasi Ruang Dihemat:</span>
+                <strong className="text-emerald-700">~{storageStats?.eligible_size_mb ?? 0} MB</strong>
+              </div>
+              <div className="flex justify-between">
+                <span>Catatan Transaksi &amp; SPP:</span>
+                <strong className="text-emerald-700">Tetap Tersimpan Abadi (100% Aman)</strong>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowPurgeModal(false)}
+                disabled={isPurgingStorage}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handlePurgeOldProofs}
+                disabled={isPurgingStorage}
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-emerald-700/20"
+              >
+                {isPurgingStorage ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                <span>Ya, Bersihkan Sekarang</span>
               </button>
             </div>
           </div>

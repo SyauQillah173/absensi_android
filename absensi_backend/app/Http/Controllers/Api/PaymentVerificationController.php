@@ -13,6 +13,7 @@ use App\Services\PaymentBillService;
 use App\Services\ReferenceResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -359,8 +360,117 @@ class PaymentVerificationController extends Controller
         ]);
     }
 
+    /**
+     * GET /api/pembayaran/verifikasi/storage-status
+     * Mengambil statistik penggunaan storage file bukti transfer.
+     */
+    public function storageStatus(Request $request)
+    {
+        $days = (int) ($request->query('days') ?: 60);
+        if ($days < 1) {
+            $days = 60;
+        }
+        $thresholdDate = now()->subDays($days);
+
+        $allWithFiles = PaymentVerification::whereNotNull('bukti_foto')
+            ->where('bukti_foto', '!=', '')
+            ->where('bukti_foto', '!=', 'purged')
+            ->get();
+
+        $totalActiveFiles = 0;
+        $totalBytes = 0;
+        $eligibleCount = 0;
+        $eligibleBytes = 0;
+
+        foreach ($allWithFiles as $item) {
+            $path = $item->bukti_foto;
+            if (Storage::disk('public')->exists($path)) {
+                $size = (int) Storage::disk('public')->size($path);
+                $totalActiveFiles++;
+                $totalBytes += $size;
+
+                $isProcessed = in_array($item->status, ['disetujui', 'ditolak']);
+                $isOlder = ($item->updated_at && $item->updated_at <= $thresholdDate)
+                    || ($item->verified_at && $item->verified_at <= $thresholdDate);
+
+                if ($isProcessed && $isOlder) {
+                    $eligibleCount++;
+                    $eligibleBytes += $size;
+                }
+            }
+        }
+
+        $purgedCount = PaymentVerification::where('bukti_foto', 'purged')->count();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'retention_days' => $days,
+                'total_active_files' => $totalActiveFiles,
+                'total_size_bytes' => $totalBytes,
+                'total_size_mb' => round($totalBytes / (1024 * 1024), 2),
+                'eligible_count' => $eligibleCount,
+                'eligible_bytes' => $eligibleBytes,
+                'eligible_size_mb' => round($eligibleBytes / (1024 * 1024), 2),
+                'purged_count' => $purgedCount,
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/pembayaran/verifikasi/purge-proofs
+     * Menghapus file fisik bukti transfer yang sudah lunas/disetujui/ditolak lebih dari X hari.
+     */
+    public function purgeProofs(Request $request)
+    {
+        $days = (int) ($request->input('days') ?: 60);
+        if ($days < 1) {
+            $days = 60;
+        }
+        $thresholdDate = now()->subDays($days);
+
+        $candidates = PaymentVerification::query()
+            ->whereIn('status', ['disetujui', 'ditolak'])
+            ->where(function ($q) use ($thresholdDate) {
+                $q->where('updated_at', '<=', $thresholdDate)
+                  ->orWhere('verified_at', '<=', $thresholdDate);
+            })
+            ->whereNotNull('bukti_foto')
+            ->where('bukti_foto', '!=', '')
+            ->where('bukti_foto', '!=', 'purged')
+            ->get();
+
+        $purgedFiles = 0;
+        $freedBytes = 0;
+
+        foreach ($candidates as $item) {
+            $path = $item->bukti_foto;
+            if (Storage::disk('public')->exists($path)) {
+                $size = (int) Storage::disk('public')->size($path);
+                Storage::disk('public')->delete($path);
+                $freedBytes += $size;
+            }
+            $item->update(['bukti_foto' => 'purged']);
+            $purgedFiles++;
+        }
+
+        $freedMb = round($freedBytes / (1024 * 1024), 2);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Alhamdulillah! Berhasil membersihkan {$purgedFiles} file bukti transfer lama (> {$days} hari). Ruang disk server berhasil dihemat sebesar {$freedMb} MB.",
+            'data' => [
+                'purged_files' => $purgedFiles,
+                'freed_bytes' => $freedBytes,
+                'freed_mb' => $freedMb,
+            ],
+        ]);
+    }
+
     private function formatVerification(PaymentVerification $item): array
     {
+        $isPurged = $item->bukti_foto === 'purged' || empty($item->bukti_foto);
+
         return [
             'id' => $item->id,
             'kode_pengajuan' => $item->kode_pengajuan,
@@ -387,7 +497,8 @@ class PaymentVerificationController extends Controller
             'nomor_rekening_tujuan' => $item->nomor_rekening_tujuan,
             'tanggal_transfer' => $item->tanggal_transfer ? $item->tanggal_transfer->toDateString() : null,
             'bukti_foto' => $item->bukti_foto,
-            'bukti_url' => asset('storage/' . $item->bukti_foto),
+            'bukti_url' => (!$isPurged && !empty($item->bukti_foto)) ? asset('storage/' . $item->bukti_foto) : null,
+            'is_purged' => $isPurged,
             'catatan_wali' => $item->catatan_wali,
             'selected_bills' => $item->selected_bills ?: [],
             'status' => $item->status,

@@ -875,6 +875,15 @@ export const api = {
       body: JSON.stringify(payload)
     });
   },
+  adminGetProofStorageStatus(days = 60) {
+    return request<ApiRecord>('/pembayaran/verifikasi/storage-status', {}, { days });
+  },
+  adminPurgeOldProofs(days = 60) {
+    return request<ApiRecord>('/pembayaran/verifikasi/purge-proofs', {
+      method: 'POST',
+      body: JSON.stringify({ days })
+    });
+  },
   async downloadPaymentRecapExcel(params: Record<string, string | number | boolean>) {
     const session = readSession();
     const query = new URLSearchParams({
