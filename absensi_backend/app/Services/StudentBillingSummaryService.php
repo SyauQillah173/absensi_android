@@ -70,6 +70,7 @@ class StudentBillingSummaryService
                 'id' => $siswa->id,
                 'nama' => $siswa->nama,
                 'nis' => $siswa->nis,
+                'jenis_kelamin' => $siswa->jenis_kelamin,
                 'kelas' => $siswa->kelasRef?->name ?? $siswa->kelas,
                 'class_id' => $siswa->class_id,
                 'status' => $siswa->status,

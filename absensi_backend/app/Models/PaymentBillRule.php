@@ -18,6 +18,7 @@ class PaymentBillRule extends Model
         'billing_type',
         'due_day',
         'target_type',
+        'target_gender',
         'class_id',
         'starts_on',
         'ends_on',

@@ -64,6 +64,12 @@ export function ComplexPaymentTypeForm({
     );
   });
   const [isBilledToAll, setIsBilledToAll] = useState(row?.is_billed_to_all !== false);
+  const [targetGender, setTargetGender] = useState<'ALL' | 'L' | 'P'>(() => {
+    const g = str(row?.target_gender, 'ALL').toUpperCase();
+    if (g === 'L' || g === 'LAKI-LAKI' || g === 'PUTRA') return 'L';
+    if (g === 'P' || g === 'PEREMPUAN' || g === 'PUTRI') return 'P';
+    return 'ALL';
+  });
   const [billedMonths, setBilledMonths] = useState<Set<number>>(() => {
     const allMonths = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
     if (Array.isArray(row?.billed_months) && row.billed_months.length > 0) {
@@ -199,6 +205,7 @@ export function ComplexPaymentTypeForm({
         payment_period_type_id: periodId,
         metode_pembayaran: Array.from(methods),
         status,
+        target_gender: targetGender,
         is_billed_to_all: isBilledToAll,
         billed_months: Array.from(billedMonths),
         month_amounts: Object.keys(customAmountsPayload).length > 0 ? customAmountsPayload : null,
@@ -384,9 +391,80 @@ export function ComplexPaymentTypeForm({
                   />
                   <div>
                     <p className="text-xs font-black text-slate-800">Tagihkan Otomatis ke Seluruh Santri Aktif</p>
-                    <p className="text-[11px] font-semibold text-slate-400">Tagihan akan otomatis digenerate untuk setiap santri aktif.</p>
+                    <p className="text-[11px] font-semibold text-slate-400">Tagihan akan otomatis digenerate untuk setiap santri aktif sesuai sasaran jenis kelamin.</p>
                   </div>
                 </label>
+
+                {/* Sasaran Jenis Kelamin Santri (Pembeda Putra & Putri) */}
+                <div className="space-y-2 pt-3 border-t border-slate-200">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-black text-slate-700 uppercase tracking-wider">
+                      🎯 Sasaran Santri (Pembeda Putra & Putri) <span className="text-rose-500">*</span>
+                    </label>
+                    <span className="text-[11px] font-bold text-slate-500">
+                      {targetGender === 'ALL' ? '👥 Semua Santri' : targetGender === 'L' ? '👦 Khusus Putra' : '👧 Khusus Putri'}
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {/* Option 1: Semua */}
+                    <button
+                      type="button"
+                      onClick={() => setTargetGender('ALL')}
+                      className={`flex flex-col items-start p-3.5 rounded-2xl border text-left transition-all ${
+                        targetGender === 'ALL'
+                          ? 'border-[#138F81] bg-teal-50/90 ring-2 ring-[#138F81]/25 text-[#138F81]'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-black text-xs">
+                        <span className="text-base">👥</span>
+                        <span>Semua Santri</span>
+                      </div>
+                      <p className="text-[10px] font-semibold text-slate-500 mt-1 leading-tight">
+                        Putra & Putri (SPP, Gedung, Kitab, dll)
+                      </p>
+                    </button>
+
+                    {/* Option 2: Putra */}
+                    <button
+                      type="button"
+                      onClick={() => setTargetGender('L')}
+                      className={`flex flex-col items-start p-3.5 rounded-2xl border text-left transition-all ${
+                        targetGender === 'L'
+                          ? 'border-sky-500 bg-sky-50/90 ring-2 ring-sky-500/25 text-sky-800'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-black text-xs">
+                        <span className="text-base">👦</span>
+                        <span>Khusus Putra</span>
+                      </div>
+                      <p className="text-[10px] font-semibold text-slate-500 mt-1 leading-tight">
+                        Hanya Laki-laki (Peci, Sarung, dll)
+                      </p>
+                    </button>
+
+                    {/* Option 3: Putri */}
+                    <button
+                      type="button"
+                      onClick={() => setTargetGender('P')}
+                      className={`flex flex-col items-start p-3.5 rounded-2xl border text-left transition-all ${
+                        targetGender === 'P'
+                          ? 'border-rose-500 bg-rose-50/90 ring-2 ring-rose-500/25 text-rose-800'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-black text-xs">
+                        <span className="text-base">👧</span>
+                        <span>Khusus Putri</span>
+                      </div>
+                      <p className="text-[10px] font-semibold text-slate-500 mt-1 leading-tight">
+                        Hanya Perempuan (Kerudung, Mukena, dll)
+                      </p>
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* Step 2: Bulan Ditagihkan (Jika Bulanan) */}

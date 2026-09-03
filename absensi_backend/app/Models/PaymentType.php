@@ -17,6 +17,7 @@ class PaymentType extends Model
         'payment_period_type_id',
         'metode_pembayaran',
         'status',
+        'target_gender',
         'is_billed_to_all',
         'billed_months',
         'month_amounts',

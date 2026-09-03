@@ -927,8 +927,34 @@ function DirectPaymentCashier({
     }
   }, [academicYearId]);
 
-  const [typeId, setTypeId] = useState(paymentTypes[0] ? num(paymentTypes[0].id) : 0);
-  const selectedType = paymentTypes.find((row) => num(row.id) === typeId);
+  // Filter jenis pembayaran sesuai jenis kelamin santri (Putra / Putri / Keduanya)
+  const rawGender = str(student.jenis_kelamin ?? record(summaryData?.student).jenis_kelamin, '').toUpperCase();
+  const studentGender = rawGender === 'L' || rawGender === 'LAKI-LAKI' || rawGender === 'PUTRA' ? 'L'
+    : rawGender === 'P' || rawGender === 'PEREMPUAN' || rawGender === 'PUTRI' ? 'P' : '';
+
+  const filteredPaymentTypes = useMemo(() => {
+    if (!studentGender) return paymentTypes;
+    return paymentTypes.filter((pt) => {
+      const g = str(pt.target_gender, 'ALL').toUpperCase();
+      if (studentGender === 'L') {
+        return g === 'ALL' || g === 'L' || g === 'LAKI-LAKI' || g === 'PUTRA';
+      }
+      if (studentGender === 'P') {
+        return g === 'ALL' || g === 'P' || g === 'PEREMPUAN' || g === 'PUTRI';
+      }
+      return true;
+    });
+  }, [paymentTypes, studentGender]);
+
+  const [typeId, setTypeId] = useState(filteredPaymentTypes[0] ? num(filteredPaymentTypes[0].id) : 0);
+
+  useEffect(() => {
+    if (filteredPaymentTypes.length > 0 && !filteredPaymentTypes.some((pt) => num(pt.id) === typeId)) {
+      setTypeId(num(filteredPaymentTypes[0].id));
+    }
+  }, [filteredPaymentTypes, typeId]);
+
+  const selectedType = filteredPaymentTypes.find((row) => num(row.id) === typeId);
   const monthly = isMonthly(selectedType);
 
   const [selectedMonths, setSelectedMonths] = useState<Set<number>>(new Set());
@@ -1311,7 +1337,7 @@ function DirectPaymentCashier({
               setSelectedMonths(new Set());
               setCustomAmount('');
             }}
-            rows={paymentTypes}
+            rows={filteredPaymentTypes}
             labelOf={(t) => `${str(t.nama)} - ${formatMoney(t.nominal_default)}`}
             hidePlaceholder={true}
           />
@@ -2622,6 +2648,34 @@ function MasterPaymentTypes({ rows, onCreate, onEdit }: { rows: ApiRecord[]; onC
                 {str(row.periode ?? record(row.periodType).name)}
               </span>
             )
+          },
+          {
+            key: 'target_gender',
+            header: 'Sasaran Santri',
+            sortable: true,
+            sortValue: (row) => str(row.target_gender, 'ALL'),
+            render: (row) => {
+              const g = str(row.target_gender, 'ALL').toUpperCase();
+              if (g === 'L' || g === 'LAKI-LAKI' || g === 'PUTRA') {
+                return (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-black bg-sky-50 text-sky-700 border border-sky-200">
+                    <span>👦</span> Khusus Putra
+                  </span>
+                );
+              }
+              if (g === 'P' || g === 'PEREMPUAN' || g === 'PUTRI') {
+                return (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-black bg-rose-50 text-rose-700 border border-rose-200">
+                    <span>👧</span> Khusus Putri
+                  </span>
+                );
+              }
+              return (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200">
+                  <span>👥</span> Semua Santri
+                </span>
+              );
+            }
           },
           {
             key: 'status',

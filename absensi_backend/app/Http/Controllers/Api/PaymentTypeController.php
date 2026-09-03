@@ -80,6 +80,7 @@ class PaymentTypeController extends Controller
                         if ($rule) {
                             $rule->update([
                                 'nominal' => $ruleOptions['nominal'] ?? $rule->nominal,
+                                'target_gender' => $ruleOptions['target_gender'] ?? $rule->target_gender,
                                 'billed_months' => $ruleOptions['billed_months'] ?? $rule->billed_months,
                                 'month_amounts' => $ruleOptions['month_amounts'] ?? $rule->month_amounts,
                                 'is_active' => $ruleOptions['is_active'] ?? $rule->is_active,
@@ -174,6 +175,7 @@ class PaymentTypeController extends Controller
             'metode_pembayaran' => [...$requiredRules, 'array', 'min:1'],
             'metode_pembayaran.*' => ['string', 'max:255', Rule::exists('payment_methods', 'name')->where('is_active', true)],
             'status' => [...$requiredRules, 'in:Aktif,Nonaktif'],
+            'target_gender' => 'nullable|string|max:20',
             'is_billed_to_all' => 'nullable|boolean',
             'billed_months' => 'nullable|array',
             'billed_months.*' => 'integer|between:1,12',
@@ -189,6 +191,15 @@ class PaymentTypeController extends Controller
             'notification_settings' => 'nullable|array',
             'target_semester_id' => 'nullable|integer',
         ]);
+
+        $gender = strtoupper(trim((string) ($validated['target_gender'] ?? 'ALL')));
+        if (in_array($gender, ['L', 'LAKI-LAKI', 'PUTRA', 'LAKI'], true)) {
+            $validated['target_gender'] = 'L';
+        } elseif (in_array($gender, ['P', 'PEREMPUAN', 'PUTRI'], true)) {
+            $validated['target_gender'] = 'P';
+        } else {
+            $validated['target_gender'] = 'ALL';
+        }
 
         if (isset($validated['periode'])) {
             $validated['periode'] = strtolower(trim($validated['periode']));
@@ -210,7 +221,7 @@ class PaymentTypeController extends Controller
     private function paymentTypePayload(array $validated): array
     {
         return collect($validated)
-            ->only(['nama', 'deskripsi', 'nominal_default', 'periode', 'payment_period_type_id', 'metode_pembayaran', 'status', 'is_billed_to_all', 'billed_months', 'month_amounts'])
+            ->only(['nama', 'deskripsi', 'nominal_default', 'periode', 'payment_period_type_id', 'metode_pembayaran', 'status', 'target_gender', 'is_billed_to_all', 'billed_months', 'month_amounts'])
             ->all();
     }
 
@@ -226,6 +237,7 @@ class PaymentTypeController extends Controller
                 ? ($validated['due_day'] ?? PaymentPeriodType::query()->find($validated['payment_period_type_id'] ?? null)?->due_day ?? 10)
                 : null,
             'target_type' => $validated['target_type'] ?? 'all',
+            'target_gender' => $validated['target_gender'] ?? 'ALL',
             'class_id' => $validated['class_id'] ?? null,
             'student_ids' => $validated['student_ids'] ?? [],
             'billed_months' => $validated['billed_months'] ?? null,

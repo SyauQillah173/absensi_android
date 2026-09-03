@@ -84,6 +84,7 @@ class PaymentBillService
                 ? ($options['due_day'] === null ? null : $this->normalizeDueDay($options['due_day']))
                 : $this->normalizeDueDay($rule?->due_day ?? 10),
             'target_type' => $options['target_type'] ?? 'all',
+            'target_gender' => $options['target_gender'] ?? $paymentType->target_gender ?? 'ALL',
             'class_id' => $options['class_id'] ?? null,
             'billed_months' => $billedMonths,
             'starts_on' => $options['starts_on'] ?? ($rule && $rule->starts_on ? $rule->starts_on->format('Y-m-d') : now()->format('Y-m-d')),
@@ -656,6 +657,14 @@ class PaymentBillService
                 continue;
             }
 
+            $targetGender = strtoupper((string) ($paymentType->target_gender ?? 'ALL'));
+            $filteredStudents = $students;
+            if (in_array($targetGender, ['L', 'LAKI-LAKI', 'PUTRA'], true)) {
+                $filteredStudents = $students->where('jenis_kelamin', 'L');
+            } elseif (in_array($targetGender, ['P', 'PEREMPUAN', 'PUTRI'], true)) {
+                $filteredStudents = $students->where('jenis_kelamin', 'P');
+            }
+
             $rule = $this->ensureRuleForPaymentType($paymentType, null, $semester ? ['semester_id' => $semester->id] : []);
             $isMonthly = str_contains(strtolower($paymentType->periode ?? ''), 'bulan') 
                 || str_contains(strtolower($paymentType->nama), 'spp') 
@@ -710,7 +719,7 @@ class PaymentBillService
                     default => "ay-{$academicYear->id}-type-{$paymentType->id}",
                 };
 
-                foreach ($students as $student) {
+                foreach ($filteredStudents as $student) {
                     if (in_array($student->id, $existingStudentIds, true)) {
                         continue;
                     }
@@ -767,7 +776,7 @@ class PaymentBillService
                 ->groupBy('siswa_id')
                 ->map(fn ($items) => $items->pluck('period_month')->toArray());
 
-            foreach ($students as $student) {
+            foreach ($filteredStudents as $student) {
                 $existingMonths = $existingBills->get($student->id, []);
                 $missingMonths = array_diff($months, $existingMonths);
 
@@ -1061,7 +1070,9 @@ class PaymentBillService
             ->when($rule->target_type === 'student', function ($query) use ($rule) {
                 $ids = $rule->students->pluck('id')->values();
                 $ids->isEmpty() ? $query->whereRaw('1 = 0') : $query->whereIn('id', $ids);
-            });
+            })
+            ->when(in_array(strtoupper((string) ($rule->target_gender ?? $rule->paymentType?->target_gender ?? 'ALL')), ['L', 'LAKI-LAKI', 'PUTRA'], true), fn ($query) => $query->where('jenis_kelamin', 'L'))
+            ->when(in_array(strtoupper((string) ($rule->target_gender ?? $rule->paymentType?->target_gender ?? 'ALL')), ['P', 'PEREMPUAN', 'PUTRI'], true), fn ($query) => $query->where('jenis_kelamin', 'P'));
     }
 
     private function dueDateForMonth(Carbon $month, ?int $dueDay): Carbon
@@ -1306,6 +1317,27 @@ class PaymentBillService
                 ->get();
         }
 
+        $targetGender = strtoupper((string) ($paymentType->target_gender ?? $rule->target_gender ?? 'ALL'));
+        if (in_array($targetGender, ['L', 'LAKI-LAKI', 'PUTRA'], true)) {
+            $students = $students->where('jenis_kelamin', 'L');
+            PaymentBill::query()
+                ->where('payment_type_id', $paymentType->id)
+                ->whereNull('period_month')
+                ->whereIn('status', ['Belum Lunas', 'Terlambat'])
+                ->whereDoesntHave('pembayaran')
+                ->whereHas('siswa', fn ($q) => $q->where('jenis_kelamin', 'P'))
+                ->delete();
+        } elseif (in_array($targetGender, ['P', 'PEREMPUAN', 'PUTRI'], true)) {
+            $students = $students->where('jenis_kelamin', 'P');
+            PaymentBill::query()
+                ->where('payment_type_id', $paymentType->id)
+                ->whereNull('period_month')
+                ->whereIn('status', ['Belum Lunas', 'Terlambat'])
+                ->whereDoesntHave('pembayaran')
+                ->whereHas('siswa', fn ($q) => $q->where('jenis_kelamin', 'L'))
+                ->delete();
+        }
+
         $existingBills = PaymentBill::query()
             ->where('payment_type_id', $paymentType->id)
             ->whereNull('period_month')
@@ -1424,6 +1456,31 @@ class PaymentBillService
                       ->orWhere('student_status_id', app(ReferenceResolver::class)->studentStatusId('Aktif'));
                 })
                 ->get();
+        }
+
+        $targetGender = strtoupper((string) ($paymentType->target_gender ?? $rule->target_gender ?? 'ALL'));
+        if (in_array($targetGender, ['L', 'LAKI-LAKI', 'PUTRA'], true)) {
+            $students = $students->where('jenis_kelamin', 'L');
+            PaymentBill::query()
+                ->where('payment_type_id', $paymentType->id)
+                ->where('academic_year_id', $academicYear->id)
+                ->where('semester_id', $targetSemesterId)
+                ->whereNotNull('period_month')
+                ->whereIn('status', ['Belum Lunas', 'Terlambat'])
+                ->whereDoesntHave('pembayaran')
+                ->whereHas('siswa', fn ($q) => $q->where('jenis_kelamin', 'P'))
+                ->delete();
+        } elseif (in_array($targetGender, ['P', 'PEREMPUAN', 'PUTRI'], true)) {
+            $students = $students->where('jenis_kelamin', 'P');
+            PaymentBill::query()
+                ->where('payment_type_id', $paymentType->id)
+                ->where('academic_year_id', $academicYear->id)
+                ->where('semester_id', $targetSemesterId)
+                ->whereNotNull('period_month')
+                ->whereIn('status', ['Belum Lunas', 'Terlambat'])
+                ->whereDoesntHave('pembayaran')
+                ->whereHas('siswa', fn ($q) => $q->where('jenis_kelamin', 'L'))
+                ->delete();
         }
 
         $existingBills = PaymentBill::query()
