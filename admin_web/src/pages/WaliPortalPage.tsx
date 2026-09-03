@@ -50,6 +50,26 @@ type AbsensiSubTab = 'madin' | 'ngaji' | 'sholat';
 type KeuanganSubTab = 'tagihan' | 'riwayat';
 type NilaiSubTab = 'akademik' | 'hafalan';
 
+const ACADEMIC_MONTH_ORDER = [
+  { month: 7, label: 'Jul', semester: 'Ganjil' },
+  { month: 8, label: 'Agu', semester: 'Ganjil' },
+  { month: 9, label: 'Sep', semester: 'Ganjil' },
+  { month: 10, label: 'Okt', semester: 'Ganjil' },
+  { month: 11, label: 'Nov', semester: 'Ganjil' },
+  { month: 12, label: 'Des', semester: 'Ganjil' },
+  { month: 1, label: 'Jan', semester: 'Genap' },
+  { month: 2, label: 'Feb', semester: 'Genap' },
+  { month: 3, label: 'Mar', semester: 'Genap' },
+  { month: 4, label: 'Apr', semester: 'Genap' },
+  { month: 5, label: 'Mei', semester: 'Genap' },
+  { month: 6, label: 'Jun', semester: 'Genap' },
+];
+
+function formatGridNumber(val: number): string {
+  if (!val || val === 0) return '0';
+  return val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export function WaliPortalPage() {
   const { session, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<WaliTabKey>('keuangan');
@@ -224,29 +244,191 @@ export function WaliPortalPage() {
     return Array.isArray(keuanganData?.riwayat_transaksi) ? (keuanganData.riwayat_transaksi as ApiRecord[]) : [];
   }, [keuanganData]);
 
-  const filteredTagihanList = useMemo(() => {
-    return tagihanList.filter((b) => {
-      const matchSearch =
-        billSearch === '' ||
-        String(b.title || b.nama_pos || (b.payment_type as Record<string, unknown> | undefined)?.nama || '')
-          .toLowerCase()
-          .includes(billSearch.toLowerCase()) ||
-        String(b.period_label || b.month_name || b.bulan || '')
-          .toLowerCase()
-          .includes(billSearch.toLowerCase());
+  interface MonthSlot {
+    month: number;
+    label: string;
+    isBilled: boolean;
+    isPaid: boolean;
+    isOverdue: boolean;
+    amount: number;
+    bill?: ApiRecord;
+  }
 
-      const status = String(b.status_tagihan || b.status || '');
-      const isLunas = status === 'Lunas';
+  interface MonthlyRow {
+    typeName: string;
+    months: MonthSlot[];
+  }
 
-      if (billStatusFilter === 'belum') {
-        return matchSearch && !isLunas;
+  interface GeneralRow {
+    title: string;
+    amount: number;
+    paidAmount: number;
+    remainingAmount: number;
+    status: 'LUNAS' | 'BELUM LUNAS' | 'KURANG BAYAR';
+    bill: ApiRecord;
+  }
+
+  interface AcademicYearBillsGroup {
+    academicYear: string;
+    monthly: MonthlyRow[];
+    general: GeneralRow[];
+  }
+
+  const groupedYearBills = useMemo<AcademicYearBillsGroup[]>(() => {
+    const yearMap = new Map<string, ApiRecord[]>();
+
+    tagihanList.forEach((bill) => {
+      const rawYear = String(bill.tahun_ajaran || '').trim();
+      const yearKey = rawYear || '2026/2027';
+      if (!yearMap.has(yearKey)) {
+        yearMap.set(yearKey, []);
       }
-      if (billStatusFilter === 'lunas') {
-        return matchSearch && isLunas;
-      }
-      return matchSearch;
+      yearMap.get(yearKey)!.push(bill);
     });
-  }, [tagihanList, billSearch, billStatusFilter]);
+
+    if (yearMap.size === 0) {
+      return [];
+    }
+
+    const result: AcademicYearBillsGroup[] = [];
+
+    yearMap.forEach((billsInYear, academicYear) => {
+      const monthlyBills: ApiRecord[] = [];
+      const generalBills: ApiRecord[] = [];
+
+      billsInYear.forEach((b) => {
+        const pMonth = b.period_month != null ? Number(b.period_month) : null;
+        const periodTypeCode = String(
+          (b.payment_type as Record<string, unknown> | undefined)?.period_type &&
+            typeof (b.payment_type as Record<string, unknown>).period_type === 'object'
+            ? ((b.payment_type as Record<string, unknown>).period_type as Record<string, unknown>).code
+            : ''
+        ).toLowerCase();
+
+        if (pMonth !== null && pMonth >= 1 && pMonth <= 12) {
+          monthlyBills.push(b);
+        } else if (periodTypeCode === 'bulanan') {
+          monthlyBills.push(b);
+        } else {
+          generalBills.push(b);
+        }
+      });
+
+      // Group monthly bills by type
+      const monthlyTypeMap = new Map<string, { typeName: string; bills: ApiRecord[] }>();
+      monthlyBills.forEach((b) => {
+        const typeName = String(
+          (b.payment_type as Record<string, unknown> | undefined)?.nama ||
+          (b.title ? String(b.title).replace(/\s+(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember|\d{4}).*/i, '') : '') ||
+          'SPP'
+        ).trim() || 'SPP';
+
+        if (!monthlyTypeMap.has(typeName)) {
+          monthlyTypeMap.set(typeName, { typeName, bills: [] });
+        }
+        monthlyTypeMap.get(typeName)!.bills.push(b);
+      });
+
+      const monthlyRows: MonthlyRow[] = [];
+      monthlyTypeMap.forEach(({ typeName, bills }) => {
+        const months = ACADEMIC_MONTH_ORDER.map((slot) => {
+          const matchBill = bills.find((b) => Number(b.period_month) === slot.month);
+          if (matchBill) {
+            const status = String(matchBill.status_tagihan || matchBill.status || '');
+            const isPaid = status.toLowerCase() === 'lunas';
+            const isOverdue = status.toLowerCase() === 'terlambat';
+            const amount = Number(matchBill.amount || matchBill.nominal || 0);
+            return {
+              month: slot.month,
+              label: slot.label,
+              isBilled: true,
+              isPaid,
+              isOverdue,
+              amount,
+              bill: matchBill,
+            };
+          }
+          return {
+            month: slot.month,
+            label: slot.label,
+            isBilled: false,
+            isPaid: false,
+            isOverdue: false,
+            amount: 0,
+            bill: undefined,
+          };
+        });
+
+        monthlyRows.push({
+          typeName,
+          months,
+        });
+      });
+
+      // Process general bills
+      const generalRows: GeneralRow[] = generalBills.map((b) => {
+        const title = String(
+          b.title ||
+          b.nama ||
+          (b.payment_type as Record<string, unknown> | undefined)?.nama ||
+          'Tagihan Umum'
+        );
+        const amount = Number(b.amount || b.nominal || 0);
+        const status = String(b.status_tagihan || b.status || '');
+        const isLunas = status.toLowerCase() === 'lunas';
+        const paidAmount = isLunas ? amount : Number(b.paid_amount || 0);
+        const remainingAmount = isLunas ? 0 : Math.max(0, amount - paidAmount);
+
+        return {
+          title,
+          amount,
+          paidAmount,
+          remainingAmount,
+          status: isLunas ? 'LUNAS' : (paidAmount > 0 ? 'KURANG BAYAR' : 'BELUM LUNAS'),
+          bill: b,
+        };
+      });
+
+      result.push({
+        academicYear,
+        monthly: monthlyRows,
+        general: generalRows,
+      });
+    });
+
+    return result.sort((a, b) => b.academicYear.localeCompare(a.academicYear));
+  }, [tagihanList]);
+
+  const filteredGroupedYearBills = useMemo(() => {
+    return groupedYearBills
+      .map((group) => {
+        const filteredMonthly = group.monthly.filter((row) => {
+          if (billSearch === '') return true;
+          return row.typeName.toLowerCase().includes(billSearch.toLowerCase());
+        });
+
+        const filteredGeneral = group.general.filter((item) => {
+          const matchSearch =
+            billSearch === '' ||
+            item.title.toLowerCase().includes(billSearch.toLowerCase());
+          const isLunas = item.status === 'LUNAS';
+          if (billStatusFilter === 'belum') {
+            return matchSearch && !isLunas;
+          }
+          if (billStatusFilter === 'lunas') {
+            return matchSearch && isLunas;
+          }
+          return matchSearch;
+        });
+
+        return {
+          ...group,
+          monthly: filteredMonthly,
+          general: filteredGeneral,
+        };
+      })
+      .filter((group) => group.monthly.length > 0 || group.general.length > 0);
+  }, [groupedYearBills, billSearch, billStatusFilter]);
 
   // Attendance stats
   const madinStats = (absensiMadinData?.statistik ?? {}) as ApiRecord;
@@ -751,73 +933,185 @@ export function WaliPortalPage() {
                     )}
                   </div>
 
-                  {/* TAB 1 CONTENT: DAFTAR TAGIHAN */}
+                  {/* TAB 1 CONTENT: DAFTAR TAGIHAN (GRID BULANAN & UMUM SESUAI TEMA PROJEK & SCREENSHOT) */}
                   {keuanganSubTab === 'tagihan' ? (
-                    filteredTagihanList.length === 0 ? (
+                    filteredGroupedYearBills.length === 0 ? (
                       <div className="py-14 text-center text-slate-400">
                         <CheckCircle2 size={42} className="mx-auto mb-2 text-[#138F81]" />
                         <p className="text-sm font-black text-[#2D3436]">Tidak ada tagihan tertunggak.</p>
                         <p className="text-xs text-[#636E72] mt-0.5">Semua kewajiban pembayaran santri sudah tercatat lunas.</p>
                       </div>
                     ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs">
-                          <thead>
-                            <tr className="border-b border-slate-200 bg-[#E1EFF7] text-[#138F81] font-black uppercase text-[11px]">
-                              <th className="py-3.5 pl-4 rounded-l-xl">Pos Pembayaran</th>
-                              <th className="py-3.5 px-3">Bulan / Periode</th>
-                              <th className="py-3.5 px-3">Jatuh Tempo</th>
-                              <th className="py-3.5 px-3 text-right">Nominal Tagihan</th>
-                              <th className="py-3.5 pr-4 text-center rounded-r-xl">Status Pembayaran</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 font-medium">
-                            {filteredTagihanList.map((bill, idx) => {
-                              const isLunas = bill.status_tagihan === 'Lunas' || bill.status === 'Lunas';
-                              const isOverdue = bill.status_tagihan === 'Terlambat' || bill.status === 'Terlambat';
-                              const posName = String(
-                                (bill.payment_type as Record<string, unknown> | undefined)?.nama ??
-                                  bill.title ??
-                                  bill.nama_pos ??
-                                  'Syahriah / SPP'
-                              );
-                              const monthLabel = String(bill.period_label ?? bill.month_name ?? bill.bulan ?? bill.periode ?? '-');
+                      <div className="space-y-8">
+                        {filteredGroupedYearBills.map((group, gIdx) => (
+                          <div key={gIdx} className="space-y-5">
+                            {/* TAHUN AJARAN HEADER */}
+                            <div className="border-b border-gray-200 pb-2.5 flex items-center justify-between">
+                              <div className="text-base sm:text-lg font-normal text-gray-700">
+                                Tahun Ajaran: <strong className="font-extrabold text-gray-900">{group.academicYear}</strong>
+                              </div>
+                            </div>
 
-                              return (
-                                <tr key={idx} className="hover:bg-[#F8FBFC] transition-colors">
-                                  <td className="py-3.5 pl-4 font-black text-[#2D3436]">
-                                    <div className="flex items-center gap-2">
-                                      <span className="h-2 w-2 rounded-full bg-[#138F81]" />
-                                      <span>{posName}</span>
+                            {/* 1. BULANAN SECTION */}
+                            {group.monthly.length > 0 && (
+                              <div className="space-y-2">
+                                <h3 className="text-xs sm:text-sm font-black tracking-wider text-gray-800 uppercase">
+                                  BULANAN
+                                </h3>
+                                <div className="overflow-x-auto border border-gray-200">
+                                  <table className="w-full min-w-[700px] border-collapse text-xs">
+                                    <thead>
+                                      <tr className="bg-[#F2F4F7] font-bold text-gray-800">
+                                        <th className="border border-gray-200 px-4 py-2.5 text-center font-black w-48">
+                                          Tipe Pembayaran
+                                        </th>
+                                        {ACADEMIC_MONTH_ORDER.map((m) => (
+                                          <th
+                                            key={m.month}
+                                            className="border border-gray-200 px-1 py-2.5 text-center font-bold w-12"
+                                            title={m.semester === 'Ganjil' ? `${m.label} (Semester Ganjil)` : `${m.label} (Semester Genap)`}
+                                          >
+                                            {m.label}
+                                          </th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {group.monthly.map((row, rIdx) => (
+                                        <tr key={rIdx}>
+                                          <td className="border border-gray-200 bg-white px-4 py-3 text-center font-bold text-gray-800">
+                                            {row.typeName}
+                                          </td>
+                                          {row.months.map((m) => {
+                                            const isPaid = m.isPaid;
+                                            const isBilled = m.isBilled;
+
+                                            return (
+                                              <td
+                                                key={m.month}
+                                                className="border border-gray-200 p-0 text-center"
+                                                title={
+                                                  !isBilled
+                                                    ? `Bulan ${m.label} - Tidak Ditagihkan / Libur`
+                                                    : isPaid
+                                                    ? `Bulan ${m.label} - LUNAS ✓ (Rp ${m.amount.toLocaleString('id-ID')})`
+                                                    : `Bulan ${m.label} - BELUM LUNAS (Rp ${m.amount.toLocaleString('id-ID')})`
+                                                }
+                                              >
+                                                {!isBilled ? (
+                                                  <div className="flex h-11 w-full items-center justify-center bg-gray-100 text-gray-400 font-bold">
+                                                    -
+                                                  </div>
+                                                ) : isPaid ? (
+                                                  <div className="flex h-11 w-full items-center justify-center bg-[#00A86B] text-white font-bold text-base select-none">
+                                                    ✓
+                                                  </div>
+                                                ) : (
+                                                  <div className="flex h-11 w-full items-center justify-center bg-[#E74C3C] text-white font-black text-sm select-none">
+                                                    X
+                                                  </div>
+                                                )}
+                                              </td>
+                                            );
+                                          })}
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+
+                                {/* KETERANGAN / LEGEND BULANAN */}
+                                <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-semibold text-gray-500 pt-1">
+                                  <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="flex h-4 w-4 items-center justify-center rounded bg-[#00A86B] text-[10px] font-bold text-white">✓</span>
+                                      <span>Sudah Lunas</span>
                                     </div>
-                                  </td>
-                                  <td className="py-3.5 px-3 text-[#2D3436] font-bold">
-                                    {monthLabel} {String(bill.tahun_ajaran ?? '')}
-                                  </td>
-                                  <td className="py-3.5 px-3 text-[#636E72] font-semibold">
-                                    {String(bill.due_date || bill.tanggal_jatuh_tempo || '-')}
-                                  </td>
-                                  <td className="py-3.5 px-3 text-right font-black text-[#2D3436] text-sm">
-                                    Rp {Number(bill.amount ?? bill.nominal ?? 0).toLocaleString('id-ID')}
-                                  </td>
-                                  <td className="py-3.5 pr-4 text-center">
-                                    <span
-                                      className={`inline-flex items-center gap-1 px-3 py-1 text-[10px] font-black rounded-lg ${
-                                        isLunas
-                                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
-                                          : isOverdue
-                                          ? 'bg-rose-50 text-rose-700 border border-rose-300 animate-pulse'
-                                          : 'bg-amber-50 text-amber-800 border border-amber-300'
-                                      }`}
-                                    >
-                                      {isLunas ? '🟢 LUNAS' : isOverdue ? '🔴 TERLAMBAT' : '🟡 BELUM LUNAS'}
-                                    </span>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="flex h-4 w-4 items-center justify-center rounded bg-[#E74C3C] text-[10px] font-black text-white">X</span>
+                                      <span>Belum Lunas</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="flex h-4 w-4 items-center justify-center rounded bg-gray-200 text-[10px] font-bold text-gray-500">-</span>
+                                      <span>Libur / Tidak Ditagihkan</span>
+                                    </div>
+                                  </div>
+                                  <div className="text-[11px] font-medium text-gray-400">
+                                    *Semester Ganjil: Jul–Des • Semester Genap: Jan–Jun
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 2. UMUM SECTION */}
+                            {group.general.length > 0 && (
+                              <div className="space-y-2 pt-2">
+                                <h3 className="text-xs sm:text-sm font-black tracking-wider text-gray-800 uppercase">
+                                  UMUM
+                                </h3>
+                                <div className="overflow-x-auto border border-gray-200">
+                                  <table className="w-full min-w-[700px] border-collapse text-xs">
+                                    <thead>
+                                      <tr className="bg-[#F2F4F7] font-bold text-gray-800">
+                                        <th className="border border-gray-200 px-4 py-2.5 text-center font-black">
+                                          Tipe Pembayaran
+                                        </th>
+                                        <th className="border border-gray-200 px-4 py-2.5 text-center font-black w-36 sm:w-44">
+                                          Tagihan
+                                        </th>
+                                        <th className="border border-gray-200 px-4 py-2.5 text-center font-black w-36 sm:w-44">
+                                          Dibayar
+                                        </th>
+                                        <th className="border border-gray-200 px-4 py-2.5 text-center font-black w-36 sm:w-44">
+                                          Kurang Bayar
+                                        </th>
+                                        <th className="border border-gray-200 px-4 py-2.5 text-center font-black w-36 sm:w-44">
+                                          Status
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {group.general.map((item, iIdx) => {
+                                        const isLunas = item.status === 'LUNAS';
+                                        const isKurang = item.status === 'KURANG BAYAR';
+
+                                        return (
+                                          <tr key={iIdx} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="border border-gray-200 bg-white px-4 py-3 text-center font-medium text-gray-800">
+                                              {item.title}
+                                            </td>
+                                            <td className="border border-gray-200 bg-white px-4 py-3 text-center font-medium text-gray-800">
+                                              {formatGridNumber(item.amount)}
+                                            </td>
+                                            <td className="border border-gray-200 bg-white px-4 py-3 text-center font-medium text-gray-800">
+                                              {formatGridNumber(item.paidAmount)}
+                                            </td>
+                                            <td className="border border-gray-200 bg-white px-4 py-3 text-center font-medium text-gray-800">
+                                              {formatGridNumber(item.remainingAmount)}
+                                            </td>
+                                            <td
+                                              className={`border border-gray-200 p-0 text-center font-bold text-xs ${
+                                                isLunas
+                                                  ? 'bg-[#00A86B] text-white'
+                                                  : isKurang
+                                                  ? 'bg-amber-500 text-white'
+                                                  : 'bg-[#E74C3C] text-white'
+                                              }`}
+                                            >
+                                              <div className="flex h-full min-h-[42px] items-center justify-center font-black tracking-wider text-xs uppercase select-none">
+                                                {item.status}
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )
                   ) : (
