@@ -41,7 +41,9 @@ import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { GuruDashboardView } from '../components/GuruDashboardView';
 import { KepalaSekolahDashboardView } from '../components/KepalaSekolahDashboardView';
+import { BendaharaDashboardView } from '../components/BendaharaDashboardView';
 import { api, type ApiRecord } from '../services/api';
+
 import type { AbsensiNavigationTarget } from './AbsensiPage';
 
 
@@ -106,7 +108,9 @@ function CustomPondokTooltip({ active, payload }: any) {
 interface DashboardPageProps {
   onOpenFinance: () => void;
   onOpenAttendance: (target: AbsensiNavigationTarget) => void;
+  onNavigateFinance?: (tab: 'today' | 'student' | 'history' | 'pemasukan_lain' | 'pengeluaran' | 'types') => void;
 }
+
 
 type DashboardActivity = ApiRecord & {
   activity_title: string;
@@ -141,8 +145,9 @@ function activityTimestamp(row: ApiRecord): number {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
-export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPageProps) {
-  const { session, canView, isKepalaSekolah } = useAuth();
+export function DashboardPage({ onOpenFinance, onOpenAttendance, onNavigateFinance }: DashboardPageProps) {
+  const { session, canView, isKepalaSekolah, isTreasurer } = useAuth();
+
 
   const [dashboard, setDashboard] = useState<ApiRecord | null>(null);
   const [payments, setPayments] = useState<ApiRecord[]>([]);
@@ -359,6 +364,26 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance }: DashboardPage
       </div>
     );
   }
+
+  // KHUSUS ROLE BENDAHARA (BENDAHARA 1 & BENDAHARA 2): TAMPILAN PERBANKAN & TERMINAL KASIR CERDAS
+  if (isTreasurer) {
+    return (
+      <div className="q-page-enter space-y-6">
+        <BendaharaDashboardView
+          session={session}
+          onNavigateFinance={(tab) => {
+            if (onNavigateFinance) {
+              onNavigateFinance(tab);
+            } else {
+              onOpenFinance();
+            }
+          }}
+          onRefresh={() => void load()}
+        />
+      </div>
+    );
+  }
+
 
 
   return (

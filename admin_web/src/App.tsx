@@ -100,6 +100,7 @@ function AdminShell() {
         {safePage === 'dashboard' ? (
           <DashboardPage
             onOpenFinance={() => navigate('keuangan', { financeTab: 'today' })}
+            onNavigateFinance={(tab) => navigate('keuangan', { financeTab: tab })}
             onOpenAttendance={(target) => {
               setAbsensiTarget({ ...target, key: Date.now() });
               setAbsensiTab(target.tab);
@@ -107,6 +108,7 @@ function AdminShell() {
             }}
           />
         ) : null}
+
         {safePage === 'keuangan' ? (
           <FinancePage initialTab={financeTab} onTabChange={setFinanceTab} />
         ) : null}
