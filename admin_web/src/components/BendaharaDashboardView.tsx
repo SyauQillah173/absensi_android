@@ -75,7 +75,185 @@ function getTodayFormatted(): string {
   }).format(new Date());
 }
 
+interface AtmCardProps {
+  theme: 'emerald' | 'sapphire' | 'titanium' | 'bronze' | 'ruby';
+  issuer?: string;
+  tier: string;
+  chip?: 'gold' | 'silver' | 'copper';
+  numberMask: string;
+  label: string;
+  amount: string;
+  subText: string;
+  holder: string;
+  validThru?: string;
+  network?: string;
+}
+
+function AtmCard({
+  theme,
+  issuer = 'BANK QOMARUDDIN',
+  tier,
+  chip = 'gold',
+  numberMask,
+  label,
+  amount,
+  subText,
+  holder,
+  validThru = 'REALTIME',
+  network = 'DEBIT',
+}: AtmCardProps) {
+  const themeStyles = {
+    emerald: {
+      bg: 'bg-linear-to-br from-[#064e3b] via-[#047857] to-[#022c22]',
+      border: 'border-emerald-400/40',
+      glow: 'shadow-emerald-950/40',
+      accent: 'text-emerald-200',
+    },
+    sapphire: {
+      bg: 'bg-linear-to-br from-[#172554] via-[#1e40af] to-[#0f172a]',
+      border: 'border-blue-400/40',
+      glow: 'shadow-blue-950/40',
+      accent: 'text-sky-200',
+    },
+    titanium: {
+      bg: 'bg-linear-to-br from-[#18181b] via-[#27272a] to-[#09090b]',
+      border: 'border-zinc-600/50',
+      glow: 'shadow-black/60',
+      accent: 'text-amber-200/90',
+    },
+    bronze: {
+      bg: 'bg-linear-to-br from-[#78350f] via-[#92400e] to-[#451a03]',
+      border: 'border-amber-500/40',
+      glow: 'shadow-amber-950/40',
+      accent: 'text-amber-200',
+    },
+    ruby: {
+      bg: 'bg-linear-to-br from-[#881337] via-[#9f1239] to-[#4c0519]',
+      border: 'border-rose-400/40',
+      glow: 'shadow-rose-950/40',
+      accent: 'text-rose-200',
+    },
+  }[theme];
+
+  return (
+    <div
+      className={`group relative flex flex-col justify-between overflow-hidden rounded-3xl p-5 text-white shadow-xl ${themeStyles.bg} border ${themeStyles.border} ${themeStyles.glow} hover:-translate-y-1.5 hover:shadow-2xl transition-all duration-300 min-h-[225px] select-none`}
+    >
+      {/* Glossy lighting reflection streak */}
+      <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-white/10 blur-xl group-hover:scale-110 transition-transform" />
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-tr from-transparent via-white/5 to-white/15" />
+      <div className="pointer-events-none absolute left-0 right-0 top-0 h-[1px] bg-linear-to-r from-transparent via-white/35 to-transparent" />
+
+      {/* Decorative Guilloche concentric circles (ATM Watermark) */}
+      <div className="pointer-events-none absolute -bottom-16 -right-16 h-48 w-48 rounded-full border border-white/5 opacity-40" />
+      <div className="pointer-events-none absolute -bottom-24 -right-24 h-64 w-64 rounded-full border border-white/5 opacity-20" />
+
+      {/* Top Row: Issuer & Tier & NFC Contactless Wave */}
+      <div className="relative z-10 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="grid h-6 w-6 place-items-center rounded-lg bg-white/15 backdrop-blur-xs border border-white/20">
+            <Landmark size={12} className="text-amber-300" />
+          </div>
+          <span className="font-mono text-[10px] font-black tracking-widest text-white/90 uppercase">
+            {issuer}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          {/* Contactless Waves */}
+          <svg
+            className="h-4 w-4 text-white/70 rotate-90"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+          >
+            <path d="M8.5 16.5a5 5 0 0 1 0-9" />
+            <path d="M12 19a8.5 8.5 0 0 0 0-14" />
+            <path d="M15.5 21.5a12 12 0 0 0 0-19" />
+          </svg>
+          <span className="rounded-md bg-white/15 px-2 py-0.5 text-[9px] font-black tracking-wider text-white/95 uppercase border border-white/20">
+            {tier}
+          </span>
+        </div>
+      </div>
+
+      {/* Middle Row: EMV Metallic Chip & Masked Card Number */}
+      <div className="relative z-10 my-2.5 flex items-center justify-between">
+        {/* Realistic EMV Smart Chip */}
+        <div
+          className={`relative h-7 w-10 rounded-lg p-1 shadow-inner border flex flex-col justify-between overflow-hidden shrink-0 ${
+            chip === 'silver'
+              ? 'bg-linear-to-br from-slate-100 via-slate-300 to-slate-400 border-slate-200/80 shadow-slate-900/30'
+              : chip === 'copper'
+              ? 'bg-linear-to-br from-orange-200 via-amber-600 to-amber-700 border-orange-300/70 shadow-amber-950/40'
+              : 'bg-linear-to-br from-amber-200 via-yellow-400 to-amber-500 border-amber-300/80 shadow-amber-950/40'
+          }`}
+        >
+          <div className="absolute inset-0 opacity-40 bg-[radial-gradient(ellipse_at_center,_transparent_40%,_black_100%)]" />
+          <div className="h-[1px] w-full bg-black/25 my-auto" />
+          <div className="h-3 w-4 rounded-xs border border-black/25 mx-auto" />
+        </div>
+
+        <p className="font-mono text-xs sm:text-sm font-black tracking-widest text-white/85 drop-shadow-xs">
+          {numberMask}
+        </p>
+      </div>
+
+      {/* Balance / Metric Section */}
+      <div className="relative z-10 space-y-0.5 my-0.5">
+        <p className="text-[10px] font-black uppercase tracking-wider text-white/70">
+          {label}
+        </p>
+        <p className="text-xl sm:text-2xl font-black tracking-tight text-white drop-shadow-md">
+          {amount}
+        </p>
+        <div className="flex items-center gap-1.5 pt-0.5">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <p className={`text-[11px] font-bold ${themeStyles.accent}`}>
+            {subText}
+          </p>
+        </div>
+      </div>
+
+      {/* Bottom Row: Cardholder & Valid Thru & Network Emblem */}
+      <div className="relative z-10 mt-2 flex items-end justify-between border-t border-white/15 pt-2">
+        <div>
+          <p className="text-[8px] font-bold text-white/60 uppercase tracking-wider leading-none">
+            Cardholder
+          </p>
+          <p className="font-mono text-xs font-black tracking-wider text-white uppercase mt-0.5 truncate max-w-[130px] sm:max-w-[150px]">
+            {holder}
+          </p>
+        </div>
+
+        <div className="text-right">
+          <p className="text-[8px] font-bold text-white/60 uppercase tracking-wider leading-none">
+            Valid Thru
+          </p>
+          <p className="font-mono text-[11px] font-black text-white/95 mt-0.5">
+            {validThru}
+          </p>
+        </div>
+
+        {/* Payment Network Emblem */}
+        <div className="flex items-center gap-1.5">
+          <div className="flex -space-x-2">
+            <div className="h-5 w-5 rounded-full bg-rose-500/85 backdrop-blur-xs shadow-xs" />
+            <div className="h-5 w-5 rounded-full bg-amber-400/85 backdrop-blur-xs shadow-xs" />
+          </div>
+          <span className="font-mono text-[10px] font-black tracking-wider text-white/90 uppercase">
+            {network}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function BendaharaDashboardView({
+
   session,
   onNavigateFinance,
 }: BendaharaDashboardViewProps) {
@@ -327,150 +505,135 @@ export function BendaharaDashboardView({
         </div>
       )}
 
-      {/* 2. CORE BANKING KEY METRICS (4 KARTU METRIK: KHUSUS BENDAHARA 1 VS BENDAHARA 2) */}
+      {/* 2. CORE BANKING KEY METRICS (4 KARTU ATM PERBANKAN MODERN) */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {isBendahara1 ? (
           <>
-            {/* KARTU 1 (BENDAHARA 1): PENERIMAAN KASIR SANTRI HARI INI */}
-            <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Penerimaan Santri Hari Ini</span>
-                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-50 text-emerald-600">
-                  <ArrowDownLeft size={20} />
-                </div>
-              </div>
-              <p className="text-2xl font-black text-emerald-700 mt-2">
-                +{formatRupiah(totalMasukHariIni)}
-              </p>
-              <div className="mt-2 flex items-center justify-between text-xs font-bold text-slate-500">
-                <span>{todayPayments.length} setoran santri</span>
-                <span className="text-[#138F81] font-black">Kasir Santri</span>
-              </div>
-            </div>
+            {/* KARTU ATM 1 (BENDAHARA 1): PENERIMAAN KASIR SANTRI HARI INI */}
+            <AtmCard
+              theme="emerald"
+              issuer="BANK QOMARUDDIN"
+              tier="HASANAH DEBIT"
+              chip="gold"
+              numberMask="5321 •••• •••• 2026"
+              label="Penerimaan Kasir Santri Hari Ini"
+              amount={`+${formatRupiah(totalMasukHariIni)}`}
+              subText={`${todayPayments.length} Setoran Santri Berhasil`}
+              holder={str(session?.name, 'MAS UDIN')}
+              validThru="REALTIME"
+              network="GPN"
+            />
 
-            {/* KARTU 2 (BENDAHARA 1): TOTAL TRANSAKSI KASIR HARI INI */}
-            <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Transaksi Santri Hari Ini</span>
-                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-teal-50 text-[#138F81]">
-                  <CreditCard size={20} />
-                </div>
-              </div>
-              <p className="text-2xl font-black text-slate-900 mt-2">
-                {todayPayments.length} <span className="text-sm font-bold text-slate-400">Transaksi</span>
-              </p>
-              <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-emerald-600">
-                <CheckCircle2 size={13} />
-                <span>SPP & Pembayaran Santri</span>
-              </div>
-            </div>
+            {/* KARTU ATM 2 (BENDAHARA 1): TOTAL TRANSAKSI KASIR HARI INI */}
+            <AtmCard
+              theme="sapphire"
+              issuer="BANK QOMARUDDIN"
+              tier="PLATINUM COUNTER"
+              chip="silver"
+              numberMask="4820 •••• •••• 0812"
+              label="Transaksi Santri Hari Ini"
+              amount={`${todayPayments.length} Transaksi`}
+              subText="Setoran SPP & Tagihan Santri"
+              holder="KASIR SANTRI HARIAN"
+              validThru="TODAY"
+              network="DEBIT"
+            />
 
-            {/* KARTU 3 (BENDAHARA 1): TOTAL SANTRI TERDAFTAR */}
-            <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Total Santri Aktif</span>
-                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-sky-50 text-sky-600">
-                  <UsersRound size={20} />
-                </div>
-              </div>
-              <p className="text-2xl font-black text-slate-900 mt-2">
-                {totalSantri.toLocaleString('id-ID')}
-              </p>
-              <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-sky-700">
-                <UserCheck size={13} />
-                <span>Objek Wajib Tagihan Santri</span>
-              </div>
-            </div>
+            {/* KARTU ATM 3 (BENDAHARA 1): TOTAL SANTRI TERDAFTAR */}
+            <AtmCard
+              theme="titanium"
+              issuer="BANK QOMARUDDIN"
+              tier="BLACK TITANIUM"
+              chip="gold"
+              numberMask="9660 •••• •••• 1914"
+              label="Total Santri Terdaftar"
+              amount={`${totalSantri.toLocaleString('id-ID')} Santri`}
+              subText="Objek Wajib Tagihan Santri"
+              holder="PP QOMARUDDIN GRESIK"
+              validThru="2026"
+              network="INFINITE"
+            />
 
-            {/* KARTU 4 (BENDAHARA 1): UANG TUNAI DI LACI KASIR */}
-            <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Uang Tunai di Kasir</span>
-                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-50 text-emerald-600">
-                  <Banknote size={20} />
-                </div>
-              </div>
-              <p className="text-2xl font-black text-emerald-800 mt-2">
-                {formatRupiah(breakdownMetode.tunai)}
-              </p>
-              <div className="mt-2 flex items-center justify-between text-xs font-bold text-slate-500">
-                <span>{breakdownMetode.tunaiPct}% total setoran</span>
-                <span className="text-emerald-700 font-black">Fisik di Laci</span>
-              </div>
-            </div>
+            {/* KARTU ATM 4 (BENDAHARA 1): UANG TUNAI DI LACI KASIR */}
+            <AtmCard
+              theme="bronze"
+              issuer="BANK QOMARUDDIN"
+              tier="CASH VAULT"
+              chip="copper"
+              numberMask="7700 •••• •••• LACI"
+              label="Uang Tunai di Laci Kasir"
+              amount={formatRupiah(breakdownMetode.tunai)}
+              subText={`${breakdownMetode.tunaiPct}% Fisik Uang di Laci Kasir`}
+              holder="TELLER CASH DRAWER"
+              validThru="VERIFIED"
+              network="CASH"
+            />
           </>
         ) : (
           <>
-            {/* KARTU 1 (BENDAHARA 2): SALDO KAS BERSIH UTAMA */}
-            <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Saldo Kas Bersih</span>
-                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-teal-50 text-[#138F81]">
-                  <ShieldCheck size={20} />
-                </div>
-              </div>
-              <p className="text-2xl font-black text-slate-900 mt-2">
-                {formatRupiah(saldoKasBersih)}
-              </p>
-              <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-emerald-600">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                <span>Kas Utama Yayasan (Surplus Kas)</span>
-              </div>
-            </div>
+            {/* KARTU ATM 1 (BENDAHARA 2): SALDO KAS BERSIH UTAMA */}
+            <AtmCard
+              theme="emerald"
+              issuer="YAYASAN QOMARUDDIN"
+              tier="TREASURY RESERVE"
+              chip="gold"
+              numberMask="5218 •••• •••• 9999"
+              label="Saldo Kas Bersih Yayasan"
+              amount={formatRupiah(saldoKasBersih)}
+              subText="Surplus Kas Bersih Terverifikasi"
+              holder={str(session?.name, 'KEPALA BENDAHARA')}
+              validThru="REALTIME"
+              network="PRIORITAS"
+            />
 
-            {/* KARTU 2 (BENDAHARA 2): TOTAL PENERIMAAN HARI INI */}
-            <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Penerimaan Hari Ini</span>
-                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-emerald-50 text-emerald-600">
-                  <ArrowDownLeft size={20} />
-                </div>
-              </div>
-              <p className="text-2xl font-black text-emerald-700 mt-2">
-                +{formatRupiah(totalMasukHariIni)}
-              </p>
-              <div className="mt-2 flex items-center justify-between text-xs font-bold text-slate-500">
-                <span>{countMasukHariIni} transaksi masuk</span>
-                <span className="text-[#138F81] font-black">Santri + Kas Lain</span>
-              </div>
-            </div>
+            {/* KARTU ATM 2 (BENDAHARA 2): TOTAL PENERIMAAN HARI INI */}
+            <AtmCard
+              theme="sapphire"
+              issuer="BANK QOMARUDDIN"
+              tier="INFLOW PLATINUM"
+              chip="silver"
+              numberMask="4412 •••• •••• 2026"
+              label="Total Penerimaan Hari Ini"
+              amount={`+${formatRupiah(totalMasukHariIni)}`}
+              subText={`${countMasukHariIni} Transaksi Masuk (Santri + Lain)`}
+              holder="KAS MASUK GLOBAL"
+              validThru="TODAY"
+              network="DEBIT"
+            />
 
-            {/* KARTU 3 (BENDAHARA 2): PENGELUARAN OPERASIONAL HARI INI */}
-            <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Pengeluaran Hari Ini</span>
-                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-rose-50 text-rose-600">
-                  <ArrowUpRight size={20} />
-                </div>
-              </div>
-              <p className="text-2xl font-black text-rose-600 mt-2">
-                -{formatRupiah(totalKeluarHariIni)}
-              </p>
-              <div className="mt-2 flex items-center justify-between text-xs font-bold text-slate-500">
-                <span>{countKeluarHariIni} transaksi keluar</span>
-                <span className="text-slate-400">Operasional</span>
-              </div>
-            </div>
+            {/* KARTU ATM 3 (BENDAHARA 2): PENGELUARAN OPERASIONAL HARI INI */}
+            <AtmCard
+              theme="ruby"
+              issuer="BANK QOMARUDDIN"
+              tier="CORPORATE EXPENSE"
+              chip="silver"
+              numberMask="4900 •••• •••• OPER"
+              label="Pengeluaran Operasional Hari Ini"
+              amount={`-${formatRupiah(totalKeluarHariIni)}`}
+              subText={`${countKeluarHariIni} Transaksi Operasional Keluar`}
+              holder="DISBURSEMENT VAULT"
+              validThru="APPROVED"
+              network="CORP"
+            />
 
-            {/* KARTU 4 (BENDAHARA 2): TOTAL SANTRI TERDAFTAR */}
-            <div className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-sm border border-slate-200/80 hover:shadow-md transition-all">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Total Santri Aktif</span>
-                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-sky-50 text-sky-600">
-                  <UsersRound size={20} />
-                </div>
-              </div>
-              <p className="text-2xl font-black text-slate-900 mt-2">
-                {totalSantri.toLocaleString('id-ID')}
-              </p>
-              <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-sky-700">
-                <UserCheck size={13} />
-                <span>Objek Penagihan & SPP Santri</span>
-              </div>
-            </div>
+            {/* KARTU ATM 4 (BENDAHARA 2): TOTAL SANTRI TERDAFTAR */}
+            <AtmCard
+              theme="titanium"
+              issuer="BANK QOMARUDDIN"
+              tier="BLACK TITANIUM"
+              chip="gold"
+              numberMask="9660 •••• •••• 1914"
+              label="Total Santri Terdaftar"
+              amount={`${totalSantri.toLocaleString('id-ID')} Santri`}
+              subText="Objek Wajib Tagihan Santri"
+              holder="PP QOMARUDDIN GRESIK"
+              validThru="2026"
+              network="INFINITE"
+            />
           </>
         )}
       </section>
+
 
 
       {/* 3. TERMINAL AKSI CEPAT TRANSAKSI KASIR (QUICK ACTIONS HUB) */}
