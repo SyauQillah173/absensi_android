@@ -141,9 +141,6 @@ const allMenu: MenuItem[] = [
       { label: "Kas Masuk Lain", page: "keuangan", financeTab: "pemasukan_lain" },
       { label: "Pengeluaran Kas", page: "keuangan", financeTab: "pengeluaran" },
       { label: "Tipe & Tarif Tagihan", page: "keuangan", financeTab: "types" },
-      { label: "Metode Pembayaran", page: "keuangan", financeTab: "methods" },
-      { label: "Periode Pembayaran", page: "keuangan", financeTab: "periods" },
-      { label: "Pengaturan Struk / Nota", page: "keuangan", financeTab: "settings" },
     ],
   },
   {
@@ -161,8 +158,9 @@ const allMenu: MenuItem[] = [
     label: "Pengaturan & Sistem",
     icon: Settings,
     children: [
-      { label: "Pengaturan Struk / Nota", page: "keuangan", financeTab: "settings" },
       { label: "Pengaturan Metode Bayar", page: "keuangan", financeTab: "methods" },
+      { label: "Pengaturan Periode Bayar", page: "keuangan", financeTab: "periods" },
+      { label: "Pengaturan Struk / Nota", page: "keuangan", financeTab: "settings" },
       { label: "Pengaturan Semester & TA", page: "master", masterSection: "akademik" },
       { label: "Profil Identitas Lembaga", page: "master", masterSection: "referensi" },
       { label: "Pengaturan WhatsApp Bot", page: "whatsapp" },
@@ -442,9 +440,6 @@ export function AdminLayout({
             { label: "📥 Kas Masuk Lain", page: "keuangan" as PageKey, financeTab: "pemasukan_lain" },
             { label: "📤 Pengeluaran Kas", page: "keuangan" as PageKey, financeTab: "pengeluaran" },
             { label: "⚙️ Tipe & Tarif Tagihan", page: "keuangan" as PageKey, financeTab: "types" },
-            { label: "💳 Metode Pembayaran", page: "keuangan" as PageKey, financeTab: "methods" },
-            { label: "🗓️ Periode Pembayaran", page: "keuangan" as PageKey, financeTab: "periods" },
-            { label: "🧾 Pengaturan Struk & Kop", page: "keuangan" as PageKey, financeTab: "settings" },
           ];
 
       return [
@@ -460,6 +455,21 @@ export function AdminLayout({
           icon: WalletCards,
           children: financeChildren,
         },
+        ...(!isBendahara1
+          ? [
+              {
+                key: "pengaturan_sistem",
+                label: "Pengaturan & Sistem",
+                icon: Settings,
+                children: [
+                  { label: "Pengaturan Metode Bayar", page: "keuangan" as PageKey, financeTab: "methods" },
+                  { label: "Pengaturan Periode Bayar", page: "keuangan" as PageKey, financeTab: "periods" },
+                  { label: "Pengaturan Struk / Nota", page: "keuangan" as PageKey, financeTab: "settings" },
+                  { label: "Pengaturan Akun", page: "account" as PageKey },
+                ],
+              },
+            ]
+          : []),
       ];
     }
 
