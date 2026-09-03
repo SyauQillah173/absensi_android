@@ -37,7 +37,7 @@ class WaliController extends Controller
 
         $siswa = Siswa::where('wali_id', $wali->id)
             ->orWhereHas('guardianProfile', fn ($query) => $query->where('user_id', $wali->id))
-            ->select('id', 'nis', 'nisn', 'nama', 'kelas', 'class_id', 'jenis_kelamin', 'status', 'student_status_id')
+            ->select('id', 'nis', 'nisn', 'nama', 'kelas', 'class_id', 'jenis_kelamin', 'status', 'student_status_id', 'kamar', 'komplek', 'foto')
             ->get();
 
         return response()->json([
@@ -296,21 +296,10 @@ class WaliController extends Controller
             return $this->forbiddenChildResponse();
         }
 
-        $paymentItems = Pembayaran::with('paymentType')
-            ->where('siswa_id', $siswa->id)
-            ->orderBy('tanggal', 'desc')
-            ->get();
-        $this->billService->generateDueBills();
+        $this->billService->ensureBillsForStudent($siswa);
         $this->billService->reconcilePaidBillsForStudent((int) $siswa->id);
-        $this->billService->refreshOverdue();
-        $billingSummary = $this->studentBillingSummary->forStudent($siswa, [
-            'academic_year_id' => $request->input('academic_year_id'),
-            'semester_id' => $request->input('semester_id'),
-            'tahun_ajaran' => $request->input('tahun_ajaran'),
-            'semester' => $request->input('semester'),
-            'status' => $request->input('status'),
-            'payment_type_id' => $request->input('payment_type_id'),
-        ]);
+        $this->billService->refreshOverdue((int) $siswa->id);
+
         $transactions = $this->paymentHistoryService->getTransactions([
             'siswa_id' => (int) $siswa->id,
             'academic_year_id' => $request->input('academic_year_id'),
@@ -320,7 +309,7 @@ class WaliController extends Controller
         ]);
 
         $tagihan = PaymentBill::query()
-            ->with(['paymentType', 'siswa:id,nama,nis,kelas,wali_id'])
+            ->with(['paymentType.periodType', 'siswa:id,nama,nis,kelas,wali_id', 'rule'])
             ->where('siswa_id', $siswa->id)
             ->when($request->filled('academic_year_id'), fn ($query) => $query->where('academic_year_id', $request->integer('academic_year_id')))
             ->when($request->filled('semester_id'), fn ($query) => $query->where('semester_id', $request->integer('semester_id')))
@@ -333,37 +322,14 @@ class WaliController extends Controller
             ->map(fn (PaymentBill $bill) => $this->billService->formatBill($bill))
             ->values();
 
-        $paymentTypes = PaymentType::where('status', 'Aktif')->orderBy('nama')->get();
-
-        $summary = [];
-        foreach ($paymentTypes as $type) {
-            $jenis = $type->nama;
-            $items = $paymentItems
-                ->where('payment_type_id', $type->id)
-                ->when(
-                    $paymentItems->where('payment_type_id', $type->id)->isEmpty(),
-                    fn ($collection) => $collection->where('jenis', $jenis)
-                );
-            if ($items->isNotEmpty()) {
-                $summary[] = [
-                    'jenis' => $jenis,
-                    'total_bayar' => $items->where('status', 'Lunas')->sum('jumlah'),
-                    'total_belum' => $items->where('status', 'Belum Lunas')->sum('jumlah'),
-                    'lunas' => $items->where('status', 'Lunas')->count(),
-                    'belum_lunas' => $items->where('status', 'Belum Lunas')->count(),
-                ];
-            }
-        }
-
         return response()->json([
             'success' => true,
             'siswa' => $siswa,
             'total_lunas' => (int) $transactions->where('status', 'Lunas')->sum('jumlah'),
             'total_belum_lunas' => (int) $tagihan->whereIn('status_tagihan', ['Belum Lunas', 'Terlambat'])->sum('amount'),
-            'summary' => $summary,
+            'summary' => [],
             'tagihan' => $tagihan,
             'data' => $transactions->values(),
-            'billing_summary' => $billingSummary,
         ]);
     }
 
