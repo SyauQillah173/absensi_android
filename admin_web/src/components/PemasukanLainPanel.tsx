@@ -88,7 +88,7 @@ const DEFAULT_CATEGORIES = [
 ];
 
 const FUND_SOURCES = [
-  { id: 'Kas Tunai Bendahara', label: '💵 Kas Tunai Bendahara', desc: 'Diterima tunai di kasir bendahara' },
+  { id: 'Kas Tunai Bendahara', label: '💵 Kas Tunai Bendahara', desc: 'Diterima tunai di kantor bendahara' },
   { id: 'Transfer Bank BSI', label: '🏛️ Transfer Bank BSI', desc: 'Rekening penerimaan BSI' },
   { id: 'Transfer Bank Mandiri', label: '🏛️ Transfer Bank Mandiri', desc: 'Rekening penerimaan Mandiri' },
   { id: 'Transfer Bank BRI / Lainnya', label: '🏛️ Transfer Bank BRI / Lainnya', desc: 'Rekening Bank Lain' },
@@ -1673,7 +1673,7 @@ function ManageIncomeQuickPresetsModal({
     >
       <div className="space-y-4 py-2">
         <p className="text-xs text-gray-500 font-medium">
-          Daftar tombol pintas ini akan muncul pada menu <strong>Catat Pemasukan Kas Baru</strong> untuk memudahkan kasir mengisi judul & kategori secara instan dengan 1x klik.
+          Daftar tombol pintas ini akan muncul pada menu <strong>Catat Pemasukan Kas Baru</strong> untuk memudahkan bendahara mengisi judul & kategori secara instan dengan 1x klik.
         </p>
 
         {/* FORM TAMBAH BARU */}

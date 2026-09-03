@@ -25,7 +25,7 @@ interface PermissionRow extends ApiRecord {
 const roleLabels: Record<string, string> = {
   admin_utama: 'Admin Utama / Pengurus / IT',
   admin_bendahara: 'Bendahara 1 (Keuangan Utama)',
-  admin_bendahara_2: 'Bendahara 2 (Kasir Santri)',
+  admin_bendahara_2: 'Bendahara 2 (Pembayaran Santri)',
   admin_akademik: 'Akademik',
   admin_pondok: 'Pondok',
   admin_absensi: 'Absensi / Madrasah',

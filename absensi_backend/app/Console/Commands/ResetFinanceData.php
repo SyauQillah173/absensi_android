@@ -60,6 +60,8 @@ class ResetFinanceData extends Command
                     'pembayarans',
                     'payment_transactions',
                     'payment_transaction_items',
+                    'payment_verifications',
+                    'payment_verification_items',
                     'payment_bill_notifications',
                     'payment_bill_month_items',
                     'pemasukan_lain',
@@ -76,7 +78,7 @@ class ResetFinanceData extends Command
                     $candidateTables[] = 'payment_bill_rules';
                 }
 
-                $this->info("▶ Membersihkan seluruh transaksi pembayaran, kas masuk lain, dan pengeluaran...");
+                $this->info("▶ Membersihkan seluruh transaksi pembayaran, verifikasi bukti transfer, kas masuk, dan pengeluaran...");
             }
 
             $existingTables = [];
@@ -100,18 +102,65 @@ class ResetFinanceData extends Command
                 }
             }
 
+            // Hapus file fisik foto bukti transfer dari storage
+            $proofDirs = [
+                storage_path('app/public/transfer_proofs'),
+                public_path('storage/transfer_proofs'),
+            ];
+            $deletedFilesCount = 0;
+            foreach ($proofDirs as $dir) {
+                if (is_dir($dir)) {
+                    $files = glob($dir . '/*');
+                    foreach ($files as $file) {
+                        if (is_file($file)) {
+                            @unlink($file);
+                            $deletedFilesCount++;
+                        }
+                    }
+                }
+            }
+            if ($deletedFilesCount > 0) {
+                $this->info("✓ Berhasil menghapus {$deletedFilesCount} file foto bukti transfer dari storage server.");
+            }
+
+            // Reset status tagihan santri menjadi Belum Lunas jika tagihan dipertahankan
+            if ($keepBills) {
+                if (Schema::hasTable('payment_bills')) {
+                    DB::table('payment_bills')->update([
+                        'status' => 'Belum Lunas',
+                        'paid_at' => null,
+                        'payment_transaction_id' => null,
+                    ]);
+                    $this->info("✓ Status seluruh Payment Bills dikembalikan menjadi 'Belum Lunas'.");
+                }
+                if (Schema::hasTable('payment_bill_month_items')) {
+                    DB::table('payment_bill_month_items')->update([
+                        'status' => 'Belum Lunas',
+                        'paid_at' => null,
+                        'payment_transaction_id' => null,
+                    ]);
+                }
+                if (Schema::hasTable('tagihan_santris')) {
+                    DB::table('tagihan_santris')->update([
+                        'terbayar' => 0,
+                        'status' => 'Belum Lunas',
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+
+            // Bersihkan audit log terkait transaksi keuangan
+            if (Schema::hasTable('audit_logs')) {
+                DB::table('audit_logs')
+                    ->whereIn('action', ['pembayaran', 'payment', 'payment_verification', 'payment_bill', 'approve_transfer'])
+                    ->orWhere('auditable_type', 'like', '%Payment%')
+                    ->orWhere('auditable_type', 'like', '%Pembayaran%')
+                    ->delete();
+                $this->info("✓ Log riwayat audit transaksi keuangan berhasil dibersihkan.");
+            }
+
             // Flush Laravel Cache agar ringkasan keuangan dashboard langsung update seketika
             \Illuminate\Support\Facades\Cache::flush();
-
-
-            if ($keepBills && Schema::hasTable('tagihan_santris')) {
-                DB::table('tagihan_santris')->update([
-                    'terbayar' => 0,
-                    'status' => 'Belum Lunas',
-                    'updated_at' => now(),
-                ]);
-                $this->info("✓ Status seluruh Tagihan Santri dikembalikan menjadi Belum Lunas (0 terbayar).");
-            }
 
             $this->newLine();
             $this->info("-----------------------------------------------------------------");

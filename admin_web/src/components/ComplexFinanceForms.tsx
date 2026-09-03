@@ -558,7 +558,7 @@ export function ComplexPaymentTypeForm({
                 <div className="flex items-center justify-between rounded-2xl bg-white p-4 border border-slate-200 pt-3">
                   <div>
                     <p className="text-xs font-black text-slate-800 uppercase tracking-wider">Status Pos Tagihan</p>
-                    <p className="text-[11px] font-semibold text-slate-400">Tagihan aktif dapat ditagihkan dan dibayar melalui kasir.</p>
+                    <p className="text-[11px] font-semibold text-slate-400">Tagihan aktif dapat ditagihkan dan dibayar melalui loket pembayaran santri.</p>
                   </div>
                   <label className="relative inline-flex cursor-pointer items-center">
                     <input
@@ -731,7 +731,7 @@ export function ComplexPaymentMethodForm({
                 {row?.id ? 'Edit Metode Pembayaran' : 'Tambah Metode Pembayaran Baru'}
               </h2>
               <p className="text-xs sm:text-sm font-semibold text-[#636E72]">
-                Pengaturan channel kasir: Tunai, Transfer Bank Mandiri, BSI, QRIS, dll.
+                Pengaturan metode pembayaran pondok: Tunai, Transfer Bank Mandiri, BSI, QRIS, dll.
               </p>
             </div>
           </div>
@@ -783,7 +783,7 @@ export function ComplexPaymentMethodForm({
 
               <div>
                 <p className="text-xs font-black text-slate-800 uppercase tracking-wider">Status Aktif</p>
-                <p className="text-[11px] font-semibold text-slate-400">Metode aktif dapat dipilih di kasir saat input pembayaran.</p>
+                <p className="text-[11px] font-semibold text-slate-400">Metode aktif dapat dipilih saat input pembayaran santri.</p>
               </div>
               <label className="relative inline-flex cursor-pointer items-center">
                 <input

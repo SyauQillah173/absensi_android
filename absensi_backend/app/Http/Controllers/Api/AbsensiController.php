@@ -279,13 +279,13 @@ class AbsensiController extends Controller
             'user_id' => 'nullable|integer|exists:users,id',
         ]);
 
-        $actor = $this->resolveActor($request);
+        $actor = $this->resolveActor($request) ?: $request->user();
         if (($request->filled('actor_user_id') || $request->filled('user_id')) && !$actor) {
             return $this->invalidActorResponse();
         }
 
-        $actorRole = strtolower($validated['actor_role'] ?? '');
-        $actorName = $validated['actor_name'] ?? '';
+        $actorRole = strtolower($validated['actor_role'] ?? ($actor?->role ?? ''));
+        $actorName = $validated['actor_name'] ?? ($actor?->name ?? '');
 
         if ($actor && !$this->actorMatchesDeclaration($actor, $validated['actor_role'] ?? null, $validated['actor_name'] ?? null)) {
             return $this->forbiddenResponse('Identitas pengubah absensi tidak sesuai dengan sesi pengguna');
@@ -315,48 +315,43 @@ class AbsensiController extends Controller
         $absensi->update($validated);
         app(AuditLogService::class)->record($request, 'absensi', 'update', $absensi, $before, $absensi->fresh()->toArray());
 
+        \Illuminate\Support\Facades\Cache::flush();
+
         return response()->json([
             'success' => true,
-            'message' => 'Absensi berhasil diupdate',
-            'data' => $absensi->load('siswa'),
+            'message' => 'Absensi berhasil diupdate dan otomatis tersinkron.',
+            'data' => $absensi->fresh()->load('siswa'),
         ]);
     }
 
     public function destroy(Request $request, Absensi $absensi)
     {
-        $request->validate([
-            'actor_user_id' => 'nullable|integer|exists:users,id',
-            'user_id' => 'nullable|integer|exists:users,id',
-            'actor_role' => 'nullable|string',
-            'actor_name' => 'nullable|string',
-        ]);
-
-        $actor = $this->resolveActor($request);
-        if (($request->filled('actor_user_id') || $request->filled('user_id')) && !$actor) {
-            return $this->invalidActorResponse();
-        }
-
-        $actorRole = strtolower($request->query('actor_role', ''));
-        $actorName = $request->query('actor_name', '');
-
-        if ($actor && !$this->actorMatchesDeclaration($actor, $request->query('actor_role'), $request->query('actor_name'))) {
-            return $this->forbiddenResponse('Identitas pembatal absensi tidak sesuai dengan sesi pengguna');
-        }
-
-        if (!$this->canModifyAbsensi($absensi, $actor, $actorRole, $actorName)) {
-            return $this->forbiddenResponse('Anda hanya bisa membatalkan absensi milik sendiri');
+        $actor = $this->resolveActor($request) ?: $request->user();
+        if (!$actor || !$this->canInputAbsensi($actor)) {
+            return $this->forbiddenResponse('Hanya admin atau guru yang berhak menghapus data absensi');
         }
 
         $nama = $absensi->siswa ? $absensi->siswa->nama : 'Siswa';
         $before = $absensi->toArray();
-        $absensi->delete();
-        app(AuditLogService::class)->record($request, 'absensi', 'cancel', $absensi, $before, null, [
-            'siswa_nama' => $nama,
-        ]);
+        $absensiId = $absensi->id;
+
+        DB::transaction(function () use ($absensi, $absensiId, $before, $actor, $request) {
+            $absensi->delete();
+
+            // Bersihkan notifikasi terkait agar bersih tanpa jejak di login wali & role lain
+            AppNotification::query()
+                ->where('type', 'absensi_madin')
+                ->where('data->absensi_id', $absensiId)
+                ->delete();
+
+            app(AuditLogService::class)->record($request, 'absensi', 'cancel', $absensi, $before, null);
+        });
+
+        \Illuminate\Support\Facades\Cache::flush();
 
         return response()->json([
             'success' => true,
-            'message' => "Absensi $nama berhasil dibatalkan",
+            'message' => "Absensi {$nama} berhasil dihapus dan otomatis disinkronkan ke seluruh sistem.",
         ]);
     }
 
@@ -367,30 +362,56 @@ class AbsensiController extends Controller
             'class_id' => 'required|integer|exists:classes,id',
             'mapel_id' => 'required|integer|exists:mata_pelajaran,id',
             'jadwal_id' => 'required|integer|exists:jadwal,id',
+            'reason' => 'nullable|string|max:500',
         ]);
 
-        $actor = $this->resolveActor($request);
+        $actor = $this->resolveActor($request) ?: $request->user();
         if (!$actor || !$this->canInputAbsensi($actor)) {
-            return $this->forbiddenResponse('Hanya admin atau guru aktif yang boleh membatalkan absensi sesi');
+            return $this->forbiddenResponse('Hanya admin atau guru aktif yang boleh membatalkan atau mereset absensi sesi');
         }
 
-        $count = Absensi::where('tanggal', $validated['tanggal'])
+        $query = Absensi::query()
+            ->whereDate('tanggal', $validated['tanggal'])
             ->where('class_id', $validated['class_id'])
-            ->where('mapel_id', $validated['mapel_id'])
-            ->where('jadwal_id', $validated['jadwal_id'])
-            ->delete();
+            ->where('mapel_id', $validated['mapel_id']);
 
-        app(AuditLogService::class)->record($request, 'absensi', 'cancel_session', null, null, [
-            'tanggal' => $validated['tanggal'],
-            'class_id' => $validated['class_id'],
-            'mapel_id' => $validated['mapel_id'],
-            'jadwal_id' => $validated['jadwal_id'],
-            'deleted_count' => $count,
-        ]);
+        if (!empty($validated['jadwal_id'])) {
+            $query->where(function ($q) use ($validated) {
+                $q->where('jadwal_id', $validated['jadwal_id'])
+                  ->orWhereNull('jadwal_id');
+            });
+        }
+
+        $rows = $query->get();
+        $count = $rows->count();
+        $ids = $rows->pluck('id')->all();
+
+        DB::transaction(function () use ($rows, $ids, $actor, $request, $validated, $count) {
+            foreach ($rows as $row) {
+                $row->delete();
+            }
+
+            if (!empty($ids)) {
+                AppNotification::query()
+                    ->where('type', 'absensi_madin')
+                    ->whereIn('data->absensi_id', $ids)
+                    ->delete();
+            }
+
+            app(AuditLogService::class)->record($request, 'absensi', 'cancel_session', null, null, [
+                'tanggal' => $validated['tanggal'],
+                'class_id' => $validated['class_id'],
+                'mapel_id' => $validated['mapel_id'],
+                'jadwal_id' => $validated['jadwal_id'],
+                'deleted_count' => $count,
+            ]);
+        });
+
+        \Illuminate\Support\Facades\Cache::flush();
 
         return response()->json([
             'success' => true,
-            'message' => "Absensi sesi berhasil dihapus ($count data santri dibersihkan).",
+            'message' => "Absensi sesi berhasil dihapus ({$count} data santri dibersihkan). Riwayat di wali dan kepala madrasah telah otomatis terupdate.",
             'deleted_count' => $count,
         ]);
     }

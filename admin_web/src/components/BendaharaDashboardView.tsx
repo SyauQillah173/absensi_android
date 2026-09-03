@@ -276,7 +276,7 @@ export function BendaharaDashboardView({
   const adminType = String(session?.admin_type || '').toLowerCase();
   const isBendahara1 = adminType === 'bendahara_1' || adminType === 'kasir';
   const roleTitle = isBendahara1
-    ? 'Bendahara 1 (Kasir & Transaksi Santri)'
+    ? 'Bendahara 1 (Pembayaran & Transaksi Santri)'
     : 'Bendahara 2 (Kepala Keuangan & Buku Kas)';
 
   // Live Digital Clock
@@ -424,7 +424,7 @@ export function BendaharaDashboardView({
     return num(dashboardData?.total_siswa ?? dashboardData?.siswa_aktif ?? 966);
   }, [dashboardData]);
 
-  // Pembagian Metode Bayar Hari Ini (Kas Laci Kasir Tunai vs Bank vs QRIS)
+  // Pembagian Metode Bayar Hari Ini (Kas Tunai Pondok vs Bank vs QRIS)
   const breakdownMetode = useMemo(() => {
     let tunai = 0;
     let transfer = 0;
@@ -469,7 +469,7 @@ export function BendaharaDashboardView({
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-extrabold text-emerald-200 border border-emerald-400/30">
                 <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Kasir Online & Realtime</span>
+                <span>Sistem Pembayaran Online & Realtime</span>
               </span>
             </div>
 
@@ -479,7 +479,7 @@ export function BendaharaDashboardView({
 
             <p className="text-xs sm:text-sm font-semibold text-teal-100/90 max-w-2xl">
               {isBendahara1
-                ? 'Bendahara 1 (Kasir & SPP Santri). Fokus pada transaksi pembayaran santri, setoran SPP harian, cetak kuitansi struk, dan rekonsiliasi kasir santri.'
+                ? 'Bendahara 1 (Pembayaran & SPP Santri). Fokus pada transaksi pembayaran santri, setoran SPP harian, cetak kuitansi struk, dan rekonsiliasi pembayaran santri.'
                 : 'Bendahara 2 (Kepala Keuangan & Pembukuan Kas). Akses penuh kas masuk, pengeluaran kas operasional, pengaturan tarif SPP, dan buku besar yayasan.'}
             </p>
           </div>
@@ -496,7 +496,7 @@ export function BendaharaDashboardView({
               className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-3.5 py-2 text-xs font-bold text-white hover:bg-white/25 transition-all disabled:opacity-50"
             >
               <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-              <span>{isLoading ? 'Menyinkronkan...' : 'Sinkron Kasir'}</span>
+              <span>{isLoading ? 'Menyinkronkan...' : 'Sinkron Data'}</span>
             </button>
           </div>
         </div>
@@ -512,14 +512,14 @@ export function BendaharaDashboardView({
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {isBendahara1 ? (
           <>
-            {/* KARTU ATM 1 (BENDAHARA 1): PENERIMAAN KASIR SANTRI HARI INI */}
+            {/* KARTU ATM 1 (BENDAHARA 1): PENERIMAAN PEMBAYARAN SANTRI HARI INI */}
             <AtmCard
               theme="emerald"
               issuer="BANK QOMARUDDIN"
               tier="HASANAH DEBIT"
               chip="gold"
               numberMask="5321 •••• •••• 2026"
-              label="Penerimaan Kasir Santri Hari Ini"
+              label="Penerimaan Pembayaran Santri Hari Ini"
               amount={`+${formatRupiah(totalMasukHariIni)}`}
               subText={`${todayPayments.length} Setoran Santri Berhasil`}
               holder={str(session?.name, 'MAS UDIN')}
@@ -527,7 +527,7 @@ export function BendaharaDashboardView({
               network="GPN"
             />
 
-            {/* KARTU ATM 2 (BENDAHARA 1): TOTAL TRANSAKSI KASIR HARI INI */}
+            {/* KARTU ATM 2 (BENDAHARA 1): TOTAL TRANSAKSI PEMBAYARAN HARI INI */}
             <AtmCard
               theme="sapphire"
               issuer="BANK QOMARUDDIN"
@@ -537,7 +537,7 @@ export function BendaharaDashboardView({
               label="Transaksi Santri Hari Ini"
               amount={`${todayPayments.length} Transaksi`}
               subText="Setoran SPP & Tagihan Santri"
-              holder="KASIR SANTRI"
+              holder="PEMBAYARAN SANTRI"
               validThru="TODAY"
               network="DEBIT"
             />
@@ -557,17 +557,17 @@ export function BendaharaDashboardView({
               network="INFINITE"
             />
 
-            {/* KARTU ATM 4 (BENDAHARA 1): UANG TUNAI DI LACI KASIR */}
+            {/* KARTU ATM 4 (BENDAHARA 1): UANG TUNAI DI KAS BENDAHARA */}
             <AtmCard
               theme="bronze"
               issuer="BANK QOMARUDDIN"
               tier="CASH VAULT"
               chip="copper"
               numberMask="7700 •••• •••• LACI"
-              label="Uang Tunai di Laci Kasir"
+              label="Uang Tunai di Kas Bendahara"
               amount={formatRupiah(breakdownMetode.tunai)}
-              subText={`${breakdownMetode.tunaiPct}% Fisik Uang di Laci Kasir`}
-              holder="LACI KASIR"
+              subText={`${breakdownMetode.tunaiPct}% Fisik Uang di Kas Tunai`}
+              holder="KAS TUNAI"
               validThru="VERIFIED"
               network="CASH"
             />
@@ -640,7 +640,7 @@ export function BendaharaDashboardView({
 
 
 
-      {/* 3. TERMINAL AKSI CEPAT TRANSAKSI KASIR (QUICK ACTIONS HUB) */}
+      {/* 3. TERMINAL AKSI CEPAT PEMBAYARAN (QUICK ACTIONS HUB) */}
       <section className="rounded-3xl bg-white p-6 shadow-sm border border-slate-200/80">
         <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
           <div className="flex items-center gap-2.5">
@@ -648,7 +648,7 @@ export function BendaharaDashboardView({
               <Sparkles size={20} />
             </div>
             <div>
-              <h2 className="text-lg font-black text-slate-900">Terminal Transaksi Cepat Kasir</h2>
+              <h2 className="text-lg font-black text-slate-900">Loket Transaksi Cepat Pembayaran</h2>
               <p className="text-xs font-semibold text-slate-500">
                 Pilih menu cepat untuk input transaksi langsung tanpa berpindah-pindah menu.
               </p>
@@ -676,11 +676,11 @@ export function BendaharaDashboardView({
                 Bayar SPP / Tagihan Santri
               </h3>
               <p className="text-xs font-medium text-slate-500 mt-1">
-                Input pembayaran SPP harian, terima setoran wali santri, dan langsung cetak struk kuitansi kasir.
+                Input pembayaran SPP harian, terima setoran wali santri, dan langsung cetak struk kuitansi resmi.
               </p>
             </div>
             <div className="mt-4 flex items-center text-xs font-black text-[#138F81]">
-              <span>Buka Kasir Pembayaran</span>
+              <span>Buka Loket Pembayaran</span>
               <span className="ml-1 group-hover:translate-x-1 transition-transform">➔</span>
             </div>
           </button>
@@ -732,7 +732,7 @@ export function BendaharaDashboardView({
                 Riwayat & Export Rekap Excel
               </h3>
               <p className="text-xs font-medium text-slate-500 mt-1">
-                Lihat seluruh mutasi kasir harian/bulanan dan export ke format spreadsheet (.xlsx) siap cetak.
+                Lihat seluruh mutasi transaksi harian/bulanan dan export ke format spreadsheet (.xlsx) siap cetak.
               </p>
             </div>
             <div className="mt-4 flex items-center text-xs font-black text-[#6C5CE7]">
@@ -886,10 +886,10 @@ export function BendaharaDashboardView({
           </div>
         </div>
 
-        {/* Breakdown Kasir Hari Ini (Laci Kasir Tunai vs Bank Transfer vs QRIS) */}
+        {/* Breakdown Pembayaran Hari Ini (Kas Tunai vs Bank Transfer vs QRIS) */}
         <div className="rounded-3xl bg-white p-6 shadow-sm border border-slate-200/80 space-y-4">
           <div className="border-b border-slate-100 pb-3">
-            <h3 className="text-base font-black text-slate-900">Rekap Kasir Hari Ini</h3>
+            <h3 className="text-base font-black text-slate-900">Rekap Pembayaran Hari Ini</h3>
             <p className="text-xs font-semibold text-slate-500">Penerimaan kas berdasarkan kanal bayar</p>
           </div>
 
@@ -899,7 +899,7 @@ export function BendaharaDashboardView({
               <div className="flex items-center justify-between text-xs font-black">
                 <span className="flex items-center gap-1.5 text-emerald-900">
                   <Banknote size={16} className="text-emerald-600" />
-                  <span>💵 Kas Tunai di Laci Kasir</span>
+                  <span>💵 Kas Tunai di Kas Bendahara</span>
                 </span>
                 <span className="text-emerald-700">{breakdownMetode.tunaiPct}%</span>
               </div>
@@ -948,7 +948,7 @@ export function BendaharaDashboardView({
           <div>
             <h3 className="text-base font-black text-slate-900">Mutasi Transaksi Kas Terkini (Live Ledger)</h3>
             <p className="text-xs font-semibold text-slate-500">
-              Log transaksi pembayaran santri dan mutasi kasir yang baru saja tercatat
+              Log transaksi pembayaran santri dan mutasi penerimaan yang baru saja tercatat
             </p>
           </div>
           <button

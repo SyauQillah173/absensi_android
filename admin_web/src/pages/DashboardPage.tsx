@@ -365,7 +365,7 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance, onNavigateFinan
     );
   }
 
-  // KHUSUS ROLE BENDAHARA (BENDAHARA 1 & BENDAHARA 2): TAMPILAN PERBANKAN & TERMINAL KASIR CERDAS
+  // KHUSUS ROLE BENDAHARA (BENDAHARA 1 & BENDAHARA 2): TAMPILAN KEUANGAN & LOKET PEMBAYARAN CERDAS
   if (isTreasurer) {
     return (
       <div className="q-page-enter space-y-6">

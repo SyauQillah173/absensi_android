@@ -156,6 +156,7 @@ class WaliController extends Controller
         $data = AbsensiSholat::query()
             ->with(['siswa:id,kelas,class_id', 'boardingRoom.complex', 'actor:id,name,role', 'prayerType:id,name'])
             ->where('siswa_id', $siswa->id)
+            ->where('is_cancelled', false)
             ->whereMonth('tanggal', $bulan)
             ->whereYear('tanggal', $tahun)
             ->orderByDesc('tanggal')

@@ -50,8 +50,11 @@ class ResetPaymentData extends Command
                 'payment_bill_rules',
                 'payment_transactions',
                 'payment_transaction_items',
+                'payment_verifications',
+                'payment_verification_items',
                 'pemasukan_lain',
                 'pengeluaran',
+                'app_notifications',
             ];
 
             $existingTables = [];
@@ -74,6 +77,38 @@ class ResetPaymentData extends Command
                     Schema::enableForeignKeyConstraints();
                 }
             }
+
+            // Hapus file fisik foto bukti transfer dari storage
+            $proofDirs = [
+                storage_path('app/public/transfer_proofs'),
+                public_path('storage/transfer_proofs'),
+            ];
+            $deletedFilesCount = 0;
+            foreach ($proofDirs as $dir) {
+                if (is_dir($dir)) {
+                    $files = glob($dir . '/*');
+                    foreach ($files as $file) {
+                        if (is_file($file)) {
+                            @unlink($file);
+                            $deletedFilesCount++;
+                        }
+                    }
+                }
+            }
+            if ($deletedFilesCount > 0) {
+                $this->info("✓ Berhasil menghapus {$deletedFilesCount} file foto bukti transfer dari storage server.");
+            }
+
+            // Bersihkan audit log terkait transaksi keuangan
+            if (Schema::hasTable('audit_logs')) {
+                DB::table('audit_logs')
+                    ->whereIn('action', ['pembayaran', 'payment', 'payment_verification', 'payment_bill', 'approve_transfer'])
+                    ->orWhere('auditable_type', 'like', '%Payment%')
+                    ->orWhere('auditable_type', 'like', '%Pembayaran%')
+                    ->delete();
+            }
+
+            \Illuminate\Support\Facades\Cache::flush();
 
             $this->info("✓ Data transaksi pembayaran berhasil dibersihkan.");
             $this->info("✓ Data tagihan (bills) berhasil dibersihkan.");

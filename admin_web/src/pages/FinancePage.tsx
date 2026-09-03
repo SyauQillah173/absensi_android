@@ -379,7 +379,7 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
       case 'settings':
         return { subtitle: 'Pengaturan & Struk', title: 'Pengaturan Struk / Nota' };
       case 'methods':
-        return { subtitle: 'Pengaturan & Sistem', title: 'Metode Pembayaran Kasir' };
+        return { subtitle: 'Pengaturan & Sistem', title: 'Metode Pembayaran Pondok' };
       case 'types':
         return { subtitle: 'Master Tarif & Pos', title: 'Tipe & Tarif Tagihan' };
       case 'pemasukan_lain':
@@ -563,7 +563,7 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
               <StatCard
                 title="Pembayaran Santri Hari Ini"
                 value={formatMoney(totalMasukHariIni)}
-                subtitle={`${today.length} transaksi kasir santri hari ini`}
+                subtitle={`${today.length} transaksi pembayaran santri hari ini`}
                 icon={Landmark}
                 tone="blue"
               />
@@ -575,11 +575,11 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
                 tone="teal"
               />
               <StatCard
-                title="Uang Kasir Tunai Hari Ini"
+                title="Uang Kas Tunai Hari Ini"
                 value={formatMoney(
                   today.filter((r) => String(r.via || '').toLowerCase().includes('tunai') || String(r.via || '').toLowerCase().includes('cash')).reduce((sum, r) => sum + num(r.jumlah), 0)
                 )}
-                subtitle="Fisik Uang Tunai di Laci Kasir"
+                subtitle="Fisik Uang Tunai di Kas Bendahara"
                 icon={ShieldCheck}
                 tone="teal"
               />
@@ -627,7 +627,7 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
                 <span>Realtime Hari Ini :</span>
               </span>
               <span className="rounded-xl bg-emerald-50 border border-emerald-200/80 px-3 py-1 text-xs font-black text-emerald-800 shadow-2xs">
-                {isBendahara1 ? 'Penerimaan Kasir Santri:' : 'Masuk Hari Ini:'} {formatMoney(totalMasukHariIni)} ({today.length} transaksi)
+                {isBendahara1 ? 'Penerimaan Pembayaran Santri:' : 'Masuk Hari Ini:'} {formatMoney(totalMasukHariIni)} ({today.length} transaksi)
               </span>
               {!isBendahara1 && (
                 <span className="rounded-xl bg-rose-50 border border-rose-200/80 px-3 py-1 text-xs font-black text-rose-800 shadow-2xs">
@@ -1210,7 +1210,7 @@ function DirectPaymentCashier({
                 type="button"
                 onClick={() => setCompletedList([])}
                 className="flex items-center gap-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 px-4 py-2 text-xs font-black text-gray-700 transition-colors"
-                title="Selesai dan bersihkan tabel sesi kasir santri ini"
+                title="Selesai dan bersihkan tabel sesi pembayaran santri ini"
               >
                 <RefreshCw size={14} /> Refresh / Selesai
               </button>
@@ -1836,7 +1836,7 @@ function StudentBillingPanel({
               }`}
             >
               <CreditCard size={15} />
-              <span>2. Input Pembayaran (Kasir)</span>
+              <span>2. Loket Pembayaran Santri</span>
             </button>
             {Array.isArray(summary?.transactions) && summary.transactions.length > 0 ? (
               <button
@@ -2151,12 +2151,12 @@ function StudentBillingPanel({
                   className="flex items-center gap-2 rounded-2xl bg-[#138F81] hover:bg-[#0E6C62] px-6 py-3 text-sm font-black text-white shadow-lg shadow-[#138F81]/25 transition"
                 >
                   <CreditCard size={18} />
-                  <span>Lanjut Input Pembayaran (Kasir POS) 👉</span>
+                  <span>Lanjut Input Pembayaran Santri 👉</span>
                 </button>
               </div>
             </>
           ) : viewMode === 'bayar' ? (
-            /* KASIR POS PEMBAYARAN SANTRI */
+            /* LOKET PEMBAYARAN SANTRI */
             student ? (
               <DirectPaymentCashier
                 student={student}
@@ -3264,7 +3264,7 @@ function DocumentSettingsPanel({ settings, onSaved }: { settings: ApiRecord | nu
       <div className="border-b border-gray-200 pb-4">
         <h2 className="text-xl font-extrabold text-[#2D3436]">Pengaturan Format & Judul Struk</h2>
         <p className="text-xs font-semibold text-[#636E72] mt-1">
-          Ubah nama aplikasi/institusi, alamat, dan ukuran kertas printer yang tercetak pada struk kasir secara fleksibel tanpa edit kodingan.
+          Ubah nama aplikasi/institusi, alamat, dan ukuran kertas printer yang tercetak pada struk / kwitansi pembayaran secara fleksibel tanpa edit kodingan.
         </p>
       </div>
 
@@ -3326,8 +3326,8 @@ function DocumentSettingsPanel({ settings, onSaved }: { settings: ApiRecord | nu
                 value={receiptWidth}
                 onChange={(e) => setReceiptWidth(e.target.value)}
               >
-                <option value="58mm">58mm (Printer Thermal Kasir Kecil / Bluetooth POS 58mm)</option>
-                <option value="80mm">80mm (Printer Thermal Kasir Besar / Desktop POS 80mm)</option>
+                <option value="58mm">58mm (Printer Thermal Struk Kecil / Bluetooth 58mm)</option>
+                <option value="80mm">80mm (Printer Thermal Struk Standar / Desktop 80mm)</option>
                 <option value="100%">100% / A4 / A5 (Kertas Biasa / Inkjet / Laser Printer)</option>
               </select>
               <p className="mt-1 text-[11px] text-gray-500 font-medium">
@@ -3674,7 +3674,7 @@ export function VerifikasiTransferPanel({
   // Modals
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [approveTarget, setApproveTarget] = useState<ApiRecord | null>(null);
-  const [approveCatatan, setApproveCatatan] = useState('Disetujui via Verifikasi Online Kasir');
+  const [approveCatatan, setApproveCatatan] = useState('Disetujui via Verifikasi Online Bendahara');
   const [rejectTarget, setRejectTarget] = useState<ApiRecord | null>(null);
   const [rejectAlasan, setRejectAlasan] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -3769,7 +3769,7 @@ export function VerifikasiTransferPanel({
           <div>
             <span className="text-xs font-bold text-amber-900 block">Menunggu Verifikasi</span>
             <span className="text-2xl font-black text-amber-800">{counts.menunggu} Pengajuan</span>
-            <span className="text-[10px] text-amber-700 block font-semibold mt-0.5">Perlu ditinjau kasir/bendahara</span>
+            <span className="text-[10px] text-amber-700 block font-semibold mt-0.5">Perlu ditinjau bendahara pondok</span>
           </div>
         </div>
 
@@ -3780,7 +3780,7 @@ export function VerifikasiTransferPanel({
           <div>
             <span className="text-xs font-bold text-emerald-900 block">Telah Disetujui (ACC)</span>
             <span className="text-2xl font-black text-emerald-800">{counts.disetujui} Pengajuan</span>
-            <span className="text-[10px] text-emerald-700 block font-semibold mt-0.5">Otomatis tercatat di kasir</span>
+            <span className="text-[10px] text-emerald-700 block font-semibold mt-0.5">Otomatis tercatat di bendahara</span>
           </div>
         </div>
 
@@ -3901,7 +3901,7 @@ export function VerifikasiTransferPanel({
                 <th className="py-3 px-3 text-right">Total Transfer</th>
                 <th className="py-3 px-3 text-center">Bukti Struk</th>
                 <th className="py-3 px-3 text-center">Status</th>
-                <th className="py-3 pr-4 text-center rounded-r-xl">Aksi Kasir</th>
+                <th className="py-3 pr-4 text-center rounded-r-xl">Aksi Bendahara</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
@@ -4018,7 +4018,7 @@ export function VerifikasiTransferPanel({
                               setApproveCatatan(`ACC Transfer Online #${item.kode_pengajuan}`);
                             }}
                             className="px-3 py-1.5 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white text-xs font-black shadow-sm transition cursor-pointer flex items-center gap-1"
-                            title="ACC dan Catat Pembayaran ke Kasir"
+                            title="ACC dan Catat Pembayaran ke Bendahara"
                           >
                             <Check size={13} />
                             <span>ACC</span>
@@ -4130,12 +4130,12 @@ export function VerifikasiTransferPanel({
                 </span>
               </div>
               <div className="pt-2 border-t border-slate-200 text-slate-600 font-medium">
-                Sistem akan otomatis membukukan kas masuk, melunasi tagihan santri, dan menerbitkan nomor transaksi kwitansi kasir.
+                Sistem akan otomatis membukukan kas masuk, melunasi tagihan santri, dan menerbitkan nomor transaksi kwitansi resmi.
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Catatan Tambahan Kasir (Opsional)</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Catatan Tambahan Bendahara (Opsional)</label>
               <input
                 type="text"
                 value={approveCatatan}

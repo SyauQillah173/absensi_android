@@ -86,6 +86,15 @@ class ResetAbsensiData extends Command
                 }
             }
 
+            // Bersihkan audit log terkait absensi
+            if (Schema::hasTable('audit_logs')) {
+                DB::table('audit_logs')
+                    ->whereIn('action', ['absensi', 'absensi_sholat', 'absensi_ngaji', 'cancel_session'])
+                    ->orWhere('auditable_type', 'like', '%Absensi%')
+                    ->delete();
+                $this->info("✓ Log riwayat audit absensi berhasil dibersihkan.");
+            }
+
             // Flush Laravel Cache agar dashboard & notifikasi langsung 0 seketika
             \Illuminate\Support\Facades\Cache::flush();
 

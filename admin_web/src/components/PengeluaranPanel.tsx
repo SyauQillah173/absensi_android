@@ -96,7 +96,7 @@ const DEFAULT_CATEGORIES = [
 
 const FUND_SOURCES = [
   { id: 'Kas Pembayaran Siswa (Pemasukan Transaksi)', label: '📥 Kas Pembayaran Siswa (Pemasukan Transaksi)', desc: 'Menggunakan kas masuk dari pembayaran santri' },
-  { id: 'Kas Tunai Bendahara', label: '💵 Kas Tunai Bendahara', desc: 'Uang tunai di brankas kasir bendahara' },
+  { id: 'Kas Tunai Bendahara', label: '💵 Kas Tunai Bendahara', desc: 'Uang tunai di brankas kantor bendahara' },
   { id: 'Transfer Bank BSI (Rekening Siswa)', label: '🏛️ Transfer Bank BSI (Rekening Siswa)', desc: 'Rekening penerimaan BSI' },
   { id: 'Transfer Bank Mandiri', label: '🏛️ Transfer Bank Mandiri', desc: 'Rekening operasional Mandiri' },
   { id: 'Kas Operasional / Petty Cash', label: '🏢 Kas Operasional / Petty Cash', desc: 'Dana kas kecil operasional harian' },
@@ -472,7 +472,7 @@ export function PengeluaranPanel({
             </p>
           </div>
           <span className="self-start sm:self-auto rounded-full bg-teal-50 border border-teal-200 px-3 py-1 text-[11px] font-black text-teal-800">
-            Kasir Kas Keluar
+            Layanan Kas Keluar
           </span>
         </div>
 
@@ -1422,7 +1422,7 @@ function ExpenseReceiptModal({
               </p>
             </div>
             <div>
-              <p className="text-gray-500">Bendahara / Kasir,</p>
+              <p className="text-gray-500">Bendahara Pondok,</p>
               <div className="h-14" />
               <p className="font-bold text-gray-900 underline">( {petugasName} )</p>
             </div>

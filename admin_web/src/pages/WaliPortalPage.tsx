@@ -992,12 +992,12 @@ export function WaliPortalPage() {
                     </div>
 
                     <div className="mt-5 pt-3.5 border-t border-white/20 flex items-center justify-between text-[11px] text-teal-100 font-semibold">
-                      <span>Laci Kasir & Bank Yayasan</span>
+                      <span>Kas Tunai & Rekening Yayasan</span>
                       <span className="font-black text-[#FFDC80]">Tersinkron Realtime</span>
                     </div>
                   </div>
 
-                  {/* CARD 3: REKENING RESMI & KONFIRMASI KASIR */}
+                  {/* CARD 3: REKENING RESMI & KONFIRMASI BENDAHARA */}
                   <div className="q-card rounded-[26px] bg-white border-2 border-[#138F81]/25 p-6 shadow-xl shadow-black/5 space-y-3 flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between">
@@ -1527,7 +1527,7 @@ export function WaliPortalPage() {
                             </div>
 
                             <div>
-                              <label className="text-xs font-bold text-slate-700 block mb-1">Catatan Tambahan untuk Kasir (Opsional)</label>
+                              <label className="text-xs font-bold text-slate-700 block mb-1">Catatan Tambahan untuk Bendahara (Opsional)</label>
                               <input
                                 type="text"
                                 placeholder="Contoh: Titipan SPP 2 bulan dari ibu"
@@ -1576,7 +1576,7 @@ export function WaliPortalPage() {
                               {isSubmittingTransfer ? (
                                 <>
                                   <RefreshCw size={16} className="animate-spin" />
-                                  <span>Mengirim Bukti Transfer ke Kasir...</span>
+                                  <span>Mengirim Bukti Transfer ke Bendahara...</span>
                                 </>
                               ) : (
                                 <>
@@ -1725,7 +1725,7 @@ export function WaliPortalPage() {
                       <div className="py-14 text-center text-slate-400">
                         <FileText size={42} className="mx-auto mb-2 text-slate-300" />
                         <p className="text-sm font-black text-[#2D3436]">Belum ada riwayat pembayaran tercatat.</p>
-                        <p className="text-xs text-[#636E72] mt-0.5">Riwayat akan langsung otomatis muncul saat kasir menerima pembayaran.</p>
+                        <p className="text-xs text-[#636E72] mt-0.5">Riwayat akan langsung otomatis muncul saat bendahara memverifikasi pembayaran.</p>
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
@@ -1735,7 +1735,7 @@ export function WaliPortalPage() {
                               <th className="py-3.5 pl-4 rounded-l-xl">No. Kwitansi / Transaksi</th>
                               <th className="py-3.5 px-3">Tanggal Bayar</th>
                               <th className="py-3.5 px-3">Metode</th>
-                              <th className="py-3.5 px-3">Penerima Kasir</th>
+                              <th className="py-3.5 px-3">Penerima / Bendahara</th>
                               <th className="py-3.5 px-3 text-right">Jumlah Bayar</th>
                               <th className="py-3.5 px-3 text-center">Status</th>
                               <th className="py-3.5 pr-4 text-center rounded-r-xl">Cetak Kwitansi</th>
@@ -1756,7 +1756,7 @@ export function WaliPortalPage() {
                                   </span>
                                 </td>
                                 <td className="py-3.5 px-3 text-[#636E72] font-semibold">
-                                  {String((tr.creator as Record<string, unknown> | undefined)?.name || tr.penerima || (tr.user as Record<string, unknown> | undefined)?.name || 'Kasir Pondok')}
+                                  {String((tr.creator as Record<string, unknown> | undefined)?.name || tr.penerima || (tr.user as Record<string, unknown> | undefined)?.name || 'Bendahara Pondok')}
                                 </td>
                                 <td className="py-3.5 px-3 text-right font-black text-[#138F81] text-sm font-mono">
                                   Rp {Number(tr.jumlah || tr.amount || tr.jumlah_total || 0).toLocaleString('id-ID')}
@@ -1791,7 +1791,7 @@ export function WaliPortalPage() {
                     <div>
                       <h5 className="font-black text-[#138F81]">Petunjuk Pembayaran untuk Wali Santri:</h5>
                       <p className="mt-0.5 text-[#636E72] font-medium leading-relaxed">
-                        Pembayaran Syahriah & SPP dapat ditunaikan langsung di <strong>Kantor Bendahara Pondok Pesantren Qomaruddin</strong> atau melalui transfer bank ke rekening yayasan resmi. Setelah transfer, kasir akan memverifikasi bukti transaksi dan menerbitkan kwitansi realtime.
+                        Pembayaran Syahriah & SPP dapat ditunaikan langsung di <strong>Kantor Bendahara Pondok Pesantren Qomaruddin</strong> atau melalui transfer bank ke rekening yayasan resmi. Setelah transfer, bendahara akan memverifikasi bukti transaksi dan menerbitkan kwitansi realtime.
                       </p>
                     </div>
                   </div>

@@ -48,11 +48,11 @@ export const SYSTEM_ROLE_OPTIONS: RoleOption[] = [
     key: 'bendahara_1',
     role: 'admin',
     adminType: 'bendahara_1',
-    label: 'Bendahara 1 (Kasir & SPP)',
+    label: 'Bendahara 1 (Pembayaran & SPP)',
     badge: 'Bendahara 1',
     icon: '💵',
-    description: 'Khusus loket kasir santri: input pembayaran SPP, tagihan bulanan santri, dan cetak kuitansi.',
-    loginView: 'Dashboard Kasir + Menu Pembayaran & Tagihan SPP Santri',
+    description: 'Khusus loket pembayaran santri: input pembayaran SPP, tagihan bulanan santri, dan cetak kuitansi.',
+    loginView: 'Dashboard Keuangan + Menu Pembayaran & Tagihan SPP Santri',
     tone: 'warning'
   },
   {
@@ -150,7 +150,7 @@ export function getRoleDisplayName(
     if (adminType === 'bendahara_1') return 'Bendahara 1';
     if (adminType === 'bendahara_2') return 'Bendahara 2';
     if (adminType === 'bendahara' || adminType === 'keuangan') return 'Bendahara';
-    if (adminType === 'kasir') return 'Kasir Pembayaran';
+    if (adminType === 'kasir') return 'Bendahara Pembayaran';
     if (adminType === 'akademik' || adminType === 'admin_akademik') return 'Admin Akademik';
     if (adminType === 'pondok' || adminType === 'admin_pondok' || adminType === 'asrama') return 'Admin Pondok';
     if (adminType === 'absensi' || adminType === 'admin_absensi') return 'Admin Absensi';

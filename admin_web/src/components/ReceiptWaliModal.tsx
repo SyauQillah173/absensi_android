@@ -89,7 +89,7 @@ export function ReceiptWaliModal({ transaction, child, onClose }: ReceiptWaliMod
     'Transfer Bank BSI'
   );
 
-  const penerimaKasir = String(
+  const penerimaPetugas = String(
     (transaction.creator as Record<string, unknown> | undefined)?.name ||
     transaction.penerima ||
     'Bendahara Pondok'
@@ -211,7 +211,7 @@ export function ReceiptWaliModal({ transaction, child, onClose }: ReceiptWaliMod
 
       ctx.fillText(`Tanggal Bayar : ${tglBayar}`, width / 2 + 10, 242);
       ctx.fillText(`Metode        : ${metodeBayar}`, width / 2 + 10, 262);
-      ctx.fillText(`Kasir         : ${penerimaKasir}`, width / 2 + 10, 282);
+      ctx.fillText(`Bendahara     : ${penerimaPetugas}`, width / 2 + 10, 282);
       ctx.fillText(`Status        : LUNAS (TERVERIFIKASI)`, width / 2 + 10, 302);
 
       // Table Header
@@ -275,7 +275,7 @@ export function ReceiptWaliModal({ transaction, child, onClose }: ReceiptWaliMod
       ctx.font = 'normal 11px sans-serif';
       ctx.fillText('Mengetahui / Penyetor,', 140, curY);
       ctx.fillText(`Gresik, ${tglBayar}`, width - 140, curY);
-      ctx.fillText('Kasir / Bendahara Pondok,', width - 140, curY + 16);
+      ctx.fillText('Bendahara Pondok,', width - 140, curY + 16);
 
       // Stamp circle
       ctx.save();
@@ -298,7 +298,7 @@ export function ReceiptWaliModal({ transaction, child, onClose }: ReceiptWaliMod
       ctx.font = 'bold 11px sans-serif';
       ctx.fillStyle = '#1e293b';
       ctx.fillText(`( ${namaWali} )`, 140, curY);
-      ctx.fillText(`( ${penerimaKasir} )`, width - 140, curY);
+      ctx.fillText(`( ${penerimaPetugas} )`, width - 140, curY);
 
       // Footer notice
       curY += 45;
@@ -491,8 +491,8 @@ export function ReceiptWaliModal({ transaction, child, onClose }: ReceiptWaliMod
                   <span className="font-bold text-[#138F81]">{metodeBayar}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500 font-medium">Penerima / Kasir:</span>
-                  <span className="font-bold text-slate-800">{penerimaKasir}</span>
+                  <span className="text-slate-500 font-medium">Penerima / Bendahara:</span>
+                  <span className="font-bold text-slate-800">{penerimaPetugas}</span>
                 </div>
               </div>
             </div>
@@ -550,7 +550,7 @@ export function ReceiptWaliModal({ transaction, child, onClose }: ReceiptWaliMod
 
               <div className="relative">
                 <p className="font-medium text-slate-500">Gresik, {tglBayar}</p>
-                <p className="font-bold text-slate-800">Bendahara / Kasir Pondok,</p>
+                <p className="font-bold text-slate-800">Bendahara Pondok,</p>
 
                 {/* STEMPEL CAP LUNAS */}
                 <div className="h-16 flex items-center justify-center">
@@ -561,7 +561,7 @@ export function ReceiptWaliModal({ transaction, child, onClose }: ReceiptWaliMod
                   </div>
                 </div>
 
-                <p className="font-black text-slate-900 underline">( {penerimaKasir} )</p>
+                <p className="font-black text-slate-900 underline">( {penerimaPetugas} )</p>
               </div>
             </div>
 
