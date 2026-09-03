@@ -93,6 +93,7 @@ export interface MenuItem {
     masterSection?: BukuIndukSection;
     financeTab?: string;
     absensiTab?: AbsensiTab;
+    itOnly?: boolean;
   }>;
 }
 
@@ -192,7 +193,7 @@ const allMenu: MenuItem[] = [
       { label: "Pengaturan Semester & TA", page: "master", masterSection: "akademik", icon: CalendarRange },
       { label: "Profil Identitas Lembaga", page: "master", masterSection: "referensi", icon: Landmark },
       { label: "Pengaturan WhatsApp Bot", page: "whatsapp", icon: MessageSquare },
-      { label: "Hak Akses & Role User", page: "hak-akses", icon: Shield },
+      { label: "Hak Akses & Role User", page: "hak-akses", icon: Shield, itOnly: true },
       { label: "Pengaturan Akun", page: "account", icon: UserCog },
     ],
   },
@@ -208,7 +209,7 @@ const menuPermissionKeys: Record<string, string> = {
   nilai: "nilai",
   keuangan_menu: "keuangan",
   manajemen_user: "buku_induk",
-  pengaturan_sistem: "hak_akses",
+  pengaturan_sistem: "dashboard",
   mapel: "mata_pelajaran",
   jadwal: "mata_pelajaran",
   master: "buku_induk",
@@ -226,7 +227,7 @@ export function AdminLayout({
   onNavigate,
   children,
 }: AdminLayoutProps) {
-  const { session, logout, canView, isGuru, isTreasurer, isKepalaSekolah } = useAuth();
+  const { session, logout, canView, isGuru, isTreasurer, isKepalaSekolah, isItAdmin } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -521,11 +522,22 @@ export function AdminLayout({
     }
 
 
-    // 4. Role Admin Utama (Super Admin): Full Access Semua Menu
-    return allMenu.filter((item) =>
-      canView(menuPermissionKeys[item.key] ?? item.key),
-    );
-  }, [canView, isGuru, isTreasurer, isKepalaSekolah]);
+    // 4. Role Admin Utama & Pengurus: Full Access, tapi menu dengan itOnly HANYA untuk Admin IT
+    return allMenu
+      .map((item) => {
+        if (item.children) {
+          const filteredChildren = item.children.filter((child) => {
+            if (child.itOnly && !isItAdmin) return false;
+            return true;
+          });
+          return { ...item, children: filteredChildren };
+        }
+        return item;
+      })
+      .filter((item) =>
+        canView(menuPermissionKeys[item.key] ?? item.key),
+      );
+  }, [canView, isGuru, isTreasurer, isKepalaSekolah, isItAdmin]);
 
   const collapsed = mobileOpen ? false : sidebarCollapsed;
 

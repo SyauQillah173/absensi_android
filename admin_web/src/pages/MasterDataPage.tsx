@@ -11,12 +11,14 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  Shield,
   Trash2,
   Upload,
   UsersRound,
   XCircle
 } from 'lucide-react';
 import { FormEvent, type ComponentType, useEffect, useMemo, useRef, useState } from 'react';
+import { useAuth } from '../auth/AuthContext';
 import { ComplexPondokForm } from '../components/ComplexPondokForm';
 import { ComplexSiswaForm } from '../components/ComplexSiswaForm';
 import { ComplexUserForm } from '../components/ComplexUserForm';
@@ -134,6 +136,7 @@ function roleForVariant(variant: MasterVariant): string {
 
 
 export function MasterDataPage({ variant }: MasterDataPageProps) {
+  const { isItAdmin } = useAuth();
   const [rows, setRows] = useState<ApiRecord[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('Semua');
@@ -308,8 +311,9 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
       else if (userMode) void updateOneUserStatus(row, status as UserStatus);
     },
     isSelected: (id) => selectedIds.has(id),
-    onToggleSelect: (id) => toggleSelected(id)
-  }), [variant, selectedIds, siswaMode, alumniMode, userMode]);
+    onToggleSelect: (id) => toggleSelected(id),
+    isItAdmin: Boolean(isItAdmin),
+  }), [variant, selectedIds, siswaMode, alumniMode, userMode, isItAdmin]);
 
   function toggleSelected(id: number) {
     setSelectedIds((currentIds) => {
@@ -1004,6 +1008,7 @@ interface ColumnCallbacks {
   onStatus: (row: ApiRecord, status: string) => void;
   isSelected: (id: number) => boolean;
   onToggleSelect: (id: number) => void;
+  isItAdmin?: boolean;
 }
 
 function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataColumn<ApiRecord>[] {
@@ -1011,48 +1016,64 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
     key: 'aksi',
     header: 'Aksi',
     className: 'text-right w-[140px]',
-    render: (row) => (
-      <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
-        <button
-          className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#E1EFF7] px-2.5 text-xs font-extrabold text-[#138F81] hover:bg-[#cbe6f7] transition-colors"
-          onClick={() => callbacks.onDetail(row)}
-          type="button"
-          title="Detail Lengkap"
-        >
-          <Eye size={13} /> Detail
-        </button>
-        {variant !== 'pondok' ? (
+    render: (row) => {
+      const isRowItAdmin = row.role === 'admin' && String(row.admin_type || '').toLowerCase() === 'it';
+      const isProtectedFromPengurus = isRowItAdmin && !callbacks.isItAdmin;
+
+      return (
+        <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
           <button
-            className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#EAF4FF] px-2.5 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors"
-            onClick={() => callbacks.onEdit(row)}
+            className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#E1EFF7] px-2.5 text-xs font-extrabold text-[#138F81] hover:bg-[#cbe6f7] transition-colors"
+            onClick={() => callbacks.onDetail(row)}
             type="button"
-            title="Edit Data"
+            title="Detail Lengkap"
           >
-            <Pencil size={13} /> Edit
+            <Eye size={13} /> Detail
           </button>
-        ) : null}
-        {isUserVariant(variant) ? (
-          <button
-            className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#FFF3E0] px-2 text-xs font-extrabold text-[#E8590C] hover:bg-[#ffe6c9] transition-colors"
-            onClick={() => callbacks.onReset(row)}
-            type="button"
-            title="Reset Password"
-          >
-            <KeyRound size={13} />
-          </button>
-        ) : null}
-        {variant !== 'pondok' ? (
-          <button
-            className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#FDECEC] text-[#D63031] hover:bg-[#fbdada] transition-colors"
-            onClick={() => callbacks.onDelete(row)}
-            type="button"
-            title="Hapus Data"
-          >
-            <Trash2 size={13} />
-          </button>
-        ) : null}
-      </div>
-    )
+          {isProtectedFromPengurus ? (
+            <span
+              className="inline-flex h-8 items-center gap-1 rounded-xl bg-amber-50 px-2.5 text-[10px] font-black text-amber-700 border border-amber-200"
+              title="Akun Admin IT dilindungi sistem dan hanya dapat dikelola oleh Admin IT (Super Admin)"
+            >
+              <Shield size={11} /> Admin IT (Terkunci)
+            </span>
+          ) : (
+            <>
+              {variant !== 'pondok' ? (
+                <button
+                  className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#EAF4FF] px-2.5 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors"
+                  onClick={() => callbacks.onEdit(row)}
+                  type="button"
+                  title="Edit Data"
+                >
+                  <Pencil size={13} /> Edit
+                </button>
+              ) : null}
+              {isUserVariant(variant) ? (
+                <button
+                  className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#FFF3E0] px-2 text-xs font-extrabold text-[#E8590C] hover:bg-[#ffe6c9] transition-colors"
+                  onClick={() => callbacks.onReset(row)}
+                  type="button"
+                  title="Reset Password"
+                >
+                  <KeyRound size={13} />
+                </button>
+              ) : null}
+              {variant !== 'pondok' ? (
+                <button
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#FDECEC] text-[#D63031] hover:bg-[#fbdada] transition-colors"
+                  onClick={() => callbacks.onDelete(row)}
+                  type="button"
+                  title="Hapus Data"
+                >
+                  <Trash2 size={13} />
+                </button>
+              ) : null}
+            </>
+          )}
+        </div>
+      );
+    }
   };
 
   if (variant === 'guru' || variant === 'login-guru') {

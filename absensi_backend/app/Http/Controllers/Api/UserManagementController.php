@@ -112,10 +112,31 @@ class UserManagementController extends Controller
         ]);
     }
 
+    private function isItAdmin(?User $user): bool
+    {
+        if (!$user || $user->role !== 'admin') {
+            return false;
+        }
+        $adminType = strtolower((string) ($user->admin_type ?? ''));
+        return in_array($adminType, ['it', 'superadmin'], true) ||
+            $user->email === 'syauqillah@absensi.com' ||
+            str_contains(strtolower($user->name), 'syauqillah');
+    }
+
     public function store(Request $request)
     {
+        $currentUser = $request->user();
         $validated = $this->validateUserPayload($request, requirePassword: true);
         $payload = $this->normalizePayload($validated, true);
+
+        // 🛡️ Batasan Admin Pengurus: Tidak boleh membuat user Admin IT
+        $targetAdminType = strtolower((string) ($payload['admin_type'] ?? ''));
+        if ($targetAdminType === 'it' && !$this->isItAdmin($currentUser)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak: Hanya Admin IT yang berwenang membuat user dengan role Admin IT.',
+            ], 403);
+        }
 
         $user = User::create($payload);
         if ($user->role === 'wali') {
@@ -131,8 +152,27 @@ class UserManagementController extends Controller
 
     public function update(Request $request, User $user)
     {
+        $currentUser = $request->user();
+
+        // 🛡️ Batasan Admin Pengurus: Tidak boleh mengedit user Admin IT
+        if ($this->isItAdmin($user) && !$this->isItAdmin($currentUser)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak: Akun Admin IT dilindungi sistem dan hanya dapat diubah oleh Admin IT.',
+            ], 403);
+        }
+
         $validated = $this->validateUserPayload($request, user: $user);
         $payload = $this->normalizePayload($validated, false, $user);
+
+        // 🛡️ Batasan Admin Pengurus: Tidak boleh menaikkan user biasa menjadi Admin IT
+        $newAdminType = strtolower((string) ($payload['admin_type'] ?? ''));
+        if ($newAdminType === 'it' && !$this->isItAdmin($currentUser)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak: Hanya Admin IT yang berwenang menetapkan role Admin IT.',
+            ], 403);
+        }
 
         $user->update($payload);
         if ($user->role === 'wali') {
@@ -176,6 +216,16 @@ class UserManagementController extends Controller
 
     public function destroy(User $user)
     {
+        $currentUser = request()->user();
+
+        // 🛡️ Batasan Admin Pengurus: Tidak boleh menghapus user Admin IT
+        if ($this->isItAdmin($user) && !$this->isItAdmin($currentUser)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak: Akun Admin IT dilindungi sistem dan tidak boleh dihapus oleh Admin Pengurus.',
+            ], 403);
+        }
+
         if ($user->role === 'admin' && User::where('role', 'admin')->count() <= 1) {
             return response()->json([
                 'success' => false,
@@ -199,6 +249,14 @@ class UserManagementController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Hanya admin aktif yang dapat reset password user.',
+            ], 403);
+        }
+
+        // 🛡️ Batasan Admin Pengurus: Tidak boleh mereset password user Admin IT
+        if ($this->isItAdmin($user) && !$this->isItAdmin($admin)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak: Password akun Admin IT hanya dapat direset oleh Admin IT.',
             ], 403);
         }
 

@@ -1,5 +1,6 @@
-import { CheckCircle2, KeyRound, Sparkles, User, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { CheckCircle2, KeyRound, ShieldCheck, Sparkles, User, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '../auth/AuthContext';
 import { api, type ApiRecord } from '../services/api';
 import { SYSTEM_ROLE_OPTIONS, getRoleDisplayName, type RoleOption } from '../utils/roleHelper';
 
@@ -12,12 +13,32 @@ interface ComplexUserFormProps {
 }
 
 export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onClose, onSave }: ComplexUserFormProps) {
+  const { isItAdmin } = useAuth();
   const [form, setForm] = useState<Record<string, string | number>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState('');
   
   const [activeTab, setActiveTab] = useState<'profil' | 'akses'>('profil');
+
+  // Proteksi: Cek apakah user yang sedang diedit adalah Admin IT
+  const isEditingItAdmin = Boolean(
+    initialData &&
+    initialData.role === 'admin' &&
+    String(initialData.admin_type || '').toLowerCase() === 'it'
+  );
+  // Jika sedang mengedit akun Admin IT tapi yang login bukan Admin IT, kunci form
+  const isLockedForNonIt = isEditingItAdmin && !isItAdmin;
+
+  // Filter pilihan role: Role "admin_it" HANYA boleh dilihat dan dipilih oleh Admin IT
+  const availableRoleOptions = useMemo(() => {
+    return SYSTEM_ROLE_OPTIONS.filter((opt) => {
+      if (opt.key === 'admin_it' && !isItAdmin) {
+        return false;
+      }
+      return true;
+    });
+  }, [isItAdmin]);
 
   useEffect(() => {
     if (initialData) {
@@ -84,8 +105,14 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSaving) return;
+    if (isSaving || isLockedForNonIt) return;
     
+    // 🛡️ Batasan Admin Pengurus: Tidak boleh membuat user Admin IT
+    if (form.admin_type === 'it' && !isItAdmin) {
+      setError('Akses ditolak: Hanya Admin IT yang berwenang membuat atau menetapkan role Admin IT.');
+      return;
+    }
+
     setIsSaving(true);
     setError('');
     
@@ -197,6 +224,13 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-white q-scrollbar">
+              {isLockedForNonIt && (
+                <div className="mb-4 rounded-2xl bg-amber-50 p-4 text-xs font-bold text-amber-800 border border-amber-200 flex items-center gap-2.5 shadow-xs">
+                  <ShieldCheck size={20} className="text-amber-600 shrink-0" />
+                  <span>Akun Admin IT ini dilindungi sistem dan hanya dapat diubah oleh Admin IT (Super Admin). Anda hanya dapat melihat informasi akun.</span>
+                </div>
+              )}
+
               {error && (
                 <div className="mb-6 rounded-2xl bg-[#FDECEC] p-4 text-sm font-bold text-[#D63031] border border-[#FDECEC]">
                   {error}
@@ -291,14 +325,14 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
                     <div>
                       <span className="mb-2 block text-sm font-bold text-[#2D3436]">Pilih Jabatan Resmi Pengguna:</span>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {SYSTEM_ROLE_OPTIONS.map((opt) => {
+                        {availableRoleOptions.map((opt) => {
                           const isSelected = currentRoleKey === opt.key;
                           return (
                             <button
                               key={opt.key}
                               type="button"
                               onClick={() => handleRoleSelection(opt.key)}
-                              disabled={readOnly || Boolean(forcedRole && forcedRole !== opt.role)}
+                              disabled={readOnly || isLockedForNonIt || Boolean(forcedRole && forcedRole !== opt.role)}
                               className={`text-left p-3.5 rounded-2xl border transition-all ${
                                 isSelected
                                   ? 'border-[#138F81] bg-teal-50/70 shadow-sm ring-2 ring-[#138F81]/20'

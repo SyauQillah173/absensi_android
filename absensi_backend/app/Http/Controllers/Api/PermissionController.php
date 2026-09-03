@@ -19,16 +19,44 @@ class PermissionController extends Controller
     ) {
     }
 
-    public function menus()
+    private function ensureItAdmin(Request $request): ?\Illuminate\Http\JsonResponse
     {
+        $user = $request->user();
+        $adminType = strtolower((string) ($user?->admin_type ?? ''));
+        $isIt = $user && $user->role === 'admin' && (
+            in_array($adminType, ['it', 'superadmin'], true) ||
+            $user->email === 'syauqillah@absensi.com' ||
+            str_contains(strtolower($user->name), 'syauqillah')
+        );
+
+        if (!$isIt) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak. Pengaturan Hak Akses & Role User hanya dapat dikelola oleh Admin IT.',
+            ], 403);
+        }
+
+        return null;
+    }
+
+    public function menus(Request $request)
+    {
+        if ($denied = $this->ensureItAdmin($request)) {
+            return $denied;
+        }
+
         return response()->json([
             'success' => true,
             'data' => $this->permissions->menus()->values(),
         ]);
     }
 
-    public function index()
+    public function index(Request $request)
     {
+        if ($denied = $this->ensureItAdmin($request)) {
+            return $denied;
+        }
+
         return response()->json([
             'success' => true,
             'data' => $this->permissions->allSettings(),
@@ -37,6 +65,10 @@ class PermissionController extends Controller
 
     public function update(Request $request)
     {
+        if ($denied = $this->ensureItAdmin($request)) {
+            return $denied;
+        }
+
         $validated = $request->validate([
             'permissions' => 'required|array',
             'permissions.*.role' => ['required', Rule::in(['admin_bendahara', 'admin_bendahara_2', 'admin_akademik', 'admin_pondok', 'admin_absensi', 'admin_lainnya', 'guru', 'wali'])],

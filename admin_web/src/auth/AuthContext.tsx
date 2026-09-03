@@ -4,6 +4,8 @@ import { api, clearSession, readSession, type ApiRecord, type UserSession } from
 interface AuthContextValue {
   session: UserSession | null;
   isAuthenticated: boolean;
+  isItAdmin: boolean;
+  isPengurus: boolean;
   isMainAdmin: boolean;
   isTreasurer: boolean;
   isGuru: boolean;
@@ -56,11 +58,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const adminType = (session?.admin_type || (session?.role === 'admin' ? 'utama' : '')).toLowerCase();
     
     // Role definitions:
-    // 1. Admin Utama (Full Access): IT, Pengurus, Superadmin, Utama
+    // 0. Admin IT (Super Admin / Master IT - Bang Nobita): Wewenang tertinggi, bebas buat user IT & kelola Hak Akses
+    const isItAdmin = session?.role === 'admin' && (
+      ['it', 'superadmin'].includes(adminType) ||
+      session?.email === 'syauqillah@absensi.com' ||
+      (session?.name && session.name.toLowerCase().includes('syauqillah'))
+    );
+
+    // 1. Admin Pengurus (Operasional Yayasan Penuh, tapi dibatasi tidak bisa buat akun IT & tidak ada menu Hak Akses)
+    const isPengurus = session?.role === 'admin' && adminType === 'pengurus';
+
+    // 2. Admin Utama Operasional: IT, Pengurus, Superadmin, Utama (Full akses operasional)
     const isMainAdmin = session?.role === 'admin' && (!adminType || ['utama', 'it', 'pengurus', 'superadmin', 'admin'].includes(adminType));
-    // 2. Admin Bendahara: Bendahara, Keuangan, Kasir, Bendahara 1 & 2
+    // 3. Admin Bendahara: Bendahara, Keuangan, Kasir, Bendahara 1 & 2
     const isTreasurer = session?.role === 'admin' && ['bendahara', 'keuangan', 'bendahara_1', 'bendahara_2', 'kasir'].includes(adminType);
-    // 3. Kepala Sekolah / Kepala Madrasah (Monitoring Only)
+    // 4. Kepala Sekolah / Kepala Madrasah (Monitoring Only)
     const isKepalaSekolah = session?.role === 'admin' && ['madrasah', 'absensi', 'kepala_madrasah', 'kepala_sekolah', 'monitoring', 'kepala'].includes(adminType);
     
     const byKey = (session?.permissions && typeof session.permissions === 'object'
@@ -69,6 +81,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const canView = (menuKey: string) => {
       if (!menuKey) return true;
+
+      // 🔒 Menu Hak Akses & Role User: KHUSUS HANYA untuk Admin IT (Bang Nobita)
+      if (menuKey === 'hak_akses' || menuKey === 'hak-akses') {
+        return Boolean(isItAdmin);
+      }
+
       if (isMainAdmin) return true;
       if (isGuru) {
         return ['dashboard', 'absensi', 'nilai'].includes(menuKey);
@@ -92,6 +110,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return {
       session,
       isAuthenticated: Boolean(session?.token),
+      isItAdmin: Boolean(isItAdmin),
+      isPengurus: Boolean(isPengurus),
       isMainAdmin,
       isTreasurer,
       isGuru,

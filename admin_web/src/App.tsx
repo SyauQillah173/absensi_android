@@ -32,7 +32,7 @@ function PageLoader() {
 }
 
 function AdminShell() {
-  const { isAuthenticated, canView, session } = useAuth();
+  const { isAuthenticated, canView, session, isItAdmin } = useAuth();
   const [activePage, setActivePage] = useState<PageKey>('dashboard');
   const [masterSection, setMasterSection] = useState<BukuIndukSection>('siswa');
   const [financeTab, setFinanceTab] = useState<string>('today');
@@ -128,7 +128,7 @@ function AdminShell() {
         {safePage === 'mapel' ? <MataPelajaranPage /> : null}
         {safePage === 'jadwal' ? <JadwalPelajaranPage /> : null}
         {safePage === 'nilai' ? <NilaiHafalanPage /> : null}
-        {safePage === 'hak-akses' ? <HakAksesPage /> : null}
+        {safePage === 'hak-akses' && isItAdmin ? <HakAksesPage /> : null}
         {safePage === 'account' ? <AccountPage /> : null}
       </Suspense>
     </AdminLayout>
