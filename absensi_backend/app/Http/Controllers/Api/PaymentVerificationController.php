@@ -12,7 +12,9 @@ use App\Models\Siswa;
 use App\Services\PaymentBillService;
 use App\Services\ReferenceResolver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -173,6 +175,11 @@ class PaymentVerificationController extends Controller
      */
     public function indexAdmin(Request $request)
     {
+        // 🤖 Sistem Cerdas Otomatis (Autonomous Background Cleaner):
+        // Jika sudah ada file bukti > 60 hari yang lunas/ditolak, otomatis dibersihkan
+        // tanpa admin perlu hapus manual! (Maksimal diperiksa 1x per 24 jam).
+        self::autoPurgeIfDue(60);
+
         $status = $request->input('status');
         $search = $request->input('search');
 
@@ -361,6 +368,48 @@ class PaymentVerificationController extends Controller
     }
 
     /**
+     * 🤖 SISTEM CERDAS MANDIRI (AUTONOMOUS BACKGROUND CLEANER):
+     * Otomatis membersihkan file fisik dari disk storage & mengosongkan kolom bukti_foto
+     * di database menjadi NULL tanpa sisa untuk rekaman > 60 hari.
+     * Berjalan otomatis tanpa admin harus klik manual. Dibatasi 1x per 24 jam via cache lock.
+     */
+    public static function autoPurgeIfDue(int $days = 60): void
+    {
+        $cacheKey = 'finance_proof_autopurge_last_run';
+        if (Cache::has($cacheKey)) {
+            return;
+        }
+
+        // Tandai cache selama 24 jam agar tidak memeriksa di setiap request
+        Cache::put($cacheKey, now()->toDateTimeString(), now()->addHours(24));
+
+        try {
+            $thresholdDate = now()->subDays($days);
+            $candidates = PaymentVerification::query()
+                ->whereIn('status', ['disetujui', 'ditolak'])
+                ->where(function ($q) use ($thresholdDate) {
+                    $q->where('updated_at', '<=', $thresholdDate)
+                      ->orWhere('verified_at', '<=', $thresholdDate);
+                })
+                ->whereNotNull('bukti_foto')
+                ->where('bukti_foto', '!=', '')
+                ->where('bukti_foto', '!=', 'purged')
+                ->get();
+
+            foreach ($candidates as $item) {
+                $path = $item->bukti_foto;
+                if ($path && Storage::disk('public')->exists($path)) {
+                    Storage::disk('public')->delete($path);
+                }
+                // Bersihkan total tanpa sisa di database (set NULL)
+                $item->update(['bukti_foto' => null]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Auto-purge transfer proofs encountered an error: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * GET /api/pembayaran/verifikasi/storage-status
      * Mengambil statistik penggunaan storage file bukti transfer.
      */
@@ -400,7 +449,13 @@ class PaymentVerificationController extends Controller
             }
         }
 
-        $purgedCount = PaymentVerification::where('bukti_foto', 'purged')->count();
+        $purgedCount = PaymentVerification::whereIn('status', ['disetujui', 'ditolak'])
+            ->where(function ($q) {
+                $q->whereNull('bukti_foto')
+                  ->orWhere('bukti_foto', 'purged')
+                  ->orWhere('bukti_foto', '');
+            })
+            ->count();
 
         return response()->json([
             'success' => true,
@@ -450,7 +505,8 @@ class PaymentVerificationController extends Controller
                 Storage::disk('public')->delete($path);
                 $freedBytes += $size;
             }
-            $item->update(['bukti_foto' => 'purged']);
+            // Bersihkan total tanpa sisa di database (set NULL)
+            $item->update(['bukti_foto' => null]);
             $purgedFiles++;
         }
 
@@ -458,7 +514,7 @@ class PaymentVerificationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => "Alhamdulillah! Berhasil membersihkan {$purgedFiles} file bukti transfer lama (> {$days} hari). Ruang disk server berhasil dihemat sebesar {$freedMb} MB.",
+            'message' => "Alhamdulillah! Berhasil membersihkan {$purgedFiles} file bukti transfer lama (> {$days} hari). Ruang disk server dihemat sebesar {$freedMb} MB dan database telah bersih tanpa sisa.",
             'data' => [
                 'purged_files' => $purgedFiles,
                 'freed_bytes' => $freedBytes,
@@ -469,7 +525,7 @@ class PaymentVerificationController extends Controller
 
     private function formatVerification(PaymentVerification $item): array
     {
-        $isPurged = $item->bukti_foto === 'purged' || empty($item->bukti_foto);
+        $isPurged = empty($item->bukti_foto) && in_array($item->status, ['disetujui', 'ditolak']);
 
         return [
             'id' => $item->id,
@@ -497,7 +553,7 @@ class PaymentVerificationController extends Controller
             'nomor_rekening_tujuan' => $item->nomor_rekening_tujuan,
             'tanggal_transfer' => $item->tanggal_transfer ? $item->tanggal_transfer->toDateString() : null,
             'bukti_foto' => $item->bukti_foto,
-            'bukti_url' => (!$isPurged && !empty($item->bukti_foto)) ? asset('storage/' . $item->bukti_foto) : null,
+            'bukti_url' => (!empty($item->bukti_foto) && $item->bukti_foto !== 'purged') ? asset('storage/' . $item->bukti_foto) : null,
             'is_purged' => $isPurged,
             'catatan_wali' => $item->catatan_wali,
             'selected_bills' => $item->selected_bills ?: [],

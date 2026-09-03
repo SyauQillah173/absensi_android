@@ -92,9 +92,9 @@ class PurgeOldTransferProofs extends Command
                 $missingFiles++;
             }
 
-            // Tandai bahwa file fisik telah dibersihkan secara sah sesuai kebijakan retensi
+            // Bersihkan total tanpa sisa di database (set NULL)
             $item->update([
-                'bukti_foto' => 'purged',
+                'bukti_foto' => null,
             ]);
 
             $bar->advance();
@@ -108,9 +108,9 @@ class PurgeOldTransferProofs extends Command
         $this->table(
             ['Metrik', 'Hasil'],
             [
-                ['File Fisik Dihapus', "{$deletedFiles} file"],
+                ['File Fisik Dihapus dari Storage', "{$deletedFiles} file"],
                 ['File Fisik Sudah Hilang Sebelumnya', "{$missingFiles} file"],
-                ['Total Baris Diperbarui', "{$count} rekaman (status: purged)"],
+                ['Database Diperbarui', "{$count} rekaman (kolom foto dibersihkan total menjadi NULL)"],
                 ['Ruang Disk Server Dihemat', "{$freedMb} MB (" . number_format($freedBytes) . " bytes)"],
             ]
         );
