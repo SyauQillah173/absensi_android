@@ -141,6 +141,9 @@ const allMenu: MenuItem[] = [
       { label: "Kas Masuk Lain", page: "keuangan", financeTab: "pemasukan_lain" },
       { label: "Pengeluaran Kas", page: "keuangan", financeTab: "pengeluaran" },
       { label: "Tipe & Tarif Tagihan", page: "keuangan", financeTab: "types" },
+      { label: "Metode Pembayaran", page: "keuangan", financeTab: "methods" },
+      { label: "Periode Pembayaran", page: "keuangan", financeTab: "periods" },
+      { label: "Pengaturan Struk / Nota", page: "keuangan", financeTab: "settings" },
     ],
   },
   {
@@ -229,6 +232,25 @@ export function AdminLayout({
 
   // State Accordion Collapse: Default tertutup rapi, hanya 1 menu yang terbuka saat diklik
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+
+  const [pendingVerifCount, setPendingVerifCount] = useState(0);
+
+  useEffect(() => {
+    const fetchPending = () => {
+      api.adminGetVerifikasiPembayaran({ status: 'menunggu' })
+        .then((res) => {
+          if (res.counts && typeof res.counts === 'object') {
+            const c = res.counts as { menunggu?: number };
+            setPendingVerifCount(Number(c.menunggu || 0));
+          }
+        })
+        .catch(() => {});
+    };
+    fetchPending();
+    const handler = () => fetchPending();
+    window.addEventListener('app:data-updated', handler);
+    return () => window.removeEventListener('app:data-updated', handler);
+  }, []);
 
   const loadNotifications = useCallback(async (showLoading = false) => {
     if (showLoading) setNotificationsLoading(true);
@@ -420,6 +442,9 @@ export function AdminLayout({
             { label: "📥 Kas Masuk Lain", page: "keuangan" as PageKey, financeTab: "pemasukan_lain" },
             { label: "📤 Pengeluaran Kas", page: "keuangan" as PageKey, financeTab: "pengeluaran" },
             { label: "⚙️ Tipe & Tarif Tagihan", page: "keuangan" as PageKey, financeTab: "types" },
+            { label: "💳 Metode Pembayaran", page: "keuangan" as PageKey, financeTab: "methods" },
+            { label: "🗓️ Periode Pembayaran", page: "keuangan" as PageKey, financeTab: "periods" },
+            { label: "🧾 Pengaturan Struk & Kop", page: "keuangan" as PageKey, financeTab: "settings" },
           ];
 
       return [
@@ -582,6 +607,11 @@ export function AdminLayout({
                         type="button"
                       >
                         <span className="min-w-0 flex-1 leading-snug">{child.label}</span>
+                        {child.financeTab === 'verifikasi' && pendingVerifCount > 0 && (
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black animate-pulse">
+                            {pendingVerifCount}
+                          </span>
+                        )}
                       </button>
                     );
                   })}

@@ -63,18 +63,6 @@ const monthLabels: Record<number, string> = {
   12: 'Des'
 };
 
-const tabs = [
-  { id: 'today', label: 'Hari Ini' },
-  { id: 'verifikasi', label: 'Verifikasi Transfer' },
-  { id: 'student', label: 'Tagihan' },
-  { id: 'history', label: 'Riwayat' },
-  { id: 'pemasukan_lain', label: 'Kas Masuk Lain' },
-  { id: 'pengeluaran', label: 'Pengeluaran' },
-  { id: 'types', label: 'Tipe Bayar' },
-  { id: 'methods', label: 'Metode' },
-  { id: 'periods', label: 'Periode' },
-  { id: 'settings', label: 'Pengaturan Struk' }
-];
 
 function getLocalTodayString(): string {
   const d = new Date();
@@ -346,12 +334,6 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
   const adminType = String(session?.admin_type || '').toLowerCase();
   const isBendahara1 = session?.role === 'admin' && (adminType === 'bendahara_1' || adminType === 'kasir');
 
-  const visibleTabs = useMemo(() => {
-    if (isBendahara1) {
-      return tabs.filter((t) => ['today', 'verifikasi', 'student', 'history'].includes(t.id));
-    }
-    return tabs;
-  }, [isBendahara1]);
 
   useEffect(() => {
     if (isBendahara1 && !['today', 'verifikasi', 'student', 'history'].includes(activeTab)) {
@@ -519,35 +501,6 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
       />
 
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
-
-      {/* QUICK HORIZONTAL SUBTABS */}
-      <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-white/90 backdrop-blur-xs border border-slate-200/80 shadow-xs">
-        {visibleTabs.map((t) => {
-          const isActive = activeTab === t.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => {
-                setActiveTab(t.id);
-                onTabChange?.(t.id);
-              }}
-              className={`px-4 py-2 text-xs font-black rounded-xl transition cursor-pointer flex items-center gap-1.5 ${
-                isActive
-                  ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25'
-                  : 'bg-transparent text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <span>{t.label}</span>
-              {t.id === 'verifikasi' && pendingVerifCount > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black animate-pulse">
-                  {pendingVerifCount}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
 
       {activeTab === 'today' || activeTab === 'history' ? (
         <>
