@@ -857,6 +857,9 @@ export const api = {
   waliUploadBuktiTransfer(formData: FormData) {
     return uploadRequest<ApiRecord>('/wali/pembayaran/verifikasi', formData);
   },
+  waliGetTransaksiKwitansi(id: number) {
+    return request<ApiRecord>(`/wali/pembayaran/transaksi/${id}`);
+  },
   adminGetVerifikasiPembayaran(params?: Record<string, string | number | boolean | undefined | null>) {
     return request<ApiRecord[]>('/pembayaran/verifikasi', {}, params);
   },

@@ -44,10 +44,12 @@ import {
   Eye,
   X,
   Image as ImageIcon,
+  Printer,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { api, type ApiRecord } from '../services/api';
+import { ReceiptWaliModal } from '../components/ReceiptWaliModal';
 
 type WaliTabKey = 'biodata' | 'keuangan' | 'absensi' | 'nilai';
 type AbsensiSubTab = 'madin' | 'ngaji' | 'sholat';
@@ -129,6 +131,7 @@ export function WaliPortalPage() {
   const [submitTransferSuccess, setSubmitTransferSuccess] = useState<string | null>(null);
   const [submitTransferError, setSubmitTransferError] = useState<string | null>(null);
   const [previewProofImage, setPreviewProofImage] = useState<string | null>(null);
+  const [selectedReceiptTransaction, setSelectedReceiptTransaction] = useState<ApiRecord | null>(null);
 
   // Month & year filter for attendance
   const [selectedMonth, setSelectedMonth] = useState<number>(() => new Date().getMonth() + 1);
@@ -265,7 +268,14 @@ export function WaliPortalPage() {
   }, [keuanganData]);
 
   const historyList = useMemo(() => {
-    return Array.isArray(keuanganData?.riwayat_transaksi) ? (keuanganData.riwayat_transaksi as ApiRecord[]) : [];
+    const list = Array.isArray(keuanganData?.riwayat_transaksi)
+      ? (keuanganData.riwayat_transaksi as ApiRecord[])
+      : Array.isArray(keuanganData?.data)
+      ? (keuanganData.data as ApiRecord[])
+      : Array.isArray(keuanganData?.transaksi)
+      ? (keuanganData.transaksi as ApiRecord[])
+      : [];
+    return list;
   }, [keuanganData]);
 
   interface MonthSlot {
@@ -547,19 +557,37 @@ export function WaliPortalPage() {
   };
 
   // Attendance stats
-  const madinStats = (absensiMadinData?.statistik ?? {}) as ApiRecord;
+  const madinStats = (absensiMadinData?.stats ?? absensiMadinData?.statistik ?? absensiMadinData?.ringkasan ?? {}) as ApiRecord;
   const madinGrouped = useMemo(() => {
-    return Array.isArray(absensiMadinData?.grouped) ? (absensiMadinData.grouped as ApiRecord[]) : [];
+    return Array.isArray(absensiMadinData?.grouped)
+      ? (absensiMadinData.grouped as ApiRecord[])
+      : Array.isArray(absensiMadinData?.data)
+      ? (absensiMadinData.data as ApiRecord[])
+      : Array.isArray(absensiMadinData?.records)
+      ? (absensiMadinData.records as ApiRecord[])
+      : [];
   }, [absensiMadinData]);
 
-  const sholatStats = (absensiSholatData?.ringkasan ?? {}) as ApiRecord;
+  const sholatStats = (absensiSholatData?.stats ?? absensiSholatData?.statistik ?? absensiSholatData?.ringkasan ?? {}) as ApiRecord;
   const sholatGrouped = useMemo(() => {
-    return Array.isArray(absensiSholatData?.grouped) ? (absensiSholatData.grouped as ApiRecord[]) : [];
+    return Array.isArray(absensiSholatData?.grouped)
+      ? (absensiSholatData.grouped as ApiRecord[])
+      : Array.isArray(absensiSholatData?.data)
+      ? (absensiSholatData.data as ApiRecord[])
+      : Array.isArray(absensiSholatData?.records)
+      ? (absensiSholatData.records as ApiRecord[])
+      : [];
   }, [absensiSholatData]);
 
-  const ngajiStats = (absensiNgajiData?.ringkasan ?? {}) as ApiRecord;
+  const ngajiStats = (absensiNgajiData?.stats ?? absensiNgajiData?.statistik ?? absensiNgajiData?.ringkasan ?? {}) as ApiRecord;
   const ngajiGrouped = useMemo(() => {
-    return Array.isArray(absensiNgajiData?.grouped) ? (absensiNgajiData.grouped as ApiRecord[]) : [];
+    return Array.isArray(absensiNgajiData?.grouped)
+      ? (absensiNgajiData.grouped as ApiRecord[])
+      : Array.isArray(absensiNgajiData?.data)
+      ? (absensiNgajiData.data as ApiRecord[])
+      : Array.isArray(absensiNgajiData?.records)
+      ? (absensiNgajiData.records as ApiRecord[])
+      : [];
   }, [absensiNgajiData]);
 
   const totalMadinPresensi = Number(madinStats.total ?? 0);
@@ -568,11 +596,21 @@ export function WaliPortalPage() {
 
   // Nilai records
   const raportList = useMemo(() => {
-    return Array.isArray(nilaiData?.raport) ? (nilaiData.raport as ApiRecord[]) : [];
+    return Array.isArray(nilaiData?.raport)
+      ? (nilaiData.raport as ApiRecord[])
+      : Array.isArray(nilaiData?.nilai_pelajaran)
+      ? (nilaiData.nilai_pelajaran as ApiRecord[])
+      : Array.isArray(nilaiData?.data)
+      ? (nilaiData.data as ApiRecord[])
+      : [];
   }, [nilaiData]);
 
   const hafalanList = useMemo(() => {
-    return Array.isArray(nilaiData?.hafalan) ? (nilaiData.hafalan as ApiRecord[]) : [];
+    return Array.isArray(nilaiData?.hafalan)
+      ? (nilaiData.hafalan as ApiRecord[])
+      : Array.isArray(nilaiData?.nilai_hafalan)
+      ? (nilaiData.nilai_hafalan as ApiRecord[])
+      : [];
   }, [nilaiData]);
 
   const monthsList = [
@@ -1699,33 +1737,45 @@ export function WaliPortalPage() {
                               <th className="py-3.5 px-3">Metode</th>
                               <th className="py-3.5 px-3">Penerima Kasir</th>
                               <th className="py-3.5 px-3 text-right">Jumlah Bayar</th>
-                              <th className="py-3.5 pr-4 text-center rounded-r-xl">Status</th>
+                              <th className="py-3.5 px-3 text-center">Status</th>
+                              <th className="py-3.5 pr-4 text-center rounded-r-xl">Cetak Kwitansi</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 font-medium">
                             {historyList.map((tr, idx) => (
                               <tr key={idx} className="hover:bg-[#F8FBFC] transition-colors">
                                 <td className="py-3.5 pl-4 font-black text-[#2D3436] font-mono">
-                                  {String(tr.receipt_number || tr.nomor_transaksi || tr.id || '-')}
+                                  {String(tr.kode_transaksi || tr.transaction_code || tr.receipt_number || tr.nomor_transaksi || tr.id || '-')}
                                 </td>
                                 <td className="py-3.5 px-3 text-[#2D3436] font-bold">
-                                  {String(tr.tanggal || tr.created_at || '-')}
+                                  {String(tr.tanggal || (typeof tr.created_at === 'string' ? tr.created_at.slice(0, 10) : '') || '-')}
                                 </td>
                                 <td className="py-3.5 px-3 text-[#636E72] font-semibold">
                                   <span className="px-2.5 py-0.5 rounded-md bg-[#E1EFF7] text-[#138F81] text-[10px] font-black uppercase">
-                                    {String(tr.metode || tr.metode_pembayaran || 'Tunai')}
+                                    {String(tr.via || tr.metode || tr.metode_pembayaran || 'Tunai')}
                                   </span>
                                 </td>
                                 <td className="py-3.5 px-3 text-[#636E72] font-semibold">
-                                  {String(tr.penerima || (tr.user as Record<string, unknown> | undefined)?.name || 'Kasir Pondok')}
+                                  {String((tr.creator as Record<string, unknown> | undefined)?.name || tr.penerima || (tr.user as Record<string, unknown> | undefined)?.name || 'Kasir Pondok')}
                                 </td>
-                                <td className="py-3.5 px-3 text-right font-black text-[#138F81] text-sm">
-                                  Rp {Number(tr.jumlah || tr.amount || 0).toLocaleString('id-ID')}
+                                <td className="py-3.5 px-3 text-right font-black text-[#138F81] text-sm font-mono">
+                                  Rp {Number(tr.jumlah || tr.amount || tr.jumlah_total || 0).toLocaleString('id-ID')}
                                 </td>
-                                <td className="py-3.5 pr-4 text-center">
+                                <td className="py-3.5 px-3 text-center">
                                   <span className="inline-block px-2.5 py-1 text-[10px] font-black rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-300">
                                     🟢 LUNAS
                                   </span>
+                                </td>
+                                <td className="py-3.5 pr-4 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedReceiptTransaction(tr)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#138F81] to-[#0D7A6F] hover:from-[#0D7A6F] hover:to-[#095A52] text-white text-[11px] font-black shadow-xs transition active:scale-95 cursor-pointer"
+                                    title="Lihat & Cetak Kwitansi Resmi"
+                                  >
+                                    <Printer size={13} />
+                                    <span>Cetak Kwitansi</span>
+                                  </button>
                                 </td>
                               </tr>
                             ))}
@@ -1862,6 +1912,18 @@ export function WaliPortalPage() {
                       <div className="py-12 text-center text-slate-400">
                         <CalendarCheck size={38} className="mx-auto mb-2 text-[#138F81]/40" />
                         <p className="text-sm font-black text-[#2D3436]">Belum ada catatan absensi madin pada bulan ini.</p>
+                        {Number(absensiMadinData?.total_all_records ?? 0) > 0 && (
+                          <div className="mt-4 inline-flex flex-col sm:flex-row items-center gap-2.5 p-3 px-4 rounded-2xl bg-amber-50 text-amber-900 border border-amber-200 text-xs font-bold shadow-xs">
+                            <span>💡 Terdeteksi presensi santri tersimpan pada bulan lain. Coba pilih <strong>Bulan Agustus {selectedYear}</strong>:</span>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedMonth(8)}
+                              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-black cursor-pointer shadow-xs transition active:scale-95"
+                            >
+                              Lihat Presensi Agustus
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -2324,6 +2386,15 @@ export function WaliPortalPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* KWITANSI RESMI MODAL (VIEW, PRINT & DOWNLOAD JPG) */}
+      {selectedReceiptTransaction && (
+        <ReceiptWaliModal
+          transaction={selectedReceiptTransaction}
+          child={childData || (biodata as ApiRecord)}
+          onClose={() => setSelectedReceiptTransaction(null)}
+        />
       )}
     </div>
   );

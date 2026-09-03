@@ -11,6 +11,7 @@ use App\Models\Pembayaran;
 use App\Models\Nilai;
 use App\Models\Hafalan;
 use App\Models\PaymentBill;
+use App\Models\PaymentTransaction;
 use App\Models\PaymentType;
 use App\Services\PaymentBillService;
 use App\Services\PaymentHistoryService;
@@ -68,7 +69,16 @@ class WaliController extends Controller
         // Default: bulan ini
         $bulan = $request->bulan ?? now()->month;
         $tahun = $request->tahun ?? now()->year;
-        $query->whereMonth('tanggal', $bulan)->whereYear('tanggal', $tahun);
+
+        // Toleransi rentang tanggal bulan berjalan untuk mengatasi perbedaan timezone server
+        $startOfMonth = \Carbon\Carbon::create($tahun, $bulan, 1)->startOfMonth()->toDateString();
+        $endOfMonth = \Carbon\Carbon::create($tahun, $bulan, 1)->endOfMonth()->toDateString();
+
+        $query->where(function ($builder) use ($bulan, $tahun, $startOfMonth, $endOfMonth) {
+            $builder->where(function ($sub) use ($bulan, $tahun) {
+                $sub->whereMonth('tanggal', $bulan)->whereYear('tanggal', $tahun);
+            })->orWhereBetween('tanggal', [$startOfMonth, $endOfMonth]);
+        });
 
         $data = $query->orderBy('tanggal', 'desc')->orderBy('created_at', 'desc')->get()
             ->unique(fn (Absensi $item) => implode('|', [
@@ -104,11 +114,13 @@ class WaliController extends Controller
                         'keterangan' => $a->keterangan,
                         'kelas' => $a->kelas,
                         'diinput_oleh' => $a->diinput_oleh,
-                        'waktu' => $a->created_at->format('H:i'),
+                        'waktu' => optional($a->created_at)->format('H:i'),
                     ];
                 })->values(),
             ];
         })->values();
+
+        $allAbsensiCount = Absensi::where('siswa_id', $siswa->id)->count();
 
         // Info siswa
         return response()->json([
@@ -117,7 +129,12 @@ class WaliController extends Controller
             'bulan' => $bulan,
             'tahun' => $tahun,
             'stats' => $stats,
+            'statistik' => $stats,
+            'ringkasan' => $stats,
             'data' => $grouped,
+            'grouped' => $grouped,
+            'records' => $grouped,
+            'total_all_records' => $allAbsensiCount,
         ]);
     }
 
@@ -186,7 +203,11 @@ class WaliController extends Controller
             'bulan' => $bulan,
             'tahun' => $tahun,
             'stats' => $stats,
+            'statistik' => $stats,
+            'ringkasan' => $stats,
             'data' => $grouped,
+            'grouped' => $grouped,
+            'records' => $grouped,
         ]);
     }
 
@@ -271,7 +292,11 @@ class WaliController extends Controller
             'bulan' => $bulan,
             'tahun' => $tahun,
             'stats' => $stats,
+            'statistik' => $stats,
+            'ringkasan' => $stats,
             'data' => $grouped,
+            'grouped' => $grouped,
+            'records' => $grouped,
         ]);
     }
 
@@ -329,7 +354,43 @@ class WaliController extends Controller
             'total_belum_lunas' => (int) $tagihan->whereIn('status_tagihan', ['Belum Lunas', 'Terlambat'])->sum('amount'),
             'summary' => [],
             'tagihan' => $tagihan,
+            'riwayat_transaksi' => $transactions->values(),
             'data' => $transactions->values(),
+            'transaksi' => $transactions->values(),
+        ]);
+    }
+
+    /**
+     * GET /api/wali/pembayaran/transaksi/{paymentTransaction}
+     * Detail kwitansi transaksi untuk wali santri
+     */
+    public function showTransaction(Request $request, PaymentTransaction $paymentTransaction)
+    {
+        $wali = $request->user();
+        $isChildOwned = Siswa::query()
+            ->where('id', $paymentTransaction->siswa_id)
+            ->where(function ($query) use ($wali) {
+                $query->where('wali_id', $wali?->id)
+                    ->orWhereHas('guardianProfile', fn ($nested) => $nested->where('user_id', $wali?->id));
+            })
+            ->exists();
+
+        if (!$isChildOwned && (int) $paymentTransaction->wali_id !== (int) $wali?->id) {
+            return $this->forbiddenChildResponse();
+        }
+
+        $paymentTransaction->loadMissing([
+            'siswa:id,nama,nis,kelas,nama_wali,wali_id,komplek,kamar',
+            'wali:id,name,role',
+            'items.paymentType:id,nama,periode,metode_pembayaran,status',
+            'items.paymentBill:id,title,period_label,due_date,status',
+            'creator:id,name,role',
+            'paymentMethod',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->paymentHistoryService->formatTransaction($paymentTransaction),
         ]);
     }
 
@@ -515,7 +576,10 @@ class WaliController extends Controller
             'semester_options' => $semesterOptions,
             'periode_options' => $periodeOptions,
             'nilai_pelajaran' => $grouped,
+            'raport' => $grouped,
+            'data' => $grouped,
             'nilai_hafalan' => $hafalan,
+            'hafalan' => $hafalan,
         ]);
     }
 

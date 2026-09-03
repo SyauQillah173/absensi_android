@@ -109,6 +109,7 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::get('wali/absensi-sholat', [WaliController::class, 'absensiSholat'])->middleware('permission:absensi,view');
         Route::get('wali/absensi-ngaji', [WaliController::class, 'absensiNgaji'])->middleware('permission:absensi,view');
         Route::get('wali/pembayaran', [WaliController::class, 'pembayaran'])->middleware('permission:pembayaran_wali,view');
+        Route::get('wali/pembayaran/transaksi/{paymentTransaction}', [WaliController::class, 'showTransaction'])->middleware('permission:pembayaran_wali,view');
         Route::get('wali/pembayaran/verifikasi', [PaymentVerificationController::class, 'indexWali']);
         Route::post('wali/pembayaran/verifikasi', [PaymentVerificationController::class, 'storeWali']);
         Route::get('wali/nilai', [WaliController::class, 'nilai'])->middleware('permission:nilai_wali,view');
