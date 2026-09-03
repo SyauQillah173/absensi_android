@@ -220,6 +220,35 @@ async function request<T>(
   return payload;
 }
 
+async function uploadRequest<T>(
+  path: string,
+  formData: FormData,
+  params?: Record<string, string | number | boolean | undefined | null>
+): Promise<ApiResponse<T>> {
+  const url = `${apiBaseUrl()}${path}${toQuery(params)}`;
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: authUploadHeaders(),
+      body: formData
+    });
+  } catch (error) {
+    throw new Error(
+      `Gagal terhubung ke backend. Cek VITE_API_BASE_URL: ${apiBaseUrl()}`
+    );
+  }
+  const payload = (await response.json().catch(() => ({}))) as ApiResponse<T>;
+  if (response.status === 401) {
+    clearSession();
+    window.dispatchEvent(new Event('qomaruddin_auth_expired'));
+  }
+  if (!response.ok || payload.success === false) {
+    throw new Error(payload.message || `Upload gagal (${response.status})`);
+  }
+  return payload;
+}
+
 async function importRowsInBatches(path: string, rows: ApiRecord[]): Promise<ImportResult> {
   if (rows.length === 0) {
     return {
@@ -821,6 +850,27 @@ export const api = {
   },
   notifyWaPayment(id: number) {
     return request<ApiRecord>(`/pembayaran/transaksi/${id}/notify-wa`, { method: 'POST' });
+  },
+  waliGetVerifikasiPembayaran(siswaId: number) {
+    return request<ApiRecord[]>('/wali/pembayaran/verifikasi', {}, { siswa_id: siswaId });
+  },
+  waliUploadBuktiTransfer(formData: FormData) {
+    return uploadRequest<ApiRecord>('/wali/pembayaran/verifikasi', formData);
+  },
+  adminGetVerifikasiPembayaran(params?: Record<string, string | number | boolean | undefined | null>) {
+    return request<ApiRecord[]>('/pembayaran/verifikasi', {}, params);
+  },
+  adminApproveVerifikasiPembayaran(id: number, payload?: ApiRecord) {
+    return request<ApiRecord>(`/pembayaran/verifikasi/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify(payload ?? {})
+    });
+  },
+  adminRejectVerifikasiPembayaran(id: number, payload: { alasan: string }) {
+    return request<ApiRecord>(`/pembayaran/verifikasi/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
   },
   async downloadPaymentRecapExcel(params: Record<string, string | number | boolean>) {
     const session = readSession();

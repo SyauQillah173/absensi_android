@@ -135,6 +135,7 @@ const allMenu: MenuItem[] = [
     icon: WalletCards,
     children: [
       { label: "Transaksi Hari Ini", page: "keuangan", financeTab: "today" },
+      { label: "Verifikasi Transfer", page: "keuangan", financeTab: "verifikasi" },
       { label: "Tagihan Santri (SPP)", page: "keuangan", financeTab: "student" },
       { label: "Riwayat Pembayaran", page: "keuangan", financeTab: "history" },
       { label: "Kas Masuk Lain", page: "keuangan", financeTab: "pemasukan_lain" },
@@ -407,11 +408,13 @@ export function AdminLayout({
       const financeChildren = isBendahara1
         ? [
             { label: "💵 Transaksi Hari Ini", page: "keuangan" as PageKey, financeTab: "today" },
+            { label: "📩 Verifikasi Transfer", page: "keuangan" as PageKey, financeTab: "verifikasi" },
             { label: "📜 Tagihan Santri (SPP)", page: "keuangan" as PageKey, financeTab: "student" },
             { label: "🧾 Riwayat & Rekap", page: "keuangan" as PageKey, financeTab: "history" },
           ]
         : [
             { label: "💵 Transaksi Hari Ini", page: "keuangan" as PageKey, financeTab: "today" },
+            { label: "📩 Verifikasi Transfer", page: "keuangan" as PageKey, financeTab: "verifikasi" },
             { label: "📜 Tagihan Santri (SPP)", page: "keuangan" as PageKey, financeTab: "student" },
             { label: "🧾 Riwayat Pembayaran", page: "keuangan" as PageKey, financeTab: "history" },
             { label: "📥 Kas Masuk Lain", page: "keuangan" as PageKey, financeTab: "pemasukan_lain" },

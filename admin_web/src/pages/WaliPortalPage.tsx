@@ -40,6 +40,10 @@ import {
   Wallet,
   XCircle,
   Zap,
+  UploadCloud,
+  Eye,
+  X,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
@@ -47,7 +51,7 @@ import { api, type ApiRecord } from '../services/api';
 
 type WaliTabKey = 'biodata' | 'keuangan' | 'absensi' | 'nilai';
 type AbsensiSubTab = 'madin' | 'ngaji' | 'sholat';
-type KeuanganSubTab = 'tagihan' | 'riwayat';
+type KeuanganSubTab = 'tagihan' | 'riwayat' | 'transfer';
 type NilaiSubTab = 'akademik' | 'hafalan';
 
 const ACADEMIC_MONTH_ORDER = [
@@ -111,6 +115,21 @@ export function WaliPortalPage() {
   const [billSearch, setBillSearch] = useState('');
   const [billStatusFilter, setBillStatusFilter] = useState<'all' | 'belum' | 'lunas'>('all');
 
+  // Transfer verification states
+  const [verifikasiList, setVerifikasiList] = useState<ApiRecord[]>([]);
+  const [selectedBillIds, setSelectedBillIds] = useState<number[]>([]);
+  const [transferFile, setTransferFile] = useState<File | null>(null);
+  const [transferFilePreview, setTransferFilePreview] = useState<string | null>(null);
+  const [transferBank, setTransferBank] = useState('BSI');
+  const [transferSenderName, setTransferSenderName] = useState(() => session?.name || '');
+  const [transferSenderRek, setTransferSenderRek] = useState('');
+  const [transferDate, setTransferDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [transferNotes, setTransferNotes] = useState('');
+  const [isSubmittingTransfer, setIsSubmittingTransfer] = useState(false);
+  const [submitTransferSuccess, setSubmitTransferSuccess] = useState<string | null>(null);
+  const [submitTransferError, setSubmitTransferError] = useState<string | null>(null);
+  const [previewProofImage, setPreviewProofImage] = useState<string | null>(null);
+
   // Month & year filter for attendance
   const [selectedMonth, setSelectedMonth] = useState<number>(() => new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
@@ -145,13 +164,14 @@ export function WaliPortalPage() {
       setIsLoading(true);
       try {
         // Run parallel queries
-        const [bioRes, payRes, madinRes, sholatRes, ngajiRes, nilaiRes] = await Promise.allSettled([
+        const [bioRes, payRes, madinRes, sholatRes, ngajiRes, nilaiRes, verifRes] = await Promise.allSettled([
           api.waliBiodata(siswaId),
           api.waliPembayaran(siswaId),
           api.waliAbsensi(siswaId, { bulan: selectedMonth, tahun: selectedYear }),
           api.waliAbsensiSholat(siswaId, { bulan: selectedMonth, tahun: selectedYear }),
           api.waliAbsensiNgaji(siswaId, { bulan: selectedMonth, tahun: selectedYear }),
           api.waliNilai(siswaId),
+          api.waliGetVerifikasiPembayaran(siswaId),
         ]);
 
         if (!isMounted) return;
@@ -171,6 +191,10 @@ export function WaliPortalPage() {
 
         if (payRes.status === 'fulfilled' && payRes.value.success) {
           setKeuanganData(payRes.value);
+        }
+
+        if (verifRes.status === 'fulfilled' && verifRes.value.success) {
+          setVerifikasiList(Array.isArray(verifRes.value.data) ? (verifRes.value.data as ApiRecord[]) : []);
         }
 
         if (madinRes.status === 'fulfilled' && madinRes.value.success) {
@@ -429,6 +453,98 @@ export function WaliPortalPage() {
       })
       .filter((group) => group.monthly.length > 0 || group.general.length > 0);
   }, [groupedYearBills, billSearch, billStatusFilter]);
+
+  // Unpaid bills for online transfer
+  const unpaidBills = useMemo(() => {
+    return tagihanList.filter((b) => {
+      const s = String(b.status_tagihan || b.status || '').toLowerCase();
+      return s !== 'lunas' && s !== 'sudah lunas';
+    });
+  }, [tagihanList]);
+
+  const totalSelectedTransferAmount = useMemo(() => {
+    return unpaidBills
+      .filter((b) => selectedBillIds.includes(Number(b.id)))
+      .reduce((sum, b) => sum + Number(b.amount || 0), 0);
+  }, [unpaidBills, selectedBillIds]);
+
+  const toggleBillSelection = (id: number) => {
+    setSelectedBillIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const selectAllUnpaid = () => {
+    setSelectedBillIds(unpaidBills.map((b) => Number(b.id)));
+  };
+
+  const clearSelectedBills = () => {
+    setSelectedBillIds([]);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setSubmitTransferError('Ukuran file maksimal 5MB.');
+      return;
+    }
+    setTransferFile(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setTransferFilePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    setSubmitTransferError(null);
+  };
+
+  const handleSubmitTransferProof = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedBillIds.length === 0) {
+      setSubmitTransferError('Silakan centang/pilih minimal satu pos tagihan yang ingin dibayar.');
+      return;
+    }
+    if (!transferFile) {
+      setSubmitTransferError('Silakan unggah foto bukti struk transfer bank.');
+      return;
+    }
+    if (!selectedChildId) return;
+
+    setIsSubmittingTransfer(true);
+    setSubmitTransferError(null);
+    setSubmitTransferSuccess(null);
+
+    try {
+      const selectedItems = unpaidBills.filter((b) => selectedBillIds.includes(Number(b.id)));
+      const formData = new FormData();
+      formData.append('siswa_id', String(selectedChildId));
+      formData.append('tanggal_transfer', transferDate);
+      formData.append('bank_pengirim', transferBank);
+      formData.append('nama_pengirim', transferSenderName);
+      formData.append('nomor_rekening_pengirim', transferSenderRek);
+      formData.append('catatan_wali', transferNotes);
+      formData.append('file', transferFile);
+      formData.append('selected_bills', JSON.stringify(selectedItems));
+
+      const res = await api.waliUploadBuktiTransfer(formData);
+      if (res.success) {
+        setSubmitTransferSuccess('Alhamdulillah! Bukti transfer berhasil diunggah dan sedang menunggu verifikasi bendahara.');
+        setTransferFile(null);
+        setTransferFilePreview(null);
+        setSelectedBillIds([]);
+        setTransferNotes('');
+        // Reload list verifikasi
+        const vRes = await api.waliGetVerifikasiPembayaran(selectedChildId);
+        if (vRes.success && Array.isArray(vRes.data)) {
+          setVerifikasiList(vRes.data);
+        }
+      } else {
+        setSubmitTransferError(res.message || 'Gagal mengirim bukti transfer.');
+      }
+    } catch (err) {
+      setSubmitTransferError(err instanceof Error ? err.message : 'Terjadi kesalahan sistem saat mengunggah bukti.');
+    } finally {
+      setIsSubmittingTransfer(false);
+    }
+  };
 
   // Attendance stats
   const madinStats = (absensiMadinData?.statistik ?? {}) as ApiRecord;
@@ -882,7 +998,7 @@ export function WaliPortalPage() {
                 {/* SUB-TABS: DAFTAR TAGIHAN VS RIWAYAT TRANSAKSI */}
                 <div className="q-card bg-white rounded-[28px] shadow-xl shadow-black/5 p-5 sm:p-7 space-y-5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
                         onClick={() => setKeuanganSubTab('tagihan')}
@@ -892,7 +1008,24 @@ export function WaliPortalPage() {
                             : 'bg-[#E1EFF7] text-[#138F81] hover:bg-[#d0e5f2]'
                         }`}
                       >
-                        📋 Daftar Tagihan SPP & Kewajiban ({tagihanList.length})
+                        📋 Ringkasan Tagihan ({tagihanList.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setKeuanganSubTab('transfer')}
+                        className={`px-4 py-2.5 text-xs font-black rounded-xl transition cursor-pointer flex items-center gap-1.5 ${
+                          keuanganSubTab === 'transfer'
+                            ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25'
+                            : 'bg-[#E1EFF7] text-[#138F81] hover:bg-[#d0e5f2]'
+                        }`}
+                      >
+                        <CreditCard size={14} />
+                        <span>Bayar Online & Bukti TF</span>
+                        {verifikasiList.filter((v) => v.status === 'menunggu').length > 0 && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-black animate-pulse">
+                            {verifikasiList.filter((v) => v.status === 'menunggu').length}
+                          </span>
+                        )}
                       </button>
                       <button
                         type="button"
@@ -935,7 +1068,31 @@ export function WaliPortalPage() {
 
                   {/* TAB 1 CONTENT: DAFTAR TAGIHAN (GRID BULANAN & UMUM SESUAI TEMA PROJEK & SCREENSHOT) */}
                   {keuanganSubTab === 'tagihan' ? (
-                    filteredGroupedYearBills.length === 0 ? (
+                    <>
+                      {/* PROMINENT ONLINE PAYMENT CTA BANNER */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-[#138F81]/15 via-[#FFDC80]/30 to-[#138F81]/15 p-4 rounded-2xl border border-[#138F81]/30">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2.5 rounded-xl bg-[#138F81] text-white shadow-md shadow-[#138F81]/25 shrink-0">
+                            <CreditCard size={20} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs sm:text-sm font-black text-[#2D3436]">Pembayaran Mandiri via Transfer Bank</h4>
+                            <p className="text-[11px] font-semibold text-[#636E72]">
+                              Pilih pos tagihan yang ingin dibayar, transfer via BSI, lalu kirim bukti struk untuk diverifikasi bendahara secara realtime.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setKeuanganSubTab('transfer')}
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white text-xs font-black shadow-lg shadow-[#138F81]/25 transition cursor-pointer shrink-0"
+                        >
+                          <CreditCard size={15} />
+                          <span>Bayar Tagihan Sekarang 👉</span>
+                        </button>
+                      </div>
+
+                      {filteredGroupedYearBills.length === 0 ? (
                       <div className="py-14 text-center text-slate-400">
                         <CheckCircle2 size={42} className="mx-auto mb-2 text-[#138F81]" />
                         <p className="text-sm font-black text-[#2D3436]">Tidak ada tagihan tertunggak.</p>
@@ -1113,7 +1270,417 @@ export function WaliPortalPage() {
                           </div>
                         ))}
                       </div>
-                    )
+                    )}
+                  </>
+                ) : keuanganSubTab === 'transfer' ? (
+                    /* TAB 3 CONTENT: BAYAR ONLINE VIA TRANSFER & UPLOAD BUKTI TF */
+                    <div className="space-y-6">
+                      {/* ALERT FEEDBACK */}
+                      {submitTransferSuccess && (
+                        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-start gap-3 text-emerald-800">
+                          <CheckCircle2 className="shrink-0 text-emerald-600 mt-0.5" size={18} />
+                          <div>
+                            <h5 className="text-xs font-black">Bukti Transfer Berhasil Terkirim!</h5>
+                            <p className="text-xs mt-0.5 text-emerald-700">{submitTransferSuccess}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {submitTransferError && (
+                        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-start gap-3 text-rose-800">
+                          <AlertTriangle className="shrink-0 text-rose-600 mt-0.5" size={18} />
+                          <div>
+                            <h5 className="text-xs font-black">Perhatian / Gagal Mengirim</h5>
+                            <p className="text-xs mt-0.5 text-rose-700">{submitTransferError}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        {/* FORM CHECKOUT TRANSFER (7 COLS) */}
+                        <div className="lg:col-span-7 space-y-5">
+                          {/* STEP 1: PILIH TAGIHAN */}
+                          <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#138F81] text-white text-xs font-black">
+                                  1
+                                </span>
+                                <h4 className="text-xs sm:text-sm font-black text-[#2D3436]">Pilih Tagihan yang Ingin Dibayar</h4>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs">
+                                <button
+                                  type="button"
+                                  onClick={selectAllUnpaid}
+                                  className="text-[#138F81] hover:underline font-bold cursor-pointer"
+                                >
+                                  Pilih Semua
+                                </button>
+                                <span className="text-slate-300">•</span>
+                                <button
+                                  type="button"
+                                  onClick={clearSelectedBills}
+                                  className="text-slate-500 hover:underline font-bold cursor-pointer"
+                                >
+                                  Hapus Pilihan
+                                </button>
+                              </div>
+                            </div>
+
+                            {unpaidBills.length === 0 ? (
+                              <div className="p-6 rounded-xl bg-white text-center text-slate-400 border border-slate-200/60">
+                                <CheckCircle2 size={32} className="mx-auto mb-2 text-emerald-500" />
+                                <p className="text-xs font-black text-[#2D3436]">Alhamdulillah, semua tagihan santri sudah lunas!</p>
+                              </div>
+                            ) : (
+                              <div className="max-h-60 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                                {unpaidBills.map((b) => {
+                                  const bId = Number(b.id);
+                                  const isSelected = selectedBillIds.includes(bId);
+                                  const amount = Number(b.amount || 0);
+                                  return (
+                                    <div
+                                      key={bId}
+                                      onClick={() => toggleBillSelection(bId)}
+                                      className={`p-3 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                                        isSelected
+                                          ? 'bg-teal-50/90 border-[#138F81] shadow-xs'
+                                          : 'bg-white border-slate-200 hover:border-slate-300'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <input
+                                          type="checkbox"
+                                          checked={isSelected}
+                                          onChange={() => {}}
+                                          className="w-4 h-4 rounded text-[#138F81] focus:ring-[#138F81] border-slate-300 cursor-pointer"
+                                        />
+                                        <div>
+                                          <div className="text-xs font-black text-[#2D3436]">{String(b.title || 'Tagihan')}</div>
+                                          <div className="text-[10px] text-slate-500 font-semibold">
+                                            Tahun: {String(b.tahun_ajaran || '2025/2026')} {b.due_date ? `• Jatuh Tempo: ${b.due_date}` : ''}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <span className="text-xs font-black text-[#138F81]">Rp {amount.toLocaleString('id-ID')}</span>
+                                        <div className="text-[9px] font-black uppercase text-amber-600">Belum Lunas</div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {/* TOTAL NOMINAL PILL */}
+                            <div className="p-3.5 rounded-xl bg-[#138F81]/10 border border-[#138F81]/25 flex items-center justify-between">
+                              <span className="text-xs font-bold text-[#2D3436]">
+                                🎯 {selectedBillIds.length} tagihan terpilih
+                              </span>
+                              <div className="text-right">
+                                <span className="text-[10px] text-[#636E72] block font-semibold">Total Nominal Transfer:</span>
+                                <span className="text-sm sm:text-base font-black text-[#138F81]">
+                                  Rp {totalSelectedTransferAmount.toLocaleString('id-ID')}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* STEP 2: REKENING BANK TUJUAN */}
+                          <div className="p-5 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-3">
+                            <div className="flex items-center gap-2">
+                              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#138F81] text-white text-xs font-black">
+                                2
+                              </span>
+                              <h4 className="text-xs sm:text-sm font-black text-[#2D3436]">Transfer ke Rekening Resmi Pondok</h4>
+                            </div>
+                            <div className="p-4 rounded-xl bg-white border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                              <div>
+                                <span className="text-[11px] font-bold text-slate-500">Bank Syariah Indonesia (BSI)</span>
+                                <div className="text-base sm:text-lg font-black font-mono tracking-wider text-[#2D3436]">
+                                  7171 2026 88
+                                </div>
+                                <span className="text-[11px] font-medium text-slate-600 block">
+                                  a.n. <strong>Yayasan Pondok Pesantren Qomaruddin</strong>
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText('7171202688');
+                                    setCopiedRekening(true);
+                                    setTimeout(() => setCopiedRekening(false), 2000);
+                                  }}
+                                  className="px-3 py-1.5 rounded-lg bg-[#138F81] text-white text-xs font-bold hover:bg-[#0D7A6F] transition cursor-pointer flex items-center gap-1.5"
+                                >
+                                  {copiedRekening ? <Check size={13} /> : <Copy size={13} />}
+                                  <span>{copiedRekening ? 'Tersalin' : 'Salin Rekening'}</span>
+                                </button>
+                                {totalSelectedTransferAmount > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(String(totalSelectedTransferAmount));
+                                      alert(`Nominal Rp ${totalSelectedTransferAmount.toLocaleString('id-ID')} berhasil disalin!`);
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-900 text-xs font-bold hover:bg-amber-200 transition cursor-pointer flex items-center gap-1.5"
+                                  >
+                                    <Copy size={13} />
+                                    <span>Salin Nominal</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* STEP 3: FORM BUKTI TRANSFER & PENGIRIM */}
+                          <form onSubmit={handleSubmitTransferProof} className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                            <div className="flex items-center gap-2">
+                              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#138F81] text-white text-xs font-black">
+                                3
+                              </span>
+                              <h4 className="text-xs sm:text-sm font-black text-[#2D3436]">Unggah Struk TF & Identitas Pengirim</h4>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-xs font-bold text-slate-700 block mb-1">Tanggal Transfer *</label>
+                                <input
+                                  type="date"
+                                  value={transferDate}
+                                  onChange={(e) => setTransferDate(e.target.value)}
+                                  required
+                                  className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-[#2D3436] focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/40"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs font-bold text-slate-700 block mb-1">Bank Pengirim *</label>
+                                <input
+                                  type="text"
+                                  placeholder="BSI / BCA / BRI / Mandiri / DANA"
+                                  value={transferBank}
+                                  onChange={(e) => setTransferBank(e.target.value)}
+                                  required
+                                  className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-[#2D3436] focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/40"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs font-bold text-slate-700 block mb-1">Atas Nama Rekening Pengirim *</label>
+                                <input
+                                  type="text"
+                                  placeholder="Nama pemilik rekening pengirim"
+                                  value={transferSenderName}
+                                  onChange={(e) => setTransferSenderName(e.target.value)}
+                                  required
+                                  className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-[#2D3436] focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/40"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs font-bold text-slate-700 block mb-1">Nomor Rekening Pengirim (Opsional)</label>
+                                <input
+                                  type="text"
+                                  placeholder="Nomor rekening pengirim"
+                                  value={transferSenderRek}
+                                  onChange={(e) => setTransferSenderRek(e.target.value)}
+                                  className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-[#2D3436] focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/40"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-slate-700 block mb-1">Catatan Tambahan untuk Kasir (Opsional)</label>
+                              <input
+                                type="text"
+                                placeholder="Contoh: Titipan SPP 2 bulan dari ibu"
+                                value={transferNotes}
+                                onChange={(e) => setTransferNotes(e.target.value)}
+                                className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-[#2D3436] focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/40"
+                              />
+                            </div>
+
+                            {/* UPLOAD STRUK ZONE */}
+                            <div>
+                              <label className="text-xs font-bold text-slate-700 block mb-1">Foto Bukti Transfer (Struk ATM / M-Banking) *</label>
+                              <div className="relative border-2 border-dashed border-slate-300 hover:border-[#138F81] rounded-2xl p-4 text-center bg-white transition-colors">
+                                <input
+                                  type="file"
+                                  accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf"
+                                  onChange={handleFileChange}
+                                  required={!transferFile}
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                />
+                                {transferFilePreview ? (
+                                  <div className="flex flex-col items-center gap-2">
+                                    <img
+                                      src={transferFilePreview}
+                                      alt="Preview Struk"
+                                      className="max-h-44 rounded-xl object-contain border border-slate-200 shadow-xs"
+                                    />
+                                    <span className="text-[11px] font-bold text-emerald-700">✓ {transferFile?.name}</span>
+                                    <span className="text-[10px] text-slate-400">Klik untuk mengganti foto struk</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center py-4">
+                                    <UploadCloud size={36} className="text-[#138F81] mb-2" />
+                                    <span className="text-xs font-black text-[#2D3436]">Pilih atau Tarik Foto Bukti Transfer ke Sini</span>
+                                    <span className="text-[10px] text-slate-400 mt-1">Format: JPG, PNG, WEBP atau PDF (Maks. 5MB)</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <button
+                              type="submit"
+                              disabled={isSubmittingTransfer || selectedBillIds.length === 0}
+                              className="w-full py-3 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] disabled:opacity-50 text-white font-black text-xs sm:text-sm shadow-md shadow-[#138F81]/25 transition cursor-pointer flex items-center justify-center gap-2"
+                            >
+                              {isSubmittingTransfer ? (
+                                <>
+                                  <RefreshCw size={16} className="animate-spin" />
+                                  <span>Mengirim Bukti Transfer ke Kasir...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CreditCard size={16} />
+                                  <span>Kirim Bukti Pembayaran ke Bendahara 🚀</span>
+                                </>
+                              )}
+                            </button>
+                          </form>
+                        </div>
+
+                        {/* STATUS PENGAJUAN BUKTI TF (5 COLS) */}
+                        <div className="lg:col-span-5 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-xs sm:text-sm font-black text-[#2D3436]">
+                              Status Pengajuan Online ({verifikasiList.length})
+                            </h4>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (selectedChildId) {
+                                  const vRes = await api.waliGetVerifikasiPembayaran(selectedChildId);
+                                  if (vRes.success && Array.isArray(vRes.data)) {
+                                    setVerifikasiList(vRes.data);
+                                  }
+                                }
+                              }}
+                              className="text-[11px] font-bold text-[#138F81] hover:underline flex items-center gap-1 cursor-pointer"
+                            >
+                              <RefreshCw size={11} /> Refresh
+                            </button>
+                          </div>
+
+                          {verifikasiList.length === 0 ? (
+                            <div className="p-8 rounded-2xl bg-slate-50 border border-slate-200 text-center text-slate-400">
+                              <Receipt size={36} className="mx-auto mb-2 text-slate-300" />
+                              <p className="text-xs font-black text-[#2D3436]">Belum ada riwayat transfer online.</p>
+                              <p className="text-[11px] text-slate-500 mt-0.5">Bukti transfer yang Anda kirim akan muncul di sini beserta status ACC/Tolak dari bendahara.</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-3 max-h-[680px] overflow-y-auto pr-1 custom-scrollbar">
+                              {verifikasiList.map((item, idx) => {
+                                const isMenunggu = item.status === 'menunggu';
+                                const isDisetujui = item.status === 'disetujui';
+                                const isDitolak = item.status === 'ditolak';
+                                const totalNominal = Number(item.total_nominal || 0);
+                                const bills = Array.isArray(item.selected_bills) ? (item.selected_bills as ApiRecord[]) : [];
+
+                                return (
+                                  <div
+                                    key={item.id ? String(item.id) : idx}
+                                    className={`p-4 rounded-2xl border transition-all ${
+                                      isMenunggu
+                                        ? 'bg-amber-50/50 border-amber-200'
+                                        : isDisetujui
+                                        ? 'bg-emerald-50/50 border-emerald-200'
+                                        : 'bg-rose-50/50 border-rose-200'
+                                    }`}
+                                  >
+                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                      <div>
+                                        <span className="font-mono text-[11px] font-black text-[#2D3436]">
+                                          {String(item.kode_pengajuan || '-')}
+                                        </span>
+                                        <div className="text-[10px] text-slate-500 font-semibold">
+                                          TF: {String(item.tanggal_transfer || item.created_at || '-')}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        {isMenunggu && (
+                                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black border border-amber-300">
+                                            <Clock size={11} className="animate-spin" /> Menunggu Verifikasi
+                                          </span>
+                                        )}
+                                        {isDisetujui && (
+                                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black border border-emerald-300">
+                                            <CheckCircle2 size={11} /> Disetujui (Lunas)
+                                          </span>
+                                        )}
+                                        {isDitolak && (
+                                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 text-[10px] font-black border border-rose-300">
+                                            <XCircle size={11} /> Ditolak
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    <div className="text-sm font-black text-[#138F81] mb-2">
+                                      Rp {totalNominal.toLocaleString('id-ID')}
+                                      <span className="text-[10px] font-normal text-slate-500 ml-1">
+                                        (via {String(item.bank_pengirim || 'Bank')} a.n {String(item.nama_pengirim || '-')})
+                                      </span>
+                                    </div>
+
+                                    {/* BILLS CHIPS */}
+                                    <div className="flex flex-wrap gap-1 mb-2.5">
+                                      {bills.map((b, bIdx) => (
+                                        <span
+                                          key={bIdx}
+                                          className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[10px] font-bold text-slate-700"
+                                        >
+                                          {String(b.title || 'Pos Bayar')} (Rp {Number(b.amount || 0).toLocaleString('id-ID')})
+                                        </span>
+                                      ))}
+                                    </div>
+
+                                    {/* CATATAN PETUGAS / ALASAN PENOLAKAN */}
+                                    {Boolean(item.catatan_petugas) && (
+                                      <div className={`p-2.5 rounded-xl text-[11px] mb-2.5 ${
+                                        isDitolak
+                                          ? 'bg-rose-100 text-rose-800 font-bold border border-rose-200'
+                                          : 'bg-white text-slate-600 border border-slate-200'
+                                      }`}>
+                                        <span className="font-black">Catatan Bendahara:</span> {String(item.catatan_petugas)}
+                                      </div>
+                                    )}
+
+                                    {/* FOOTER ACTIONS & THUMBNAIL */}
+                                    {Boolean(item.bukti_url) && (
+                                      <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
+                                        <button
+                                          type="button"
+                                          onClick={() => setPreviewProofImage(String(item.bukti_url))}
+                                          className="text-xs font-bold text-[#138F81] hover:underline flex items-center gap-1 cursor-pointer"
+                                        >
+                                          <Eye size={13} /> Lihat Foto Struk
+                                        </button>
+                                        {Boolean(item.kode_transaksi) && (
+                                          <span className="text-[10px] font-mono text-emerald-700 font-bold">
+                                            No. TRX: {String(item.kode_transaksi)}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   ) : (
                     /* TAB 2 CONTENT: RIWAYAT TRANSAKSI & KWITANSI */
                     historyList.length === 0 ? (
@@ -1712,6 +2279,51 @@ export function WaliPortalPage() {
             setSecurityWarningDismissed(true);
           }}
         />
+      )}
+      {/* ========================================================================= */}
+      {/* 8. PREVIEW PROOF IMAGE MODAL */}
+      {/* ========================================================================= */}
+      {previewProofImage && (
+        <div
+          onClick={() => setPreviewProofImage(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs cursor-zoom-out animate-fadeIn"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-2xl w-full max-h-[90vh] bg-white rounded-3xl p-5 shadow-2xl border border-slate-200 flex flex-col items-center cursor-default space-y-3"
+          >
+            <div className="w-full flex items-center justify-between pb-3 border-b border-slate-100">
+              <span className="text-xs font-black text-[#2D3436] flex items-center gap-2">
+                <ImageIcon size={16} className="text-[#138F81]" /> Foto Bukti Struk Transfer Bank
+              </span>
+              <button
+                type="button"
+                onClick={() => setPreviewProofImage(null)}
+                className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-1 w-full flex items-center justify-center overflow-auto max-h-[70vh]">
+              <img
+                src={previewProofImage}
+                alt="Bukti Transfer"
+                className="max-w-full max-h-[65vh] object-contain rounded-xl shadow-md"
+              />
+            </div>
+            <div className="w-full pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+              <span className="text-slate-500 font-medium">Klik di luar atau tombol silang untuk menutup</span>
+              <a
+                href={previewProofImage}
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2 rounded-xl bg-[#138F81] text-white font-black hover:bg-[#0D7A6F] transition cursor-pointer"
+              >
+                Buka Resolusi Penuh ↗
+              </a>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

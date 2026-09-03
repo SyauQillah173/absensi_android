@@ -17,7 +17,15 @@ import {
   TrendingUp,
   UsersRound,
   WalletCards,
-  X
+  X,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Eye,
+  Search,
+  Image as ImageIcon,
+  Receipt,
+  XCircle
 } from 'lucide-react';
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
@@ -57,8 +65,9 @@ const monthLabels: Record<number, string> = {
 
 const tabs = [
   { id: 'today', label: 'Hari Ini' },
-  { id: 'history', label: 'Riwayat' },
+  { id: 'verifikasi', label: 'Verifikasi Transfer' },
   { id: 'student', label: 'Tagihan' },
+  { id: 'history', label: 'Riwayat' },
   { id: 'pemasukan_lain', label: 'Kas Masuk Lain' },
   { id: 'pengeluaran', label: 'Pengeluaran' },
   { id: 'types', label: 'Tipe Bayar' },
@@ -339,19 +348,34 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
 
   const visibleTabs = useMemo(() => {
     if (isBendahara1) {
-      return tabs.filter((t) => ['today', 'history', 'student'].includes(t.id));
+      return tabs.filter((t) => ['today', 'verifikasi', 'student', 'history'].includes(t.id));
     }
     return tabs;
   }, [isBendahara1]);
 
   useEffect(() => {
-    if (isBendahara1 && !['today', 'history', 'student'].includes(activeTab)) {
+    if (isBendahara1 && !['today', 'verifikasi', 'student', 'history'].includes(activeTab)) {
       setActiveTab('today');
     }
   }, [isBendahara1, activeTab]);
 
+  const [pendingVerifCount, setPendingVerifCount] = useState(0);
+
+  useEffect(() => {
+    api.adminGetVerifikasiPembayaran({ status: 'menunggu' })
+      .then((res) => {
+        if (res.counts && typeof res.counts === 'object') {
+          const c = res.counts as { menunggu?: number };
+          setPendingVerifCount(Number(c.menunggu || 0));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const pageHeaderInfo = useMemo(() => {
     switch (activeTab) {
+      case 'verifikasi':
+        return { subtitle: 'Persetujuan Pembayaran Online', title: 'Verifikasi Bukti Transfer Wali' };
       case 'settings':
         return { subtitle: 'Pengaturan & Struk', title: 'Pengaturan Struk / Nota' };
       case 'methods':
@@ -496,6 +520,35 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
 
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
 
+      {/* QUICK HORIZONTAL SUBTABS */}
+      <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-white/90 backdrop-blur-xs border border-slate-200/80 shadow-xs">
+        {visibleTabs.map((t) => {
+          const isActive = activeTab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => {
+                setActiveTab(t.id);
+                onTabChange?.(t.id);
+              }}
+              className={`px-4 py-2 text-xs font-black rounded-xl transition cursor-pointer flex items-center gap-1.5 ${
+                isActive
+                  ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25'
+                  : 'bg-transparent text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <span>{t.label}</span>
+              {t.id === 'verifikasi' && pendingVerifCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black animate-pulse">
+                  {pendingVerifCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
       {activeTab === 'today' || activeTab === 'history' ? (
         <>
           {isBendahara1 ? (
@@ -632,6 +685,14 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
         {isLoading ? <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-bold text-[#636E72]">Memuat data keuangan...</div> : null}
         {!isLoading && activeTab === 'today' ? <PaymentsTable rows={today} emptyText="Belum ada transaksi hari ini." onDeleteTransaction={(row) => setConfirmDelete({ id: num(row.id), type: row.source === 'legacy' ? 'legacy' : 'transaction', title: `Transaksi ${str(row.transaction_code ?? row.kode_transaksi)}` })} onDeleteItem={(item) => setConfirmDelete({ id: num(item.id), type: 'legacy', title: `Item ${str(item.nama)}` })} /> : null}
         {!isLoading && activeTab === 'history' ? <PaymentsTable rows={history} emptyText="Riwayat pembayaran masih kosong." onDeleteTransaction={(row) => setConfirmDelete({ id: num(row.id), type: row.source === 'legacy' ? 'legacy' : 'transaction', title: `Transaksi ${str(row.transaction_code ?? row.kode_transaksi)}` })} onDeleteItem={(item) => setConfirmDelete({ id: num(item.id), type: 'legacy', title: `Item ${str(item.nama)}` })} /> : null}
+        {!isLoading && activeTab === 'verifikasi' ? (
+          <VerifikasiTransferPanel
+            userId={session?.id ?? 0}
+            onReloadFinance={load}
+            showToast={showToast}
+            onPendingCountChange={(count) => setPendingVerifCount(count)}
+          />
+        ) : null}
         {!isLoading && activeTab === 'student' ? (
           <StudentBillingPanel
             students={students}
@@ -3590,3 +3651,603 @@ function ExportRecapModal({
     </div>
   );
 }
+
+interface VerifikasiTransferPanelProps {
+  userId: number;
+  onReloadFinance: () => Promise<void>;
+  showToast: (message: string, type?: 'success' | 'error') => void;
+  onPendingCountChange?: (count: number) => void;
+}
+
+export function VerifikasiTransferPanel({
+  userId,
+  onReloadFinance,
+  showToast,
+  onPendingCountChange,
+}: VerifikasiTransferPanelProps) {
+  const [items, setItems] = useState<ApiRecord[]>([]);
+  const [counts, setCounts] = useState({ total: 0, menunggu: 0, disetujui: 0, ditolak: 0 });
+  const [statusFilter, setStatusFilter] = useState<'all' | 'menunggu' | 'disetujui' | 'ditolak'>('menunggu');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Modals
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [approveTarget, setApproveTarget] = useState<ApiRecord | null>(null);
+  const [approveCatatan, setApproveCatatan] = useState('Disetujui via Verifikasi Online Kasir');
+  const [rejectTarget, setRejectTarget] = useState<ApiRecord | null>(null);
+  const [rejectAlasan, setRejectAlasan] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const fetchVerifications = async () => {
+    setIsLoading(true);
+    try {
+      const res = await api.adminGetVerifikasiPembayaran({
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        search: searchTerm || undefined,
+      });
+      if (res.success) {
+        const list = Array.isArray(res.data) ? (res.data as ApiRecord[]) : [];
+        setItems(list);
+        if (res.counts && typeof res.counts === 'object') {
+          const c = res.counts as { total: number; menunggu: number; disetujui: number; ditolak: number };
+          setCounts(c);
+          onPendingCountChange?.(Number(c.menunggu || 0));
+        }
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Gagal memuat daftar verifikasi', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVerifications();
+  }, [statusFilter]);
+
+  const handleSearchSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    fetchVerifications();
+  };
+
+  const handleApproveConfirm = async () => {
+    if (!approveTarget?.id) return;
+    setIsProcessing(true);
+    try {
+      const res = await api.adminApproveVerifikasiPembayaran(Number(approveTarget.id), {
+        catatan: approveCatatan,
+      });
+      if (res.success) {
+        showToast(res.message || '✅ Bukti transfer berhasil disetujui & dicatat!', 'success');
+        setApproveTarget(null);
+        await Promise.all([fetchVerifications(), onReloadFinance()]);
+      } else {
+        showToast(res.message || 'Gagal menyetujui bukti transfer', 'error');
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Gagal memproses persetujuan transfer', 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRejectConfirm = async () => {
+    if (!rejectTarget?.id) return;
+    if (!rejectAlasan.trim()) {
+      showToast('Mohon masukkan alasan penolakan untuk wali santri.', 'error');
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      const res = await api.adminRejectVerifikasiPembayaran(Number(rejectTarget.id), {
+        alasan: rejectAlasan,
+      });
+      if (res.success) {
+        showToast(res.message || 'Bukti transfer berhasil ditolak.', 'success');
+        setRejectTarget(null);
+        setRejectAlasan('');
+        await fetchVerifications();
+      } else {
+        showToast(res.message || 'Gagal menolak bukti transfer', 'error');
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Gagal memproses penolakan transfer', 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* STAT CARDS */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="p-5 rounded-2xl bg-amber-50/80 border border-amber-200/90 flex items-center gap-4 shadow-xs">
+          <div className="p-3.5 rounded-xl bg-amber-500 text-white shadow-md shadow-amber-500/20">
+            <Clock size={24} className="animate-spin" />
+          </div>
+          <div>
+            <span className="text-xs font-bold text-amber-900 block">Menunggu Verifikasi</span>
+            <span className="text-2xl font-black text-amber-800">{counts.menunggu} Pengajuan</span>
+            <span className="text-[10px] text-amber-700 block font-semibold mt-0.5">Perlu ditinjau kasir/bendahara</span>
+          </div>
+        </div>
+
+        <div className="p-5 rounded-2xl bg-emerald-50/80 border border-emerald-200/90 flex items-center gap-4 shadow-xs">
+          <div className="p-3.5 rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-600/20">
+            <CheckCircle2 size={24} />
+          </div>
+          <div>
+            <span className="text-xs font-bold text-emerald-900 block">Telah Disetujui (ACC)</span>
+            <span className="text-2xl font-black text-emerald-800">{counts.disetujui} Pengajuan</span>
+            <span className="text-[10px] text-emerald-700 block font-semibold mt-0.5">Otomatis tercatat di kasir</span>
+          </div>
+        </div>
+
+        <div className="p-5 rounded-2xl bg-rose-50/80 border border-rose-200/90 flex items-center gap-4 shadow-xs">
+          <div className="p-3.5 rounded-xl bg-rose-600 text-white shadow-md shadow-rose-600/20">
+            <XCircle size={24} />
+          </div>
+          <div>
+            <span className="text-xs font-bold text-rose-900 block">Ditolak / Tidak Valid</span>
+            <span className="text-2xl font-black text-rose-800">{counts.ditolak} Pengajuan</span>
+            <span className="text-[10px] text-rose-700 block font-semibold mt-0.5">Mutasi belum masuk / struk buram</span>
+          </div>
+        </div>
+      </div>
+
+      {/* FILTER CONTROLS & SEARCH */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setStatusFilter('menunggu')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
+              statusFilter === 'menunggu'
+                ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <Clock size={13} />
+            <span>Menunggu Review ({counts.menunggu})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('disetujui')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
+              statusFilter === 'disetujui'
+                ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <CheckCircle2 size={13} />
+            <span>Disetujui ({counts.disetujui})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('ditolak')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
+              statusFilter === 'ditolak'
+                ? 'bg-rose-600 text-white shadow-md shadow-rose-600/25'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <XCircle size={13} />
+            <span>Ditolak ({counts.ditolak})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('all')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer ${
+              statusFilter === 'all'
+                ? 'bg-slate-800 text-white shadow-md'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Semua ({counts.total})
+          </button>
+        </div>
+
+        <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cari santri / NIS / kode..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8 pr-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-[#f8fafc] text-[#2D3436] focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/40"
+            />
+          </div>
+          <button
+            type="submit"
+            className="p-2 rounded-xl bg-[#138F81] text-white hover:bg-[#0D7A6F] transition cursor-pointer"
+            title="Cari"
+          >
+            <Search size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={fetchVerifications}
+            className="p-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+            title="Muat Ulang"
+          >
+            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+          </button>
+        </form>
+      </div>
+
+      {/* DATA TABLE */}
+      {isLoading ? (
+        <div className="py-16 text-center text-slate-500 font-bold text-sm bg-white rounded-2xl border border-slate-200">
+          <RefreshCw size={24} className="mx-auto mb-2 text-[#138F81] animate-spin" />
+          Memuat data verifikasi bukti transfer...
+        </div>
+      ) : items.length === 0 ? (
+        <div className="py-16 text-center text-slate-400 bg-white rounded-2xl border border-slate-200">
+          <Receipt size={40} className="mx-auto mb-2 text-slate-300" />
+          <p className="text-sm font-black text-[#2D3436]">Tidak ada permohonan verifikasi transfer.</p>
+          <p className="text-xs text-slate-500 mt-1">Permohonan bukti transfer yang diunggah wali santri akan muncul di sini secara realtime.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-xs">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-slate-200 bg-[#E1EFF7] text-[#138F81] font-black uppercase text-[11px]">
+                <th className="py-3 pl-4 rounded-l-xl">No. Pengajuan</th>
+                <th className="py-3 px-3">Santri</th>
+                <th className="py-3 px-3">Pengirim (Wali)</th>
+                <th className="py-3 px-3">Pos Tagihan</th>
+                <th className="py-3 px-3 text-right">Total Transfer</th>
+                <th className="py-3 px-3 text-center">Bukti Struk</th>
+                <th className="py-3 px-3 text-center">Status</th>
+                <th className="py-3 pr-4 text-center rounded-r-xl">Aksi Kasir</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 font-medium">
+              {items.map((item, idx) => {
+                const isMenunggu = item.status === 'menunggu';
+                const isDisetujui = item.status === 'disetujui';
+                const isDitolak = item.status === 'ditolak';
+                const totalNominal = Number(item.total_nominal || 0);
+                const bills = Array.isArray(item.selected_bills) ? (item.selected_bills as ApiRecord[]) : [];
+                const s = item.siswa as ApiRecord | undefined;
+
+                return (
+                  <tr key={item.id ? String(item.id) : idx} className="hover:bg-[#F8FBFC] transition-colors">
+                    {/* KODE & TGL */}
+                    <td className="py-3.5 pl-4 font-mono font-black text-[#2D3436]">
+                      <div>{String(item.kode_pengajuan || '-')}</div>
+                      <span className="text-[10px] font-medium text-slate-500 font-sans block">
+                        TF: {String(item.tanggal_transfer || '-')}
+                      </span>
+                    </td>
+
+                    {/* SANTRI */}
+                    <td className="py-3.5 px-3">
+                      <div className="font-black text-[#2D3436] text-xs">{String(s?.nama || 'Santri')}</div>
+                      <div className="text-[10px] text-slate-500 font-semibold">
+                        NIS: {String(s?.nis || '-')} {s?.kelas ? `• Kelas: ${s.kelas}` : ''}
+                      </div>
+                    </td>
+
+                    {/* PENGIRIM */}
+                    <td className="py-3.5 px-3">
+                      <div className="font-bold text-[#2D3436]">{String(item.nama_pengirim || '-')}</div>
+                      <div className="text-[10px] text-slate-500">
+                        {String(item.bank_pengirim || 'Bank')} {item.nomor_rekening_pengirim ? `(${item.nomor_rekening_pengirim})` : ''}
+                      </div>
+                    </td>
+
+                    {/* BILLS CHIPS */}
+                    <td className="py-3.5 px-3">
+                      <div className="flex flex-wrap gap-1 max-w-xs">
+                        {bills.map((b, bIdx) => (
+                          <span
+                            key={bIdx}
+                            className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-200"
+                          >
+                            {String(b.title || 'Pos')} (Rp {Number(b.amount || 0).toLocaleString('id-ID')})
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+
+                    {/* TOTAL NOMINAL */}
+                    <td className="py-3.5 px-3 text-right font-black text-[#138F81] text-sm whitespace-nowrap">
+                      Rp {totalNominal.toLocaleString('id-ID')}
+                    </td>
+
+                    {/* THUMBNAIL FOTO STRUK */}
+                    <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                      {item.bukti_url ? (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewImage(String(item.bukti_url))}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition cursor-pointer"
+                        >
+                          <Eye size={12} className="text-[#138F81]" />
+                          <span>Lihat Struk</span>
+                        </button>
+                      ) : (
+                        <span className="text-slate-400 text-xs">-</span>
+                      )}
+                    </td>
+
+                    {/* STATUS */}
+                    <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                      {isMenunggu && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black border border-amber-300">
+                          <Clock size={11} className="animate-spin" /> Menunggu
+                        </span>
+                      )}
+                      {isDisetujui && (
+                        <div>
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black border border-emerald-300">
+                            <CheckCircle2 size={11} /> Disetujui
+                          </span>
+                          {Boolean(item.verifier_name) && (
+                            <span className="text-[9px] text-slate-500 block font-semibold mt-0.5">
+                              oleh: {String(item.verifier_name)}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {isDitolak && (
+                        <div>
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 text-[10px] font-black border border-rose-300">
+                            <XCircle size={11} /> Ditolak
+                          </span>
+                          {Boolean(item.catatan_petugas) && (
+                            <span className="text-[9px] text-rose-600 block font-semibold mt-0.5 max-w-[120px] truncate" title={String(item.catatan_petugas)}>
+                              {String(item.catatan_petugas)}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </td>
+
+                    {/* AKSI */}
+                    <td className="py-3.5 pr-4 text-center whitespace-nowrap">
+                      {isMenunggu ? (
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setApproveTarget(item);
+                              setApproveCatatan(`ACC Transfer Online #${item.kode_pengajuan}`);
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white text-xs font-black shadow-sm transition cursor-pointer flex items-center gap-1"
+                            title="ACC dan Catat Pembayaran ke Kasir"
+                          >
+                            <Check size={13} />
+                            <span>ACC</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRejectTarget(item);
+                              setRejectAlasan('');
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold border border-rose-200 transition cursor-pointer flex items-center gap-1"
+                            title="Tolak Bukti Transfer"
+                          >
+                            <X size={13} />
+                            <span>Tolak</span>
+                          </button>
+                        </div>
+                      ) : isDisetujui && item.payment_transaction_id ? (
+                        <button
+                          type="button"
+                          onClick={() => window.open(`/finance/print/${item.payment_transaction_id}`, '_blank', 'noopener,noreferrer')}
+                          className="px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-800 text-xs font-bold transition flex items-center gap-1 mx-auto"
+                        >
+                          <Printer size={13} /> Cetak Struk
+                        </button>
+                      ) : (
+                        <span className="text-slate-400 text-xs font-semibold">- Selesai -</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* MODAL ZOOM PROOF IMAGE */}
+      {previewImage && (
+        <div
+          onClick={() => setPreviewImage(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs cursor-zoom-out animate-fadeIn"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-2xl w-full max-h-[90vh] bg-white rounded-3xl p-5 shadow-2xl border border-slate-200 flex flex-col items-center cursor-default space-y-3"
+          >
+            <div className="w-full flex items-center justify-between pb-3 border-b border-slate-100">
+              <span className="text-xs font-black text-[#2D3436] flex items-center gap-2">
+                <ImageIcon size={16} className="text-[#138F81]" /> Foto Bukti Struk Transfer Bank
+              </span>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-1 w-full flex items-center justify-center overflow-auto max-h-[70vh]">
+              <img
+                src={previewImage}
+                alt="Bukti Struk Transfer"
+                className="max-w-full max-h-[65vh] object-contain rounded-xl shadow-md"
+              />
+            </div>
+            <div className="w-full pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+              <span className="text-slate-500 font-medium">Klik di luar atau tombol silang untuk menutup</span>
+              <a
+                href={previewImage}
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2 rounded-xl bg-[#138F81] text-white font-black hover:bg-[#0D7A6F] transition cursor-pointer"
+              >
+                Buka Resolusi Penuh ↗
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ACC / SETUJUI TRANSFER */}
+      {approveTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
+          <div className="relative max-w-md w-full bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-2xl bg-emerald-100 text-emerald-800 shrink-0">
+                <CheckCircle2 size={24} />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-[#2D3436]">ACC & Catat Pembayaran</h4>
+                <p className="text-xs text-slate-500">Konfirmasi persetujuan transfer online wali santri.</p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-bold">No. Pengajuan:</span>
+                <span className="font-mono font-black text-slate-800">{String(approveTarget.kode_pengajuan)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-bold">Santri:</span>
+                <span className="font-black text-slate-800">{String((approveTarget.siswa as ApiRecord)?.nama ?? '-')}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-bold">Total Transfer:</span>
+                <span className="font-black text-[#138F81] text-sm">
+                  Rp {Number(approveTarget.total_nominal || 0).toLocaleString('id-ID')}
+                </span>
+              </div>
+              <div className="pt-2 border-t border-slate-200 text-slate-600 font-medium">
+                Sistem akan otomatis membukukan kas masuk, melunasi tagihan santri, dan menerbitkan nomor transaksi kwitansi kasir.
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Catatan Tambahan Kasir (Opsional)</label>
+              <input
+                type="text"
+                value={approveCatatan}
+                onChange={(e) => setApproveCatatan(e.target.value)}
+                placeholder="Disetujui via verifikasi mutasi bank BSI"
+                className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-[#2D3436] focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/40"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={() => setApproveTarget(null)}
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={handleApproveConfirm}
+                className="px-5 py-2 text-xs font-black rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white shadow-md shadow-[#138F81]/25 transition cursor-pointer flex items-center gap-1.5"
+              >
+                {isProcessing ? (
+                  <>
+                    <RefreshCw size={13} className="animate-spin" /> Memproses...
+                  </>
+                ) : (
+                  <>
+                    <Check size={14} /> Ya, ACC & Lunaskan
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL TOLAK TRANSFER */}
+      {rejectTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
+          <div className="relative max-w-md w-full bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-2xl bg-rose-100 text-rose-800 shrink-0">
+                <AlertTriangle size={24} />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-[#2D3436]">Tolak Bukti Transfer</h4>
+                <p className="text-xs text-slate-500">Kirimkan alasan penolakan yang jelas untuk wali santri.</p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-rose-50/70 border border-rose-200 space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-rose-700 font-bold">No. Pengajuan:</span>
+                <span className="font-mono font-black text-rose-900">{String(rejectTarget.kode_pengajuan)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-rose-700 font-bold">Santri:</span>
+                <span className="font-black text-rose-900">{String((rejectTarget.siswa as ApiRecord)?.nama ?? '-')}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-rose-700 font-bold">Total:</span>
+                <span className="font-black text-rose-900">
+                  Rp {Number(rejectTarget.total_nominal || 0).toLocaleString('id-ID')}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Alasan Penolakan *</label>
+              <textarea
+                rows={3}
+                value={rejectAlasan}
+                onChange={(e) => setRejectAlasan(e.target.value)}
+                placeholder="Contoh: Dana belum masuk di mutasi rekening bank BSI per tanggal ini. Mohon periksa kembali bukti transaksi Anda."
+                required
+                className="w-full px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-white text-[#2D3436] focus:outline-hidden focus:ring-2 focus:ring-rose-500/40"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={() => setRejectTarget(null)}
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={handleRejectConfirm}
+                className="px-5 py-2 text-xs font-black rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/25 transition cursor-pointer flex items-center gap-1.5"
+              >
+                {isProcessing ? (
+                  <>
+                    <RefreshCw size={13} className="animate-spin" /> Memproses...
+                  </>
+                ) : (
+                  <>
+                    <X size={14} /> Kirim Penolakan
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+

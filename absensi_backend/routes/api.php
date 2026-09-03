@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\PaymentBillController;
 use App\Http\Controllers\Api\PaymentMethodController;
 use App\Http\Controllers\Api\PaymentPeriodTypeController;
 use App\Http\Controllers\Api\PaymentTypeController;
+use App\Http\Controllers\Api\PaymentVerificationController;
 use App\Http\Controllers\Api\PembayaranController;
 use App\Http\Controllers\Api\PemasukanLainController;
 use App\Http\Controllers\Api\PengeluaranController;
@@ -108,6 +109,8 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::get('wali/absensi-sholat', [WaliController::class, 'absensiSholat'])->middleware('permission:absensi,view');
         Route::get('wali/absensi-ngaji', [WaliController::class, 'absensiNgaji'])->middleware('permission:absensi,view');
         Route::get('wali/pembayaran', [WaliController::class, 'pembayaran'])->middleware('permission:pembayaran_wali,view');
+        Route::get('wali/pembayaran/verifikasi', [PaymentVerificationController::class, 'indexWali']);
+        Route::post('wali/pembayaran/verifikasi', [PaymentVerificationController::class, 'storeWali']);
         Route::get('wali/nilai', [WaliController::class, 'nilai'])->middleware('permission:nilai_wali,view');
         Route::get('wali/materi', [MateriController::class, 'materiAnak'])->middleware('permission:kegiatan_belajar,view');
         Route::get('wali/kegiatan', [KegiatanController::class, 'kegiatanWali'])->middleware('permission:kegiatan_belajar,view');
@@ -295,6 +298,9 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::get('pembayaran/transaksi/{paymentTransaction}', [PembayaranController::class, 'showTransaction'])->middleware('permission:keuangan,view');
         Route::delete('pembayaran/transaksi/{paymentTransaction}', [PembayaranController::class, 'destroyTransaction'])->middleware('permission:keuangan,delete');
         Route::post('pembayaran/transaksi/{paymentTransaction}/notify-wa', [PembayaranController::class, 'notifyWa'])->middleware('permission:keuangan,create');
+        Route::get('pembayaran/verifikasi', [PaymentVerificationController::class, 'indexAdmin'])->middleware('permission:keuangan,view');
+        Route::post('pembayaran/verifikasi/{id}/approve', [PaymentVerificationController::class, 'approve'])->middleware('permission:keuangan,approve');
+        Route::post('pembayaran/verifikasi/{id}/reject', [PaymentVerificationController::class, 'reject'])->middleware('permission:keuangan,approve');
         Route::apiResource('pembayaran', PembayaranController::class)->middleware('permission:keuangan,view');
 
         Route::get('payment-security-settings', [AdminPaymentSecuritySettingController::class, 'show']);
