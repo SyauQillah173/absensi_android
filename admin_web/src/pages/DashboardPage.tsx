@@ -185,12 +185,19 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance, onNavigateFinan
         void load(true);
       }
     };
-    const intervalId = window.setInterval(refreshVisibleDashboard, 12_000);
+    const handleDataUpdate = () => {
+      void load(true);
+    };
+
+    // Background periodic refresh 60 detik (sangat hemat resource dibanding 12 detik)
+    const intervalId = window.setInterval(refreshVisibleDashboard, 60_000);
     document.addEventListener('visibilitychange', refreshVisibleDashboard);
+    window.addEventListener('app:data-updated', handleDataUpdate);
 
     return () => {
       window.clearInterval(intervalId);
       document.removeEventListener('visibilitychange', refreshVisibleDashboard);
+      window.removeEventListener('app:data-updated', handleDataUpdate);
     };
   }, [load]);
 

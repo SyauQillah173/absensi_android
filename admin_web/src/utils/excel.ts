@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx-js-style';
 import type { ApiRecord } from '../services/api';
 
 function asText(value: unknown, fallback = '-'): string {
@@ -15,7 +14,7 @@ function safeSheetName(name: string): string {
   return name.replace(/[\\/?*[\]:]/g, ' ').slice(0, 31) || 'Rekap';
 }
 
-export function exportPrayerRekapExcel(rows: ApiRecord[], summary: ApiRecord, fileName = 'rekap_absensi_sholat.xlsx') {
+export async function exportPrayerRekapExcel(rows: ApiRecord[], summary: ApiRecord, fileName = 'rekap_absensi_sholat.xlsx') {
   const headers = ['No', 'Tanggal', "Waktu Jama'ah", 'Nama Santri', 'NIS', 'NISN', 'Kelas', 'Komplek', 'Kamar', 'Status', 'Petugas', 'Waktu Input'];
   const dataRows = rows.map((row, index) => [
     index + 1,
@@ -50,10 +49,10 @@ export function exportPrayerRekapExcel(rows: ApiRecord[], summary: ApiRecord, fi
       `${asNumber(summary.persentase_hadir)}%`
     ]
   ];
-  writeWorkbook(aoa, fileName, 'Rekap Sholat');
+  await writeWorkbook(aoa, fileName, 'Rekap Sholat');
 }
 
-export function exportMadinRekapExcel(rows: ApiRecord[], month: number, year: number, fileName = 'rekap_absensi_madin.xlsx') {
+export async function exportMadinRekapExcel(rows: ApiRecord[], month: number, year: number, fileName = 'rekap_absensi_madin.xlsx') {
   const headers = ['No', 'Nama Siswa/Santri', 'NIS', 'Kelas', 'Mapel', 'Hadir', 'Izin', 'Sakit', 'Alfa', 'Total', 'Kehadiran %', 'Petugas'];
   const dataRows = rows.map((row, index) => {
     const siswa = (row.siswa && typeof row.siswa === 'object' ? row.siswa : {}) as ApiRecord;
@@ -87,10 +86,10 @@ export function exportMadinRekapExcel(rows: ApiRecord[], month: number, year: nu
     ['Ringkasan', 'Hadir', 'Izin', 'Sakit', 'Alfa'],
     ['Total', { f: 'SUM(F5:F1048576)' }, { f: 'SUM(G5:G1048576)' }, { f: 'SUM(H5:H1048576)' }, { f: 'SUM(I5:I1048576)' }]
   ];
-  writeWorkbook(aoa, fileName, 'Rekap Madin');
+  await writeWorkbook(aoa, fileName, 'Rekap Madin');
 }
 
-export function exportNgajiRekapExcel(rows: ApiRecord[], summary: ApiRecord, fileName = 'rekap_absensi_ngaji.xlsx') {
+export async function exportNgajiRekapExcel(rows: ApiRecord[], summary: ApiRecord, fileName = 'rekap_absensi_ngaji.xlsx') {
   const headers = ['No', 'Tanggal', 'Sesi', 'Kitab', 'Nama Santri', 'NIS', 'Kelas', 'Komplek', 'Kamar', 'Status', 'Petugas', 'Waktu Input'];
   const dataRows = rows.map((row, index) => [
     index + 1,
@@ -126,10 +125,11 @@ export function exportNgajiRekapExcel(rows: ApiRecord[], summary: ApiRecord, fil
       `${asNumber(summary.persentase_hadir)}%`
     ]
   ];
-  writeWorkbook(aoa, fileName, 'Rekap Ngaji');
+  await writeWorkbook(aoa, fileName, 'Rekap Ngaji');
 }
 
-function writeWorkbook(aoa: unknown[][], fileName: string, sheetName: string) {
+async function writeWorkbook(aoa: unknown[][], fileName: string, sheetName: string) {
+  const XLSX = await import('xlsx-js-style');
   const workbook = XLSX.utils.book_new();
   const worksheet = XLSX.utils.aoa_to_sheet(aoa);
   worksheet['!cols'] = [

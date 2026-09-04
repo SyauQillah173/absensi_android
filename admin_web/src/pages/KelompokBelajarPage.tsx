@@ -88,12 +88,12 @@ export function KelompokBelajarPage() {
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
-    // 3. Periodic Background Auto-Refresh cerdas (setiap 15 detik saat tab aktif)
+    // 3. Periodic Background Auto-Refresh cerdas (setiap 60 detik saat tab aktif)
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible' && activeFormData === undefined) {
         void load(true);
       }
-    }, 15000);
+    }, 60000);
 
     return () => {
       window.removeEventListener('app:data-updated', handleDataUpdate);

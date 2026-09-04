@@ -119,11 +119,20 @@ export function GuruDashboardView({ session }: GuruDashboardViewProps) {
 
   useEffect(() => {
     void load();
-    // Fast realtime sync every 12 seconds
+    const handleDataUpdate = () => void load(true);
+    window.addEventListener('app:data-updated', handleDataUpdate);
+
+    // Periodic sync 60 detik saat tab aktif
     const interval = setInterval(() => {
-      void load(true);
-    }, 12000);
-    return () => clearInterval(interval);
+      if (document.visibilityState === 'visible') {
+        void load(true);
+      }
+    }, 60000);
+
+    return () => {
+      window.removeEventListener('app:data-updated', handleDataUpdate);
+      clearInterval(interval);
+    };
   }, [load]);
 
   // Update clock every second & auto-refresh when crossing minute boundaries

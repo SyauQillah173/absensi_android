@@ -1,6 +1,20 @@
-import * as XLSX from 'xlsx-js-style';
-import JSZip from 'jszip';
+import type * as XLSXType from 'xlsx-js-style';
 import { api, type ApiRecord } from '../services/api';
+
+let _xlsx: typeof import('xlsx-js-style') | null = null;
+async function ensureXLSX(): Promise<typeof import('xlsx-js-style')> {
+  if (!_xlsx) {
+    _xlsx = await import('xlsx-js-style');
+  }
+  return _xlsx;
+}
+
+const XLSX = {
+  get utils() { return _xlsx!.utils; },
+  get write() { return _xlsx!.write; },
+  get writeFile() { return _xlsx!.writeFile; },
+  get read() { return _xlsx!.read; }
+};
 
 export type ImportTemplateType = 'siswa' | 'guru' | 'user-admin' | 'user-wali' | 'user';
 
@@ -194,9 +208,9 @@ const styles = {
     fill: { fgColor: { rgb: 'E8F7F3' } },
     border: thinBorder('9DD8D0')
   }
-} satisfies Record<string, XLSX.CellStyle>;
+} satisfies Record<string, XLSXType.CellStyle>;
 
-function thinBorder(rgb: string): XLSX.CellStyle['border'] {
+function thinBorder(rgb: string): XLSXType.CellStyle['border'] {
   return {
     top: { style: 'thin', color: { rgb } },
     bottom: { style: 'thin', color: { rgb } },
@@ -320,6 +334,7 @@ function userChecks(): TemplateCheck[] {
 }
 
 export async function downloadImportTemplate(type: ImportTemplateType) {
+  await ensureXLSX();
   const master = type === 'siswa' ? await loadTemplateMasterData() : fallbackMasterData;
   const config = configFor(type, master);
   const workbook = XLSX.utils.book_new();
@@ -332,7 +347,7 @@ export async function downloadImportTemplate(type: ImportTemplateType) {
   downloadXlsx(output, config.fileName);
 }
 
-function buildTemplateSheet(config: TemplateConfig, master: TemplateMasterData): XLSX.WorkSheet {
+function buildTemplateSheet(config: TemplateConfig, master: TemplateMasterData): XLSXType.WorkSheet {
   const checkLabels = config.checks?.map((check) => check.label) ?? [];
   const headers = [...config.headers, ...checkLabels];
   const headerLabels = [
@@ -421,7 +436,7 @@ function buildCheckFormulas(config: TemplateConfig, headers: string[], rowNumber
   });
 }
 
-function buildMasterSheet(type: ImportTemplateType, master: TemplateMasterData): XLSX.WorkSheet {
+function buildMasterSheet(type: ImportTemplateType, master: TemplateMasterData): XLSXType.WorkSheet {
   const columns: MasterColumn[] = [
     { title: 'jenis_kelamin', values: ['L', 'P'] },
     { title: 'status', values: ['Aktif', 'Nonaktif', 'Lulus'] },
@@ -454,7 +469,7 @@ function buildMasterSheet(type: ImportTemplateType, master: TemplateMasterData):
   return worksheet;
 }
 
-function buildGuideSheet(type: ImportTemplateType): XLSX.WorkSheet {
+function buildGuideSheet(type: ImportTemplateType): XLSXType.WorkSheet {
   const rows = [
     ['PANDUAN IMPORT'],
     ['Gunakan sheet Template untuk mengisi data. Sheet Master hanya rujukan pilihan resmi.'],
@@ -557,12 +572,14 @@ function text(value: unknown): string {
   return String(value ?? '').trim();
 }
 
-function styleCell(worksheet: XLSX.WorkSheet, address: string, style: XLSX.CellStyle) {
-  const cell = worksheet[address] as XLSX.CellObject | undefined;
+function styleCell(worksheet: XLSXType.WorkSheet, address: string, style: XLSXType.CellStyle) {
+  const cell = worksheet[address] as XLSXType.CellObject | undefined;
   if (cell) cell.s = style;
 }
 
 async function addSiswaDropdownValidations(buffer: ArrayBuffer): Promise<ArrayBuffer> {
+  const JSZipMod = await import('jszip');
+  const JSZip = (JSZipMod.default || JSZipMod) as unknown as typeof import('jszip');
   const zip = await JSZip.loadAsync(buffer);
   const templateSheet = zip.file('xl/worksheets/sheet1.xml');
   if (!templateSheet) return buffer;
@@ -691,34 +708,31 @@ function escapeXml(value: string): string {
     .replace(/'/g, '&apos;');
 }
 
-function applyDateFormats(worksheet: XLSX.WorkSheet, headers: string[], dateHeaders: string[]) {
-  dateHeaders.forEach((header) => {
-    const index = headers.indexOf(header);
-    if (index < 0) return;
+function applyDateFormats(worksheet: XLSXType.WorkSheet, headers: string[], dateHeaders: string[]) {
+  headers.forEach((header, index) => {
+    if (!dateHeaders.includes(header)) return;
     for (let row = 5; row <= maxTemplateRows; row += 1) {
-      const cell = worksheet[`${colName(index)}${row}`] as XLSX.CellObject | undefined;
+      const cell = worksheet[`${colName(index)}${row}`] as XLSXType.CellObject | undefined;
       if (cell) cell.z = 'yyyy-mm-dd';
     }
   });
 }
 
-function applyTextFormats(worksheet: XLSX.WorkSheet, headers: string[], textHeaders: string[]) {
-  textHeaders.forEach((header) => {
-    const index = headers.indexOf(header);
-    if (index < 0) return;
+function applyTextFormats(worksheet: XLSXType.WorkSheet, headers: string[], textHeaders: string[]) {
+  headers.forEach((header, index) => {
+    if (!textHeaders.includes(header)) return;
     for (let row = 5; row <= maxTemplateRows; row += 1) {
-      const cell = worksheet[`${colName(index)}${row}`] as XLSX.CellObject | undefined;
-      if (cell) {
-        cell.z = '@';
-      }
+      const cell = worksheet[`${colName(index)}${row}`] as XLSXType.CellObject | undefined;
+      if (cell) cell.z = '@';
     }
   });
 }
 
-function applyPostalCodeFormulas(worksheet: XLSX.WorkSheet, headers: string[]) {
+function applyPostalCodeFormulas(worksheet: XLSXType.WorkSheet, headers: string[]) {
   const villageIndex = headers.indexOf('kelurahan');
   const postalIndex = headers.indexOf('kode_pos');
   if (villageIndex < 0 || postalIndex < 0) return;
+
   const villageCol = colName(villageIndex);
   const postalCol = colName(postalIndex);
   const provinceIndex = headers.indexOf('provinsi');
@@ -728,7 +742,7 @@ function applyPostalCodeFormulas(worksheet: XLSX.WorkSheet, headers: string[]) {
   const cityCol = cityIndex >= 0 ? colName(cityIndex) : '';
   const districtCol = districtIndex >= 0 ? colName(districtIndex) : '';
   for (let row = 5; row <= maxTemplateRows; row += 1) {
-    const cell = worksheet[`${postalCol}${row}`] as XLSX.CellObject | undefined;
+    const cell = worksheet[`${postalCol}${row}`] as XLSXType.CellObject | undefined;
     if (!cell) continue;
     const keyFormula = provinceCol && cityCol && districtCol
       ? `${provinceCol}${row}&"|"&${cityCol}${row}&"|"&${districtCol}${row}&"|"&${villageCol}${row}`
@@ -764,6 +778,7 @@ function colName(index: number): string {
 }
 
 export async function parseImportFile(file: File, type: ImportTemplateType, forcedRole?: 'admin' | 'guru' | 'wali'): Promise<ApiRecord[]> {
+  await ensureXLSX();
   const bytes = await file.arrayBuffer();
   const workbook = XLSX.read(bytes, { type: 'array' });
   const expectedHeaders = expectedHeadersFor(type);
@@ -806,7 +821,7 @@ export async function parseImportFile(file: File, type: ImportTemplateType, forc
   return parsed;
 }
 
-export function exportRowsExcel(rows: ApiRecord[], fileName: string, title: string, variant?: string) {
+export async function exportRowsExcel(rows: ApiRecord[], fileName: string, title: string, variant?: string) {
   if (rows.length === 0) return;
 
   const first = rows[0] || {};
@@ -910,6 +925,7 @@ export function exportRowsExcel(rows: ApiRecord[], fileName: string, title: stri
     ...dataRows,
   ];
 
+  await ensureXLSX();
   const workbook = XLSX.utils.book_new();
   const worksheet = XLSX.utils.aoa_to_sheet(aoa);
   worksheet['!cols'] = exportCols.map((c) => ({ wch: c.width }));

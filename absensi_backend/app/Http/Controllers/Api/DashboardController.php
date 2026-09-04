@@ -50,14 +50,15 @@ class DashboardController extends Controller
         }
 
         if ($actor && $actor->role === 'guru') {
-            return response()->json($this->withPermissions($this->buildGuruDashboard($actor, $today), $actor));
+            $guruData = Cache::remember("guru_dashboard_{$actor->id}_{$today}", 30, fn () => $this->buildGuruDashboard($actor, $today));
+            return response()->json($this->withPermissions($guruData, $actor));
         }
 
         if ($actor && $actor->role === 'wali') {
             return response()->json($this->withPermissions($this->buildWaliDashboard($actor, $today), $actor));
         }
 
-        $dashboardData = Cache::remember("admin_dashboard_{$today}", 15, fn () => $this->buildAdminDashboard($today));
+        $dashboardData = Cache::remember("admin_dashboard_{$today}", 60, fn () => $this->buildAdminDashboard($today));
 
         return response()->json($this->withPermissions($dashboardData, $actor));
     }

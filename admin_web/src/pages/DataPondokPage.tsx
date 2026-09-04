@@ -120,12 +120,12 @@ export function DataPondokPage() {
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
-    // 3. Periodic Background Auto-Refresh (setiap 15 detik)
+    // 3. Periodic Background Auto-Refresh (setiap 60 detik)
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible' && complexModal === null && roomModal === null && !assignOpen && !importOpen) {
         void load(true);
       }
-    }, 15000);
+    }, 60000);
 
     return () => {
       window.removeEventListener('app:data-updated', handleDataUpdate);
