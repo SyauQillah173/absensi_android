@@ -376,6 +376,7 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
             Route::get('registrations', [PmbController::class, 'getRegistrations']);
             Route::get('registrations/{id}', [PmbController::class, 'getRegistrationDetail']);
             Route::post('registrations/{id}/status', [PmbController::class, 'updateStatus']);
+            Route::post('registrations/{id}/resend-wa', [PmbController::class, 'resendWaNotification']);
             Route::post('registrations/{id}/convert-to-siswa', [PmbController::class, 'convertToSiswa']);
             Route::get('batches', [PmbController::class, 'getBatches']);
             Route::post('batches', [PmbController::class, 'storeBatch']);

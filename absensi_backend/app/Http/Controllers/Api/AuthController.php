@@ -210,14 +210,30 @@ class AuthController extends Controller
             }
         }
 
+        $cleanPhone = preg_replace('/[^0-9]/', '', $identifier);
+
         $user = User::whereRaw('LOWER(email) = ?', [$lowerId])
             ->orWhereRaw('LOWER(name) = ?', [$lowerId])
             ->orWhereRaw('LOWER(SPLIT_PART(email, \'@\', 1)) = ?', [$lowerId])
             ->orWhereRaw('LOWER(REPLACE(name, \' \', \'\')) = ?', [str_replace(' ', '', $lowerId)])
             ->orWhereRaw('LOWER(kode_guru) = ?', [$lowerId])
+            ->orWhereRaw('LOWER(nis) = ?', [$lowerId])
             ->orWhere('nis', $identifier)
             ->orWhere('nisn', $identifier)
+            ->when(strlen($cleanPhone) >= 8, function ($q) use ($identifier, $cleanPhone) {
+                $q->orWhere('no_hp', $identifier)
+                  ->orWhere('no_hp', $cleanPhone)
+                  ->orWhere('no_hp', '0' . substr($cleanPhone, 2))
+                  ->orWhere('no_hp', '62' . substr($cleanPhone, 1));
+            })
             ->first();
+
+        if (!$user && str_starts_with($lowerId, 'pmb-')) {
+            $pmb = \App\Models\PmbRegistration::whereRaw('LOWER(registration_number) = ?', [$lowerId])->first();
+            if ($pmb && $pmb->user_id) {
+                $user = User::find($pmb->user_id);
+            }
+        }
 
         if ($user) {
             return $user;

@@ -2,9 +2,11 @@ import {
   Award,
   BookOpen,
   Calendar,
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Copy,
   Download,
   Edit2,
   ExternalLink,
@@ -15,12 +17,15 @@ import {
   GraduationCap,
   HelpCircle,
   Home,
+  KeyRound,
   Layers,
+  MessageCircle,
   Phone,
   Plus,
   Printer,
   RefreshCw,
   Search,
+  Share2,
   ShieldCheck,
   Trash2,
   UserCheck,
@@ -84,6 +89,11 @@ interface RegistrationItem {
   converted_siswa_id: number | null;
   batch?: { id: number; nama_gelombang: string; tahun_akademik: string };
   siswa?: { id: number; nis: string; nama: string; kelas: string | null; kamar: string | null };
+  user_id?: number | null;
+  account_username?: string | null;
+  account_initial_password?: string | null;
+  wa_notif_sent?: boolean;
+  wa_notif_at?: string | null;
   created_at: string;
 }
 
@@ -156,6 +166,34 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
     is_active: true,
     keterangan: '',
   });
+
+  // Share & WA Resend states
+  const [hasCopiedLink, setHasCopiedLink] = useState(false);
+  const [resendingWaId, setResendingWaId] = useState<number | null>(null);
+
+  const getPublicPmbUrl = () => {
+    return `${window.location.origin}/?pmb=1`;
+  };
+
+  const handleCopyPmbLink = () => {
+    navigator.clipboard.writeText(getPublicPmbUrl());
+    setHasCopiedLink(true);
+    showToast('Link pendaftaran PMB publik berhasil disalin!');
+    setTimeout(() => setHasCopiedLink(false), 2500);
+  };
+
+  const handleResendWa = async (item: RegistrationItem) => {
+    setResendingWaId(item.id);
+    try {
+      const res = await api.post<{ message: string; data: any }>(`/pmb/admin/registrations/${item.id}/resend-wa`);
+      showToast(res.message || 'Notifikasi WhatsApp pendaftaran berhasil dikirim ulang.');
+      loadRegistrations();
+    } catch (e: any) {
+      showToast(e?.message || 'Gagal mengirim notifikasi WhatsApp', 'error');
+    } finally {
+      setResendingWaId(null);
+    }
+  };
 
   // Success / Error Toast
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -421,11 +459,20 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
           </div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Action Buttons: Copy Link PMB & View Web */}
         <div className="flex items-center gap-2">
           <button
-            onClick={() => window.open('/pmb', '_blank')}
-            className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/20 flex items-center gap-1.5 transition-colors"
+            onClick={handleCopyPmbLink}
+            className="px-3.5 py-2 rounded-xl bg-[#10B981]/25 hover:bg-[#10B981]/40 text-[#6EE7B7] text-xs font-bold border border-[#10B981]/40 flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+            title="Salin link pendaftaran online untuk dibagikan ke WhatsApp / Media Sosial"
+          >
+            {hasCopiedLink ? <Check className="w-3.5 h-3.5 text-[#4ADE80]" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{hasCopiedLink ? 'Link Tersalin!' : 'Salin Link PMB'}</span>
+          </button>
+
+          <button
+            onClick={() => window.open('/?pmb=1', '_blank')}
+            className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/20 flex items-center gap-1.5 transition-colors cursor-pointer"
             title="Buka tampilan formulir publik untuk calon santri"
           >
             <ExternalLink className="w-3.5 h-3.5 text-[#5EEAD4]" />
@@ -771,6 +818,20 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                                 <Eye className="w-3.5 h-3.5" />
                               </button>
 
+                              {/* Tombol Kirim Ulang WA */}
+                              <button
+                                onClick={() => handleResendWa(item)}
+                                disabled={resendingWaId === item.id}
+                                className={`p-1.5 rounded-lg transition-colors ${
+                                  item.wa_notif_sent
+                                    ? 'bg-[#25D366]/20 hover:bg-[#25D366]/30 text-[#25D366]'
+                                    : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300'
+                                }`}
+                                title={item.wa_notif_sent ? 'Kirim Ulang Notifikasi WA Akun & Pendaftaran' : 'Kirim Notifikasi WA Akun & Pendaftaran'}
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                              </button>
+
                               {/* Tombol Ubah Status */}
                               <button
                                 onClick={() => handleOpenStatusModal(item)}
@@ -967,13 +1028,23 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
               </div>
 
               <div className="p-4 rounded-2xl bg-[#061A15] border border-[#138F81]/30 space-y-2">
-                <div className="font-bold text-[#A7F3D0] border-b border-[#138F81]/30 pb-1">Orang Tua & Pilihan</div>
+                <div className="font-bold text-[#A7F3D0] border-b border-[#138F81]/30 pb-1">Orang Tua & Akun Login</div>
                 <div><span className="text-slate-400">Nama Wali:</span> {detailItem.nama_wali || detailItem.nama_ayah || '-'}</div>
                 <div><span className="text-slate-400">No. WA Wali:</span> <strong className="text-[#4ADE80] font-mono">{detailItem.no_whatsapp_wali}</strong></div>
-                <div><span className="text-slate-400">Nama Ayah:</span> {detailItem.nama_ayah || '-'} ({detailItem.pekerjaan_ayah || '-'})</div>
-                <div><span className="text-slate-400">Nama Ibu:</span> {detailItem.nama_ibu || '-'} ({detailItem.pekerjaan_ibu || '-'})</div>
-                <div><span className="text-slate-400">Pilihan Jenjang:</span> {detailItem.pilihan_jenjang}</div>
-                <div><span className="text-slate-400">Pilihan Asrama:</span> {detailItem.pilihan_asrama}</div>
+                <div><span className="text-slate-400">Username Login:</span> <strong className="text-white font-mono">{detailItem.account_username || detailItem.registration_number}</strong></div>
+                <div><span className="text-slate-400">Password Sistem:</span> <strong className="text-[#FCD34D] font-mono">{detailItem.account_initial_password || '-'}</strong></div>
+                <div><span className="text-slate-400">Status WA:</span> {detailItem.wa_notif_sent ? <span className="text-[#4ADE80] font-bold">Terkirim</span> : <span className="text-amber-400">Belum Terkirim</span>}</div>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    disabled={resendingWaId === detailItem.id}
+                    onClick={() => handleResendWa(detailItem)}
+                    className="w-full py-2 rounded-xl bg-[#25D366]/20 hover:bg-[#25D366]/30 text-[#25D366] border border-[#25D366]/40 text-xs font-bold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>{resendingWaId === detailItem.id ? 'Mengirim Pesan...' : 'Kirim Ulang Notifikasi WA'}</span>
+                  </button>
+                </div>
               </div>
             </div>
 

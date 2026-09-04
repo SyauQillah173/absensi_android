@@ -2,9 +2,11 @@ import {
   Award,
   BookOpen,
   Calendar,
+  Check,
   CheckCircle2,
   ChevronRight,
   Clock,
+  Copy,
   ExternalLink,
   FileCheck,
   FileText,
@@ -13,6 +15,7 @@ import {
   HelpCircle,
   Home,
   Info,
+  KeyRound,
   Landmark,
   LogIn,
   MapPin,
@@ -21,6 +24,8 @@ import {
   Printer,
   QrCode,
   Search,
+  Send,
+  Share2,
   ShieldCheck,
   Sparkles,
   Upload,
@@ -54,6 +59,9 @@ interface RegistrationResult {
   tanggal_daftar: string;
   status: string;
   no_whatsapp_wali: string;
+  username?: string;
+  random_password?: string;
+  wa_notif_sent?: boolean;
 }
 
 interface StatusCheckItem {
@@ -72,11 +80,49 @@ interface StatusCheckItem {
 }
 
 export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps) {
-  const [activeTab, setActiveTab] = useState<'beranda' | 'daftar' | 'status' | 'profil'>('beranda');
+  const [activeTab, setActiveTab] = useState<'beranda' | 'daftar' | 'status'>('beranda');
   const [activeBatch, setActiveBatch] = useState<ActiveBatch | null>(null);
-  const [totalRegistered, setTotalRegistered] = useState<number>(0);
+  const [totalRegistered, setTotalRegistered] = useState(0);
   const [quotaRemaining, setQuotaRemaining] = useState<number | null>(null);
   const [isLoadingInfo, setIsLoadingInfo] = useState(true);
+
+  // Share & Copy states
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [hasCopiedLink, setHasCopiedLink] = useState(false);
+  const [hasCopiedCredentials, setHasCopiedCredentials] = useState(false);
+
+  const getPublicPmbUrl = () => {
+    return `${window.location.origin}/?pmb=1`;
+  };
+
+  const handleCopyPmbLink = () => {
+    navigator.clipboard.writeText(getPublicPmbUrl());
+    setHasCopiedLink(true);
+    setTimeout(() => setHasCopiedLink(false), 2500);
+  };
+
+  const handleCopyCredentials = (username: string, pass: string) => {
+    const text = `Akun Login PMB Qomaruddin:\nUsername: ${username}\nPassword: ${pass}\nPortal: ${getPublicPmbUrl()}`;
+    navigator.clipboard.writeText(text);
+    setHasCopiedCredentials(true);
+    setTimeout(() => setHasCopiedCredentials(false), 2500);
+  };
+
+  const handleShareWhatsApp = () => {
+    const text = encodeURIComponent(
+      `*PENERIMAAN SANTRI BARU (PMB)*\n` +
+      `*PONDOK PESANTREN QOMARUDDIN*\n` +
+      `_Sampurnan, Bungah, Gresik, Jawa Timur (Sejak 1775 M)_\n\n` +
+      `Pendaftaran Santri Baru telah resmi dibuka untuk jenjang:\n` +
+      `• Madrasah Diniyah Salafiyah\n` +
+      `• Tahfidzul Qur'an 30 Juz Bersanad\n` +
+      `• Pendidikan Formal (MTs / MA / SMK / Universitas)\n\n` +
+      `Daftar online & informasi lengkap profil pondok dapat diakses di link resmi berikut:\n` +
+      `${getPublicPmbUrl()}\n\n` +
+      `Mari bersama menuntun putra/putri kita meraih ilmu agama yang berkah dan berakhlaqul karimah.`
+    );
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+  };
 
   // Form Registration State (Wizard Steps: 1, 2, 3, 4)
   const [formStep, setFormStep] = useState(1);
@@ -304,11 +350,20 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
               </button>
             </nav>
 
-            {/* Quick Actions: Login Portal Staff */}
-            <div className="flex items-center gap-3">
+            {/* Quick Actions: Share PMB & Login Portal Staff */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button
+                onClick={() => setIsShareModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl text-xs font-bold bg-[#10B981]/20 hover:bg-[#10B981]/30 text-[#6EE7B7] border border-[#10B981]/40 hover:border-[#6EE7B7] transition-all shadow-sm"
+                title="Bagikan Info PMB ke WhatsApp / Media Sosial"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Bagikan PMB</span>
+              </button>
+
               <button
                 onClick={onOpenLogin}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#138F81]/15 hover:bg-[#138F81]/30 text-[#A7F3D0] border border-[#138F81]/40 hover:border-[#4ADE80] transition-all duration-200 shadow-sm"
+                className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs font-bold bg-[#138F81]/15 hover:bg-[#138F81]/30 text-[#A7F3D0] border border-[#138F81]/40 hover:border-[#4ADE80] transition-all duration-200 shadow-sm"
               >
                 <LogIn className="w-4 h-4 text-[#4ADE80]" />
                 <span className="hidden sm:inline">Masuk Portal Pegawai</span>
@@ -571,40 +626,106 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
             {registrationSuccess ? (
               /* MODAL / VIEW SUKSES REGISTRASI */
               <div className="p-8 sm:p-10 rounded-3xl bg-[#092B23] border-2 border-[#4ADE80]/50 shadow-2xl text-center animate-in fade-in zoom-in-95 duration-300">
-                <div className="h-20 w-20 rounded-full bg-[#4ADE80]/20 text-[#4ADE80] flex items-center justify-center mx-auto mb-6 border border-[#4ADE80]/40">
+                <div className="h-20 w-20 rounded-full bg-[#4ADE80]/20 text-[#4ADE80] flex items-center justify-center mx-auto mb-6 border border-[#4ADE80]/40 shadow-lg shadow-[#4ADE80]/20">
                   <CheckCircle2 className="w-10 h-10" />
                 </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-[#4ADE80] bg-[#138F81]/30 px-3 py-1 rounded-full border border-[#4ADE80]/40">
-                  PENDAFTARAN BERHASIL DIKIRIM
+                <span className="text-xs font-bold uppercase tracking-wider text-[#4ADE80] bg-[#138F81]/30 px-3.5 py-1 rounded-full border border-[#4ADE80]/40">
+                  PENDAFTARAN ONLINE BERHASIL
                 </span>
                 <h2 className="text-2xl sm:text-3xl font-black text-white mt-4 mb-2">
                   Alhamdulillah, Selamat Datang!
                 </h2>
-                <p className="text-sm text-[#CBD5E1] max-w-md mx-auto mb-6">
-                  Data calon santri <strong className="text-white">{registrationSuccess.nama_lengkap}</strong> telah tersimpan di sistem PMB Pondok Pesantren Qomaruddin.
+                <p className="text-sm text-[#CBD5E1] max-w-lg mx-auto mb-6">
+                  Data calon santri <strong className="text-white font-bold">{registrationSuccess.nama_lengkap}</strong> telah resmi terdaftar di Sistem PMB Pondok Pesantren Qomaruddin.
                 </p>
 
-                {/* Card Nomor Registrasi */}
-                <div className="p-6 rounded-2xl bg-[#061A15] border border-[#138F81]/50 max-w-md mx-auto mb-8 shadow-inner">
-                  <div className="text-xs text-[#94A3B8] font-semibold">NOMOR REGISTRASI PMB:</div>
-                  <div className="text-3xl font-black text-[#FCD34D] tracking-widest my-1 select-all font-mono">
-                    {registrationSuccess.registration_number}
+                {/* Card Kredensial Login & Nomor Registrasi */}
+                <div className="p-6 rounded-2xl bg-[#061A15] border border-[#138F81]/60 max-w-md mx-auto mb-6 text-left shadow-2xl space-y-4">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wider text-[#94A3B8] font-bold">NOMOR REGISTRASI RESMI:</div>
+                    <div className="text-2xl sm:text-3xl font-black text-[#FCD34D] tracking-widest font-mono select-all mt-0.5">
+                      {registrationSuccess.registration_number}
+                    </div>
                   </div>
-                  <div className="text-[11px] text-[#A7F3D0]">
-                    Simpan nomor ini untuk cek kelulusan dan konfirmasi seleksi panitia.
+
+                  <div className="pt-3 border-t border-[#138F81]/30 space-y-2.5">
+                    <div className="flex items-center gap-1.5 text-xs font-extrabold text-[#4ADE80]">
+                      <KeyRound className="w-4 h-4" />
+                      <span>AKUN LOGIN PORTAL SANTRI & WALI:</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 bg-[#092B23] p-3 rounded-xl border border-[#138F81]/40 text-xs">
+                      <div>
+                        <span className="text-[#94A3B8] block text-[10px] uppercase font-bold">Username / ID</span>
+                        <strong className="text-white font-mono select-all text-xs">
+                          {registrationSuccess.username || registrationSuccess.registration_number}
+                        </strong>
+                      </div>
+                      <div>
+                        <span className="text-[#94A3B8] block text-[10px] uppercase font-bold">Password Sistem</span>
+                        <strong className="text-[#FCD34D] font-mono select-all text-xs">
+                          {registrationSuccess.random_password || 'Dibuat otomatis'}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCopyCredentials(
+                          registrationSuccess.username || registrationSuccess.registration_number,
+                          registrationSuccess.random_password || ''
+                        )
+                      }
+                      className="w-full py-2 rounded-xl bg-[#138F81]/20 hover:bg-[#138F81]/30 text-[#6EE7B7] text-xs font-bold border border-[#138F81]/40 flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      {hasCopiedCredentials ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-[#4ADE80]" />
+                          <span>Kredensial Berhasil Disalin!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Salin Username & Password</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* WhatsApp Notification Status */}
+                  <div className="pt-3 border-t border-[#138F81]/30">
+                    <div className="flex items-start gap-2 text-xs text-[#A7F3D0] bg-[#10B981]/15 p-2.5 rounded-xl border border-[#10B981]/30">
+                      <MessageCircle className="w-4 h-4 text-[#4ADE80] shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="block text-white font-semibold">Notifikasi WhatsApp Dikirimkan</strong>
+                        <span>
+                          Rincian akun login & konfirmasi pendaftaran telah dikirim ke nomor{' '}
+                          <strong className="text-white font-mono">{registrationSuccess.no_whatsapp_wali}</strong>.
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                   <button
                     onClick={() => {
                       setActiveTab('status');
                       setSearchKeyword(registrationSuccess.registration_number);
                     }}
-                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#138F81] hover:bg-[#16A394] text-white font-bold text-xs shadow-lg flex items-center justify-center gap-2"
+                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#138F81] hover:bg-[#16A394] text-white font-bold text-xs shadow-lg flex items-center justify-center gap-2 transition-colors cursor-pointer"
                   >
                     <Search className="w-4 h-4" />
-                    <span>Lacak Status Registrasi</span>
+                    <span>Lacak Status & Cetak Kartu</span>
+                  </button>
+
+                  <button
+                    onClick={onOpenLogin}
+                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-[#10B981] to-[#0D9488] hover:from-[#059669] hover:to-[#0F766E] text-white font-bold text-xs shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span>Masuk ke Portal Login</span>
                   </button>
 
                   <button
@@ -612,9 +733,9 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                       setRegistrationSuccess(null);
                       setFormStep(1);
                     }}
-                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#0F352C] hover:bg-[#138F81]/20 text-[#A7F3D0] font-bold text-xs border border-[#138F81]/40"
+                    className="w-full sm:w-auto px-5 py-3 rounded-xl bg-[#0F352C] hover:bg-[#138F81]/20 text-[#A7F3D0] font-bold text-xs border border-[#138F81]/40 transition-colors cursor-pointer"
                   >
-                    Daftar Santri Lainnya
+                    Daftar Santri Lain
                   </button>
                 </div>
               </div>
@@ -1367,11 +1488,90 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
             </div>
           </div>
 
-          <div className="border-t border-white/10 pt-6 text-center text-[11px] text-[#64748B]">
-            &copy; {new Date().getFullYear()} Yayasan Pondok Pesantren Qomaruddin Sampurnan Bungah Gresik. All Rights Reserved.
-          </div>
         </div>
       </footer>
+
+      {/* 🌟 MODAL BAGIKAN LINK PMB PUBLIK */}
+      {isShareModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-[#092B23] border border-[#138F81]/60 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl text-left relative">
+            <button
+              onClick={() => setIsShareModalOpen(false)}
+              className="absolute top-5 right-5 p-2 rounded-xl bg-[#061A15] hover:bg-[#138F81]/30 text-[#94A3B8] hover:text-white transition-all cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-2xl bg-[#10B981]/20 text-[#4ADE80] flex items-center justify-center border border-[#10B981]/40">
+                <Share2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-white">Bagikan Info PMB Online</h3>
+                <p className="text-xs text-[#A7F3D0]">Pondok Pesantren Qomaruddin Gresik</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-[#CBD5E1] leading-relaxed mb-6">
+              Sebarkan link pendaftaran santri baru kepada sanak saudara, kerabat, dan grup WhatsApp masyarakat:
+            </p>
+
+            {/* Input Link & Salin */}
+            <div className="mb-4">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#94A3B8] mb-1.5">
+                Link Resmi PMB Publik:
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={getPublicPmbUrl()}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#061A15] border border-[#138F81]/40 text-xs font-mono text-[#FCD34D] select-all outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleCopyPmbLink}
+                  className="px-4 py-2.5 rounded-xl bg-[#138F81] hover:bg-[#16A394] text-white text-xs font-bold shrink-0 flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  {hasCopiedLink ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-[#4ADE80]" />
+                      <span>Tersalin!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Salin</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Tombol Bagikan Langsung */}
+            <div className="space-y-2.5 pt-2">
+              <button
+                type="button"
+                onClick={handleShareWhatsApp}
+                className="w-full py-3 rounded-2xl bg-[#25D366] hover:bg-[#20BD5A] text-slate-900 text-xs font-black flex items-center justify-center gap-2 shadow-lg shadow-[#25D366]/20 transition-all cursor-pointer"
+              >
+                <MessageCircle className="w-4 h-4 text-slate-950" />
+                <span>Bagikan Langsung via WhatsApp</span>
+              </button>
+
+              <a
+                href="https://wa.me/6281234567890?text=Assalamu%27alaikum%20Panitia%20PMB%20Qomaruddin%2C%20saya%20ingin%20konsultasi%20pendaftaran"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-2.5 rounded-2xl bg-[#061A15] hover:bg-[#138F81]/20 text-[#A7F3D0] text-xs font-bold border border-[#138F81]/40 flex items-center justify-center gap-2 transition-all"
+              >
+                <Phone className="w-3.5 h-3.5 text-[#4ADE80]" />
+                <span>Hubungi Narahubung Panitia (0812-3456-7890)</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

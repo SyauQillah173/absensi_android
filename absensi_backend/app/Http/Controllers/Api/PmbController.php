@@ -10,12 +10,14 @@ use App\Models\SchoolClass;
 use App\Models\Siswa;
 use App\Models\User;
 use App\Services\ReferenceResolver;
+use App\Services\WhatsAppNotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -179,9 +181,31 @@ class PmbController extends Controller
             $ijazahPath = $file->storeAs('pmb/berkas', "{$regNumber}_ijazah.{$ext}", 'public');
         }
 
+        // Generate Password Acak untuk Akun Wali/Santri (Format: QMR + 4 digit angka acak)
+        $randomPassword = 'QMR' . mt_rand(1000, 9999);
+        $cleanPhone = preg_replace('/[^0-9]/', '', $validated['no_whatsapp_wali']);
+        $waliEmail = strtolower($regNumber) . '@pmb.qomaruddin.ponpes.id';
+
+        // Buat Akun Login Pengguna (Role: Wali)
+        $user = User::create([
+            'name' => $validated['nama_wali'] ?? ($validated['nama_ayah'] ?? $validated['nama_lengkap']),
+            'email' => $waliEmail,
+            'nis' => $regNumber,
+            'no_hp' => trim($validated['no_whatsapp_wali']),
+            'role' => 'wali',
+            'status' => 'Aktif',
+            'password' => Hash::make($randomPassword),
+            'password_current_encrypted' => Crypt::encryptString($randomPassword),
+            'password_default_encrypted' => Crypt::encryptString($randomPassword),
+            'must_change_password' => false,
+        ]);
+
         $registration = PmbRegistration::create([
             'registration_number' => $regNumber,
             'pmb_batch_id' => $batchId,
+            'user_id' => $user->id,
+            'account_username' => $regNumber,
+            'account_initial_password' => $randomPassword,
             'nama_lengkap' => trim($validated['nama_lengkap']),
             'nama_panggilan' => $validated['nama_panggilan'] ?? null,
             'jenis_kelamin' => $validated['jenis_kelamin'],
@@ -207,17 +231,71 @@ class PmbController extends Controller
             'dokumen_ijazah' => $ijazahPath ? "/storage/{$ijazahPath}" : null,
             'catatan_khusus' => $validated['catatan_khusus'] ?? null,
             'status' => 'pending',
+            'wa_notif_sent' => false,
         ]);
+
+        // Kirim Notifikasi Otomatis WhatsApp ke Nomor Wali Santri
+        $portalUrl = rtrim(config('app.url') ?: 'https://ppqomaruddin.itqom.net', '/') . '/?pmb=1';
+        $waMessage = "*PENERIMAAN SANTRI BARU (PMB)*\n"
+            . "*PONDOK PESANTREN QOMARUDDIN*\n"
+            . "_Sampurnan, Bungah, Gresik, Jawa Timur (Sejak 1775 M)_\n"
+            . "======================================\n\n"
+            . "Assalamu'alaikum Warahmatullahi Wabarakatuh,\n\n"
+            . "Yth. Bapak/Ibu Wali dari calon santri *{$registration->nama_lengkap}*,\n\n"
+            . "Alhamdulillah, formulir pendaftaran santri baru telah *BERHASIL KAMI TERIMA*.\n\n"
+            . "Berikut adalah rincian pendaftaran & akun login portal Anda:\n"
+            . "--------------------------------------\n"
+            . "📋 *No. Registrasi* : *{$regNumber}*\n"
+            . "👤 *Nama Santri*     : {$registration->nama_lengkap}\n"
+            . "📅 *Waktu Daftar*    : " . $registration->created_at->format('d M Y H:i') . " WIB\n"
+            . "🏢 *Pilihan Program* : {$registration->pilihan_jenjang}\n"
+            . "🏠 *Pilihan Asrama*  : {$registration->pilihan_asrama}\n\n"
+            . "🔐 *AKUN LOGIN PORTAL SANTRI*:\n"
+            . "• *Username / ID* : *{$regNumber}*\n"
+            . "• *Password*      : *{$randomPassword}*\n"
+            . "--------------------------------------\n\n"
+            . "🌐 *Lacak Status & Cetak Kartu Digital*:\n"
+            . "{$portalUrl}\n\n"
+            . "📌 *PANDUAN TAHAPAN SELANJUTNYA*:\n"
+            . "1. Simpan pesan ini baik-baik sebagai bukti pendaftaran resmi Anda.\n"
+            . "2. Anda dapat memantau proses verifikasi berkas dan pengumuman seleksi melalui link di atas menggunakan No. Registrasi atau No. WhatsApp Anda.\n"
+            . "3. Panitia PMB akan menghubungi nomor WhatsApp ini jika diperlukan verifikasi berkas susulan atau jadwal tes seleksi.\n\n"
+            . "Jazakumullahu Khairan Katsiran atas amanah dan kepercayaan Bapak/Ibu kepada Pondok Pesantren Qomaruddin.\n\n"
+            . "Wassalamu'alaikum Warahmatullahi Wabarakatuh.\n"
+            . "--------------------------------------\n"
+            . "*Panitia PMB Pondok Pesantren Qomaruddin*\n"
+            . "📞 Narahubung: 0812-3456-7890\n"
+            . "🌐 Website: https://ppqomaruddin.itqom.net";
+
+        $waSent = false;
+        try {
+            if (class_exists(WhatsAppNotificationService::class)) {
+                $notifService = app(WhatsAppNotificationService::class);
+                $log = $notifService->queueManual($registration->no_whatsapp_wali, $waMessage);
+                if ($log) {
+                    $waSent = true;
+                    $registration->update([
+                        'wa_notif_sent' => true,
+                        'wa_notif_at' => now(),
+                    ]);
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Gagal mengirim notifikasi WA PMB {$regNumber}: " . $e->getMessage());
+        }
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Pendaftaran online berhasil dikirim! Silakan simpan nomor registrasi Anda.',
+            'message' => 'Pendaftaran online berhasil dikirim! Akun login telah dibuat dan notifikasi dikirimkan ke WhatsApp Anda.',
             'data' => [
                 'registration_number' => $registration->registration_number,
                 'nama_lengkap' => $registration->nama_lengkap,
                 'tanggal_daftar' => $registration->created_at->format('d M Y H:i'),
                 'status' => $registration->status,
                 'no_whatsapp_wali' => $registration->no_whatsapp_wali,
+                'username' => $regNumber,
+                'random_password' => $randomPassword,
+                'wa_notif_sent' => $waSent,
             ]
         ], 201);
     }
@@ -417,6 +495,77 @@ class PmbController extends Controller
             'message' => "Status pendaftaran {$registration->registration_number} berhasil diperbarui menjadi {$validated['status']}.",
             'data' => $registration,
         ]);
+    }
+
+    /**
+     * [ADMIN] Kirim / Kirim Ulang Notifikasi WhatsApp Berisi Kredensial Akun Calon Santri
+     */
+    public function resendWaNotification($id): JsonResponse
+    {
+        $registration = PmbRegistration::with('user')->findOrFail($id);
+        $password = $registration->account_initial_password;
+
+        if (!$password) {
+            $password = 'QMR' . mt_rand(1000, 9999);
+            $registration->update(['account_initial_password' => $password]);
+            if ($registration->user) {
+                $registration->user->update([
+                    'password' => Hash::make($password),
+                    'password_current_encrypted' => Crypt::encryptString($password),
+                    'password_default_encrypted' => Crypt::encryptString($password),
+                ]);
+            }
+        }
+
+        $portalUrl = rtrim(config('app.url') ?: 'https://ppqomaruddin.itqom.net', '/') . '/?pmb=1';
+        $waMessage = "*PENERIMAAN SANTRI BARU (PMB)*\n"
+            . "*PONDOK PESANTREN QOMARUDDIN*\n"
+            . "_Sampurnan, Bungah, Gresik, Jawa Timur (Sejak 1775 M)_\n"
+            . "======================================\n\n"
+            . "Assalamu'alaikum Warahmatullahi Wabarakatuh,\n\n"
+            . "Yth. Bapak/Ibu Wali dari calon santri *{$registration->nama_lengkap}*,\n\n"
+            . "Berikut kami kirimkan kembali rincian pendaftaran & akun login portal Anda:\n"
+            . "--------------------------------------\n"
+            . "📋 *No. Registrasi* : *{$registration->registration_number}*\n"
+            . "👤 *Nama Santri*     : {$registration->nama_lengkap}\n"
+            . "🏢 *Pilihan Program* : {$registration->pilihan_jenjang}\n"
+            . "🏠 *Pilihan Asrama*  : {$registration->pilihan_asrama}\n\n"
+            . "🔐 *AKUN LOGIN PORTAL SANTRI*:\n"
+            . "• *Username / ID* : *{$registration->registration_number}*\n"
+            . "• *Password*      : *{$password}*\n"
+            . "--------------------------------------\n\n"
+            . "🌐 *Lacak Status & Cetak Kartu Digital*:\n"
+            . "{$portalUrl}\n\n"
+            . "📌 *Catatan*: Simpan informasi ini dengan baik untuk memantau status verifikasi dan seleksi santri baru.\n\n"
+            . "Wassalamu'alaikum Warahmatullahi Wabarakatuh.\n"
+            . "--------------------------------------\n"
+            . "*Panitia PMB Pondok Pesantren Qomaruddin*\n"
+            . "📞 Narahubung: 0812-3456-7890\n"
+            . "🌐 Website: https://ppqomaruddin.itqom.net";
+
+        try {
+            $notifService = app(WhatsAppNotificationService::class);
+            $notifService->queueManual($registration->no_whatsapp_wali, $waMessage);
+            $registration->update([
+                'wa_notif_sent' => true,
+                'wa_notif_at' => now(),
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => "Notifikasi WhatsApp berhasil dikirimkan ke {$registration->no_whatsapp_wali}",
+                'data' => [
+                    'username' => $registration->registration_number,
+                    'password' => $password,
+                    'wa_notif_sent' => true,
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengirim pesan WhatsApp: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**

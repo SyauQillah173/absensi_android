@@ -44,12 +44,19 @@ class PmbRegistration extends Model
         'verified_by',
         'is_converted',
         'converted_siswa_id',
+        'user_id',
+        'account_username',
+        'account_initial_password',
+        'wa_notif_sent',
+        'wa_notif_at',
     ];
 
     protected $casts = [
         'tanggal_lahir' => 'date:Y-m-d',
         'verified_at' => 'datetime',
         'is_converted' => 'boolean',
+        'wa_notif_sent' => 'boolean',
+        'wa_notif_at' => 'datetime',
     ];
 
     public function batch()
@@ -60,6 +67,11 @@ class PmbRegistration extends Model
     public function verifier()
     {
         return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     public function siswa()

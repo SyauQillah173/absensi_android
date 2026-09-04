@@ -37,8 +37,32 @@ function AdminShell() {
   const { isAuthenticated, canView, session, isItAdmin, isPmbAdmin } = useAuth();
   const [publicView, setPublicView] = useState<'login' | 'pmb'>(() => {
     const p = window.location.pathname.toLowerCase();
-    return (p.startsWith('/pmb') || p.startsWith('/santri-baru') || p.startsWith('/profil')) ? 'pmb' : 'login';
+    const s = window.location.search.toLowerCase();
+    const h = window.location.hash.toLowerCase();
+    return (
+      p.startsWith('/pmb') ||
+      p.startsWith('/santri-baru') ||
+      p.startsWith('/profil') ||
+      s.includes('pmb') ||
+      s.includes('santri-baru') ||
+      h.includes('pmb')
+    ) ? 'pmb' : 'login';
   });
+
+  const handleSwitchPublicView = (view: 'login' | 'pmb') => {
+    setPublicView(view);
+    try {
+      const url = new URL(window.location.href);
+      if (view === 'pmb') {
+        url.searchParams.set('pmb', '1');
+      } else {
+        url.searchParams.delete('pmb');
+      }
+      window.history.replaceState({}, '', url.toString());
+    } catch {
+      // safe fallback
+    }
+  };
 
   const [activePage, setActivePage] = useState<PageKey>(() => {
     if (session?.role === 'admin' && String(session?.admin_type || '').toLowerCase() === 'pmb') {
@@ -56,9 +80,9 @@ function AdminShell() {
     return (
       <Suspense fallback={<PageLoader />}>
         {publicView === 'pmb' ? (
-          <PublicPmbLandingPage onOpenLogin={() => setPublicView('login')} />
+          <PublicPmbLandingPage onOpenLogin={() => handleSwitchPublicView('login')} />
         ) : (
-          <LoginPage onOpenPmb={() => setPublicView('pmb')} />
+          <LoginPage onOpenPmb={() => handleSwitchPublicView('pmb')} />
         )}
       </Suspense>
     );

@@ -41,9 +41,34 @@ class WaliController extends Controller
             ->select('id', 'nis', 'nisn', 'nama', 'kelas', 'class_id', 'jenis_kelamin', 'status', 'student_status_id', 'kamar', 'komplek', 'foto')
             ->get();
 
+        $pmbData = null;
+        if ($siswa->isEmpty()) {
+            $pmb = \App\Models\PmbRegistration::with('batch:id,nama_gelombang,tahun_akademik')
+                ->where('user_id', $wali->id)
+                ->orWhere('no_whatsapp_wali', $wali->no_hp)
+                ->orWhere('registration_number', $wali->nis)
+                ->orderBy('id', 'desc')
+                ->first();
+
+            if ($pmb) {
+                $pmbData = [
+                    'id' => $pmb->id,
+                    'registration_number' => $pmb->registration_number,
+                    'nama_lengkap' => $pmb->nama_lengkap,
+                    'status' => $pmb->status,
+                    'is_converted' => $pmb->is_converted,
+                    'pilihan_jenjang' => $pmb->pilihan_jenjang,
+                    'pilihan_asrama' => $pmb->pilihan_asrama,
+                    'gelombang' => $pmb->batch ? $pmb->batch->nama_gelombang : null,
+                    'tanggal_daftar' => $pmb->created_at ? $pmb->created_at->format('d M Y H:i') : null,
+                ];
+            }
+        }
+
         return response()->json([
             'success' => true,
             'data' => $siswa,
+            'pmb' => $pmbData,
         ]);
     }
 
