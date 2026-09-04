@@ -296,6 +296,7 @@ class PermissionService
             ['id' => null, 'key' => 'mata_pelajaran', 'label' => 'Mata Pelajaran', 'group' => 'akademik', 'icon' => 'book', 'description' => null, 'sort_order' => 20, 'is_core' => false, 'is_active' => true],
             ['id' => null, 'key' => 'nilai', 'label' => 'Nilai Ujian/Hafalan', 'group' => 'akademik', 'icon' => 'award', 'description' => null, 'sort_order' => 30, 'is_core' => false, 'is_active' => true],
             ['id' => null, 'key' => 'keuangan', 'label' => 'Keuangan', 'group' => 'admin', 'icon' => 'wallet', 'description' => null, 'sort_order' => 40, 'is_core' => false, 'is_active' => true],
+            ['id' => null, 'key' => 'pmb', 'label' => 'PMB (Santri Baru)', 'group' => 'admin', 'icon' => 'user_plus', 'description' => 'Penerimaan Santri Baru', 'sort_order' => 45, 'is_core' => false, 'is_active' => true],
             ['id' => null, 'key' => 'buku_induk', 'label' => 'Buku Induk', 'group' => 'admin', 'icon' => 'users', 'description' => null, 'sort_order' => 50, 'is_core' => false, 'is_active' => true],
             ['id' => null, 'key' => 'data_diri_guru', 'label' => 'Data Diri Guru', 'group' => 'guru', 'icon' => 'badge', 'description' => null, 'sort_order' => 60, 'is_core' => false, 'is_active' => true],
             ['id' => null, 'key' => 'materi_kegiatan', 'label' => 'Materi & Kegiatan', 'group' => 'akademik', 'icon' => 'image', 'description' => null, 'sort_order' => 70, 'is_core' => false, 'is_active' => true],
@@ -326,6 +327,9 @@ class PermissionService
             if (in_array($type, ['it', 'pengurus', 'utama', 'superadmin'], true)) {
                 return 'admin_utama';
             }
+            if (in_array($type, ['pmb', 'admin_pmb'], true)) {
+                return 'admin_pmb';
+            }
             if (in_array($type, ['bendahara_2', 'kepala_bendahara'], true)) {
                 return 'admin_bendahara_2';
             }
@@ -351,6 +355,7 @@ class PermissionService
     {
         return [
             'admin_utama',
+            'admin_pmb',
             'admin_bendahara',
             'admin_bendahara_2',
             'admin_akademik',

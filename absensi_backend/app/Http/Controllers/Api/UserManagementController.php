@@ -413,7 +413,7 @@ class UserManagementController extends Controller
             'email' => $emailRule,
             'role' => $roleRule,
             'role_id' => 'nullable|integer|exists:roles,id',
-            'admin_type' => 'nullable|in:utama,bendahara,bendahara_1,bendahara_2,kasir,keuangan,madrasah,kepala_madrasah,kepala_sekolah,monitoring,akademik,pondok,absensi,it,pengurus,superadmin,umum,madin,ngaji,sholat,asrama,lainnya',
+            'admin_type' => 'nullable|in:utama,bendahara,bendahara_1,bendahara_2,kasir,keuangan,madrasah,kepala_madrasah,kepala_sekolah,monitoring,akademik,pondok,absensi,it,pengurus,superadmin,umum,madin,ngaji,sholat,asrama,pmb,admin_pmb,lainnya',
             'nis' => [
                 'nullable',
                 'string',

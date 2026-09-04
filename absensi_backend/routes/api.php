@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\PemasukanLainController;
 use App\Http\Controllers\Api\PengeluaranController;
 use App\Http\Controllers\Api\PenilaianController;
 use App\Http\Controllers\Api\PermissionController;
+use App\Http\Controllers\Api\PmbController;
 use App\Http\Controllers\Api\ReferenceController;
 use App\Http\Controllers\Api\RegionController;
 use App\Http\Controllers\Api\SiswaController;
@@ -73,6 +74,13 @@ Route::get('captcha', fn() => app('captcha')->create('default', true));
 Route::middleware('throttle:60,1')->group(function () {
     Route::post('login', [AuthController::class, 'login']);
     Route::post('change-password', [AuthController::class, 'changePassword']);
+});
+
+// PMB (Penerimaan Santri Baru) & Profil Pesantren - Public Endpoints
+Route::prefix('pmb')->group(function () {
+    Route::get('info', [PmbController::class, 'getInfo']);
+    Route::post('register', [PmbController::class, 'register'])->middleware('throttle:30,1');
+    Route::get('check-status', [PmbController::class, 'checkStatus']);
 });
 
 Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
@@ -361,6 +369,19 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::post('payment-period-types', [PaymentPeriodTypeController::class, 'store'])->middleware('permission:keuangan,create');
         Route::put('payment-period-types/{paymentPeriodType}', [PaymentPeriodTypeController::class, 'update'])->middleware('permission:keuangan,update');
         Route::delete('payment-period-types/{paymentPeriodType}', [PaymentPeriodTypeController::class, 'destroy'])->middleware('permission:keuangan,delete');
+
+        // PMB (Penerimaan Santri Baru) - Admin Endpoints
+        Route::prefix('pmb/admin')->group(function () {
+            Route::get('dashboard', [PmbController::class, 'getDashboard']);
+            Route::get('registrations', [PmbController::class, 'getRegistrations']);
+            Route::get('registrations/{id}', [PmbController::class, 'getRegistrationDetail']);
+            Route::post('registrations/{id}/status', [PmbController::class, 'updateStatus']);
+            Route::post('registrations/{id}/convert-to-siswa', [PmbController::class, 'convertToSiswa']);
+            Route::get('batches', [PmbController::class, 'getBatches']);
+            Route::post('batches', [PmbController::class, 'storeBatch']);
+            Route::put('batches/{id}', [PmbController::class, 'updateBatch']);
+            Route::delete('batches/{id}', [PmbController::class, 'deleteBatch']);
+        });
 
         Route::post('upload', [SiswaController::class, 'uploadFile'])->middleware('throttle:15,1');
     });

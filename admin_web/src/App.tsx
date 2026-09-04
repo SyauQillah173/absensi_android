@@ -21,6 +21,8 @@ const AccountPage = lazy(() => import('./pages/AccountPage').then((m) => ({ defa
 const ReceiptPrintPage = lazy(() => import('./pages/ReceiptPrintPage').then((m) => ({ default: m.ReceiptPrintPage })));
 const ExpensePrintPage = lazy(() => import('./pages/ExpensePrintPage').then((m) => ({ default: m.ExpensePrintPage })));
 const WaliPortalPage = lazy(() => import('./pages/WaliPortalPage').then((m) => ({ default: m.WaliPortalPage })));
+const PmbAdminPage = lazy(() => import('./pages/PmbAdminPage').then((m) => ({ default: m.PmbAdminPage })));
+const PublicPmbLandingPage = lazy(() => import('./pages/PublicPmbLandingPage').then((m) => ({ default: m.PublicPmbLandingPage })));
 
 function PageLoader() {
   return (
@@ -32,17 +34,32 @@ function PageLoader() {
 }
 
 function AdminShell() {
-  const { isAuthenticated, canView, session, isItAdmin } = useAuth();
-  const [activePage, setActivePage] = useState<PageKey>('dashboard');
+  const { isAuthenticated, canView, session, isItAdmin, isPmbAdmin } = useAuth();
+  const [publicView, setPublicView] = useState<'login' | 'pmb'>(() => {
+    const p = window.location.pathname.toLowerCase();
+    return (p.startsWith('/pmb') || p.startsWith('/santri-baru') || p.startsWith('/profil')) ? 'pmb' : 'login';
+  });
+
+  const [activePage, setActivePage] = useState<PageKey>(() => {
+    if (session?.role === 'admin' && String(session?.admin_type || '').toLowerCase() === 'pmb') {
+      return 'pmb';
+    }
+    return 'dashboard';
+  });
   const [masterSection, setMasterSection] = useState<BukuIndukSection>('siswa');
   const [financeTab, setFinanceTab] = useState<string>('today');
   const [absensiTab, setAbsensiTab] = useState<AbsensiTab>('log-realtime');
+  const [pmbTab, setPmbTab] = useState<string>('dashboard');
   const [absensiTarget, setAbsensiTarget] = useState<(AbsensiNavigationTarget & { key: number }) | undefined>();
 
   if (!isAuthenticated) {
     return (
       <Suspense fallback={<PageLoader />}>
-        <LoginPage />
+        {publicView === 'pmb' ? (
+          <PublicPmbLandingPage onOpenLogin={() => setPublicView('login')} />
+        ) : (
+          <LoginPage onOpenPmb={() => setPublicView('pmb')} />
+        )}
       </Suspense>
     );
   }
@@ -68,11 +85,12 @@ function AdminShell() {
     keuangan: 'keuangan',
     whatsapp: 'whatsapp_bot',
     nilai: 'nilai',
-    'hak-akses': 'hak_akses'
+    'hak-akses': 'hak_akses',
+    pmb: 'pmb',
   };
   const safePage = activePage === 'account' || canView(pagePermissionKeys[activePage] ?? activePage) ? activePage : 'dashboard';
 
-  function navigate(page: PageKey, options?: { masterSection?: BukuIndukSection; financeTab?: string; absensiTab?: AbsensiTab }) {
+  function navigate(page: PageKey, options?: { masterSection?: BukuIndukSection; financeTab?: string; absensiTab?: AbsensiTab; pmbTab?: string }) {
     setActivePage(page);
     if (page === 'absensi') {
       setAbsensiTarget(undefined);
@@ -86,6 +104,9 @@ function AdminShell() {
     if (page === 'keuangan') {
       setFinanceTab(options?.financeTab ?? 'today');
     }
+    if (page === 'pmb') {
+      setPmbTab(options?.pmbTab ?? 'dashboard');
+    }
   }
 
   return (
@@ -94,6 +115,7 @@ function AdminShell() {
       activeMasterSection={masterSection}
       activeFinanceTab={financeTab}
       activeAbsensiTab={absensiTab}
+      activePmbTab={pmbTab}
       onNavigate={navigate}
     >
       <Suspense fallback={<PageLoader />}>
@@ -130,6 +152,7 @@ function AdminShell() {
         {safePage === 'nilai' ? <NilaiHafalanPage /> : null}
         {safePage === 'hak-akses' && isItAdmin ? <HakAksesPage /> : null}
         {safePage === 'account' ? <AccountPage /> : null}
+        {safePage === 'pmb' ? <PmbAdminPage initialTab={pmbTab} onTabChange={setPmbTab} /> : null}
       </Suspense>
     </AdminLayout>
   );

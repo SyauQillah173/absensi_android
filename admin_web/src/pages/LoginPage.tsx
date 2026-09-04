@@ -2,7 +2,11 @@ import { ArrowRight, Eye, EyeOff, LockKeyhole, UserRound } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 
-export function LoginPage() {
+interface LoginPageProps {
+  onOpenPmb?: () => void;
+}
+
+export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
   const { login } = useAuth();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -147,6 +151,18 @@ export function LoginPage() {
               <span>{isSubmitting ? 'SIGNING IN...' : 'SIGN IN'}</span>
               {!isSubmitting && <ArrowRight size={16} />}
             </button>
+
+            {/* QUICK LINK TO PUBLIC PMB & PROFILE PORTAL */}
+            {onOpenPmb && (
+              <button
+                type="button"
+                onClick={onOpenPmb}
+                className="mt-3 w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 text-[#0f766e] text-xs font-bold border border-teal-200/80 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+              >
+                <span>🌟 Profil Pesantren & PMB Online</span>
+                <ArrowRight size={13} />
+              </button>
+            )}
           </form>
 
           {/* FOOTER TEXT */}
@@ -163,7 +179,6 @@ export function LoginPage() {
                 IT QOMARUDDIN ( ITQOM )
               </span>
             </div>
-
           </div>
 
 

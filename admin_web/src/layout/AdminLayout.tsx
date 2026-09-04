@@ -45,6 +45,7 @@ import {
   TrendingUp,
   UserCheck,
   UserCog,
+  UserPlus,
   UserRound,
   Users,
   UsersRound,
@@ -79,7 +80,8 @@ export type PageKey =
   | "whatsapp"
   | "nilai"
   | "hak-akses"
-  | "account";
+  | "account"
+  | "pmb";
 
 export interface MenuItem {
   key: string;
@@ -93,6 +95,7 @@ export interface MenuItem {
     masterSection?: BukuIndukSection;
     financeTab?: string;
     absensiTab?: AbsensiTab;
+    pmbTab?: string;
     itOnly?: boolean;
   }>;
 }
@@ -102,9 +105,10 @@ interface AdminLayoutProps {
   activeMasterSection?: BukuIndukSection;
   activeFinanceTab?: string;
   activeAbsensiTab?: AbsensiTab;
+  activePmbTab?: string;
   onNavigate: (
     page: PageKey,
-    options?: { masterSection?: BukuIndukSection; financeTab?: string; absensiTab?: AbsensiTab },
+    options?: { masterSection?: BukuIndukSection; financeTab?: string; absensiTab?: AbsensiTab; pmbTab?: string },
   ) => void;
   children: ReactNode;
 }
@@ -119,6 +123,16 @@ const allMenu: MenuItem[] = [
       { label: "Data Siswa/Santri", page: "master", masterSection: "siswa", icon: UserCheck },
       { label: "Data Santri Alumni", page: "master", masterSection: "alumni", icon: Award },
       { label: "Data Kamar Pondok", page: "master", masterSection: "pondok", icon: BedDouble },
+    ],
+  },
+  {
+    key: "pmb_menu",
+    label: "Penerimaan Santri (PMB)",
+    icon: UserPlus,
+    children: [
+      { label: "Dashboard PMB", page: "pmb", pmbTab: "dashboard", icon: Activity },
+      { label: "Data Calon Santri", page: "pmb", pmbTab: "applicants", icon: Users },
+      { label: "Gelombang Pendaftaran", page: "pmb", pmbTab: "batches", icon: CalendarRange },
     ],
   },
   {
@@ -217,6 +231,8 @@ const menuPermissionKeys: Record<string, string> = {
   whatsapp: "whatsapp_bot",
   "hak-akses": "hak_akses",
   account: "dashboard",
+  pmb_menu: "pmb",
+  pmb: "pmb",
 };
 
 export function AdminLayout({
@@ -224,10 +240,11 @@ export function AdminLayout({
   activeMasterSection = "siswa",
   activeFinanceTab = "today",
   activeAbsensiTab = "log-realtime",
+  activePmbTab = "dashboard",
   onNavigate,
   children,
 }: AdminLayoutProps) {
-  const { session, logout, canView, isGuru, isTreasurer, isKepalaSekolah, isItAdmin } = useAuth();
+  const { session, logout, canView, isGuru, isTreasurer, isKepalaSekolah, isItAdmin, isPmbAdmin } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -521,6 +538,36 @@ export function AdminLayout({
       ];
     }
 
+    // 3.5 Role Admin PMB: Khusus Penerimaan Santri Baru
+    if (isPmbAdmin) {
+      return [
+        {
+          key: "dashboard",
+          label: "Dashboard PMB",
+          icon: Home,
+          page: "pmb" as PageKey,
+        },
+        {
+          key: "pmb_menu",
+          label: "Penerimaan Santri (PMB)",
+          icon: UserPlus,
+          children: [
+            { label: "Dashboard PMB", page: "pmb" as PageKey, pmbTab: "dashboard", icon: Activity },
+            { label: "Data Calon Santri", page: "pmb" as PageKey, pmbTab: "applicants", icon: Users },
+            { label: "Gelombang Pendaftaran", page: "pmb" as PageKey, pmbTab: "batches", icon: CalendarRange },
+          ],
+        },
+        {
+          key: "pengaturan_sistem",
+          label: "Pengaturan & Sistem",
+          icon: Settings,
+          children: [
+            { label: "Pengaturan Akun", page: "account" as PageKey, icon: UserCog },
+          ],
+        },
+      ];
+    }
+
 
     // 4. Role Admin Utama & Pengurus: Full Access, tapi menu dengan itOnly HANYA untuk Admin IT
     return allMenu
@@ -635,10 +682,12 @@ export function AdminLayout({
                       (!child.financeTab ||
                         child.financeTab === activeFinanceTab) &&
                       (!child.absensiTab ||
-                        child.absensiTab === activeAbsensiTab);
+                        child.absensiTab === activeAbsensiTab) &&
+                      (!child.pmbTab ||
+                        child.pmbTab === activePmbTab);
                     return (
                       <button
-                        key={`${child.page}-${child.absensiTab ?? child.financeTab ?? child.masterSection ?? child.label}`}
+                        key={`${child.page}-${child.pmbTab ?? child.absensiTab ?? child.financeTab ?? child.masterSection ?? child.label}`}
                         className={`group flex min-h-8.5 w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-xs font-bold transition-all duration-150 ${
                           childActive
                             ? "bg-[#138F81] text-white shadow-md shadow-[#138F81]/25 font-extrabold"
@@ -649,6 +698,7 @@ export function AdminLayout({
                             masterSection: child.masterSection,
                             financeTab: child.financeTab,
                             absensiTab: child.absensiTab,
+                            pmbTab: child.pmbTab,
                           });
                           setMobileOpen(false);
                           setProfileOpen(false);

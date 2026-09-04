@@ -301,6 +301,27 @@ async function importRowsInBatches(path: string, rows: ApiRecord[]): Promise<Imp
 }
 
 export const api = {
+  get<T = any>(path: string, params?: Record<string, string | number | boolean | undefined | null>): Promise<ApiResponse<T>> {
+    return request<T>(path, { method: 'GET' }, params);
+  },
+  post<T = any>(path: string, body?: any): Promise<ApiResponse<T>> {
+    return request<T>(path, {
+      method: 'POST',
+      body: body !== undefined ? JSON.stringify(body) : undefined
+    });
+  },
+  put<T = any>(path: string, body?: any): Promise<ApiResponse<T>> {
+    return request<T>(path, {
+      method: 'PUT',
+      body: body !== undefined ? JSON.stringify(body) : undefined
+    });
+  },
+  delete<T = any>(path: string): Promise<ApiResponse<T>> {
+    return request<T>(path, { method: 'DELETE' });
+  },
+  postForm<T = any>(path: string, formData: FormData): Promise<ApiResponse<T>> {
+    return uploadRequest<T>(path, formData);
+  },
   getCaptcha() {
     return request<{ img: string; key: string }>('/captcha');
   },

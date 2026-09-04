@@ -34,6 +34,17 @@ export const SYSTEM_ROLE_OPTIONS: RoleOption[] = [
     tone: 'primary'
   },
   {
+    key: 'admin_pmb',
+    role: 'admin',
+    adminType: 'pmb',
+    label: 'Panitia PMB (Penerimaan Santri Baru)',
+    badge: 'Panitia PMB',
+    icon: '📝',
+    description: 'Petugas penerimaan santri baru: verifikasi berkas formulir calon santri, seleksi, dan penerimaan (ACC).',
+    loginView: 'Dashboard PMB + Kelola Data Pendaftar & ACC Santri Baru',
+    tone: 'primary'
+  },
+  {
     key: 'kepala_sekolah',
     role: 'admin',
     adminType: 'kepala_sekolah',
@@ -138,6 +149,7 @@ export function getRoleDisplayName(
   if (role === 'admin' || !role) {
     if (adminType === 'it' || adminType === 'admin_it') return 'Admin IT';
     if (adminType === 'pengurus' || adminType === 'admin_pengurus') return 'Admin Pengurus';
+    if (adminType === 'pmb' || adminType === 'admin_pmb') return 'Panitia PMB';
     if (
       adminType === 'kepala_sekolah' ||
       adminType === 'kepala_madrasah' ||
