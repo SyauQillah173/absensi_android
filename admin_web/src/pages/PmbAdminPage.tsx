@@ -78,23 +78,28 @@ interface RegistrationItem {
   pekerjaan_ibu: string | null;
   nama_wali: string | null;
   no_whatsapp_wali: string;
+  catatan_khusus: string | null;
   dokumen_foto: string | null;
   dokumen_kk: string | null;
-  dokumen_ijazah: string | null;
-  catatan_khusus: string | null;
   status: 'pending' | 'reviewed' | 'accepted' | 'rejected';
   catatan_admin: string | null;
-  verified_at: string | null;
   is_converted: boolean;
-  converted_siswa_id: number | null;
-  batch?: { id: number; nama_gelombang: string; tahun_akademik: string };
-  siswa?: { id: number; nis: string; nama: string; kelas: string | null; kamar: string | null };
+  siswa_id: number | null;
+  created_at: string;
   user_id?: number | null;
   account_username?: string | null;
   account_initial_password?: string | null;
   wa_notif_sent?: boolean;
   wa_notif_at?: string | null;
-  created_at: string;
+  batch?: {
+    id: number;
+    nama_gelombang: string;
+  };
+  siswa?: {
+    id: number;
+    nis: string;
+    nama: string;
+  };
 }
 
 interface BatchItem {
@@ -111,49 +116,50 @@ interface BatchItem {
 }
 
 export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdminPageProps) {
-  const [activeTab, setActiveTab] = useState<string>(initialTab);
+  const [activeTab, setActiveTab] = useState(initialTab);
 
-  // Tab 1: Dashboard Stats
+  // Data states
   const [dashboard, setDashboard] = useState<PmbDashboardData | null>(null);
-  const [isLoadingDashboard, setIsLoadingDashboard] = useState(false);
-
-  // Tab 2: Registrations List
   const [registrations, setRegistrations] = useState<RegistrationItem[]>([]);
-  const [totalItems, setTotalItems] = useState(0);
+  const [batches, setBatches] = useState<BatchItem[]>([]);
+  const [classesList, setClassesList] = useState<Array<{ id: number; name: string }>>([]);
+  const [roomsList, setRoomsList] = useState<Array<{ id: number; name: string }>>([]);
+
+  // Pagination & filter
   const [currentPage, setCurrentPage] = useState(1);
-  const [perPage, setPerPage] = useState(20);
+  const [perPage] = useState(15);
+  const [totalItems, setTotalItems] = useState(0);
   const [statusFilter, setStatusFilter] = useState('all');
   const [genderFilter, setGenderFilter] = useState('all');
   const [batchFilter, setBatchFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isLoadingList, setIsLoadingList] = useState(false);
 
-  // Modals & Action States
+  // Loading indicators
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(false);
+  const [isLoadingList, setIsLoadingList] = useState(false);
+  const [isLoadingBatches, setIsLoadingBatches] = useState(false);
+
+  // Detail Modal state
   const [detailItem, setDetailItem] = useState<RegistrationItem | null>(null);
+
+  // Convert to Siswa Modal state
   const [convertModalItem, setConvertModalItem] = useState<RegistrationItem | null>(null);
   const [convertForm, setConvertForm] = useState({
-    nis: '',
     class_id: '',
     boarding_room_id: '',
-    create_wali_user: true,
-    catatan_admin: 'Diterima resmi sebagai santri PP Qomaruddin.'
+    nis: '',
+    create_wali_user: true
   });
   const [isConverting, setIsConverting] = useState(false);
   const [convertResult, setConvertResult] = useState<any | null>(null);
 
-  // Status Modal
+  // Change Status Modal state
   const [statusModalItem, setStatusModalItem] = useState<RegistrationItem | null>(null);
   const [newStatus, setNewStatus] = useState<'pending' | 'reviewed' | 'accepted' | 'rejected'>('reviewed');
   const [statusAdminNote, setStatusAdminNote] = useState('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
-  // Master References for Conversion (Classes & Rooms)
-  const [classesList, setClassesList] = useState<Array<{ id: number; name: string }>>([]);
-  const [roomsList, setRoomsList] = useState<Array<{ id: number; name: string }>>([]);
-
-  // Tab 3: Batches
-  const [batches, setBatches] = useState<BatchItem[]>([]);
-  const [isLoadingBatches, setIsLoadingBatches] = useState(false);
+  // Batch Form Modal state
   const [batchModalOpen, setBatchModalOpen] = useState(false);
   const [editingBatch, setEditingBatch] = useState<BatchItem | null>(null);
   const [batchForm, setBatchForm] = useState({
@@ -162,40 +168,39 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
     tanggal_mulai: '',
     tanggal_selesai: '',
     biaya_pendaftaran: 150000,
-    kuota: 300,
+    kuota: 200,
     is_active: true,
-    keterangan: '',
+    keterangan: ''
   });
 
-  // Share & WA Resend states
-  const [hasCopiedLink, setHasCopiedLink] = useState(false);
+  // Resend WhatsApp state
   const [resendingWaId, setResendingWaId] = useState<number | null>(null);
-
-  const getPublicPmbUrl = () => {
-    return `${window.location.origin}/?pmb=1`;
-  };
+  const [hasCopiedLink, setHasCopiedLink] = useState(false);
 
   const handleCopyPmbLink = () => {
-    navigator.clipboard.writeText(getPublicPmbUrl());
+    const url = `${window.location.origin}/?pmb=1`;
+    navigator.clipboard.writeText(url);
     setHasCopiedLink(true);
-    showToast('Link pendaftaran PMB publik berhasil disalin!');
-    setTimeout(() => setHasCopiedLink(false), 2500);
+    setTimeout(() => setHasCopiedLink(false), 3000);
   };
 
   const handleResendWa = async (item: RegistrationItem) => {
     setResendingWaId(item.id);
     try {
-      const res = await api.post<{ message: string; data: any }>(`/pmb/admin/registrations/${item.id}/resend-wa`);
-      showToast(res.message || 'Notifikasi WhatsApp pendaftaran berhasil dikirim ulang.');
+      const res = await api.post(`/pmb/admin/registrations/${item.id}/resend-wa`, {});
+      showToast((res as any)?.message || `Notifikasi WhatsApp berhasil dikirim ke nomor ${item.no_whatsapp_wali}`);
       loadRegistrations();
+      if (detailItem && detailItem.id === item.id) {
+        setDetailItem(prev => prev ? { ...prev, wa_notif_sent: true } : null);
+      }
     } catch (e: any) {
-      showToast(e?.message || 'Gagal mengirim notifikasi WhatsApp', 'error');
+      showToast(e?.message || 'Gagal mengirim ulang notifikasi WhatsApp', 'error');
     } finally {
       setResendingWaId(null);
     }
   };
 
-  // Success / Error Toast
+  // Toast
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
@@ -254,34 +259,9 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
         setTotalItems(res.data.total || 0);
       }
     } catch (e: any) {
-      showToast(e?.message || 'Gagal memuat data pendaftar', 'error');
+      showToast(e?.message || 'Gagal memuat daftar pendaftar PMB', 'error');
     } finally {
       setIsLoadingList(false);
-    }
-  };
-
-  const loadReferenceOptions = async () => {
-    try {
-      // Load classes
-      const clsRes = await api.classes();
-      if (clsRes && Array.isArray(clsRes.data)) {
-        setClassesList(clsRes.data.map((c: any) => ({ id: Number(c.id), name: String(c.name || c.nama || '') })));
-      }
-      // Load complexes & rooms
-      const complexRes = await api.boardingComplexes();
-      if (complexRes && Array.isArray(complexRes.data)) {
-        const allRooms: Array<{ id: number; name: string }> = [];
-        complexRes.data.forEach((comp: any) => {
-          if (Array.isArray(comp.rooms)) {
-            comp.rooms.forEach((r: any) => {
-              allRooms.push({ id: Number(r.id), name: `${comp.name || ''} - ${r.name || ''}`.trim() });
-            });
-          }
-        });
-        setRoomsList(allRooms);
-      }
-    } catch (e) {
-      // Fallback
     }
   };
 
@@ -293,9 +273,24 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
         setBatches(res.data);
       }
     } catch (e: any) {
-      showToast(e?.message || 'Gagal memuat data gelombang PMB', 'error');
+      showToast(e?.message || 'Gagal memuat gelombang PMB', 'error');
     } finally {
       setIsLoadingBatches(false);
+    }
+  };
+
+  const loadReferenceOptions = async () => {
+    try {
+      const resClasses = await api.get<any[]>('/classes');
+      if (resClasses && resClasses.data) {
+        setClassesList(resClasses.data.map(c => ({ id: c.id, name: c.name || c.nama_kelas })));
+      }
+      const resRooms = await api.get<any[]>('/boarding-rooms');
+      if (resRooms && resRooms.data) {
+        setRoomsList(resRooms.data.map(r => ({ id: r.id, name: r.name || r.nama_kamar })));
+      }
+    } catch (e) {
+      console.warn('Gagal memuat opsi kelas/kamar:', e);
     }
   };
 
@@ -315,11 +310,11 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
     if (!statusModalItem) return;
     setIsUpdatingStatus(true);
     try {
-      await api.post(`/pmb/admin/registrations/${statusModalItem.id}/status`, {
+      await api.patch(`/pmb/admin/registrations/${statusModalItem.id}/status`, {
         status: newStatus,
-        catatan_admin: statusAdminNote,
+        catatan_admin: statusAdminNote
       });
-      showToast(`Status pendaftaran ${statusModalItem.registration_number} berhasil diperbarui.`);
+      showToast('Status seleksi calon santri berhasil diperbarui.');
       setStatusModalItem(null);
       loadRegistrations();
       if (activeTab === 'dashboard') loadDashboard();
@@ -334,11 +329,10 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
     setConvertModalItem(item);
     setConvertResult(null);
     setConvertForm({
-      nis: '',
       class_id: '',
       boarding_room_id: '',
-      create_wali_user: true,
-      catatan_admin: 'Diterima resmi sebagai santri PP Qomaruddin.'
+      nis: '',
+      create_wali_user: true
     });
   };
 
@@ -346,7 +340,7 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
     if (!convertModalItem) return;
     setIsConverting(true);
     try {
-      const res = await api.post<{ message: string; data: any }>(
+      const res = await api.post<any>(
         `/pmb/admin/registrations/${convertModalItem.id}/convert-to-siswa`,
         convertForm
       );
@@ -427,83 +421,83 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
       {/* 🌟 TOAST NOTIFICATION */}
       {toast && (
         <div
-          className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-2xl text-xs font-bold shadow-2xl flex items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-300 ${
+          className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-2xl text-xs font-black shadow-xl flex items-center gap-2 animate-in fade-in duration-300 ${
             toast.type === 'success'
-              ? 'bg-[#10B981] text-white shadow-[#10B981]/30'
+              ? 'bg-[#138F81] text-white shadow-[#138F81]/30'
               : 'bg-rose-600 text-white shadow-rose-600/30'
           }`}
         >
-          {toast.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <X className="w-4 h-4" />}
+          {toast.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-[#FFDC80]" /> : <X className="w-4 h-4" />}
           <span>{toast.message}</span>
         </div>
       )}
 
-      {/* 🌟 HEADER PMB ADMIN */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-3xl bg-gradient-to-br from-[#0B3A2C] via-[#092B23] to-[#061A15] border border-[#138F81]/40 shadow-xl">
+      {/* 🌟 HEADER PMB ADMIN (CARD PUTIH BERSIH SESUAI STANDAR ADMIN LAYOUT KITA) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 sm:p-7 rounded-3xl bg-white border border-slate-200/80 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-[#138F81]/25 border border-[#4ADE80]/40 flex items-center justify-center text-[#5EEAD4] shadow-lg shadow-[#138F81]/20">
+          <div className="h-14 w-14 rounded-2xl bg-[#FFDC80] text-[#0D7A6F] border border-amber-300 flex items-center justify-center shadow-xs">
             <UserPlus className="w-7 h-7" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-black text-[#2D3436] tracking-tight">
                 Penerimaan Santri Baru (PMB)
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#4ADE80]/20 text-[#4ADE80] border border-[#4ADE80]/40">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#FFDC80] text-[#0D7A6F] border border-amber-300">
                 TA 2026/2027
               </span>
             </div>
-            <p className="text-xs text-[#A7F3D0] mt-0.5">
+            <p className="text-xs text-[#636E72] font-medium mt-0.5">
               Portal Verifikasi, Seleksi Berkas, & 1-Klik ACC Santri Resmi Pondok Pesantren Qomaruddin
             </p>
           </div>
         </div>
 
-        {/* Action Buttons: Copy Link PMB & View Web */}
+        {/* Action Buttons: Salin Link & Lihat Web Publik */}
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopyPmbLink}
-            className="px-3.5 py-2 rounded-xl bg-[#10B981]/25 hover:bg-[#10B981]/40 text-[#6EE7B7] text-xs font-bold border border-[#10B981]/40 flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+            className="px-3.5 py-2 rounded-xl bg-white hover:bg-amber-50 text-[#0D7A6F] text-xs font-bold border border-amber-300 flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
             title="Salin link pendaftaran online untuk dibagikan ke WhatsApp / Media Sosial"
           >
-            {hasCopiedLink ? <Check className="w-3.5 h-3.5 text-[#4ADE80]" /> : <Copy className="w-3.5 h-3.5" />}
+            {hasCopiedLink ? <Check className="w-3.5 h-3.5 text-[#138F81]" /> : <Copy className="w-3.5 h-3.5" />}
             <span>{hasCopiedLink ? 'Link Tersalin!' : 'Salin Link PMB'}</span>
           </button>
 
           <button
             onClick={() => window.open('/?pmb=1', '_blank')}
-            className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/20 flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="px-4 py-2 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white text-xs font-black flex items-center gap-1.5 transition-all shadow-sm shadow-[#138F81]/25 cursor-pointer"
             title="Buka tampilan formulir publik untuk calon santri"
           >
-            <ExternalLink className="w-3.5 h-3.5 text-[#5EEAD4]" />
+            <ExternalLink className="w-3.5 h-3.5 text-[#FFDC80]" />
             <span>Lihat Web PMB Publik</span>
           </button>
         </div>
       </div>
 
-      {/* 🌟 NAVIGATION SUB-TABS */}
-      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-[#09251E] border border-[#138F81]/30 overflow-x-auto">
+      {/* 🌟 NAVIGATION SUB-TABS (KONSISTEN DENGAN TEMA APP KITA) */}
+      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs overflow-x-auto">
         <button
           onClick={() => setActiveTab('dashboard')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+          className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
             activeTab === 'dashboard'
-              ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/40'
-              : 'text-[#94A3B8] hover:text-white hover:bg-white/5'
+              ? 'bg-[#138F81] text-white shadow-xs'
+              : 'text-[#636E72] hover:bg-slate-100'
           }`}
         >
-          <Award className="w-3.5 h-3.5 text-[#5EEAD4]" />
+          <Award className="w-3.5 h-3.5 text-[#FFDC80]" />
           <span>Dashboard PMB</span>
         </button>
 
         <button
           onClick={() => setActiveTab('applicants')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+          className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
             activeTab === 'applicants'
-              ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/40'
-              : 'text-[#94A3B8] hover:text-white hover:bg-white/5'
+              ? 'bg-[#138F81] text-white shadow-xs'
+              : 'text-[#636E72] hover:bg-slate-100'
           }`}
         >
-          <Users className="w-3.5 h-3.5 text-[#FCD34D]" />
+          <Users className="w-3.5 h-3.5 text-[#FFDC80]" />
           <span>Data Calon Santri</span>
           {dashboard && dashboard.pending > 0 && (
             <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-rose-500 text-white animate-pulse">
@@ -514,13 +508,13 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
 
         <button
           onClick={() => setActiveTab('batches')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+          className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
             activeTab === 'batches'
-              ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/40'
-              : 'text-[#94A3B8] hover:text-white hover:bg-white/5'
+              ? 'bg-[#138F81] text-white shadow-xs'
+              : 'text-[#636E72] hover:bg-slate-100'
           }`}
         >
-          <Calendar className="w-3.5 h-3.5 text-[#6EE7B7]" />
+          <Calendar className="w-3.5 h-3.5 text-[#FFDC80]" />
           <span>Gelombang Pendaftaran</span>
         </button>
       </div>
@@ -530,65 +524,65 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
         <div className="space-y-6">
           {/* Top 4 Stat Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-5 rounded-2xl bg-[#092B23] border border-[#138F81]/40 shadow-lg">
-              <div className="flex items-center justify-between text-xs text-[#94A3B8] font-semibold mb-1">
+            <div className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-sm">
+              <div className="flex items-center justify-between text-xs text-[#636E72] font-bold mb-1">
                 <span>Total Pendaftar</span>
-                <Users className="w-4 h-4 text-[#5EEAD4]" />
+                <Users className="w-4 h-4 text-[#138F81]" />
               </div>
-              <div className="text-3xl font-black text-white">{dashboard?.total ?? 0}</div>
-              <div className="text-[11px] text-[#A7F3D0] mt-1">
+              <div className="text-3xl font-black text-[#2D3436]">{dashboard?.total ?? 0}</div>
+              <div className="text-[11px] text-[#0D7A6F] font-bold mt-1">
                 +{dashboard?.today ?? 0} calon santri baru hari ini
               </div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-[#092B23] border border-amber-500/40 shadow-lg">
-              <div className="flex items-center justify-between text-xs text-amber-300 font-semibold mb-1">
+            <div className="p-5 rounded-3xl bg-white border border-amber-200 shadow-sm">
+              <div className="flex items-center justify-between text-xs text-[#D97706] font-bold mb-1">
                 <span>Menunggu Verifikasi</span>
-                <HelpCircle className="w-4 h-4 text-amber-400" />
+                <HelpCircle className="w-4 h-4 text-[#D97706]" />
               </div>
-              <div className="text-3xl font-black text-amber-400">{dashboard?.pending ?? 0}</div>
-              <div className="text-[11px] text-amber-200/80 mt-1">Perlu ditinjau panitia PMB</div>
+              <div className="text-3xl font-black text-[#D97706]">{dashboard?.pending ?? 0}</div>
+              <div className="text-[11px] text-amber-700 font-semibold mt-1">Perlu ditinjau panitia PMB</div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-[#092B23] border border-[#10B981]/40 shadow-lg">
-              <div className="flex items-center justify-between text-xs text-[#A7F3D0] font-semibold mb-1">
+            <div className="p-5 rounded-3xl bg-white border border-emerald-200 shadow-sm">
+              <div className="flex items-center justify-between text-xs text-emerald-700 font-bold mb-1">
                 <span>Diterima / Lolos ACC</span>
-                <CheckCircle2 className="w-4 h-4 text-[#4ADE80]" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               </div>
-              <div className="text-3xl font-black text-[#4ADE80]">{dashboard?.accepted ?? 0}</div>
-              <div className="text-[11px] text-[#A7F3D0] mt-1">Resmi bergabung di pondok</div>
+              <div className="text-3xl font-black text-[#138F81]">{dashboard?.accepted ?? 0}</div>
+              <div className="text-[11px] text-emerald-800 font-semibold mt-1">Resmi bergabung di pondok</div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-[#092B23] border border-rose-500/40 shadow-lg">
-              <div className="flex items-center justify-between text-xs text-rose-300 font-semibold mb-1">
+            <div className="p-5 rounded-3xl bg-white border border-rose-200 shadow-sm">
+              <div className="flex items-center justify-between text-xs text-rose-600 font-bold mb-1">
                 <span>Perlu Perbaikan / Ditolak</span>
-                <X className="w-4 h-4 text-rose-400" />
+                <X className="w-4 h-4 text-rose-500" />
               </div>
-              <div className="text-3xl font-black text-rose-400">{dashboard?.rejected ?? 0}</div>
-              <div className="text-[11px] text-rose-200/80 mt-1">Berkas kurang lengkap / belum lolos</div>
+              <div className="text-3xl font-black text-rose-600">{dashboard?.rejected ?? 0}</div>
+              <div className="text-[11px] text-rose-700 font-semibold mt-1">Berkas kurang lengkap / belum lolos</div>
             </div>
           </div>
 
           {/* Gender & Program Breakdown */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-5 p-6 rounded-3xl bg-[#092B23] border border-[#138F81]/40 shadow-xl space-y-4">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Users className="w-4 h-4 text-[#5EEAD4]" />
+            <div className="lg:col-span-5 p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-4">
+              <h3 className="text-sm font-black text-[#2D3436] flex items-center gap-2">
+                <Users className="w-4 h-4 text-[#138F81]" />
                 <span>Proporsi Calon Santri Putra & Putri</span>
               </h3>
 
               <div className="space-y-3 pt-2">
                 <div>
-                  <div className="flex justify-between text-xs font-semibold mb-1">
-                    <span className="text-blue-300">👦 Santri Putra: {dashboard?.putra ?? 0}</span>
-                    <span className="text-white">
+                  <div className="flex justify-between text-xs font-bold mb-1">
+                    <span className="text-blue-700">👦 Santri Putra: {dashboard?.putra ?? 0}</span>
+                    <span className="text-[#2D3436]">
                       {dashboard?.total
                         ? Math.round(((dashboard?.putra ?? 0) / dashboard.total) * 100)
                         : 0}
                       %
                     </span>
                   </div>
-                  <div className="h-2.5 rounded-full bg-black/40 overflow-hidden">
+                  <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden">
                     <div
                       className="h-full bg-blue-500 rounded-full transition-all duration-500"
                       style={{
@@ -599,16 +593,16 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                 </div>
 
                 <div>
-                  <div className="flex justify-between text-xs font-semibold mb-1">
-                    <span className="text-pink-300">👧 Santri Putri: {dashboard?.putri ?? 0}</span>
-                    <span className="text-white">
+                  <div className="flex justify-between text-xs font-bold mb-1">
+                    <span className="text-pink-600">👧 Santri Putri: {dashboard?.putri ?? 0}</span>
+                    <span className="text-[#2D3436]">
                       {dashboard?.total
                         ? Math.round(((dashboard?.putri ?? 0) / dashboard.total) * 100)
                         : 0}
                       %
                     </span>
                   </div>
-                  <div className="h-2.5 rounded-full bg-black/40 overflow-hidden">
+                  <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden">
                     <div
                       className="h-full bg-pink-500 rounded-full transition-all duration-500"
                       style={{
@@ -619,14 +613,14 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-[#061A15] border border-[#138F81]/30 text-xs text-[#CBD5E1]">
-                💡 <strong>Catatan Panitia:</strong> Asrama putra dan putri memiliki kapasitas terpisah. Pastikan kamar asrama sesuai dengan jenis kelamin calon santri saat proses ACC.
+              <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 text-xs text-[#636E72] font-medium">
+                💡 <strong className="text-[#2D3436]">Catatan Panitia:</strong> Asrama putra dan putri memiliki kapasitas terpisah. Pastikan kamar asrama sesuai dengan jenis kelamin calon santri saat proses ACC.
               </div>
             </div>
 
-            <div className="lg:col-span-7 p-6 rounded-3xl bg-[#092B23] border border-[#138F81]/40 shadow-xl space-y-4">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-[#FCD34D]" />
+            <div className="lg:col-span-7 p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-4">
+              <h3 className="text-sm font-black text-[#2D3436] flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-[#D97706]" />
                 <span>Peminatan Program Pendidikan</span>
               </h3>
 
@@ -635,16 +629,16 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                   dashboard.jenjang_stats.map((j, i) => (
                     <div
                       key={i}
-                      className="p-3.5 rounded-xl bg-[#061A15] border border-[#138F81]/30 flex items-center justify-between text-xs"
+                      className="p-3.5 rounded-xl bg-[#F8FAFC] border border-slate-200 flex items-center justify-between text-xs"
                     >
-                      <span className="font-semibold text-white">{j.pilihan_jenjang}</span>
-                      <span className="font-black px-2.5 py-1 rounded-lg bg-[#138F81]/30 text-[#5EEAD4]">
+                      <span className="font-bold text-[#2D3436]">{j.pilihan_jenjang}</span>
+                      <span className="font-black px-2.5 py-1 rounded-lg bg-[#FFDC80] text-[#0D7A6F] border border-amber-300">
                         {j.total} Santri
                       </span>
                     </div>
                   ))
                 ) : (
-                  <div className="text-xs text-[#94A3B8] text-center py-6">Belum ada data pendaftar.</div>
+                  <div className="text-xs text-[#636E72] text-center py-6">Belum ada data pendaftar.</div>
                 )}
               </div>
             </div>
@@ -656,7 +650,7 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
       {activeTab === 'applicants' && (
         <div className="space-y-4">
           {/* Filter Bar */}
-          <div className="p-4 rounded-2xl bg-[#092B23] border border-[#138F81]/30 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="p-4 rounded-3xl bg-white border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
             {/* Search Input */}
             <form onSubmit={handleSearchSubmit} className="flex-1 max-w-md">
               <div className="relative">
@@ -665,9 +659,9 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Cari nama santri, no registrasi, WA, kota..."
-                  className="w-full px-4 py-2 pl-9 rounded-xl bg-[#061A15] border border-[#138F81]/40 focus:border-[#4ADE80] text-xs text-white placeholder-slate-500 outline-none"
+                  className="w-full px-4 py-2 pl-9 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-xs text-[#2D3436] outline-none"
                 />
-                <Search className="w-4 h-4 text-[#4ADE80] absolute left-3 top-2.5" />
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
               </div>
             </form>
 
@@ -676,7 +670,7 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
               <select
                 value={statusFilter}
                 onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-                className="px-3 py-2 rounded-xl bg-[#061A15] border border-[#138F81]/40 text-xs text-white outline-none"
+                className="px-3 py-2 rounded-xl bg-[#F8FAFC] border border-slate-200 text-xs text-[#2D3436] font-medium outline-none"
               >
                 <option value="all">Semua Status</option>
                 <option value="pending">Menunggu Review</option>
@@ -688,7 +682,7 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
               <select
                 value={genderFilter}
                 onChange={(e) => { setGenderFilter(e.target.value); setCurrentPage(1); }}
-                className="px-3 py-2 rounded-xl bg-[#061A15] border border-[#138F81]/40 text-xs text-white outline-none"
+                className="px-3 py-2 rounded-xl bg-[#F8FAFC] border border-slate-200 text-xs text-[#2D3436] font-medium outline-none"
               >
                 <option value="all">Semua Gender</option>
                 <option value="L">Putra (L)</option>
@@ -697,7 +691,7 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
 
               <button
                 onClick={loadRegistrations}
-                className="p-2 rounded-xl bg-[#061A15] hover:bg-[#138F81]/20 text-[#A7F3D0] border border-[#138F81]/40 transition-colors"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#2D3436] transition-colors cursor-pointer"
                 title="Refresh Data"
               >
                 <RefreshCw className="w-4 h-4" />
@@ -705,19 +699,19 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
 
               <button
                 onClick={handleExportExcel}
-                className="px-3.5 py-2 rounded-xl bg-[#10B981]/20 hover:bg-[#10B981]/30 text-[#6EE7B7] font-bold text-xs border border-[#10B981]/40 flex items-center gap-1.5 transition-colors"
+                className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-300 flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                <Download className="w-3.5 h-3.5" />
+                <Download className="w-3.5 h-3.5 text-emerald-700" />
                 <span>Export Excel</span>
               </button>
             </div>
           </div>
 
-          {/* Table */}
-          <div className="rounded-3xl bg-[#092B23] border border-[#138F81]/40 overflow-hidden shadow-xl">
+          {/* Table Container */}
+          <div className="rounded-3xl bg-white border border-slate-200/80 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-[#061A15] text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#138F81]/30">
+                <thead className="bg-[#F8FAFC] text-[#636E72] font-black uppercase tracking-wider border-b border-slate-200">
                   <tr>
                     <th className="px-4 py-3.5">No. Reg</th>
                     <th className="px-4 py-3.5">Nama Santri</th>
@@ -729,7 +723,7 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                     <th className="px-4 py-3.5 text-center">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#138F81]/20 text-[#CBD5E1]">
+                <tbody className="divide-y divide-slate-100 text-[#2D3436]">
                   {isLoadingList ? (
                     <tr>
                       <td colSpan={8} className="py-12 text-center text-slate-400">
@@ -749,52 +743,52 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                       const isConverted = item.is_converted;
 
                       return (
-                        <tr key={item.id} className="hover:bg-white/5 transition-colors">
-                          <td className="px-4 py-3.5 font-mono font-bold text-[#FCD34D] whitespace-nowrap">
+                        <tr key={item.id} className="hover:bg-amber-50/50 transition-colors">
+                          <td className="px-4 py-3.5 font-mono font-black text-[#138F81] whitespace-nowrap">
                             {item.registration_number}
                           </td>
                           <td className="px-4 py-3.5 whitespace-nowrap">
-                            <div className="font-bold text-white">{item.nama_lengkap}</div>
+                            <div className="font-bold text-[#2D3436]">{item.nama_lengkap}</div>
                             {item.nama_panggilan && (
-                              <div className="text-[10px] text-[#94A3B8]">({item.nama_panggilan})</div>
+                              <div className="text-[10px] text-[#636E72]">({item.nama_panggilan})</div>
                             )}
                           </td>
                           <td className="px-4 py-3.5 whitespace-nowrap">
                             <span
-                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                                isL ? 'bg-blue-500/20 text-blue-300' : 'bg-pink-500/20 text-pink-300'
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
+                                isL ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'
                               }`}
                             >
                               {isL ? 'Putra' : 'Putri'}
                             </span>
                           </td>
                           <td className="px-4 py-3.5 whitespace-nowrap">
-                            <div className="font-semibold text-white">{item.kota || '-'}</div>
-                            <div className="text-[10px] text-[#94A3B8]">{item.asal_sekolah || '-'}</div>
+                            <div className="font-bold text-[#2D3436]">{item.kota || '-'}</div>
+                            <div className="text-[10px] text-[#636E72]">{item.asal_sekolah || '-'}</div>
                           </td>
                           <td className="px-4 py-3.5 whitespace-nowrap">
-                            <div className="text-white">{item.pilihan_jenjang}</div>
-                            <div className="text-[10px] text-[#A7F3D0]">{item.pilihan_asrama}</div>
+                            <div className="text-[#2D3436] font-medium">{item.pilihan_jenjang}</div>
+                            <div className="text-[10px] text-[#0D7A6F] font-bold">{item.pilihan_asrama}</div>
                           </td>
-                          <td className="px-4 py-3.5 whitespace-nowrap font-mono text-[#A7F3D0]">
+                          <td className="px-4 py-3.5 whitespace-nowrap font-mono font-bold text-[#0D7A6F]">
                             {item.no_whatsapp_wali}
                           </td>
                           <td className="px-4 py-3.5 whitespace-nowrap">
                             {isConverted ? (
-                              <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-[#10B981] text-white flex items-center gap-1 w-fit">
-                                <CheckCircle2 className="w-3 h-3" />
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-[#138F81] text-white flex items-center gap-1 w-fit">
+                                <CheckCircle2 className="w-3 h-3 text-[#FFDC80]" />
                                 <span>Santri Resmi</span>
                               </span>
                             ) : (
                               <span
-                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                                className={`px-2.5 py-1 rounded-full text-[10px] font-black ${
                                   item.status === 'accepted'
-                                    ? 'bg-[#10B981] text-white'
+                                    ? 'bg-[#138F81] text-white'
                                     : item.status === 'rejected'
-                                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                                    ? 'bg-rose-100 text-rose-800'
                                     : item.status === 'reviewed'
-                                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
-                                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-amber-100 text-amber-800'
                                 }`}
                               >
                                 {item.status === 'accepted'
@@ -812,7 +806,7 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                               {/* Tombol Detail */}
                               <button
                                 onClick={() => setDetailItem(item)}
-                                className="p-1.5 rounded-lg bg-[#138F81]/20 hover:bg-[#138F81]/40 text-[#5EEAD4] transition-colors"
+                                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-[#2D3436] transition-colors cursor-pointer"
                                 title="Lihat Detail & Berkas"
                               >
                                 <Eye className="w-3.5 h-3.5" />
@@ -822,10 +816,10 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                               <button
                                 onClick={() => handleResendWa(item)}
                                 disabled={resendingWaId === item.id}
-                                className={`p-1.5 rounded-lg transition-colors ${
+                                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                                   item.wa_notif_sent
-                                    ? 'bg-[#25D366]/20 hover:bg-[#25D366]/30 text-[#25D366]'
-                                    : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300'
+                                    ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800'
+                                    : 'bg-amber-100 hover:bg-amber-200 text-amber-800'
                                 }`}
                                 title={item.wa_notif_sent ? 'Kirim Ulang Notifikasi WA Akun & Pendaftaran' : 'Kirim Notifikasi WA Akun & Pendaftaran'}
                               >
@@ -835,7 +829,7 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                               {/* Tombol Ubah Status */}
                               <button
                                 onClick={() => handleOpenStatusModal(item)}
-                                className="p-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 transition-colors"
+                                className="p-1.5 rounded-lg bg-[#FFDC80] hover:bg-[#ffe59e] text-[#0D7A6F] transition-colors cursor-pointer"
                                 title="Ubah Status Seleksi / Catatan"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
@@ -845,10 +839,10 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                               {!isConverted && (
                                 <button
                                   onClick={() => handleOpenConvertModal(item)}
-                                  className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#10B981] to-[#059669] hover:from-[#059669] hover:to-[#047857] text-white font-extrabold text-[11px] flex items-center gap-1 shadow-md shadow-[#10B981]/20 transition-all cursor-pointer"
+                                  className="px-2.5 py-1 rounded-lg bg-[#138F81] hover:bg-[#0D7A6F] text-white font-black text-[11px] flex items-center gap-1 shadow-xs transition-all cursor-pointer"
                                   title="ACC dan Konversi Menjadi Santri Resmi Pondok"
                                 >
-                                  <UserCheck className="w-3.5 h-3.5" />
+                                  <UserCheck className="w-3.5 h-3.5 text-[#FFDC80]" />
                                   <span>ACC Santri</span>
                                 </button>
                               )}
@@ -864,7 +858,7 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
 
             {/* Pagination Controls */}
             {totalItems > perPage && (
-              <div className="px-4 py-3 bg-[#061A15] border-t border-[#138F81]/30 flex items-center justify-between text-xs text-[#94A3B8]">
+              <div className="px-4 py-3 bg-[#F8FAFC] border-t border-slate-200 flex items-center justify-between text-xs text-[#636E72]">
                 <span>
                   Menampilkan {(currentPage - 1) * perPage + 1} s/d {Math.min(currentPage * perPage, totalItems)} dari {totalItems} pendaftar
                 </span>
@@ -872,15 +866,15 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                   <button
                     disabled={currentPage <= 1}
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    className="p-1.5 rounded-lg bg-[#092B23] border border-[#138F81]/30 disabled:opacity-40"
+                    className="p-1.5 rounded-lg bg-white border border-slate-200 disabled:opacity-40 cursor-pointer"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
-                  <span className="px-2 font-bold text-white">{currentPage}</span>
+                  <span className="px-2 font-bold text-[#2D3436]">{currentPage}</span>
                   <button
                     disabled={currentPage * perPage >= totalItems}
                     onClick={() => setCurrentPage(p => p + 1)}
-                    className="p-1.5 rounded-lg bg-[#092B23] border border-[#138F81]/30 disabled:opacity-40"
+                    className="p-1.5 rounded-lg bg-white border border-slate-200 disabled:opacity-40 cursor-pointer"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
@@ -896,8 +890,8 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="text-sm font-bold text-white">Daftar Gelombang Pendaftaran PMB</h3>
-              <p className="text-xs text-[#94A3B8]">Kelola periode tanggal buka, kuota, dan tarif biaya formulir.</p>
+              <h3 className="text-sm font-black text-[#2D3436]">Daftar Gelombang Pendaftaran PMB</h3>
+              <p className="text-xs text-[#636E72]">Kelola periode tanggal buka, kuota, dan tarif biaya formulir.</p>
             </div>
             <button
               onClick={() => {
@@ -914,9 +908,9 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                 });
                 setBatchModalOpen(true);
               }}
-              className="px-4 py-2 rounded-xl bg-[#138F81] hover:bg-[#16A394] text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-lg"
+              className="px-4 py-2 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white text-xs font-black flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4 text-[#FFDC80]" />
               <span>Buka Gelombang Baru</span>
             </button>
           </div>
@@ -927,16 +921,16 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
             ) : batches.map((b) => (
               <div
                 key={b.id}
-                className={`p-6 rounded-3xl border transition-all ${
+                className={`p-6 rounded-3xl border-2 transition-all ${
                   b.is_active
-                    ? 'bg-[#092B23] border-[#4ADE80]/50 shadow-xl'
-                    : 'bg-[#061A15] border-[#138F81]/20 opacity-80'
+                    ? 'bg-white border-amber-300 shadow-sm'
+                    : 'bg-white border-slate-200 opacity-70'
                 }`}
               >
                 <div className="flex items-center justify-between mb-3">
                   <span
                     className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
-                      b.is_active ? 'bg-[#10B981] text-white' : 'bg-slate-700 text-slate-300'
+                      b.is_active ? 'bg-[#FFDC80] text-[#0D7A6F] border border-amber-300' : 'bg-slate-100 text-slate-600'
                     }`}
                   >
                     {b.is_active ? '● SEDANG AKTIF' : 'NONAKTIF'}
@@ -957,34 +951,34 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                         });
                         setBatchModalOpen(true);
                       }}
-                      className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 transition-colors"
+                      className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-[#2D3436] transition-colors cursor-pointer"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleDeleteBatch(b.id)}
-                      className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-colors"
+                      className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
-                <h4 className="text-base font-black text-white">{b.nama_gelombang}</h4>
-                <p className="text-xs text-[#A7F3D0] mb-4">Tahun Akademik {b.tahun_akademik}</p>
+                <h4 className="text-base font-black text-[#2D3436]">{b.nama_gelombang}</h4>
+                <p className="text-xs text-[#0D7A6F] font-bold mb-4">Tahun Akademik {b.tahun_akademik}</p>
 
-                <div className="space-y-1.5 text-xs text-[#94A3B8] border-t border-[#138F81]/20 pt-3">
+                <div className="space-y-1.5 text-xs text-[#636E72] border-t border-slate-100 pt-3">
                   <div className="flex justify-between">
                     <span>Periode:</span>
-                    <span className="text-white font-medium">{b.tanggal_mulai} s/d {b.tanggal_selesai}</span>
+                    <span className="text-[#2D3436] font-bold">{b.tanggal_mulai} s/d {b.tanggal_selesai}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Biaya Formulir:</span>
-                    <span className="text-[#FCD34D] font-bold">Rp {Number(b.biaya_pendaftaran).toLocaleString('id-ID')}</span>
+                    <span className="text-[#D97706] font-black">Rp {Number(b.biaya_pendaftaran).toLocaleString('id-ID')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Pendaftar Masuk:</span>
-                    <span className="text-[#5EEAD4] font-black">{b.registrations_count ?? 0} / {b.kuota ?? '∞'}</span>
+                    <span className="text-[#138F81] font-black">{b.registrations_count ?? 0} / {b.kuota ?? '∞'}</span>
                   </div>
                 </div>
               </div>
@@ -995,53 +989,53 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
 
       {/* 🌟 MODAL DETAIL & REVIEW BERKAS */}
       {detailItem && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#092B23] text-white border border-[#138F81]/50 rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white text-[#2D3436] border-2 border-amber-300 rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setDetailItem(null)}
-              className="absolute top-5 right-5 p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white"
+              className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="flex items-center gap-3 mb-6">
-              <div className="h-12 w-12 rounded-2xl bg-[#138F81]/30 border border-[#4ADE80]/40 flex items-center justify-center text-[#5EEAD4]">
+              <div className="h-12 w-12 rounded-2xl bg-[#FFDC80] text-[#0D7A6F] border border-amber-300 flex items-center justify-center">
                 <FileText className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-xs font-mono font-bold text-[#FCD34D]">
+                <span className="text-xs font-mono font-black text-[#138F81]">
                   {detailItem.registration_number}
                 </span>
-                <h3 className="text-lg font-black text-white">{detailItem.nama_lengkap}</h3>
+                <h3 className="text-lg font-black text-[#2D3436]">{detailItem.nama_lengkap}</h3>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs mb-6">
-              <div className="p-4 rounded-2xl bg-[#061A15] border border-[#138F81]/30 space-y-2">
-                <div className="font-bold text-[#A7F3D0] border-b border-[#138F81]/30 pb-1">Biodata Santri</div>
-                <div><span className="text-slate-400">Gender:</span> {detailItem.jenis_kelamin === 'L' ? 'Laki-laki (Putra)' : 'Perempuan (Putri)'}</div>
-                <div><span className="text-slate-400">TTL:</span> {detailItem.tempat_lahir || '-'}, {detailItem.tanggal_lahir || '-'}</div>
-                <div><span className="text-slate-400">NIK:</span> {detailItem.nik || '-'}</div>
-                <div><span className="text-slate-400">NISN:</span> {detailItem.nisn || '-'}</div>
-                <div><span className="text-slate-400">Asal Sekolah:</span> {detailItem.asal_sekolah || '-'}</div>
-                <div><span className="text-slate-400">Kota Asal:</span> {detailItem.kota || '-'}</div>
+              <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-slate-200 space-y-2">
+                <div className="font-black text-[#138F81] border-b border-slate-200 pb-1">Biodata Santri</div>
+                <div><span className="text-slate-500">Gender:</span> <strong className="text-[#2D3436]">{detailItem.jenis_kelamin === 'L' ? 'Laki-laki (Putra)' : 'Perempuan (Putri)'}</strong></div>
+                <div><span className="text-slate-500">TTL:</span> <strong className="text-[#2D3436]">{detailItem.tempat_lahir || '-'}, {detailItem.tanggal_lahir || '-'}</strong></div>
+                <div><span className="text-slate-500">NIK:</span> <strong className="text-[#2D3436]">{detailItem.nik || '-'}</strong></div>
+                <div><span className="text-slate-500">NISN:</span> <strong className="text-[#2D3436]">{detailItem.nisn || '-'}</strong></div>
+                <div><span className="text-slate-500">Asal Sekolah:</span> <strong className="text-[#2D3436]">{detailItem.asal_sekolah || '-'}</strong></div>
+                <div><span className="text-slate-500">Kota Asal:</span> <strong className="text-[#2D3436]">{detailItem.kota || '-'}</strong></div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-[#061A15] border border-[#138F81]/30 space-y-2">
-                <div className="font-bold text-[#A7F3D0] border-b border-[#138F81]/30 pb-1">Orang Tua & Akun Login</div>
-                <div><span className="text-slate-400">Nama Wali:</span> {detailItem.nama_wali || detailItem.nama_ayah || '-'}</div>
-                <div><span className="text-slate-400">No. WA Wali:</span> <strong className="text-[#4ADE80] font-mono">{detailItem.no_whatsapp_wali}</strong></div>
-                <div><span className="text-slate-400">Username Login:</span> <strong className="text-white font-mono">{detailItem.account_username || detailItem.registration_number}</strong></div>
-                <div><span className="text-slate-400">Password Sistem:</span> <strong className="text-[#FCD34D] font-mono">{detailItem.account_initial_password || '-'}</strong></div>
-                <div><span className="text-slate-400">Status WA:</span> {detailItem.wa_notif_sent ? <span className="text-[#4ADE80] font-bold">Terkirim</span> : <span className="text-amber-400">Belum Terkirim</span>}</div>
+              <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-slate-200 space-y-2">
+                <div className="font-black text-[#138F81] border-b border-slate-200 pb-1">Orang Tua & Akun Login</div>
+                <div><span className="text-slate-500">Nama Wali:</span> <strong className="text-[#2D3436]">{detailItem.nama_wali || detailItem.nama_ayah || '-'}</strong></div>
+                <div><span className="text-slate-500">No. WA Wali:</span> <strong className="text-[#0D7A6F] font-mono">{detailItem.no_whatsapp_wali}</strong></div>
+                <div><span className="text-slate-500">Username Login:</span> <strong className="text-[#2D3436] font-mono">{detailItem.account_username || detailItem.registration_number}</strong></div>
+                <div><span className="text-slate-500">Password Sistem:</span> <strong className="text-[#D97706] font-mono">{detailItem.account_initial_password || '-'}</strong></div>
+                <div><span className="text-slate-500">Status WA:</span> {detailItem.wa_notif_sent ? <span className="text-[#138F81] font-black">Terkirim</span> : <span className="text-amber-600 font-bold">Belum Terkirim</span>}</div>
                 <div className="pt-2">
                   <button
                     type="button"
                     disabled={resendingWaId === detailItem.id}
                     onClick={() => handleResendWa(detailItem)}
-                    className="w-full py-2 rounded-xl bg-[#25D366]/20 hover:bg-[#25D366]/30 text-[#25D366] border border-[#25D366]/40 text-xs font-bold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
+                    className="w-full py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
                   >
-                    <MessageCircle className="w-4 h-4" />
+                    <MessageCircle className="w-4 h-4 text-emerald-700" />
                     <span>{resendingWaId === detailItem.id ? 'Mengirim Pesan...' : 'Kirim Ulang Notifikasi WA'}</span>
                   </button>
                 </div>
@@ -1049,21 +1043,21 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
             </div>
 
             {/* Dokumen Berkas */}
-            <div className="p-4 rounded-2xl bg-[#061A15] border border-[#138F81]/30 text-xs mb-6">
-              <div className="font-bold text-[#FCD34D] mb-3">Dokumen Berkas Pendaftaran:</div>
+            <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-slate-200 text-xs mb-6">
+              <div className="font-black text-[#2D3436] mb-3">Dokumen Berkas Pendaftaran:</div>
               <div className="flex flex-wrap gap-3">
                 {detailItem.dokumen_foto ? (
                   <a
                     href={detailItem.dokumen_foto}
                     target="_blank"
                     rel="noreferrer"
-                    className="px-3.5 py-2 rounded-xl bg-[#138F81]/20 hover:bg-[#138F81]/40 text-[#5EEAD4] font-bold border border-[#138F81]/40 flex items-center gap-1.5 transition-colors"
+                    className="px-3.5 py-2 rounded-xl bg-[#FFDC80] hover:bg-[#ffe59e] text-[#0D7A6F] font-bold border border-amber-300 flex items-center gap-1.5 transition-colors"
                   >
                     <Eye className="w-3.5 h-3.5" />
                     <span>Lihat Pas Foto</span>
                   </a>
                 ) : (
-                  <span className="text-slate-500 italic">Tidak ada foto</span>
+                  <span className="text-slate-400 italic">Tidak ada foto</span>
                 )}
 
                 {detailItem.dokumen_kk ? (
@@ -1071,13 +1065,13 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                     href={detailItem.dokumen_kk}
                     target="_blank"
                     rel="noreferrer"
-                    className="px-3.5 py-2 rounded-xl bg-[#138F81]/20 hover:bg-[#138F81]/40 text-[#5EEAD4] font-bold border border-[#138F81]/40 flex items-center gap-1.5 transition-colors"
+                    className="px-3.5 py-2 rounded-xl bg-[#FFDC80] hover:bg-[#ffe59e] text-[#0D7A6F] font-bold border border-amber-300 flex items-center gap-1.5 transition-colors"
                   >
                     <FileCheck className="w-3.5 h-3.5" />
                     <span>Lihat Kartu Keluarga (KK)</span>
                   </a>
                 ) : (
-                  <span className="text-slate-500 italic">Tidak ada file KK</span>
+                  <span className="text-slate-400 italic">Tidak ada file KK</span>
                 )}
               </div>
             </div>
@@ -1085,7 +1079,7 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => setDetailItem(null)}
-                className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold"
+                className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#2D3436] text-xs font-bold cursor-pointer"
               >
                 Tutup
               </button>
@@ -1096,24 +1090,24 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
 
       {/* 🌟 MODAL ACC & KONVERSI MENJADI SANTRI RESMI PONDOK */}
       {convertModalItem && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#092B23] text-white border-2 border-[#10B981]/60 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl relative">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white text-[#2D3436] border-2 border-emerald-400 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl relative">
             <button
               onClick={() => setConvertModalItem(null)}
-              className="absolute top-5 right-5 p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white"
+              className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="flex items-center gap-3 mb-5">
-              <div className="h-12 w-12 rounded-2xl bg-[#10B981]/20 border border-[#10B981]/40 flex items-center justify-center text-[#4ADE80]">
+              <div className="h-12 w-12 rounded-2xl bg-emerald-100 text-[#138F81] border border-emerald-300 flex items-center justify-center">
                 <UserCheck className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#4ADE80] bg-[#10B981]/20 px-2 py-0.5 rounded-md">
-                  PENERIMAAN RESMI
+                <span className="text-[10px] font-black uppercase tracking-wider text-[#0D7A6F] bg-[#FFDC80] px-2 py-0.5 rounded-md border border-amber-300">
+                  PENETAPAN RESMI SANTRI
                 </span>
-                <h3 className="text-lg font-black text-white mt-0.5">
+                <h3 className="text-lg font-black text-[#2D3436] mt-0.5">
                   ACC Santri: {convertModalItem.nama_lengkap}
                 </h3>
               </div>
@@ -1122,27 +1116,27 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
             {convertResult ? (
               /* Success Result View */
               <div className="space-y-4 text-center animate-in fade-in duration-300">
-                <div className="p-6 rounded-2xl bg-[#061A15] border border-[#10B981]/50 text-xs space-y-2">
-                  <div className="text-xs text-[#A7F3D0]">NOMOR INDUK SANTRI RESMI:</div>
-                  <div className="text-2xl font-black text-[#FCD34D] font-mono">
+                <div className="p-6 rounded-2xl bg-emerald-50 border border-emerald-300 text-xs space-y-2">
+                  <div className="text-xs text-emerald-800 font-bold">NOMOR INDUK SANTRI RESMI (NIS):</div>
+                  <div className="text-2xl font-black text-[#138F81] font-mono">
                     {convertResult.siswa?.nis}
                   </div>
-                  <div className="text-[11px] text-slate-300">
+                  <div className="text-[11px] text-[#636E72]">
                     Santri resmi masuk ke Buku Induk Pondok Pesantren Qomaruddin.
                   </div>
                 </div>
 
                 {convertResult.wali_user && (
-                  <div className="p-4 rounded-2xl bg-blue-950/40 border border-blue-500/40 text-xs text-left space-y-1">
-                    <div className="font-bold text-blue-300">Akun Wali Santri Otomatis Dibuat:</div>
-                    <div>Email: <strong className="text-white">{convertResult.wali_user.email}</strong></div>
-                    <div>Password Default: <strong className="text-white">{convertResult.wali_user.default_password}</strong></div>
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-left space-y-1">
+                    <div className="font-bold text-[#2D3436]">Akun Wali Santri Otomatis Dibuat:</div>
+                    <div>Email: <strong className="text-[#138F81]">{convertResult.wali_user.email}</strong></div>
+                    <div>Password Default: <strong className="text-[#D97706]">{convertResult.wali_user.default_password}</strong></div>
                   </div>
                 )}
 
                 <button
                   onClick={() => setConvertModalItem(null)}
-                  className="w-full py-3 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white font-bold text-xs"
+                  className="w-full py-3 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white font-black text-xs shadow-md cursor-pointer"
                 >
                   Selesai
                 </button>
@@ -1150,12 +1144,12 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
             ) : (
               /* Form Convert */
               <div className="space-y-4 text-xs">
-                <p className="text-slate-300 leading-relaxed">
+                <p className="text-[#636E72] leading-relaxed font-medium">
                   Calon santri ini akan di-ACC dan <strong>dikonversi otomatis menjadi Santri Resmi</strong> di tabel database <code>siswa</code> pondok pesantren.
                 </p>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
+                  <label className="block text-[#2D3436] font-bold mb-1">
                     Nomor Induk Santri (NIS) (Kosongkan untuk otomatis)
                   </label>
                   <input
@@ -1163,18 +1157,18 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                     value={convertForm.nis}
                     onChange={(e) => setConvertForm(prev => ({ ...prev, nis: e.target.value }))}
                     placeholder="Auto: RT2026xxxx"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#061A15] border border-[#138F81]/40 text-white font-mono text-xs outline-none focus:border-[#4ADE80]"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 text-[#2D3436] font-mono text-xs outline-none focus:bg-white focus:border-[#138F81]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
+                  <label className="block text-[#2D3436] font-bold mb-1">
                     Penempatan Kelas Madin Awal (Opsional)
                   </label>
                   <select
                     value={convertForm.class_id}
                     onChange={(e) => setConvertForm(prev => ({ ...prev, class_id: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#061A15] border border-[#138F81]/40 text-white text-xs outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 text-[#2D3436] text-xs outline-none focus:bg-white focus:border-[#138F81]"
                   >
                     <option value="">-- Pilih Kelas Madin Awal --</option>
                     {classesList.map(c => (
@@ -1184,13 +1178,13 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
+                  <label className="block text-[#2D3436] font-bold mb-1">
                     Penempatan Kamar Pondok Awal (Opsional)
                   </label>
                   <select
                     value={convertForm.boarding_room_id}
                     onChange={(e) => setConvertForm(prev => ({ ...prev, boarding_room_id: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#061A15] border border-[#138F81]/40 text-white text-xs outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 text-[#2D3436] text-xs outline-none focus:bg-white focus:border-[#138F81]"
                   >
                     <option value="">-- Pilih Kamar Asrama Pondok --</option>
                     {roomsList.map(r => (
@@ -1205,24 +1199,24 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                     id="createWaliCheck"
                     checked={convertForm.create_wali_user}
                     onChange={(e) => setConvertForm(prev => ({ ...prev, create_wali_user: e.target.checked }))}
-                    className="rounded border-[#138F81] text-[#10B981] focus:ring-0 cursor-pointer"
+                    className="rounded border-slate-300 text-[#138F81] focus:ring-0 cursor-pointer"
                   />
-                  <label htmlFor="createWaliCheck" className="text-slate-300 cursor-pointer select-none">
+                  <label htmlFor="createWaliCheck" className="text-[#2D3436] cursor-pointer select-none font-medium">
                     Buat akun login Wali Santri otomatis (username: <code>wali_nis@absensi.local</code>)
                   </label>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-4 border-t border-[#138F81]/30">
+                <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-200">
                   <button
                     onClick={() => setConvertModalItem(null)}
-                    className="px-4 py-2 rounded-xl text-slate-400 hover:text-white"
+                    className="px-4 py-2 rounded-xl text-slate-500 hover:text-slate-800 font-semibold cursor-pointer"
                   >
                     Batal
                   </button>
                   <button
                     onClick={handleExecuteConvert}
                     disabled={isConverting}
-                    className="px-6 py-2.5 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white font-black shadow-lg flex items-center gap-1.5 disabled:opacity-50 transition-all cursor-pointer"
+                    className="px-6 py-2.5 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white font-black shadow-md flex items-center gap-1.5 disabled:opacity-50 transition-all cursor-pointer"
                   >
                     {isConverting ? 'Mengonversi...' : 'ACC & Konversi Sekarang'}
                   </button>
@@ -1235,26 +1229,26 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
 
       {/* 🌟 MODAL UBAH STATUS SELEKSI */}
       {statusModalItem && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#092B23] text-white border border-[#138F81]/50 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white text-[#2D3436] border-2 border-amber-300 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative">
             <button
               onClick={() => setStatusModalItem(null)}
-              className="absolute top-5 right-5 p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white"
+              className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="text-base font-black text-white mb-4">
+            <h3 className="text-base font-black text-[#2D3436] mb-4">
               Ubah Status Pendaftaran: {statusModalItem.registration_number}
             </h3>
 
             <div className="space-y-4 text-xs">
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Status Seleksi</label>
+                <label className="block text-[#2D3436] font-bold mb-1">Status Seleksi</label>
                 <select
                   value={newStatus}
                   onChange={(e) => setNewStatus(e.target.value as any)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#061A15] border border-[#138F81]/40 text-white text-xs outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 text-[#2D3436] text-xs outline-none focus:bg-white focus:border-[#138F81]"
                 >
                   <option value="pending">Menunggu Verifikasi (Pending)</option>
                   <option value="reviewed">Sedang Ditinjau Berkas (Reviewed)</option>
@@ -1264,27 +1258,27 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Catatan Panitia untuk Santri/Wali</label>
+                <label className="block text-[#2D3436] font-bold mb-1">Catatan Panitia untuk Santri/Wali</label>
                 <textarea
                   rows={3}
                   value={statusAdminNote}
                   onChange={(e) => setStatusAdminNote(e.target.value)}
                   placeholder="Misal: Mohon upload ulang foto KK yang lebih jelas..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#061A15] border border-[#138F81]/40 text-white text-xs outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 text-[#2D3436] text-xs outline-none focus:bg-white focus:border-[#138F81]"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#138F81]/30">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
                 <button
                   onClick={() => setStatusModalItem(null)}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white"
+                  className="px-4 py-2 rounded-xl text-slate-500 hover:text-slate-800 font-semibold cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   onClick={handleSaveStatus}
                   disabled={isUpdatingStatus}
-                  className="px-5 py-2.5 rounded-xl bg-[#138F81] hover:bg-[#16A394] text-white font-bold"
+                  className="px-5 py-2.5 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white font-black shadow-md cursor-pointer"
                 >
                   {isUpdatingStatus ? 'Menyimpan...' : 'Simpan Status'}
                 </button>
@@ -1296,72 +1290,72 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
 
       {/* 🌟 MODAL FORM GELOMBANG PMB */}
       {batchModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#092B23] text-white border border-[#138F81]/50 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white text-[#2D3436] border-2 border-amber-300 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative">
             <button
               onClick={() => setBatchModalOpen(false)}
-              className="absolute top-5 right-5 p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white"
+              className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="text-base font-black text-white mb-4">
+            <h3 className="text-base font-black text-[#2D3436] mb-4">
               {editingBatch ? 'Edit Gelombang PMB' : 'Buka Gelombang PMB Baru'}
             </h3>
 
             <form onSubmit={handleSaveBatch} className="space-y-3.5 text-xs">
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Nama Gelombang</label>
+                <label className="block text-[#2D3436] font-bold mb-1">Nama Gelombang</label>
                 <input
                   type="text"
                   required
                   value={batchForm.nama_gelombang}
                   onChange={(e) => setBatchForm(prev => ({ ...prev, nama_gelombang: e.target.value }))}
                   placeholder="Contoh: Gelombang 1 - TA 2026/2027"
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#061A15] border border-[#138F81]/40 text-white text-xs outline-none"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#F8FAFC] border border-slate-200 text-[#2D3436] text-xs outline-none focus:bg-white focus:border-[#138F81]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Tanggal Mulai</label>
+                  <label className="block text-[#2D3436] font-bold mb-1">Tanggal Mulai</label>
                   <input
                     type="date"
                     required
                     value={batchForm.tanggal_mulai}
                     onChange={(e) => setBatchForm(prev => ({ ...prev, tanggal_mulai: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl bg-[#061A15] border border-[#138F81]/40 text-white text-xs outline-none"
+                    className="w-full px-3 py-2 rounded-xl bg-[#F8FAFC] border border-slate-200 text-[#2D3436] text-xs outline-none focus:bg-white focus:border-[#138F81]"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Tanggal Berakhir</label>
+                  <label className="block text-[#2D3436] font-bold mb-1">Tanggal Berakhir</label>
                   <input
                     type="date"
                     required
                     value={batchForm.tanggal_selesai}
                     onChange={(e) => setBatchForm(prev => ({ ...prev, tanggal_selesai: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl bg-[#061A15] border border-[#138F81]/40 text-white text-xs outline-none"
+                    className="w-full px-3 py-2 rounded-xl bg-[#F8FAFC] border border-slate-200 text-[#2D3436] text-xs outline-none focus:bg-white focus:border-[#138F81]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Biaya Formulir (Rp)</label>
+                  <label className="block text-[#2D3436] font-bold mb-1">Biaya Formulir (Rp)</label>
                   <input
                     type="number"
                     value={batchForm.biaya_pendaftaran}
                     onChange={(e) => setBatchForm(prev => ({ ...prev, biaya_pendaftaran: Number(e.target.value) }))}
-                    className="w-full px-3 py-2 rounded-xl bg-[#061A15] border border-[#138F81]/40 text-white text-xs outline-none"
+                    className="w-full px-3 py-2 rounded-xl bg-[#F8FAFC] border border-slate-200 text-[#2D3436] text-xs outline-none focus:bg-white focus:border-[#138F81]"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Kuota Santri</label>
+                  <label className="block text-[#2D3436] font-bold mb-1">Kuota Santri</label>
                   <input
                     type="number"
                     value={batchForm.kuota}
                     onChange={(e) => setBatchForm(prev => ({ ...prev, kuota: Number(e.target.value) }))}
-                    className="w-full px-3 py-2 rounded-xl bg-[#061A15] border border-[#138F81]/40 text-white text-xs outline-none"
+                    className="w-full px-3 py-2 rounded-xl bg-[#F8FAFC] border border-slate-200 text-[#2D3436] text-xs outline-none focus:bg-white focus:border-[#138F81]"
                   />
                 </div>
               </div>
@@ -1372,24 +1366,24 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                   id="batchActiveCheck"
                   checked={batchForm.is_active}
                   onChange={(e) => setBatchForm(prev => ({ ...prev, is_active: e.target.checked }))}
-                  className="rounded border-[#138F81] text-[#10B981] focus:ring-0"
+                  className="rounded border-slate-300 text-[#138F81] focus:ring-0 cursor-pointer"
                 />
-                <label htmlFor="batchActiveCheck" className="text-slate-300 cursor-pointer">
+                <label htmlFor="batchActiveCheck" className="text-[#2D3436] cursor-pointer font-medium select-none">
                   Jadikan gelombang aktif utama di halaman pendaftaran online
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-[#138F81]/30">
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setBatchModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white"
+                  className="px-4 py-2 rounded-xl text-slate-500 hover:text-slate-800 font-semibold cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-[#138F81] hover:bg-[#16A394] text-white font-bold"
+                  className="px-5 py-2 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white font-black shadow-md cursor-pointer"
                 >
                   Simpan Gelombang
                 </button>

@@ -316,6 +316,12 @@ export const api = {
       body: body !== undefined ? JSON.stringify(body) : undefined
     });
   },
+  patch<T = any>(path: string, body?: any): Promise<ApiResponse<T>> {
+    return request<T>(path, {
+      method: 'PATCH',
+      body: body !== undefined ? JSON.stringify(body) : undefined
+    });
+  },
   delete<T = any>(path: string): Promise<ApiResponse<T>> {
     return request<T>(path, { method: 'DELETE' });
   },
