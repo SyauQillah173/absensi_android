@@ -136,7 +136,7 @@ function roleForVariant(variant: MasterVariant): string {
 
 
 export function MasterDataPage({ variant }: MasterDataPageProps) {
-  const { isItAdmin } = useAuth();
+  const { isItAdmin, pmbVisibleToPengurus } = useAuth();
   const [rows, setRows] = useState<ApiRecord[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('Semua');
@@ -201,7 +201,15 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
       } else {
         result = await api.boardingStudents();
       }
-      setRows(Array.isArray(result.data) ? result.data : []);
+      let list = Array.isArray(result.data) ? result.data : [];
+      if (variant === 'login-admin' && !isItAdmin && !pmbVisibleToPengurus) {
+        list = list.filter((r) => {
+          const at = String(r.admin_type || '').toLowerCase();
+          const role = String(r.role || '').toLowerCase();
+          return at !== 'pmb' && at !== 'admin_pmb' && role !== 'admin_pmb';
+        });
+      }
+      setRows(list);
       setSelectedIds(new Set());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Data gagal dimuat');

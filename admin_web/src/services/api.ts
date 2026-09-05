@@ -32,6 +32,7 @@ export interface UserSession {
     nilai?: boolean;
   };
   must_change_password?: boolean;
+  pmb_visible_to_pengurus?: boolean;
 }
 
 export interface PaymentFormPayload {
@@ -1131,6 +1132,12 @@ export const api = {
     return request<ApiRecord>('/pmb/admin/toggle-status', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  },
+  togglePmbPengurusVisibility(visible?: boolean) {
+    return request<{ status: string; pmb_visible_to_pengurus: boolean; message: string }>('/pmb/admin/toggle-pengurus-visibility', {
+      method: 'POST',
+      body: JSON.stringify(typeof visible === 'boolean' ? { visible } : {}),
     });
   },
   getPmbCmsSettingsAdmin() {

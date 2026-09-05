@@ -11,6 +11,8 @@ interface AuthContextValue {
   isPmbAdmin: boolean;
   isGuru: boolean;
   isKepalaSekolah: boolean;
+  pmbVisibleToPengurus: boolean;
+  setPmbVisibleToPengurus: (visible: boolean) => Promise<void>;
   canView: (menuKey: string) => boolean;
   refreshProfile: () => Promise<UserSession | null>;
   login: (identifier: string, password: string) => Promise<void>;
@@ -21,6 +23,50 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<UserSession | null>(() => readSession());
+  const [pmbVisibleToPengurus, setPmbVisibleToPengurusState] = useState<boolean>(() => {
+    const s = readSession();
+    return Boolean(s?.pmb_visible_to_pengurus);
+  });
+
+  // Sinkronkan pmbVisibleToPengurus saat session berubah
+  useEffect(() => {
+    if (session?.pmb_visible_to_pengurus !== undefined) {
+      setPmbVisibleToPengurusState(Boolean(session.pmb_visible_to_pengurus));
+    }
+  }, [session?.pmb_visible_to_pengurus]);
+
+  // Sinkronkan status visibilitas PMB dari API saat mount & saat ada event data update
+  useEffect(() => {
+    const checkPmbVisibility = () => {
+      api.getPmbInfo()
+        .then((res) => {
+          const remoteVisibility = (res.data as any)?.pmb_visible_to_pengurus;
+          if (remoteVisibility !== undefined) {
+            setPmbVisibleToPengurusState(Boolean(remoteVisibility));
+          }
+        })
+        .catch(() => {});
+    };
+
+    checkPmbVisibility();
+
+    window.addEventListener('app:data-updated', checkPmbVisibility);
+    return () => window.removeEventListener('app:data-updated', checkPmbVisibility);
+  }, []);
+
+  const setPmbVisibleToPengurus = useCallback(async (visible: boolean) => {
+    setPmbVisibleToPengurusState(visible);
+    try {
+      const res = await api.togglePmbPengurusVisibility(visible);
+      if (res && res.pmb_visible_to_pengurus !== undefined) {
+        setPmbVisibleToPengurusState(Boolean(res.pmb_visible_to_pengurus));
+      }
+      window.dispatchEvent(new Event('app:data-updated'));
+    } catch (err) {
+      console.error('Gagal mengubah visibilitas PMB:', err);
+      throw err;
+    }
+  }, []);
 
   useEffect(() => {
     const handleExpired = () => {
@@ -34,12 +80,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (identifier: string, password: string) => {
     const nextSession = await api.login(identifier, password);
     setSession(nextSession);
+    if (nextSession?.pmb_visible_to_pengurus !== undefined) {
+      setPmbVisibleToPengurusState(Boolean(nextSession.pmb_visible_to_pengurus));
+    }
   }, []);
 
   const refreshProfile = useCallback(async () => {
     if (!readSession()?.token) return null;
     const nextSession = await api.refreshProfile();
     setSession(nextSession);
+    if (nextSession?.pmb_visible_to_pengurus !== undefined) {
+      setPmbVisibleToPengurusState(Boolean(nextSession.pmb_visible_to_pengurus));
+    }
     return nextSession;
   }, []);
 
@@ -67,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     // 1. Admin Pengurus (Operasional Yayasan Penuh, tapi dibatasi tidak bisa buat akun IT & tidak ada menu Hak Akses)
-    const isPengurus = session?.role === 'admin' && adminType === 'pengurus';
+    const isPengurus = session?.role === 'admin' && (adminType === 'pengurus' || (!isItAdmin && !adminType));
 
     // 2. Admin Utama Operasional: IT, Pengurus, Superadmin, Utama (Full akses operasional)
     const isMainAdmin = session?.role === 'admin' && (!adminType || ['utama', 'it', 'pengurus', 'superadmin', 'admin'].includes(adminType));
@@ -88,6 +140,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // 🔒 Menu Hak Akses & Role User: KHUSUS HANYA untuk Admin IT (Bang Nobita)
       if (menuKey === 'hak_akses' || menuKey === 'hak-akses') {
         return Boolean(isItAdmin);
+      }
+
+      // 🔒 Modul PMB (Penerimaan Santri Baru):
+      // - Admin IT selalu punya akses penuh 100%
+      // - User Panitia PMB punya akses
+      // - Admin Pengurus & Admin Utama HANYA bisa melihat jika Admin IT menyalakan pmbVisibleToPengurus!
+      if (menuKey === 'pmb') {
+        if (isItAdmin) return true;
+        if (isPmbAdmin) return true;
+        if (isPengurus || isMainAdmin) {
+          return Boolean(pmbVisibleToPengurus);
+        }
+        return false;
       }
 
       if (isMainAdmin) return true;
@@ -123,12 +188,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isPmbAdmin,
       isGuru,
       isKepalaSekolah,
+      pmbVisibleToPengurus,
+      setPmbVisibleToPengurus,
       canView,
       refreshProfile,
       login,
       logout
     };
-  }, [login, logout, refreshProfile, session]);
+  }, [login, logout, pmbVisibleToPengurus, refreshProfile, session, setPmbVisibleToPengurus]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -799,17 +799,19 @@ export function AdminLayout({
               </div>
             </div>
             <div className="q-topbar-actions flex shrink-0 items-center gap-1.5 sm:gap-2.5">
-              {/* Tombol Akses Langsung Web Publik PMB */}
-              <button
-                onClick={() => window.open('/?pmb=1', '_blank')}
-                className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#E8F7F3] dark:bg-slate-800 text-[#138F81] dark:text-[#2DD4BF] hover:bg-[#d8f0ea] dark:hover:bg-slate-700 transition border border-teal-200 dark:border-slate-700 shadow-2xs cursor-pointer"
-                title="Buka Web Publik PMB & Profil Pesantren (Tab Baru)"
-                type="button"
-              >
-                <Globe size={14} className="text-[#138F81] dark:text-[#2DD4BF]" />
-                <span>Web Publik PMB</span>
-                <ExternalLink size={12} className="opacity-60" />
-              </button>
+              {/* Tombol Akses Langsung Web Publik PMB - Hanya tampil jika user diizinkan melihat PMB */}
+              {canView('pmb') ? (
+                <button
+                  onClick={() => window.open('/?pmb=1', '_blank')}
+                  className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#E8F7F3] dark:bg-slate-800 text-[#138F81] dark:text-[#2DD4BF] hover:bg-[#d8f0ea] dark:hover:bg-slate-700 transition border border-teal-200 dark:border-slate-700 shadow-2xs cursor-pointer"
+                  title="Buka Web Publik PMB & Profil Pesantren (Tab Baru)"
+                  type="button"
+                >
+                  <Globe size={14} className="text-[#138F81] dark:text-[#2DD4BF]" />
+                  <span>Web Publik PMB</span>
+                  <ExternalLink size={12} className="opacity-60" />
+                </button>
+              ) : null}
 
               {/* CANGGIH & MODERN THEME TOGGLE DENGAN MIKRO-ANIMASI */}
               <ThemeToggle showDropdown={true} />

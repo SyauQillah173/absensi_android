@@ -80,6 +80,18 @@ class UserManagementController extends Controller
             $query->where('user_status_id', $request->integer('user_status_id'));
         }
 
+        // 🛡️ Filter Khusus: Sembunyikan akun Panitia PMB dari non-IT admin jika PMB belum dirilis
+        $viewer = $request->user();
+        $isViewerIt = $this->isItAdmin($viewer);
+        $pmbVisibleToPengurus = (bool) \App\Models\PmbCmsSetting::getValue('pmb_visible_to_pengurus', false);
+
+        if (!$isViewerIt && !$pmbVisibleToPengurus) {
+            $query->where(function ($q) {
+                $q->whereNull('admin_type')
+                  ->orWhereNotIn(DB::raw('LOWER(admin_type)'), ['pmb', 'admin_pmb']);
+            });
+        }
+
         $users = $query->get()->map(function (User $user) use ($viewerCanSeePasswords) {
             $row = $user->toArray();
 
@@ -138,6 +150,15 @@ class UserManagementController extends Controller
             ], 403);
         }
 
+        // 🛡️ Batasan Admin Pengurus: Tidak boleh membuat user Panitia PMB jika PMB belum dirilis
+        $pmbVisibleToPengurus = (bool) \App\Models\PmbCmsSetting::getValue('pmb_visible_to_pengurus', false);
+        if (in_array($targetAdminType, ['pmb', 'admin_pmb'], true) && !$this->isItAdmin($currentUser) && !$pmbVisibleToPengurus) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak: Modul PMB saat ini sedang dalam persiapan internal IT dan belum dirilis untuk pengurus.',
+            ], 403);
+        }
+
         $user = User::create($payload);
         if ($user->role === 'wali') {
             $this->waliAccountService->attachMatchingStudents($user);
@@ -171,6 +192,14 @@ class UserManagementController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Akses ditolak: Hanya Admin IT yang berwenang menetapkan role Admin IT.',
+            ], 403);
+        }
+
+        // 🛡️ Batasan Admin Pengurus: Tidak boleh mengubah user menjadi Panitia PMB jika PMB belum dirilis
+        if (in_array($newAdminType, ['pmb', 'admin_pmb'], true) && !$this->isItAdmin($currentUser) && !$pmbVisibleToPengurus) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak: Modul PMB saat ini sedang dalam persiapan internal IT dan belum dirilis untuk pengurus.',
             ], 403);
         }
 

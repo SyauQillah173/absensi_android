@@ -49,6 +49,72 @@ class PmbController extends Controller
     }
 
     /**
+     * 🛡️ Pastikan pengguna memiliki wewenang mengakses modul PMB.
+     * Khusus Admin IT selalu memiliki akses penuh 100%.
+     * Admin non-IT (seperti Pengurus) hanya diizinkan jika pmb_visible_to_pengurus bernilai true.
+     */
+    private function checkPmbAccess(?Request $request = null): void
+    {
+        $user = $request ? $request->user() : request()->user();
+        if (!$user || $user->role !== 'admin') {
+            abort(403, 'Akses ditolak: Anda tidak memiliki wewenang administrator.');
+        }
+
+        $adminType = strtolower((string) ($user->admin_type ?? ''));
+        $isIt = in_array($adminType, ['it', 'superadmin'], true) ||
+            $user->email === 'syauqillah@absensi.com' ||
+            str_contains(strtolower($user->name ?? ''), 'syauqillah');
+
+        if ($isIt) {
+            return;
+        }
+
+        $isPmbUser = in_array($adminType, ['pmb', 'admin_pmb'], true);
+        if ($isPmbUser) {
+            return;
+        }
+
+        $visibleToPengurus = (bool) PmbCmsSetting::getValue('pmb_visible_to_pengurus', false);
+        if (!$visibleToPengurus) {
+            abort(403, 'Modul PMB saat ini sedang dalam persiapan internal IT dan belum dirilis untuk pengurus.');
+        }
+    }
+
+    /**
+     * [ADMIN IT ONLY] Mengaktifkan atau menonaktifkan visibilitas modul PMB ke Admin Pengurus
+     */
+    public function togglePengurusVisibility(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $adminType = strtolower((string) ($user->admin_type ?? ''));
+        $isIt = in_array($adminType, ['it', 'superadmin'], true) ||
+            $user->email === 'syauqillah@absensi.com' ||
+            str_contains(strtolower($user->name ?? ''), 'syauqillah');
+
+        if (!$isIt) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Hanya Admin IT (Super Admin) yang berwenang mengubah status rilis modul PMB ke Admin Pengurus.',
+            ], 403);
+        }
+
+        $current = (bool) PmbCmsSetting::getValue('pmb_visible_to_pengurus', false);
+        $next = $request->has('visible')
+            ? filter_var($request->input('visible'), FILTER_VALIDATE_BOOLEAN)
+            : !$current;
+
+        PmbCmsSetting::setValue('pmb_visible_to_pengurus', $next, 'system', 'Tampilkan Modul & Manajemen PMB ke Admin Pengurus', 'boolean');
+
+        $statusText = $next ? 'DITAMPILKAN ke Admin Pengurus' : 'DISEMBUNYIKAN dari Admin Pengurus (Khusus IT Saja)';
+
+        return response()->json([
+            'status' => 'success',
+            'pmb_visible_to_pengurus' => $next,
+            'message' => "Modul PMB sekarang $statusText.",
+        ]);
+    }
+
+    /**
      * [PUBLIC] Informasi PMB & Profil Lengkap Pesantren Qomaruddin (CMS-driven ala WordPress)
      */
     public function getInfo(): JsonResponse
@@ -129,6 +195,7 @@ class PmbController extends Controller
                 'quota_remaining' => $quotaRemaining,
                 'pmb_is_open' => (bool)$pmbIsOpen,
                 'pmb_closed_message' => $pmbClosedMessage,
+                'pmb_visible_to_pengurus' => (bool) PmbCmsSetting::getValue('pmb_visible_to_pengurus', false),
                 'profil' => $profil,
                 'announcements' => $announcements,
             ]
@@ -417,6 +484,7 @@ class PmbController extends Controller
      */
     public function getDashboard(): JsonResponse
     {
+        $this->checkPmbAccess();
         $this->ensureActiveBatch();
 
         $total = PmbRegistration::count();
@@ -444,6 +512,7 @@ class PmbController extends Controller
             ->get();
 
         $pmbIsOpen = PmbCmsSetting::getValue('pmb_is_open', true);
+        $pmbVisibleToPengurus = (bool) PmbCmsSetting::getValue('pmb_visible_to_pengurus', false);
 
         return response()->json([
             'status' => 'success',
@@ -459,6 +528,7 @@ class PmbController extends Controller
                 'jenjang_stats' => $jenjangStats,
                 'latest' => $latest,
                 'pmb_is_open' => (bool)$pmbIsOpen,
+                'pmb_visible_to_pengurus' => $pmbVisibleToPengurus,
             ]
         ]);
     }
@@ -468,6 +538,7 @@ class PmbController extends Controller
      */
     public function getRegistrations(Request $request): JsonResponse
     {
+        $this->checkPmbAccess($request);
         $query = PmbRegistration::query()
             ->with([
                 'batch:id,nama_gelombang,tahun_akademik',
@@ -521,6 +592,7 @@ class PmbController extends Controller
      */
     public function getRegistrationDetail($id): JsonResponse
     {
+        $this->checkPmbAccess();
         $registration = PmbRegistration::with(['batch', 'verifier:id,name', 'siswa'])->findOrFail($id);
 
         return response()->json([
@@ -534,6 +606,7 @@ class PmbController extends Controller
      */
     public function auditRegistration(Request $request, $id): JsonResponse
     {
+        $this->checkPmbAccess($request);
         $registration = PmbRegistration::findOrFail($id);
 
         $validated = $request->validate([
@@ -602,6 +675,7 @@ class PmbController extends Controller
      */
     public function updatePayment(Request $request, $id): JsonResponse
     {
+        $this->checkPmbAccess($request);
         $registration = PmbRegistration::findOrFail($id);
 
         $validated = $request->validate([
@@ -659,6 +733,7 @@ class PmbController extends Controller
      */
     public function updateStatus(Request $request, $id): JsonResponse
     {
+        $this->checkPmbAccess($request);
         $registration = PmbRegistration::findOrFail($id);
 
         $validated = $request->validate([
@@ -685,6 +760,7 @@ class PmbController extends Controller
      */
     public function resendWaNotification($id): JsonResponse
     {
+        $this->checkPmbAccess();
         $registration = PmbRegistration::with('user')->findOrFail($id);
         $password = $registration->account_initial_password;
 
@@ -757,6 +833,7 @@ class PmbController extends Controller
      */
     public function convertToSiswa(Request $request, $id): JsonResponse
     {
+        $this->checkPmbAccess($request);
         $registration = PmbRegistration::with('batch')->findOrFail($id);
 
         if ($registration->is_converted && $registration->converted_siswa_id) {
@@ -944,6 +1021,7 @@ class PmbController extends Controller
      */
     public function getBatches(): JsonResponse
     {
+        $this->checkPmbAccess();
         $batches = PmbBatch::withCount('registrations')->orderBy('id', 'desc')->get();
         return response()->json([
             'status' => 'success',
@@ -953,6 +1031,7 @@ class PmbController extends Controller
 
     public function storeBatch(Request $request): JsonResponse
     {
+        $this->checkPmbAccess($request);
         $validated = $request->validate([
             'nama_gelombang' => 'required|string|max:100',
             'tahun_akademik' => 'required|string|max:30',
@@ -979,6 +1058,7 @@ class PmbController extends Controller
 
     public function updateBatch(Request $request, $id): JsonResponse
     {
+        $this->checkPmbAccess($request);
         $batch = PmbBatch::findOrFail($id);
 
         $validated = $request->validate([
@@ -1007,6 +1087,7 @@ class PmbController extends Controller
 
     public function deleteBatch($id): JsonResponse
     {
+        $this->checkPmbAccess();
         $batch = PmbBatch::findOrFail($id);
         if ($batch->registrations()->count() > 0) {
             return response()->json([
@@ -1032,6 +1113,7 @@ class PmbController extends Controller
      */
     public function togglePmbStatus(Request $request): JsonResponse
     {
+        $this->checkPmbAccess($request);
         $validated = $request->validate([
             'is_open' => 'nullable|boolean',
             'closed_message' => 'nullable|string',
@@ -1086,10 +1168,23 @@ class PmbController extends Controller
      */
     public function getCmsSettingsAdmin(): JsonResponse
     {
+        $this->checkPmbAccess();
+        // Pastikan pmb_visible_to_pengurus ada di setting
+        PmbCmsSetting::firstOrCreate(
+            ['key' => 'pmb_visible_to_pengurus'],
+            [
+                'value' => 'false',
+                'group' => 'system',
+                'type' => 'boolean',
+                'label' => 'Tampilkan Modul & Manajemen PMB ke Admin Pengurus',
+            ]
+        );
+
         $settings = PmbCmsSetting::orderBy('group')->orderBy('id')->get();
         return response()->json([
             'status' => 'success',
             'data' => $settings,
+            'pmb_visible_to_pengurus' => (bool) PmbCmsSetting::getValue('pmb_visible_to_pengurus', false),
         ]);
     }
 
@@ -1098,6 +1193,7 @@ class PmbController extends Controller
      */
     public function updateCmsSettings(Request $request): JsonResponse
     {
+        $this->checkPmbAccess($request);
         $validated = $request->validate([
             'settings' => 'required|array',
             'settings.*.key' => 'required|string',
@@ -1155,6 +1251,7 @@ class PmbController extends Controller
      */
     public function getAnnouncementsAdmin(Request $request): JsonResponse
     {
+        $this->checkPmbAccess($request);
         $query = PmbAnnouncement::with('author:id,name');
 
         if ($request->filled('category') && $request->category !== 'all') {
@@ -1182,6 +1279,7 @@ class PmbController extends Controller
      */
     public function storeAnnouncement(Request $request): JsonResponse
     {
+        $this->checkPmbAccess($request);
         $validated = $request->validate([
             'title' => 'required|string|max:200',
             'content' => 'required|string',
@@ -1207,6 +1305,7 @@ class PmbController extends Controller
      */
     public function updateAnnouncement(Request $request, $id): JsonResponse
     {
+        $this->checkPmbAccess($request);
         $announcement = PmbAnnouncement::findOrFail($id);
 
         $validated = $request->validate([
@@ -1232,6 +1331,7 @@ class PmbController extends Controller
      */
     public function deleteAnnouncement($id): JsonResponse
     {
+        $this->checkPmbAccess();
         $announcement = PmbAnnouncement::findOrFail($id);
         $announcement->delete();
 

@@ -76,6 +76,7 @@ class AuthController extends Controller
             'nisn' => $user->nisn,
             'status' => $user->status ?? 'Aktif',
             'must_change_password' => $this->mustChangePassword($user),
+            'pmb_visible_to_pengurus' => (bool) \App\Models\PmbCmsSetting::getValue('pmb_visible_to_pengurus', false),
         ];
 
         // Jika role guru → sertakan hak akses absensi sholat & ngaji

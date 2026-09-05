@@ -13,7 +13,7 @@ interface ComplexUserFormProps {
 }
 
 export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onClose, onSave }: ComplexUserFormProps) {
-  const { isItAdmin } = useAuth();
+  const { isItAdmin, pmbVisibleToPengurus } = useAuth();
   const [form, setForm] = useState<Record<string, string | number>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -30,15 +30,20 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
   // Jika sedang mengedit akun Admin IT tapi yang login bukan Admin IT, kunci form
   const isLockedForNonIt = isEditingItAdmin && !isItAdmin;
 
-  // Filter pilihan role: Role "admin_it" HANYA boleh dilihat dan dipilih oleh Admin IT
+  // Filter pilihan role:
+  // - Role "admin_it" HANYA boleh dilihat dan dipilih oleh Admin IT
+  // - Role "admin_pmb" HANYA boleh dilihat jika Admin IT atau jika pmbVisibleToPengurus diaktifkan
   const availableRoleOptions = useMemo(() => {
     return SYSTEM_ROLE_OPTIONS.filter((opt) => {
       if (opt.key === 'admin_it' && !isItAdmin) {
         return false;
       }
+      if (opt.key === 'admin_pmb' && !isItAdmin && !pmbVisibleToPengurus) {
+        return false;
+      }
       return true;
     });
-  }, [isItAdmin]);
+  }, [isItAdmin, pmbVisibleToPengurus]);
 
   useEffect(() => {
     if (initialData) {

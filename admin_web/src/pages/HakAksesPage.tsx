@@ -1,5 +1,6 @@
-import { RefreshCw, Save, ShieldCheck, UserCog, UsersRound } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw, Save, ShieldCheck, Sparkles, UserCog, UsersRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '../auth/AuthContext';
 import { DataTable, type DataColumn } from '../components/DataTable';
 import { SegmentedTabs } from '../components/SegmentedTabs';
 import { StatCard } from '../components/StatCard';
@@ -125,6 +126,8 @@ function ToggleCell({ checked, disabled, onChange }: { checked: boolean; disable
 }
 
 export function HakAksesPage() {
+  const { pmbVisibleToPengurus, setPmbVisibleToPengurus } = useAuth();
+  const [isTogglingPmb, setIsTogglingPmb] = useState(false);
   const [roles, setRoles] = useState<string[]>([]);
   const [rows, setRows] = useState<PermissionRow[]>([]);
   const [savedRows, setSavedRows] = useState<PermissionRow[]>([]);
@@ -252,6 +255,91 @@ export function HakAksesPage() {
 
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
       {notice ? <div className="rounded-2xl bg-[#E8F7F3] px-4 py-3 text-sm font-bold text-[#138F81]">{notice}</div> : null}
+
+      {/* 🚀 PANEL KONTROL KHUSUS ADMIN IT: STATUS RILIS MODUL PMB KE PENGURUS */}
+      <div className={`p-5 sm:p-6 rounded-3xl border transition-all shadow-sm ${
+        pmbVisibleToPengurus
+          ? 'bg-gradient-to-r from-emerald-50/90 via-teal-50/50 to-white dark:from-emerald-950/30 dark:to-slate-900 border-emerald-300 dark:border-emerald-800'
+          : 'bg-gradient-to-r from-amber-50/90 via-orange-50/40 to-white dark:from-amber-950/30 dark:to-slate-900 border-amber-300 dark:border-amber-800'
+      }`}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 shadow-xs ${
+              pmbVisibleToPengurus
+                ? 'bg-emerald-500 text-white shadow-emerald-500/25'
+                : 'bg-amber-500 text-white shadow-amber-500/25'
+            }`}>
+              {pmbVisibleToPengurus ? <Sparkles size={24} /> : <EyeOff size={24} />}
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base sm:text-lg font-black text-slate-800 dark:text-slate-100">
+                  Kontrol Rilis Modul & Akun Panitia PMB
+                </h2>
+                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black border flex items-center gap-1 ${
+                  pmbVisibleToPengurus
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/60 dark:text-emerald-300'
+                    : 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/60 dark:text-amber-300'
+                }`}>
+                  <span className={`h-2 w-2 rounded-full ${pmbVisibleToPengurus ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                  {pmbVisibleToPengurus ? 'RILIS KE PENGURUS (TAMPIL)' : 'KHUSUS INTERNAL IT (SEMBUNYI)'}
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300 mt-1 max-w-3xl leading-relaxed">
+                {pmbVisibleToPengurus
+                  ? 'Modul PMB, link Web Publik, dan pengelolaan akun Panitia PMB saat ini sedang DITAMPILKAN ke akun Admin Pengurus. Pengurus dapat memantau pendaftar dan mengelola PMB.'
+                  : 'Modul PMB, link Web Publik, dan pengelolaan akun Panitia PMB saat ini 100% DISEMBUNYIKAN dari Admin Pengurus (karena belum jadwal rilis resmi). Hanya Admin IT yang dapat melihat dan mengujinya.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
+            <button
+              onClick={async () => {
+                const nextState = !pmbVisibleToPengurus;
+                if (window.confirm(
+                  nextState
+                    ? 'Aktifkan dan TAMPILKAN modul PMB & akun Panitia PMB ke Admin Pengurus?'
+                    : 'SEMBUNYIKAN kembali modul PMB & akun Panitia PMB dari Admin Pengurus (khusus internal IT saja)?'
+                )) {
+                  setIsTogglingPmb(true);
+                  try {
+                    await setPmbVisibleToPengurus(nextState);
+                  } catch (e: any) {
+                    alert(e?.message || 'Gagal mengubah visibilitas PMB');
+                  } finally {
+                    setIsTogglingPmb(false);
+                  }
+                }
+              }}
+              disabled={isTogglingPmb}
+              className={`px-5 py-3 rounded-2xl text-xs sm:text-sm font-black transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 ${
+                pmbVisibleToPengurus
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/25'
+                  : 'bg-[#138F81] hover:bg-[#0D7A6F] text-white shadow-[#138F81]/25'
+              }`}
+              type="button"
+            >
+              {isTogglingPmb ? (
+                <>
+                  <RefreshCw size={16} className="animate-spin" />
+                  <span>Memproses...</span>
+                </>
+              ) : pmbVisibleToPengurus ? (
+                <>
+                  <EyeOff size={16} />
+                  <span>Sembunyikan dari Pengurus</span>
+                </>
+              ) : (
+                <>
+                  <Eye size={16} />
+                  <span>Tampilkan ke Pengurus</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard title="Role Terdaftar" value={roles.length} subtitle="Admin, guru, wali" icon={UsersRound} tone="teal" />

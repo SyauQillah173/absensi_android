@@ -17,6 +17,7 @@ import {
   Edit2,
   ExternalLink,
   Eye,
+  EyeOff,
   FileCheck,
   FileText,
   Filter,
@@ -44,6 +45,7 @@ import {
   X
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { useAuth } from '../auth/AuthContext';
 import { api, type ApiRecord } from '../services/api';
 import { exportRowsExcel } from '../utils/importTemplates';
 import { PmbCmsTab } from './pmb/PmbCmsTab';
@@ -137,6 +139,7 @@ interface BatchItem {
 }
 
 export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdminPageProps) {
+  const { isItAdmin, pmbVisibleToPengurus, setPmbVisibleToPengurus } = useAuth();
   const [activeTab, setActiveTab] = useState(initialTab);
 
   // Master PMB Open / Closed state
@@ -550,6 +553,37 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                 <Power className="w-3.5 h-3.5" />
                 <span>{pmbIsOpen ? '🟢 PMB DIBUKA' : '🔴 PMB DITUTUP'}</span>
               </button>
+
+              {/* Status Visibilitas ke Admin Pengurus (Khusus Admin IT) */}
+              {isItAdmin && (
+                <button
+                  onClick={async () => {
+                    const next = !pmbVisibleToPengurus;
+                    if (window.confirm(
+                      next
+                        ? 'Tampilkan modul PMB & akun Panitia PMB ke Admin Pengurus sekarang?'
+                        : 'Sembunyikan kembali modul PMB & akun Panitia PMB dari Admin Pengurus (khusus internal IT saja)?'
+                    )) {
+                      try {
+                        await setPmbVisibleToPengurus(next);
+                        showToast(next ? 'Modul PMB kini DITAMPILKAN ke Admin Pengurus.' : 'Modul PMB kini DISEMBUNYIKAN dari Admin Pengurus.');
+                      } catch (err: any) {
+                        showToast(err?.message || 'Gagal mengubah visibilitas', 'error');
+                      }
+                    }
+                  }}
+                  className={`px-3 py-1 rounded-full text-[11px] font-black border flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
+                    pmbVisibleToPengurus
+                      ? 'bg-teal-50 text-teal-800 border-teal-300 hover:bg-teal-100'
+                      : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                  }`}
+                  title="Klik untuk mengubah apakah modul PMB tampil di akun Admin Pengurus atau disembunyikan"
+                  type="button"
+                >
+                  {pmbVisibleToPengurus ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                  <span>{pmbVisibleToPengurus ? '👁️ Pengurus: Tampil' : '🔒 Pengurus: Sembunyi'}</span>
+                </button>
+              )}
 
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#FFDC80] text-[#0D7A6F] border border-amber-300">
                 TA 2026/2027

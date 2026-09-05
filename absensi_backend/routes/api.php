@@ -390,6 +390,9 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
             // Toggle Buka/Tutup PMB Cerdas
             Route::post('toggle-status', [PmbController::class, 'togglePmbStatus']);
 
+            // [ADMIN IT ONLY] Toggle Visibilitas Modul PMB ke Admin Pengurus
+            Route::post('toggle-pengurus-visibility', [PmbController::class, 'togglePengurusVisibility']);
+
             // CMS Web Profil Pesantren ala WordPress
             Route::get('cms-settings', [PmbController::class, 'getCmsSettingsAdmin']);
             Route::post('cms-settings', [PmbController::class, 'updateCmsSettings']);
