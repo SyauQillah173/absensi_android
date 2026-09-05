@@ -47,6 +47,8 @@ import { api, type ApiRecord } from '../services/api';
 
 interface PublicPmbLandingPageProps {
   onOpenLogin: () => void;
+  isLoggedIn?: boolean;
+  onBackToAdmin?: () => void;
 }
 
 interface ActiveBatch {
@@ -128,7 +130,7 @@ interface StatusCheckItem {
   kamar_resmi?: string | null;
 }
 
-export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps) {
+export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackToAdmin }: PublicPmbLandingPageProps) {
   const [activeTab, setActiveTab] = useState<'beranda' | 'daftar' | 'status' | 'agenda'>('beranda');
   const [activeBatch, setActiveBatch] = useState<ActiveBatch | null>(null);
   const [totalRegistered, setTotalRegistered] = useState(0);
@@ -422,6 +424,27 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
 
   return (
     <div className="min-h-screen bg-[#FFDC80] dark:bg-[#0B1120] text-[#2D3436] dark:text-slate-100 flex flex-col font-sans selection:bg-[#138F81] selection:text-white transition-colors duration-300">
+      {/* 🌟 BANNER KHUSUS MODE PREVIEW ADMIN */}
+      {isLoggedIn && (
+        <div className="bg-gradient-to-r from-[#0D7A6F] to-[#138F81] text-white px-4 py-2 text-xs font-bold flex flex-wrap items-center justify-between gap-2 shadow-md border-b border-teal-500/50">
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full bg-amber-300 text-slate-900 font-black text-[10px] tracking-wider uppercase shadow-xs">
+              Mode Pratinjau Admin
+            </span>
+            <span className="text-[11px] sm:text-xs text-teal-100">
+              Anda sedang login sebagai Admin dan melihat tampilan langsung Web Publik PMB & Profil Pesantren.
+            </span>
+          </div>
+          <button
+            onClick={onBackToAdmin || onOpenLogin}
+            className="px-3 py-1 rounded-xl bg-white/20 hover:bg-white text-white hover:text-[#0D7A6F] text-xs font-black transition-all flex items-center gap-1.5 border border-white/40 cursor-pointer shadow-xs"
+          >
+            <Home className="w-3.5 h-3.5 text-amber-300" />
+            <span>← Kembali ke Dashboard Admin</span>
+          </button>
+        </div>
+      )}
+
       {/* 🌟 BANNER STATUS MASTER BUKA/TUTUP JIKA DITUTUP */}
       {!pmbIsOpen && (
         <div className="bg-rose-600 dark:bg-rose-900 text-white px-4 py-2.5 text-xs font-bold text-center flex items-center justify-center gap-2 shadow-md">
@@ -537,14 +560,26 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                 <span className="hidden sm:inline">Bagikan Link</span>
               </button>
 
-              <button
-                onClick={onOpenLogin}
-                className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs font-black bg-[#138F81] hover:bg-[#0D7A6F] text-white transition-all shadow-sm shadow-[#138F81]/25 cursor-pointer"
-              >
-                <LogIn className="w-4 h-4 text-[#FFDC80]" />
-                <span className="hidden sm:inline">Masuk Portal Pegawai</span>
-                <span className="sm:hidden">Login</span>
-              </button>
+              {isLoggedIn ? (
+                <button
+                  onClick={onBackToAdmin || onOpenLogin}
+                  className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs font-black bg-[#0D7A6F] hover:bg-[#138F81] text-white transition-all shadow-md shadow-[#0D7A6F]/25 border border-teal-400/50 cursor-pointer"
+                  title="Kembali ke Dashboard Admin"
+                >
+                  <Home className="w-4 h-4 text-[#FFDC80]" />
+                  <span className="hidden sm:inline">Kembali ke Dashboard</span>
+                  <span className="sm:hidden">Dashboard</span>
+                </button>
+              ) : (
+                <button
+                  onClick={onOpenLogin}
+                  className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs font-black bg-[#138F81] hover:bg-[#0D7A6F] text-white transition-all shadow-sm shadow-[#138F81]/25 cursor-pointer"
+                >
+                  <LogIn className="w-4 h-4 text-[#FFDC80]" />
+                  <span className="hidden sm:inline">Masuk Portal Pegawai</span>
+                  <span className="sm:hidden">Login</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

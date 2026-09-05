@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { AdminLayout, type PageKey } from './layout/AdminLayout';
 import type { AbsensiNavigationTarget, AbsensiTab } from './pages/AbsensiPage';
@@ -35,30 +35,68 @@ function PageLoader() {
 
 function AdminShell() {
   const { isAuthenticated, canView, session, isItAdmin, isPmbAdmin } = useAuth();
-  const [publicView, setPublicView] = useState<'login' | 'pmb'>(() => {
+
+  // Deteksi apakah URL meminta view PMB publik (?pmb=1, /pmb, #/pmb, dll.)
+  const isPmbRequestedInUrl = () => {
     const p = window.location.pathname.toLowerCase();
     const s = window.location.search.toLowerCase();
     const h = window.location.hash.toLowerCase();
     return (
-      p.startsWith('/pmb') ||
+      p === '/pmb' ||
+      p.startsWith('/pmb/') ||
       p.startsWith('/santri-baru') ||
       p.startsWith('/profil') ||
-      s.includes('pmb') ||
-      s.includes('santri-baru') ||
+      s.includes('pmb=1') ||
+      s.includes('pmb=true') ||
+      s.includes('view=pmb') ||
       h.includes('pmb')
-    ) ? 'pmb' : 'login';
+    );
+  };
+
+  const [viewMode, setViewMode] = useState<'app' | 'pmb'>(() => {
+    return isPmbRequestedInUrl() ? 'pmb' : 'app';
   });
 
-  const handleSwitchPublicView = (view: 'login' | 'pmb') => {
-    setPublicView(view);
+  useEffect(() => {
+    const handleLocationChange = () => {
+      if (isPmbRequestedInUrl()) {
+        setViewMode('pmb');
+      } else {
+        setViewMode('app');
+      }
+    };
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+    };
+  }, []);
+
+  const handleOpenPmb = () => {
+    setViewMode('pmb');
     try {
       const url = new URL(window.location.href);
-      if (view === 'pmb') {
-        url.searchParams.set('pmb', '1');
-      } else {
-        url.searchParams.delete('pmb');
+      url.searchParams.set('pmb', '1');
+      window.history.pushState({}, '', url.toString());
+    } catch {
+      // safe fallback
+    }
+  };
+
+  const handleBackToAdminOrLogin = () => {
+    setViewMode('app');
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('pmb');
+      url.searchParams.delete('view');
+      if (url.pathname.toLowerCase().startsWith('/pmb')) {
+        url.pathname = '/';
       }
-      window.history.replaceState({}, '', url.toString());
+      if (window.location.hash.includes('pmb')) {
+        window.location.hash = '';
+      }
+      window.history.pushState({}, '', url.toString());
     } catch {
       // safe fallback
     }
@@ -76,14 +114,25 @@ function AdminShell() {
   const [pmbTab, setPmbTab] = useState<string>('dashboard');
   const [absensiTarget, setAbsensiTarget] = useState<(AbsensiNavigationTarget & { key: number }) | undefined>();
 
+  // 1. Jika sedang membuka view PMB publik:
+  // Selalu tampilkan PublicPmbLandingPage baik sedang login (mode preview admin) maupun tamu!
+  if (viewMode === 'pmb') {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <PublicPmbLandingPage
+          isLoggedIn={isAuthenticated}
+          onOpenLogin={handleBackToAdminOrLogin}
+          onBackToAdmin={handleBackToAdminOrLogin}
+        />
+      </Suspense>
+    );
+  }
+
+  // 2. Jika bukan PMB publik dan belum login: Tampilkan Login Page
   if (!isAuthenticated) {
     return (
       <Suspense fallback={<PageLoader />}>
-        {publicView === 'pmb' ? (
-          <PublicPmbLandingPage onOpenLogin={() => handleSwitchPublicView('login')} />
-        ) : (
-          <LoginPage onOpenPmb={() => handleSwitchPublicView('pmb')} />
-        )}
+        <LoginPage onOpenPmb={handleOpenPmb} />
       </Suspense>
     );
   }
