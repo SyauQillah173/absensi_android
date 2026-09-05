@@ -208,21 +208,43 @@ export function JadwalPelajaranPage() {
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-bold text-[#636E72]">Akademik</p>
-          <h1 className="text-3xl font-extrabold text-[#2D3436]">Jadwal Pelajaran</h1>
-          <p className="text-sm font-semibold text-[#636E72]">Jadwal kelas, guru, dan mata pelajaran memakai backend yang sama dengan Android.</p>
+      {/* 🌟 HEADER CARD JADWAL PELAJARAN */}
+      <div className="q-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-[#E1EFF7] text-[#138F81] border border-teal-100 flex items-center justify-center shrink-0 shadow-xs">
+            <CalendarCheck className="w-6 h-6 sm:w-7 sm:h-7" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#636E72]">
+                Akademik & KBM
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#E8F7F3] text-[#138F81] border border-[#138F81]/20">
+                Jadwal Mengajar
+              </span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-[#2D3436] tracking-tight">Jadwal Pelajaran</h1>
+            <p className="text-xs sm:text-sm font-medium text-[#636E72] mt-0.5">Jadwal kelas, guru, dan mata pelajaran memakai backend yang sama dengan Android.</p>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button className={`q-refresh-button inline-flex min-h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#138F81] ${isLoading ? 'is-loading' : ''}`} onClick={() => void load()} type="button" disabled={isLoading}>
-            <RefreshCw className="q-refresh-icon" size={17} /> {isLoading ? 'Memuat...' : 'Refresh'}
-          </button>
-          <button className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20" onClick={() => setShowBatchForm(true)} type="button">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] px-4 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 transition-all cursor-pointer"
+            onClick={() => setShowBatchForm(true)}
+            type="button"
+          >
             <Plus size={17} /> Tambah Jadwal
           </button>
+          <button
+            className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white border border-slate-200/80 px-4 text-sm font-bold text-[#138F81] hover:bg-slate-50 transition-all cursor-pointer shadow-xs ${isLoading ? 'is-loading' : ''}`}
+            onClick={() => void load()}
+            type="button"
+            disabled={isLoading}
+          >
+            <RefreshCw className="q-refresh-icon" size={17} /> {isLoading ? 'Memuat...' : 'Refresh'}
+          </button>
         </div>
-      </section>
+      </div>
 
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
       {notice ? <div className="rounded-2xl bg-[#E8F7F3] px-4 py-3 text-sm font-bold text-[#138F81]">{notice}</div> : null}

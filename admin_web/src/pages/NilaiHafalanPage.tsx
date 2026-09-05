@@ -743,45 +743,51 @@ export function NilaiHafalanPage() {
 
   return (
     <div className="space-y-6">
-
-      {/* HERO GRADIENT BANNER (CONSISTENT WITH ABSENSI MONITORING) */}
-      <section className="rounded-3xl bg-linear-to-r from-[#0F7A6E] via-[#138F81] to-[#1AB3A3] p-6 text-white shadow-lg shadow-[#138F81]/15">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-black backdrop-blur-xs">
-              <Sparkles size={14} className="text-amber-300" />
-              <span>{isMadrasah ? 'MONITORING NILAI & HAFALAN MADRASAH' : 'PUSAT EVALUASI PEMBELAJARAN'}</span>
+      {/* 🌟 HEADER CARD NILAI & HAFALAN */}
+      <div className="q-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-[#E1EFF7] text-[#138F81] border border-teal-100 flex items-center justify-center shrink-0 shadow-xs">
+            <Award className="w-6 h-6 sm:w-7 sm:h-7" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#636E72]">
+                {isMadrasah ? 'Monitoring Nilai & Hafalan' : 'Pusat Evaluasi Pembelajaran'}
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#FFDC80] text-[#0D7A6F] border border-amber-300">
+                Madin & Tahfidz
+              </span>
             </div>
-            <h2 className="text-2xl font-black tracking-tight">
-              {isMadrasah ? 'Rekapitulasi Nilai & Setoran Hafalan Santri' : 'Nilai Ujian & Hafalan Al-Qur\'an'}
-            </h2>
-            <p className="text-xs font-medium text-emerald-100 max-w-2xl">
-              {isMadrasah
-                ? 'Pemantauan komprehensif nilai ujian madin, raport semester, peringkat kelas, dan progres setoran hafalan Al-Qur\'an santri.'
-                : 'Pencatatan dan rekapitulasi nilai ujian harian, UTS, UAS, serta setoran hafalan santri terintegrasi dengan portal wali & Android.'}
+            <h1 className="text-xl sm:text-2xl font-black text-[#2D3436] tracking-tight">
+              {isMadrasah ? 'Rekapitulasi Nilai & Setoran Hafalan' : 'Nilai Ujian & Hafalan Al-Qur\'an'}
+            </h1>
+            <p className="text-xs sm:text-sm font-medium text-[#636E72] mt-0.5">
+              Pencatatan dan rekapitulasi nilai ujian harian, UTS, UAS, serta setoran hafalan santri terintegrasi.
             </p>
           </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={exportCurrentRows}
-              className="inline-flex items-center gap-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/30 px-4 py-2.5 text-xs font-extrabold text-white backdrop-blur-sm transition-all"
-            >
-              <Download size={15} /> Export Rekap Excel
-            </button>
-            <button
-              type="button"
-              onClick={() => void load()}
-              disabled={isLoading}
-              className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-2.5 text-xs font-black text-[#138F81] shadow-md hover:bg-emerald-50 transition-all disabled:opacity-50"
-            >
-              <RefreshCw size={15} className={isLoading ? 'animate-spin' : ''} />
-              {isLoading ? 'Menyegarkan...' : 'Refresh Data'}
-            </button>
-          </div>
         </div>
-      </section>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={exportCurrentRows}
+            className="flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] px-4 text-sm font-extrabold text-white shadow-sm transition-all cursor-pointer"
+            title="Download Rekap Nilai / Hafalan Excel (.xlsx)"
+          >
+            <Download size={17} />
+            <span>Export Rekap Excel</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => void load()}
+            disabled={isLoading}
+            className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white border border-slate-200/80 px-4 text-sm font-bold text-[#138F81] hover:bg-slate-50 transition-all cursor-pointer shadow-xs ${isLoading ? 'is-loading' : ''}`}
+          >
+            <RefreshCw size={17} className={`q-refresh-icon ${isLoading ? 'animate-spin' : ''}`} />
+            <span>{isLoading ? 'Menyegarkan...' : 'Refresh Data'}</span>
+          </button>
+        </div>
+      </div>
 
       {/* 4 MODERN STAT CARDS */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

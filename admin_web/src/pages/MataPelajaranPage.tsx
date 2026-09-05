@@ -300,33 +300,43 @@ export function MataPelajaranPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <section className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-bold text-[#636E72]">Akademik & KBM</p>
-          <h1 className="text-3xl font-extrabold text-[#2D3436]">Mata Pelajaran & Jadwal KBM</h1>
-          <p className="text-sm font-semibold text-[#636E72]">
-            Kelola mata pelajaran resmi, guru pengajar, dan susunan jam jadwal santri secara terpadu.
-          </p>
+      {/* 🌟 HEADER CARD MATA PELAJARAN */}
+      <div className="q-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-[#E1EFF7] text-[#138F81] border border-teal-100 flex items-center justify-center shrink-0 shadow-xs">
+            <BookOpen className="w-6 h-6 sm:w-7 sm:h-7" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#636E72]">
+                Kurikulum & Pembelajaran
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#E8F7F3] text-[#138F81] border border-[#138F81]/20">
+                Madin & Pondok
+              </span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-[#2D3436] tracking-tight">Mata Pelajaran & Jadwal KBM</h1>
+            <p className="text-xs sm:text-sm font-medium text-[#636E72] mt-0.5">Kelola mata pelajaran resmi, guru pengajar, dan susunan jam jadwal santri.</p>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
-            className="q-refresh-button inline-flex min-h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#138F81]"
+            className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] px-4 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 transition-all cursor-pointer"
+            onClick={() => setActiveFormData(null)}
+            type="button"
+          >
+            <Plus size={17} /> Tambah Mapel
+          </button>
+          <button
+            className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white border border-slate-200/80 px-4 text-sm font-bold text-[#138F81] hover:bg-slate-50 transition-all cursor-pointer shadow-xs ${isLoading ? 'is-loading' : ''}`}
             onClick={() => void load()}
             type="button"
             disabled={isLoading}
           >
             <RefreshCw className={`q-refresh-icon ${isLoading ? 'animate-spin' : ''}`} size={17} /> Refresh
           </button>
-          <button
-            className="q-soft-action inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white shadow-md shadow-[#138F81]/25 hover:bg-[#0f766a] transition-all"
-            onClick={() => setActiveFormData(null)}
-            type="button"
-          >
-            <Plus size={17} /> Tambah Mapel & Jadwal
-          </button>
         </div>
-      </section>
+      </div>
 
       {/* Stat Cards */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">

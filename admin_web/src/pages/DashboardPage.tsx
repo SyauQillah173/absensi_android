@@ -395,22 +395,42 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance, onNavigateFinan
 
   return (
     <div className="space-y-6">
-      <section className="q-page-heading flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-[#636E72] dark:text-slate-300 transition-colors">{isMadrasah ? 'Monitoring & Pemantauan' : 'Yayasan Pondok Qomaruddin'}</p>
-          <h1 className="text-3xl font-extrabold text-[#2D3436] dark:text-slate-100 transition-colors">{isMadrasah ? 'Dashboard Pemantauan Absensi' : 'Dashboard Overview'}</h1>
+      {/* 🌟 HEADER CARD DASHBOARD OVERVIEW */}
+      <div className="q-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-[#E1EFF7] text-[#138F81] border border-teal-100 flex items-center justify-center shrink-0 shadow-xs">
+            <Home className="w-6 h-6 sm:w-7 sm:h-7" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#636E72]">
+                {isMadrasah ? 'Monitoring & Pemantauan' : 'Yayasan Pondok Qomaruddin'}
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#E8F7F3] text-[#138F81] border border-[#138F81]/20">
+                Live Data
+              </span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-[#2D3436] tracking-tight">
+              {isMadrasah ? 'Dashboard Pemantauan Absensi' : 'Dashboard Overview'}
+            </h1>
+            <p className="text-xs sm:text-sm text-[#636E72] font-medium mt-0.5">
+              Satu data terpadu santri, absensi madin, ngaji, sholat, dan transaksi keuangan.
+            </p>
+          </div>
         </div>
-        <button
-          className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white shadow-md shadow-black/5 px-4 text-sm font-bold text-[#138F81] transition-all hover:scale-102 ${isLoading ? 'is-loading' : ''}`}
-          onClick={() => void load()}
-          type="button"
-          disabled={isLoading}
-          aria-busy={isLoading}
-        >
-          <RefreshCw className="q-refresh-icon" size={17} />
-          {isLoading ? 'Menyegarkan...' : 'Refresh'}
-        </button>
-      </section>
+        <div className="flex items-center gap-2">
+          <button
+            className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white border border-slate-200/80 px-4 text-sm font-bold text-[#138F81] hover:bg-slate-50 transition-all cursor-pointer shadow-xs ${isLoading ? 'is-loading' : ''}`}
+            onClick={() => void load()}
+            type="button"
+            disabled={isLoading}
+            aria-busy={isLoading}
+          >
+            <RefreshCw className="q-refresh-icon" size={17} />
+            {isLoading ? 'Menyegarkan...' : 'Refresh'}
+          </button>
+        </div>
+      </div>
 
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
 

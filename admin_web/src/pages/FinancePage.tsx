@@ -433,24 +433,37 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-bold text-[#636E72]">{pageHeaderInfo.subtitle}</p>
-
-          <h1 className="text-3xl font-extrabold text-[#2D3436]">{pageHeaderInfo.title}</h1>
+      {/* 🌟 HEADER CARD KEUANGAN & KAS */}
+      <div className="q-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-[#E1EFF7] text-[#138F81] border border-teal-100 flex items-center justify-center shrink-0 shadow-xs">
+            <WalletCards className="w-6 h-6 sm:w-7 sm:h-7" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#636E72]">
+                Keuangan & Kas Pesantren
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#FFDC80] text-[#0D7A6F] border border-amber-300">
+                Kasir & SPP
+              </span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-[#2D3436] tracking-tight">{pageHeaderInfo.title}</h1>
+            <p className="text-xs sm:text-sm font-medium text-[#636E72] mt-0.5">{pageHeaderInfo.subtitle}</p>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setShowExportModal(true)}
-            className="flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] hover:bg-[#0E7065] px-4 text-sm font-extrabold text-white shadow-sm transition-all"
+            className="flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] px-4 text-sm font-extrabold text-white shadow-sm transition-all cursor-pointer"
             title="Download Rekapitulasi Keuangan Excel (.xlsx)"
           >
             <Download size={17} />
             <span>Export Rekap Excel</span>
           </button>
           <button
-            className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#138F81] ${isLoading ? 'is-loading' : ''}`}
+            className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white border border-slate-200/80 px-4 text-sm font-bold text-[#138F81] hover:bg-slate-50 transition-all cursor-pointer shadow-xs ${isLoading ? 'is-loading' : ''}`}
             onClick={() => void load()}
             type="button"
             disabled={isLoading}
@@ -460,7 +473,7 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
             {isLoading ? 'Menyegarkan...' : 'Refresh'}
           </button>
         </div>
-      </section>
+      </div>
 
       {toast ? (
         <div className={`fixed bottom-4 right-4 z-50 rounded-2xl px-6 py-3 text-sm font-bold text-white shadow-xl transition-all duration-300 ${toast.type === 'success' ? 'bg-[#138F81]' : 'bg-[#D63031]'}`}>

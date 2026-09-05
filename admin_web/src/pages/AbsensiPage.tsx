@@ -254,14 +254,26 @@ export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabC
 
   return (
     <div className="q-page-enter space-y-6">
-      <section className="q-page-heading">
-        <p className="text-sm font-bold text-[#636E72]">{headerInfo.badge}</p>
-        <h1 className="text-3xl font-extrabold text-[#2D3436] flex items-center gap-2.5">
-          <HeaderIcon className="text-[#138F81]" size={30} />
-          {headerInfo.title}
-        </h1>
-        <p className="text-sm font-semibold text-[#636E72]">{headerInfo.desc}</p>
-      </section>
+      {/* 🌟 HEADER CARD PRESENSI & ABSENSI */}
+      <div className="q-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-[#E1EFF7] text-[#138F81] border border-teal-100 flex items-center justify-center shrink-0 shadow-xs">
+            <HeaderIcon className="w-6 h-6 sm:w-7 sm:h-7" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#636E72]">
+                Presensi & Absensi
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#FFDC80] text-[#0D7A6F] border border-amber-300">
+                {headerInfo.badge}
+              </span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-[#2D3436] tracking-tight">{headerInfo.title}</h1>
+            <p className="text-xs sm:text-sm font-medium text-[#636E72] mt-0.5">{headerInfo.desc}</p>
+          </div>
+        </div>
+      </div>
 
       {currentTab === 'log-realtime' ? <RealtimeAttendanceLog /> : null}
       {currentTab === 'madin-input' ? <MadinInput initialTarget={initialTarget} /> : null}

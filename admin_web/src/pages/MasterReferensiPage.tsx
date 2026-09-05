@@ -1,4 +1,4 @@
-import { Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Layers, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ComplexReferensiForm } from '../components/ComplexReferensiForm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -167,23 +167,35 @@ export function MasterReferensiPage() {
 
   return (
     <div className="space-y-6">
-      <section className="q-page-heading flex flex-wrap items-end justify-between gap-4">
-
-        <div>
-          <p className="text-sm font-bold text-[#636E72]">Master Data</p>
-          <h1 className="text-3xl font-extrabold text-[#2D3436]">Data Referensi</h1>
-          <p className="text-sm font-semibold text-[#636E72]">Kelola opsi dropdown seperti Tempat Lahir, Kabupaten, Negara, dll.</p>
+      {/* 🌟 HEADER CARD DATA REFERENSI */}
+      <div className="q-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-[#E1EFF7] text-[#138F81] border border-teal-100 flex items-center justify-center shrink-0 shadow-xs">
+            <Layers className="w-6 h-6 sm:w-7 sm:h-7" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#636E72]">
+                Master Data
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#FFDC80] text-[#0D7A6F] border border-amber-300">
+                Dropdown Options
+              </span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-[#2D3436] tracking-tight">Data Referensi</h1>
+            <p className="text-xs sm:text-sm font-medium text-[#636E72] mt-0.5">Kelola opsi dropdown seperti Tempat Lahir, Kabupaten, Pekerjaan, dll.</p>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
-            className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20"
+            className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] px-4 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 transition-all cursor-pointer"
             onClick={() => setForm({ kategori: 'agama', nilai: '', is_active: true })}
             type="button"
           >
             <Plus size={17} /> Tambah Referensi
           </button>
           <button
-            className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#138F81] ${isLoading ? 'is-loading' : ''}`}
+            className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white border border-slate-200/80 px-4 text-sm font-bold text-[#138F81] hover:bg-slate-50 transition-all cursor-pointer shadow-xs ${isLoading ? 'is-loading' : ''}`}
             onClick={() => void load()}
             type="button"
             disabled={isLoading}
@@ -192,7 +204,7 @@ export function MasterReferensiPage() {
             {isLoading ? 'Refresh...' : 'Refresh'}
           </button>
         </div>
-      </section>
+      </div>
 
       {error ? (
         <div className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-800 border border-rose-100">

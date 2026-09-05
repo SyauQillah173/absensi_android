@@ -218,15 +218,28 @@ export function HakAksesPage() {
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-bold text-[#636E72]">Hak Akses</p>
-          <h1 className="text-3xl font-extrabold text-[#2D3436]">Role dan Permission</h1>
-          <p className="text-sm font-semibold text-[#636E72]">Admin utama full akses, admin lain dan guru/wali mengikuti permission backend.</p>
+      {/* 🌟 HEADER CARD HAK AKSES */}
+      <div className="q-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-[#E1EFF7] text-[#138F81] border border-teal-100 flex items-center justify-center shrink-0 shadow-xs">
+            <ShieldCheck className="w-6 h-6 sm:w-7 sm:h-7" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#636E72]">
+                Pengaturan Sistem
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#FFDC80] text-[#0D7A6F] border border-amber-300">
+                RBAC Security
+              </span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-[#2D3436] tracking-tight">Role dan Permission</h1>
+            <p className="text-xs sm:text-sm font-medium text-[#636E72] mt-0.5">Admin utama full akses, admin lain dan guru/wali mengikuti permission backend.</p>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex items-center gap-2">
           <button
-            className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#138F81] ${isLoading ? 'is-loading' : ''}`}
+            className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white border border-slate-200/80 px-4 text-sm font-bold text-[#138F81] hover:bg-slate-50 transition-all cursor-pointer shadow-xs ${isLoading ? 'is-loading' : ''}`}
             onClick={() => void load()}
             type="button"
             disabled={isLoading}
@@ -235,7 +248,7 @@ export function HakAksesPage() {
             {isLoading ? 'Menyegarkan...' : 'Refresh'}
           </button>
         </div>
-      </section>
+      </div>
 
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
       {notice ? <div className="rounded-2xl bg-[#E8F7F3] px-4 py-3 text-sm font-bold text-[#138F81]">{notice}</div> : null}

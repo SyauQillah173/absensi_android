@@ -147,22 +147,37 @@ export function AccountPage() {
 
   return (
     <div className="space-y-6">
-      <section className="q-page-heading flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-[#636E72]">Akun</p>
-          <h1 className="text-3xl font-extrabold text-[#2D3436]">Pengaturan Akun</h1>
-          <p className="text-sm font-semibold text-[#636E72]">Kelola profil pribadi. Role dan permission hanya dapat diubah Admin Utama.</p>
+      {/* 🌟 HEADER CARD PENGATURAN AKUN */}
+      <div className="q-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-[#E1EFF7] text-[#138F81] border border-teal-100 flex items-center justify-center shrink-0 shadow-xs">
+            <UserRound className="w-6 h-6 sm:w-7 sm:h-7" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#636E72]">
+                Profil & Keamanan
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#E8F7F3] text-[#138F81] border border-[#138F81]/20">
+                Akun Saya
+              </span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-[#2D3436] tracking-tight">Pengaturan Akun</h1>
+            <p className="text-xs sm:text-sm font-medium text-[#636E72] mt-0.5">Kelola data profil pribadi, foto, dan kata sandi login Anda.</p>
+          </div>
         </div>
-        <button
-          className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#138F81] ${isLoading ? 'is-loading' : ''}`}
-          onClick={() => void load()}
-          type="button"
-          disabled={isLoading}
-        >
-          <RefreshCw className="q-refresh-icon" size={17} />
-          Refresh
-        </button>
-      </section>
+        <div className="flex items-center gap-2">
+          <button
+            className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white border border-slate-200/80 px-4 text-sm font-bold text-[#138F81] hover:bg-slate-50 transition-all cursor-pointer shadow-xs ${isLoading ? 'is-loading' : ''}`}
+            onClick={() => void load()}
+            type="button"
+            disabled={isLoading}
+          >
+            <RefreshCw className="q-refresh-icon" size={17} />
+            Refresh
+          </button>
+        </div>
+      </div>
 
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
       {notice ? <div className="rounded-2xl bg-[#E8F7F3] px-4 py-3 text-sm font-bold text-[#138F81]">{notice}</div> : null}
