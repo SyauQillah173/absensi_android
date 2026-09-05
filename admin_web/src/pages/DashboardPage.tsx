@@ -397,11 +397,11 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance, onNavigateFinan
     <div className="space-y-6">
       <section className="q-page-heading flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-sm font-bold text-[#636E72]">{isMadrasah ? 'Monitoring & Pemantauan' : 'Yayasan Pondok Qomaruddin'}</p>
-          <h1 className="text-3xl font-extrabold text-[#2D3436]">{isMadrasah ? 'Dashboard Pemantauan Absensi' : 'Dashboard Overview'}</h1>
+          <p className="text-sm font-bold text-[#636E72] dark:text-slate-300 transition-colors">{isMadrasah ? 'Monitoring & Pemantauan' : 'Yayasan Pondok Qomaruddin'}</p>
+          <h1 className="text-3xl font-extrabold text-[#2D3436] dark:text-slate-100 transition-colors">{isMadrasah ? 'Dashboard Pemantauan Absensi' : 'Dashboard Overview'}</h1>
         </div>
         <button
-          className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#138F81] ${isLoading ? 'is-loading' : ''}`}
+          className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white shadow-md shadow-black/5 px-4 text-sm font-bold text-[#138F81] transition-all hover:scale-102 ${isLoading ? 'is-loading' : ''}`}
           onClick={() => void load()}
           type="button"
           disabled={isLoading}

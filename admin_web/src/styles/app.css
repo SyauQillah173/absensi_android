@@ -13,7 +13,6 @@
 }
 
 html.dark {
-  color: #f8fafc;
   background: #0b1120;
   color-scheme: dark;
 }
@@ -39,7 +38,7 @@ body {
 
 html.dark body {
   background: #0b1120;
-  color: #f8fafc;
+  color: #2d3436;
 }
 
 button,
@@ -65,11 +64,11 @@ button:disabled {
   transition: transform 210ms ease, box-shadow 210ms ease, background-color 210ms ease, border-color 210ms ease;
 }
 
+/* Di Mode Malam: Kotak/Card TETAP PUTIH BERSIH sesuai aslinya dengan bayangan tegas di atas kanvas gelap */
 .dark .q-card {
-  background: #1e293b;
-  border: 1px solid rgba(51, 65, 85, 0.7);
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
-  color: #f8fafc;
+  background: #ffffff;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+  color: #2d3436;
 }
 
 .q-card:hover {
@@ -78,18 +77,12 @@ button:disabled {
 }
 
 .dark .q-card:hover {
-  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.45);
 }
 
 .q-panel {
   border-radius: 24px;
   background: #e1eff7;
-}
-
-.dark .q-panel {
-  background: #0f172a;
-  border: 1px solid rgba(51, 65, 85, 0.6);
-  color: #f8fafc;
 }
 
 .q-input {
@@ -104,22 +97,10 @@ button:disabled {
   transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
-.dark .q-input {
-  border-color: #334155;
-  background: #0f172a;
-  color: #f8fafc;
-}
-
 .q-input:focus {
   border-color: #138f81;
   background: #ffffff;
   box-shadow: 0 0 0 4px rgba(19, 143, 129, 0.12);
-}
-
-.dark .q-input:focus {
-  border-color: #14b8a6;
-  background: #1e293b;
-  box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.2);
 }
 
 .q-input-icon-left {

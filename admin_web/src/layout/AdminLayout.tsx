@@ -591,7 +591,7 @@ export function AdminLayout({
 
   const nav = (
     <aside
-      className={`q-sidebar flex h-full flex-col rounded-[26px] bg-[#FFFDF7] dark:bg-[#1E293B] dark:border dark:border-slate-800 p-3.5 lg:p-4 shadow-xl shadow-black/5 dark:shadow-black/40 transition-colors duration-200 ${
+      className={`q-sidebar flex h-full flex-col rounded-[26px] bg-[#FFFDF7] p-3.5 lg:p-4 shadow-xl shadow-black/10 transition-colors duration-200 ${
         collapsed ? "w-23" : "w-72"
       }`}
     >
@@ -603,10 +603,10 @@ export function AdminLayout({
         />
         {!collapsed ? (
           <>
-            <h1 className="mt-3 text-sm font-extrabold leading-5 text-[#138F81] dark:text-[#2DD4BF]">
+            <h1 className="mt-3 text-sm font-extrabold leading-5 text-[#138F81]">
               Pondok Pesantren Qomaruddin
             </h1>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#636E72] dark:text-slate-400">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#636E72]">
               Admin Dashboard
             </p>
           </>
@@ -640,8 +640,8 @@ export function AdminLayout({
                   isSelected && !hasChildren
                     ? "bg-[#138F81] text-white shadow-lg shadow-[#138F81]/25"
                     : isSelected && hasChildren
-                    ? "bg-[#E8F7F3] dark:bg-slate-800 text-[#138F81] dark:text-[#2DD4BF] font-extrabold"
-                    : "text-[#636E72] dark:text-slate-300 hover:bg-[#E1EFF7] dark:hover:bg-slate-800 hover:text-[#138F81] dark:hover:text-[#2DD4BF]"
+                    ? "bg-[#E8F7F3] text-[#138F81] font-extrabold"
+                    : "text-[#636E72] hover:bg-[#E1EFF7] hover:text-[#138F81]"
                 } ${collapsed ? "justify-center px-0" : "px-3.5"}`}
                 onClick={() => {
                   if (hasChildren && !collapsed) {
@@ -665,7 +665,7 @@ export function AdminLayout({
                 {!collapsed && hasChildren ? (
                   <ChevronDown
                     className={`shrink-0 transition-transform duration-200 ${
-                      isGroupOpen ? "rotate-180 text-[#138F81] dark:text-[#2DD4BF]" : "text-[#636E72] dark:text-slate-400"
+                      isGroupOpen ? "rotate-180 text-[#138F81]" : "text-[#636E72]"
                     }`}
                     size={15}
                   />
@@ -674,7 +674,7 @@ export function AdminLayout({
 
               {/* Sub-menu Collapsible Accordion */}
               {!collapsed && hasChildren && isGroupOpen ? (
-                <div className="q-submenu my-1 ml-3.5 space-y-1 border-l-2 border-[#138F81]/20 dark:border-[#2DD4BF]/30 pl-2.5">
+                <div className="q-submenu my-1 ml-3.5 space-y-1 border-l-2 border-[#138F81]/20 pl-2.5">
                   {item.children?.map((child) => {
                     const childActive =
                       child.page === activePage &&
@@ -692,7 +692,7 @@ export function AdminLayout({
                         className={`group flex min-h-8.5 w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-xs font-bold transition-all duration-150 cursor-pointer ${
                           childActive
                             ? "bg-[#138F81] text-white shadow-md shadow-[#138F81]/25 font-extrabold"
-                            : "text-[#636E72] dark:text-slate-300 hover:bg-[#E1EFF7]/80 dark:hover:bg-slate-800 hover:text-[#138F81] dark:hover:text-[#2DD4BF]"
+                            : "text-[#636E72] hover:bg-[#E1EFF7]/80 hover:text-[#138F81]"
                         }`}
                         onClick={() => {
                           onNavigate(child.page, {
@@ -711,7 +711,7 @@ export function AdminLayout({
                           <child.icon
                             size={14}
                             className={`shrink-0 transition-transform duration-200 group-hover:scale-115 ${
-                              childActive ? "text-white" : "text-[#138F81]/70 dark:text-[#2DD4BF]/70 group-hover:text-[#138F81] dark:group-hover:text-[#2DD4BF]"
+                              childActive ? "text-white" : "text-[#138F81]/70 group-hover:text-[#138F81]"
                             }`}
                           />
                         ) : null}
@@ -760,10 +760,10 @@ export function AdminLayout({
         ) : null}
 
         <main className="min-w-0 flex-1 max-w-full overflow-x-hidden">
-          <header className="q-topbar mb-4 sm:mb-6 flex min-h-14 sm:min-h-16 items-center justify-between gap-2 sm:gap-3 rounded-2xl sm:rounded-[26px] bg-[#FFFDF7] dark:bg-[#1E293B] dark:border dark:border-slate-800/80 px-3 sm:px-6 shadow-xl shadow-black/5 transition-colors duration-300">
+          <header className="q-topbar mb-4 sm:mb-6 flex min-h-14 sm:min-h-16 items-center justify-between gap-2 sm:gap-3 rounded-2xl sm:rounded-[26px] bg-[#FFFDF7] px-3 sm:px-6 shadow-xl shadow-black/10 transition-colors duration-300">
             <div className="min-w-0 flex flex-1 items-center gap-2 sm:gap-3">
               <button
-                className="q-icon-button grid h-9 w-9 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-xl sm:rounded-2xl bg-[#E1EFF7] dark:bg-slate-800 dark:text-[#2DD4BF] text-[#138F81] transition hover:scale-105"
+                className="q-icon-button grid h-9 w-9 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-xl sm:rounded-2xl bg-[#E1EFF7] text-[#138F81] transition hover:scale-105"
                 onClick={() => {
                   if (window.innerWidth >= 1024) {
                     setSidebarCollapsed((value) => !value);
@@ -777,10 +777,10 @@ export function AdminLayout({
                 <Menu size={18} />
               </button>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs sm:text-sm font-extrabold text-[#138F81] dark:text-[#2DD4BF]">
+                <p className="truncate text-xs sm:text-sm font-extrabold text-[#138F81]">
                   Pondok Qomaruddin
                 </p>
-                <p className="hidden text-xs font-semibold text-[#636E72] dark:text-slate-400 sm:block">
+                <p className="hidden text-xs font-semibold text-[#636E72] sm:block">
                   Satu data admin, bendahara, dan aplikasi Android
                 </p>
               </div>
@@ -791,7 +791,7 @@ export function AdminLayout({
 
               <div className="relative">
                 <button
-                  className="q-icon-button relative grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl sm:rounded-2xl bg-[#E8F7F3] dark:bg-slate-800 text-[#138F81] dark:text-[#2DD4BF] hover:bg-[#d8f0ea] dark:hover:bg-slate-700 transition"
+                  className="q-icon-button relative grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl sm:rounded-2xl bg-[#E8F7F3] text-[#138F81] hover:bg-[#d8f0ea] transition"
                   onClick={() => {
                     setNotificationOpen((value) => {
                       const next = !value;
@@ -804,7 +804,7 @@ export function AdminLayout({
                 >
                   <Bell size={16} />
                   {unreadNotifications > 0 ? (
-                    <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#E8590C] dark:bg-amber-500 px-1 text-[10px] font-extrabold text-white animate-pulse">
+                    <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#E8590C] px-1 text-[10px] font-extrabold text-white animate-pulse">
                       {unreadNotifications > 99 ? "99+" : unreadNotifications}
                     </span>
                   ) : null}
@@ -818,18 +818,18 @@ export function AdminLayout({
                       onClick={() => setNotificationOpen(false)}
                     />
 
-                    <div className="q-popover fixed inset-x-3.5 top-16 z-50 max-h-[85vh] flex flex-col rounded-3xl bg-white dark:bg-slate-900 dark:border dark:border-slate-800 p-4 sm:p-5 shadow-2xl ring-1 ring-black/10 dark:ring-white/5 sm:absolute sm:inset-auto sm:right-0 sm:top-13 sm:w-[380px] sm:max-h-[500px]">
+                    <div className="q-popover fixed inset-x-3.5 top-16 z-50 max-h-[85vh] flex flex-col rounded-3xl bg-white p-4 sm:p-5 shadow-2xl ring-1 ring-black/10 sm:absolute sm:inset-auto sm:right-0 sm:top-13 sm:w-[380px] sm:max-h-[500px]">
                       {/* Header */}
-                      <div className="mb-3 flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                      <div className="mb-3 flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
                         <div className="flex items-center gap-2">
-                          <span className="grid h-8 w-8 place-items-center rounded-xl bg-teal-50 dark:bg-teal-950/60 text-[#138F81] dark:text-[#2DD4BF] font-extrabold text-xs">
+                          <span className="grid h-8 w-8 place-items-center rounded-xl bg-teal-50 text-[#138F81] font-extrabold text-xs">
                             🔔
                           </span>
                           <div>
-                            <p className="text-xs font-black text-slate-800 dark:text-slate-100">
+                            <p className="text-xs font-black text-slate-800">
                               Notifikasi {isGuru ? teacherTitle : 'Sistem'}
                             </p>
-                            <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                            <p className="text-[11px] font-semibold text-slate-500">
                               {unreadNotifications > 0 ? `${unreadNotifications} belum dibaca` : 'Semua telah dibaca'}
                             </p>
                           </div>
@@ -838,7 +838,7 @@ export function AdminLayout({
                         <div className="flex items-center gap-1.5 flex-wrap justify-end">
                           {unreadNotifications > 0 && !confirmClearNotifOpen && (
                             <button
-                              className="rounded-lg bg-teal-50 dark:bg-teal-950/60 px-2 py-1 text-[11px] font-extrabold text-[#138F81] dark:text-[#2DD4BF] hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-colors"
+                              className="rounded-lg bg-teal-50 px-2 py-1 text-[11px] font-extrabold text-[#138F81] hover:bg-teal-100 transition-colors"
                               onClick={() => void markAllNotificationsRead()}
                               type="button"
                               title="Tandai semua sudah dibaca"
@@ -848,7 +848,7 @@ export function AdminLayout({
                           )}
                           {notifications.length > 0 && !confirmClearNotifOpen && (
                             <button
-                              className="rounded-lg bg-rose-50 dark:bg-rose-950/60 px-2 py-1 text-[11px] font-extrabold text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors flex items-center gap-1"
+                              className="rounded-lg bg-rose-50 px-2 py-1 text-[11px] font-extrabold text-rose-600 hover:bg-rose-100 transition-colors flex items-center gap-1"
                               onClick={() => setConfirmClearNotifOpen(true)}
                               type="button"
                               title="Bersihkan seluruh riwayat notifikasi"
@@ -858,7 +858,7 @@ export function AdminLayout({
                             </button>
                           )}
                           <button
-                            className="rounded-lg bg-slate-100 dark:bg-slate-800 p-1.5 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                            className="rounded-lg bg-slate-100 p-1.5 text-slate-500 hover:bg-slate-200 transition-colors"
                             onClick={() => {
                               setConfirmClearNotifOpen(false);
                               void loadNotifications(true);
@@ -873,14 +873,14 @@ export function AdminLayout({
 
                       {/* Confirmation Banner for Clear All */}
                       {confirmClearNotifOpen && (
-                        <div className="mb-3 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/90 dark:bg-rose-950/40 p-3 text-left">
+                        <div className="mb-3 rounded-2xl border border-rose-200 bg-rose-50/90 p-3 text-left">
                           <div className="flex items-center gap-1.5">
                             <span className="text-sm">⚠️</span>
-                            <p className="text-xs font-extrabold text-rose-800 dark:text-rose-300">
+                            <p className="text-xs font-extrabold text-rose-800">
                               Bersihkan Seluruh Riwayat?
                             </p>
                           </div>
-                          <p className="mt-1 text-[11px] font-medium leading-relaxed text-rose-700 dark:text-rose-400">
+                          <p className="mt-1 text-[11px] font-medium leading-relaxed text-rose-700">
                             Semua {notifications.length} notifikasi akan dihapus permanen agar tidak menumpuk.
                           </p>
                           <div className="mt-2.5 flex items-center gap-2">
@@ -896,7 +896,7 @@ export function AdminLayout({
                               type="button"
                               disabled={isClearingNotif}
                               onClick={() => setConfirmClearNotifOpen(false)}
-                              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 transition"
+                              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-50 transition"
                             >
                               Batal
                             </button>
@@ -913,10 +913,10 @@ export function AdminLayout({
                         ) : notifications.length === 0 ? (
                           <div className="py-12 text-center">
                             <span className="text-2xl">🎉</span>
-                            <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+                            <p className="mt-1 text-xs font-bold text-slate-500">
                               Tidak ada notifikasi baru
                             </p>
-                            <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                            <p className="text-[11px] text-slate-400">
                               Semua tugas dan pengingat sudah terpantau rapi.
                             </p>
                           </div>
@@ -932,12 +932,12 @@ export function AdminLayout({
                                 key={String(item.id)}
                                 className={`group relative flex items-start justify-between gap-2.5 rounded-2xl p-3 text-left transition-all border ${
                                   isRead
-                                    ? "border-transparent bg-slate-50/80 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                    ? "border-transparent bg-slate-50/80 text-slate-600 hover:bg-slate-100"
                                     : isUrgent
-                                    ? "border-amber-200 dark:border-amber-800/50 bg-amber-50/60 dark:bg-amber-950/30 text-slate-900 dark:text-slate-100 shadow-xs"
+                                    ? "border-amber-200 bg-amber-50/60 text-slate-900 shadow-xs"
                                     : isSchedule
-                                    ? "border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-950/30 text-slate-900 dark:text-slate-100 shadow-xs"
-                                    : "border-teal-100 dark:border-teal-800/50 bg-[#E8F7F3]/70 dark:bg-teal-950/30 text-slate-900 dark:text-slate-100 shadow-xs"
+                                    ? "border-emerald-200 bg-emerald-50/50 text-slate-900 shadow-xs"
+                                    : "border-teal-100 bg-[#E8F7F3]/70 text-slate-900 shadow-xs"
                                 }`}
                               >
                                 <button
@@ -947,16 +947,16 @@ export function AdminLayout({
                                 >
                                   <div className="flex items-center gap-1.5">
                                     {!isRead && (
-                                      <span className={`h-2 w-2 shrink-0 rounded-full ${isUrgent ? 'bg-amber-500' : 'bg-[#138F81] dark:bg-[#2DD4BF]'}`} />
+                                      <span className={`h-2 w-2 shrink-0 rounded-full ${isUrgent ? 'bg-amber-500' : 'bg-[#138F81]'}`} />
                                     )}
-                                    <p className="text-xs font-black truncate text-slate-800 dark:text-slate-100">
+                                    <p className="text-xs font-black truncate text-slate-800">
                                       {String(item.title ?? "Notifikasi")}
                                     </p>
                                   </div>
-                                  <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-600 dark:text-slate-300">
+                                  <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-600">
                                     {String(item.message ?? "")}
                                   </p>
-                                  <span className="mt-1.5 inline-block text-[10px] font-bold text-slate-400 dark:text-slate-500">
+                                  <span className="mt-1.5 inline-block text-[10px] font-bold text-slate-400">
                                     {new Date(String(item.created_at || Date.now())).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
                                   </span>
                                 </button>
@@ -967,7 +967,7 @@ export function AdminLayout({
                                     e.stopPropagation();
                                     void deleteNotificationItem(Number(item.id));
                                   }}
-                                  className="opacity-60 hover:opacity-100 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 p-1 transition-opacity shrink-0"
+                                  className="opacity-60 hover:opacity-100 text-slate-400 hover:text-rose-600 p-1 transition-opacity shrink-0"
                                   title="Hapus notifikasi"
                                 >
                                   <Trash2 size={13} />
@@ -984,7 +984,7 @@ export function AdminLayout({
 
               <div className="relative">
                 <button
-                  className="q-profile-chip flex min-h-10 items-center gap-2 rounded-2xl bg-[#E8F7F3] dark:bg-slate-800 px-3 text-left transition hover:bg-[#d8f0ea] dark:hover:bg-slate-700/80"
+                  className="q-profile-chip flex min-h-10 items-center gap-2 rounded-2xl bg-[#E8F7F3] px-3 text-left transition hover:bg-[#d8f0ea]"
                   onClick={() => {
                     setProfileOpen((value) => {
                       const next = !value;
@@ -994,19 +994,19 @@ export function AdminLayout({
                   }}
                   type="button"
                 >
-                  <div className="grid h-7 w-7 place-items-center rounded-xl bg-[#138F81] dark:bg-teal-600 text-white">
+                  <div className="grid h-7 w-7 place-items-center rounded-xl bg-[#138F81] text-white">
                     <UserRound size={15} />
                   </div>
                   <div className="hidden text-left sm:block">
-                    <p className="max-w-36 truncate text-xs font-extrabold text-[#2D3436] dark:text-slate-100">
+                    <p className="max-w-36 truncate text-xs font-extrabold text-[#2D3436]">
                       {session?.name ?? (isGuru ? teacherTitle : roleTitle)}
                     </p>
-                    <p className="text-[10px] font-bold text-[#138F81] dark:text-[#2DD4BF] tracking-wide">
+                    <p className="text-[10px] font-bold text-[#138F81] tracking-wide">
                       {roleTitle}
                     </p>
                   </div>
                   <ChevronDown
-                    className={`text-[#636E72] dark:text-slate-400 transition-transform ${
+                    className={`text-[#636E72] transition-transform ${
                       profileOpen ? "rotate-180" : ""
                     }`}
                     size={14}
@@ -1014,23 +1014,23 @@ export function AdminLayout({
                 </button>
 
                 {profileOpen ? (
-                  <div className="q-popover absolute right-0 top-13 z-30 w-60 rounded-3xl bg-white dark:bg-slate-900 dark:border dark:border-slate-800 p-3.5 shadow-2xl shadow-black/10 dark:shadow-black/40">
-                    <div className="border-b border-black/5 dark:border-slate-800 px-2 py-2">
-                      <p className="truncate text-xs font-extrabold text-[#2D3436] dark:text-slate-100">
+                  <div className="q-popover absolute right-0 top-13 z-30 w-60 rounded-3xl bg-white p-3.5 shadow-2xl shadow-black/10">
+                    <div className="border-b border-black/5 px-2 py-2">
+                      <p className="truncate text-xs font-extrabold text-[#2D3436]">
                         {session?.name}
                       </p>
                       <div className="flex items-center gap-1.5 mt-1">
-                        <span className="inline-block px-2 py-0.5 rounded-lg bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 text-[#138F81] dark:text-[#2DD4BF] text-[10px] font-black">
+                        <span className="inline-block px-2 py-0.5 rounded-lg bg-teal-50 border border-teal-200 text-[#138F81] text-[10px] font-black">
                           {roleTitle}
                         </span>
-                        <span className="text-[10px] font-semibold text-[#636E72] dark:text-slate-400 truncate">
+                        <span className="text-[10px] font-semibold text-[#636E72] truncate">
                           {session?.email}
                         </span>
                       </div>
                     </div>
                     <div className="mt-1 space-y-1">
                       <button
-                        className="flex min-h-9 w-full items-center gap-2 rounded-xl px-3 text-xs font-bold text-[#636E72] dark:text-slate-300 transition hover:bg-[#E1EFF7] dark:hover:bg-slate-800 hover:text-[#138F81] dark:hover:text-[#2DD4BF]"
+                        className="flex min-h-9 w-full items-center gap-2 rounded-xl px-3 text-xs font-bold text-[#636E72] transition hover:bg-[#E1EFF7] hover:text-[#138F81]"
                         onClick={() => {
                           onNavigate("account");
                           setProfileOpen(false);
@@ -1041,7 +1041,7 @@ export function AdminLayout({
                         Pengaturan Akun
                       </button>
                       <button
-                        className="flex min-h-9 w-full items-center gap-2 rounded-xl px-3 text-xs font-bold text-[#E8590C] dark:text-rose-400 transition hover:bg-[#FFF0E8] dark:hover:bg-rose-950/30"
+                        className="flex min-h-9 w-full items-center gap-2 rounded-xl px-3 text-xs font-bold text-[#E8590C] transition hover:bg-[#FFF0E8]"
                         onClick={() => {
                           logout();
                           setProfileOpen(false);
