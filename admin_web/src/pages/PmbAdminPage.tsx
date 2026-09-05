@@ -1,7 +1,9 @@
 import {
+  Activity,
   Award,
   BookOpen,
   Calendar,
+  CalendarRange,
   Check,
   CheckCircle2,
   ChevronLeft,
@@ -375,14 +377,22 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
     }
   };
 
-  const handleDeleteBatch = async (id: number) => {
-    if (!confirm('Yakin ingin menghapus gelombang PMB ini?')) return;
+  // Modern Delete Confirmation state
+  const [batchToDelete, setBatchToDelete] = useState<BatchItem | null>(null);
+  const [isDeletingBatch, setIsDeletingBatch] = useState(false);
+
+  const handleExecuteDeleteBatch = async () => {
+    if (!batchToDelete) return;
+    setIsDeletingBatch(true);
     try {
-      await api.delete(`/pmb/admin/batches/${id}`);
-      showToast('Gelombang PMB berhasil dihapus.');
+      await api.delete(`/pmb/admin/batches/${batchToDelete.id}`);
+      showToast(`Gelombang "${batchToDelete.nama_gelombang}" berhasil dihapus.`);
+      setBatchToDelete(null);
       loadBatches();
     } catch (e: any) {
       showToast(e?.message || 'Gagal menghapus gelombang PMB', 'error');
+    } finally {
+      setIsDeletingBatch(false);
     }
   };
 
@@ -432,23 +442,37 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
         </div>
       )}
 
-      {/* 🌟 HEADER PMB ADMIN (CARD PUTIH BERSIH SESUAI STANDAR ADMIN LAYOUT KITA) */}
+      {/* 🌟 HEADER PMB ADMIN (MENYESUAIKAN SUB-MENU SIDEBAR YANG AKTIF TANPA TAB BAR GANDA) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 sm:p-7 rounded-3xl bg-white border border-slate-200/80 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="h-14 w-14 rounded-2xl bg-[#FFDC80] text-[#0D7A6F] border border-amber-300 flex items-center justify-center shadow-xs">
-            <UserPlus className="w-7 h-7" />
+            {activeTab === 'dashboard' ? (
+              <Activity className="w-7 h-7" />
+            ) : activeTab === 'applicants' ? (
+              <Users className="w-7 h-7" />
+            ) : (
+              <CalendarRange className="w-7 h-7" />
+            )}
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl sm:text-2xl font-black text-[#2D3436] tracking-tight">
-                Penerimaan Santri Baru (PMB)
+                {activeTab === 'dashboard'
+                  ? 'Dashboard PMB'
+                  : activeTab === 'applicants'
+                  ? 'Data Calon Santri PMB'
+                  : 'Gelombang Pendaftaran PMB'}
               </h1>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#FFDC80] text-[#0D7A6F] border border-amber-300">
                 TA 2026/2027
               </span>
             </div>
             <p className="text-xs text-[#636E72] font-medium mt-0.5">
-              Portal Verifikasi, Seleksi Berkas, & 1-Klik ACC Santri Resmi Pondok Pesantren Qomaruddin
+              {activeTab === 'dashboard'
+                ? 'Statistik, kuota gelombang, & pemantauan pendaftaran santri baru realtime'
+                : activeTab === 'applicants'
+                ? 'Verifikasi berkas pendaftaran, ubah status seleksi, & 1-klik ACC santri resmi pondok'
+                : 'Kelola periode tanggal buka, kuota pendaftaran, & tarif biaya formulir santri baru'}
             </p>
           </div>
         </div>
@@ -473,50 +497,6 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
             <span>Lihat Web PMB Publik</span>
           </button>
         </div>
-      </div>
-
-      {/* 🌟 NAVIGATION SUB-TABS (KONSISTEN DENGAN TEMA APP KITA) */}
-      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('dashboard')}
-          className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
-            activeTab === 'dashboard'
-              ? 'bg-[#138F81] text-white shadow-xs'
-              : 'text-[#636E72] hover:bg-slate-100'
-          }`}
-        >
-          <Award className="w-3.5 h-3.5 text-[#FFDC80]" />
-          <span>Dashboard PMB</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('applicants')}
-          className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
-            activeTab === 'applicants'
-              ? 'bg-[#138F81] text-white shadow-xs'
-              : 'text-[#636E72] hover:bg-slate-100'
-          }`}
-        >
-          <Users className="w-3.5 h-3.5 text-[#FFDC80]" />
-          <span>Data Calon Santri</span>
-          {dashboard && dashboard.pending > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-rose-500 text-white animate-pulse">
-              {dashboard.pending}
-            </span>
-          )}
-        </button>
-
-        <button
-          onClick={() => setActiveTab('batches')}
-          className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
-            activeTab === 'batches'
-              ? 'bg-[#138F81] text-white shadow-xs'
-              : 'text-[#636E72] hover:bg-slate-100'
-          }`}
-        >
-          <Calendar className="w-3.5 h-3.5 text-[#FFDC80]" />
-          <span>Gelombang Pendaftaran</span>
-        </button>
       </div>
 
       {/* 🌟 TAB 1: DASHBOARD METRICS */}
@@ -956,8 +936,9 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => handleDeleteBatch(b.id)}
+                      onClick={() => setBatchToDelete(b)}
                       className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors cursor-pointer"
+                      title="Hapus Gelombang PMB"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1389,6 +1370,41 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 MODAL KONFIRMASI HAPUS MODERN (BEBAS DARI DIALOG JADUL BROWSER) */}
+      {batchToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white text-[#2D3436] rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl border-2 border-rose-200 text-center animate-in zoom-in-95 duration-200">
+            <div className="h-16 w-16 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center mx-auto mb-4 shadow-xs">
+              <Trash2 className="w-8 h-8" />
+            </div>
+            <h3 className="text-lg font-black text-[#2D3436] mb-1.5">
+              Hapus Gelombang PMB?
+            </h3>
+            <p className="text-xs text-[#636E72] leading-relaxed mb-6 font-medium">
+              Apakah Anda yakin ingin menghapus gelombang <strong className="text-[#2D3436]">"{batchToDelete.nama_gelombang}"</strong>? Data gelombang yang dihapus tidak dapat dipulihkan.
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                type="button"
+                disabled={isDeletingBatch}
+                onClick={() => setBatchToDelete(null)}
+                className="w-1/2 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#2D3436] text-xs font-bold transition-all cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingBatch}
+                onClick={handleExecuteDeleteBatch}
+                className="w-1/2 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-md shadow-rose-600/30 flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isDeletingBatch ? 'Menghapus...' : 'Ya, Hapus'}
+              </button>
+            </div>
           </div>
         </div>
       )}
