@@ -79,6 +79,8 @@ Route::middleware('throttle:60,1')->group(function () {
 // PMB (Penerimaan Santri Baru) & Profil Pesantren - Public Endpoints
 Route::prefix('pmb')->group(function () {
     Route::get('info', [PmbController::class, 'getInfo']);
+    Route::get('cms-settings', [PmbController::class, 'getCmsSettings']);
+    Route::get('announcements', [PmbController::class, 'getPublicAnnouncements']);
     Route::post('register', [PmbController::class, 'register'])->middleware('throttle:30,1');
     Route::get('check-status', [PmbController::class, 'checkStatus']);
 });
@@ -376,12 +378,27 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
             Route::get('registrations', [PmbController::class, 'getRegistrations']);
             Route::get('registrations/{id}', [PmbController::class, 'getRegistrationDetail']);
             Route::post('registrations/{id}/status', [PmbController::class, 'updateStatus']);
+            Route::post('registrations/{id}/audit', [PmbController::class, 'auditRegistration']);
+            Route::post('registrations/{id}/payment', [PmbController::class, 'updatePayment']);
             Route::post('registrations/{id}/resend-wa', [PmbController::class, 'resendWaNotification']);
             Route::post('registrations/{id}/convert-to-siswa', [PmbController::class, 'convertToSiswa']);
             Route::get('batches', [PmbController::class, 'getBatches']);
             Route::post('batches', [PmbController::class, 'storeBatch']);
             Route::put('batches/{id}', [PmbController::class, 'updateBatch']);
             Route::delete('batches/{id}', [PmbController::class, 'deleteBatch']);
+
+            // Toggle Buka/Tutup PMB Cerdas
+            Route::post('toggle-status', [PmbController::class, 'togglePmbStatus']);
+
+            // CMS Web Profil Pesantren ala WordPress
+            Route::get('cms-settings', [PmbController::class, 'getCmsSettingsAdmin']);
+            Route::post('cms-settings', [PmbController::class, 'updateCmsSettings']);
+
+            // Berita & Agenda Santri Baru
+            Route::get('announcements', [PmbController::class, 'getAnnouncementsAdmin']);
+            Route::post('announcements', [PmbController::class, 'storeAnnouncement']);
+            Route::put('announcements/{id}', [PmbController::class, 'updateAnnouncement']);
+            Route::delete('announcements/{id}', [PmbController::class, 'deleteAnnouncement']);
         });
 
         Route::post('upload', [SiswaController::class, 'uploadFile'])->middleware('throttle:15,1');

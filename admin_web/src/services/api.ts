@@ -1081,5 +1081,86 @@ export const api = {
     if (params?.tahun_ajaran) q.set('tahun_ajaran', String(params.tahun_ajaran));
     if (params?.semester) q.set('semester', String(params.semester));
     return request<ApiRecord>(`/wali/nilai?${q.toString()}`);
+  },
+
+  // --- PMB & WEB PROFIL CMS API ---
+  getPmbInfo() {
+    return request<ApiRecord>('/pmb/info');
+  },
+  getPmbCmsSettings() {
+    return request<ApiRecord>('/pmb/cms-settings');
+  },
+  getPmbPublicAnnouncements(category?: string) {
+    const q = category ? `?category=${category}` : '';
+    return request<ApiRecord[]>(`/pmb/announcements${q}`);
+  },
+  getPmbDashboard() {
+    return request<ApiRecord>('/pmb/admin/dashboard');
+  },
+  getPmbRegistrations(params?: Record<string, string | number>) {
+    const q = params ? '?' + new URLSearchParams(params as any).toString() : '';
+    return request<ApiRecord>(`/pmb/admin/registrations${q}`);
+  },
+  getPmbRegistrationDetail(id: number) {
+    return request<ApiRecord>(`/pmb/admin/registrations/${id}`);
+  },
+  auditPmbRegistration(id: number, data: { status: string; catatan_admin?: string; payment_status?: string; payment_amount?: number; payment_notes?: string; send_wa?: boolean }) {
+    return request<ApiRecord>(`/pmb/admin/registrations/${id}/audit`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  updatePmbPayment(id: number, data: { payment_status: string; payment_amount?: number; payment_notes?: string; send_wa?: boolean }) {
+    return request<ApiRecord>(`/pmb/admin/registrations/${id}/payment`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  resendPmbWa(id: number) {
+    return request<ApiRecord>(`/pmb/admin/registrations/${id}/resend-wa`, {
+      method: 'POST',
+    });
+  },
+  convertPmbToSiswa(id: number, data: { nis?: string; class_id?: number; boarding_room_id?: number; create_wali_user?: boolean; catatan_admin?: string }) {
+    return request<ApiRecord>(`/pmb/admin/registrations/${id}/convert-to-siswa`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  togglePmbStatus(data: { is_open?: boolean; closed_message?: string }) {
+    return request<ApiRecord>('/pmb/admin/toggle-status', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  getPmbCmsSettingsAdmin() {
+    return request<ApiRecord[]>('/pmb/admin/cms-settings');
+  },
+  updatePmbCmsSettings(settings: Array<{ key: string; value: any; group?: string; label?: string; type?: string }>) {
+    return request<ApiRecord>('/pmb/admin/cms-settings', {
+      method: 'POST',
+      body: JSON.stringify({ settings }),
+    });
+  },
+  getPmbAnnouncementsAdmin(params?: { category?: string; search?: string }) {
+    const q = params ? '?' + new URLSearchParams(params as any).toString() : '';
+    return request<ApiRecord[]>(`/pmb/admin/announcements${q}`);
+  },
+  storePmbAnnouncement(data: { title: string; content: string; category: string; event_date?: string; is_pinned?: boolean; is_published?: boolean }) {
+    return request<ApiRecord>('/pmb/admin/announcements', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  updatePmbAnnouncement(id: number, data: { title: string; content: string; category: string; event_date?: string; is_pinned?: boolean; is_published?: boolean }) {
+    return request<ApiRecord>(`/pmb/admin/announcements/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+  deletePmbAnnouncement(id: number) {
+    return request<ApiRecord>(`/pmb/admin/announcements/${id}`, {
+      method: 'DELETE',
+    });
   }
 };

@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\BoardingRoom;
+use App\Models\PmbAnnouncement;
 use App\Models\PmbBatch;
+use App\Models\PmbCmsSetting;
 use App\Models\PmbRegistration;
 use App\Models\SchoolClass;
 use App\Models\Siswa;
@@ -47,7 +49,7 @@ class PmbController extends Controller
     }
 
     /**
-     * [PUBLIC] Informasi PMB & Profil Singkat Pesantren Qomaruddin
+     * [PUBLIC] Informasi PMB & Profil Lengkap Pesantren Qomaruddin (CMS-driven ala WordPress)
      */
     public function getInfo(): JsonResponse
     {
@@ -56,48 +58,68 @@ class PmbController extends Controller
         $totalRegistered = PmbRegistration::where('pmb_batch_id', $batch->id)->count();
         $quotaRemaining = $batch->kuota ? max(0, $batch->kuota - $totalRegistered) : null;
 
-        // Metadata Profil Pesantren
-        $profil = [
-            'nama_pesantren' => 'Pondok Pesantren Qomaruddin',
-            'pendiri' => 'Kiai Qomaruddin (Mbah Kiai Qomaruddin)',
-            'tahun_berdiri' => '1775 M (Lebih dari 250 Tahun Berkhidmah)',
-            'alamat' => 'Jl. Sampurnan No. 01, Bungah, Kabupaten Gresik, Jawa Timur 61152',
-            'telepon' => '0812-3456-7890',
-            'email' => 'pmb@ppqomaruddin.itqom.net',
-            'website' => 'https://ppqomaruddin.itqom.net',
-            'tagline' => 'Mencetak Generasi Berakhlakul Karimah, Unggul Ilmu Agama & Berdaya Saing Global',
-            'program_unggulan' => [
-                [
-                    'title' => 'Madrasah Diniyah Salafiyah',
-                    'desc' => 'Kajian mendalam kitab kuning berjenjang (Sifir, Ula, Wustho, Ulya) dengan metode sorogan dan bandongan klasik.',
-                    'icon' => 'BookOpen'
-                ],
-                [
-                    'title' => 'Tahfidzul Qur\'an 30 Juz',
-                    'desc' => 'Bimbingan intensif hafalan Al-Qur\'an bersanad muttashil dengan target tajwid mutqin dan fashahah.',
-                    'icon' => 'Award'
-                ],
-                [
-                    'title' => 'Pendidikan Formal Terpadu',
-                    'desc' => 'Sinergi kurikulum Kemenag/Kemendikbud (MI, MTs, MA, SMA, SMK Assa\'adah) hingga jenjang Universitas Qomaruddin.',
-                    'icon' => 'GraduationCap'
-                ],
-                [
-                    'title' => 'Karakter & Kemandirian Asrama',
-                    'desc' => 'Pembinaan disiplin sholat jama\'ah 5 waktu, dzikir ma\'tsurat, kepemimpinan, dan bahasa Arab-Inggris.',
-                    'icon' => 'ShieldCheck'
-                ]
+        // Cek status buka/tutup PMB dari CMS
+        $pmbIsOpen = PmbCmsSetting::getValue('pmb_is_open', true);
+        $pmbClosedMessage = PmbCmsSetting::getValue('pmb_closed_message', 'Pendaftaran Santri Baru Gelombang Ini Saat Ini Sedang Ditutup. Silakan Pantau Pengumuman Resmi Berkala.');
+
+        // Metadata Profil Dinamis dari CMS dengan Fallback Nilai Standar
+        $defaultPrograms = [
+            [
+                'title' => 'Madrasah Diniyah Salafiyah',
+                'desc' => 'Kajian mendalam kitab kuning berjenjang (Sifir, Ula, Wustho, Ulya) dengan metode sorogan dan bandongan klasik.',
+                'icon' => 'BookOpen'
             ],
-            'fasilitas' => [
-                'Masjid Jami\' Qomaruddin yang Megah & Bersejarah',
-                'Komplek Asrama Santri Putra & Putri Representatif',
-                'Perpustakaan Khazanah Kitab Salaf & Referensi Modern',
-                'Laboratorium Komputer & Bahasa',
-                'Klinik Kesehatan Pesantren (Poskestren)',
-                'Kantin, Koperasi Pesantren & Dapur Bersih',
-                'Sarana Olahraga & Seni Hadrah Al-Banjari'
+            [
+                'title' => 'Tahfidzul Qur\'an 30 Juz',
+                'desc' => 'Bimbingan intensif hafalan Al-Qur\'an bersanad muttashil dengan target tajwid mutqin dan fashahah.',
+                'icon' => 'Award'
+            ],
+            [
+                'title' => 'Pendidikan Formal Terpadu',
+                'desc' => 'Sinergi kurikulum Kemenag/Kemendikbud (MI, MTs, MA, SMA, SMK Assa\'adah) hingga jenjang Universitas Qomaruddin.',
+                'icon' => 'GraduationCap'
+            ],
+            [
+                'title' => 'Karakter & Kemandirian Asrama',
+                'desc' => 'Pembinaan disiplin sholat jama\'ah 5 waktu, dzikir ma\'tsurat, kepemimpinan, dan bahasa Arab-Inggris.',
+                'icon' => 'ShieldCheck'
             ]
         ];
+
+        $defaultFasilitas = [
+            'Masjid Jami\' Qomaruddin yang Megah & Bersejarah',
+            'Komplek Asrama Santri Putra & Putri Representatif',
+            'Perpustakaan Khazanah Kitab Salaf & Referensi Modern',
+            'Laboratorium Komputer & Bahasa',
+            'Klinik Kesehatan Pesantren (Poskestren)',
+            'Kantin, Koperasi Pesantren & Dapur Bersih',
+            'Sarana Olahraga & Seni Hadrah Al-Banjari'
+        ];
+
+        $profil = [
+            'nama_pesantren' => PmbCmsSetting::getValue('nama_pesantren', 'Pondok Pesantren Qomaruddin'),
+            'pendiri' => PmbCmsSetting::getValue('pendiri', 'Kiai Qomaruddin (Mbah Kiai Qomaruddin)'),
+            'tahun_berdiri' => PmbCmsSetting::getValue('tahun_berdiri', '1775 M (Lebih dari 250 Tahun Berkhidmah)'),
+            'alamat' => PmbCmsSetting::getValue('alamat', 'Jl. Sampurnan No. 01, Bungah, Kabupaten Gresik, Jawa Timur 61152'),
+            'telepon' => PmbCmsSetting::getValue('telepon', '0812-3456-7890'),
+            'email' => PmbCmsSetting::getValue('email', 'pmb@ppqomaruddin.itqom.net'),
+            'website' => PmbCmsSetting::getValue('website', 'https://ppqomaruddin.itqom.net'),
+            'tagline' => PmbCmsSetting::getValue('tagline', 'Mencetak Generasi Berakhlakul Karimah, Unggul Ilmu Agama & Berdaya Saing Global'),
+            'sejarah' => PmbCmsSetting::getValue('sejarah', 'Pondok Pesantren Qomaruddin didirikan pada tahun 1775 M oleh Kiai Qomaruddin, seorang ulama kharismatik pejuang dakwah Islam Nusantara di wilayah Sampurnan, Bungah, Gresik. Lembaga ini terus bertumbuh melahirkan generasi ulama, cendekiawan Muslim, dan pemimpin bangsa.'),
+            'visi' => PmbCmsSetting::getValue('visi', 'Terwujudnya insan kamil yang kokoh dalam aqidah Ahlussunnah Wal Jamaah, unggul dalam keilmuan agama, berakhlak mulia, dan mandiri.'),
+            'misi' => PmbCmsSetting::getValue('misi', "1. Menyelenggarakan pendidikan pesantren salafiyah berbasis kitab kuning otentik.\n2. Mengintegrasikan pendidikan agama, tahfidz, dan sains modern.\n3. Membentuk karakter santri yang beradab, disiplin, dan berjiwa khidmah."),
+            'agenda_kedatangan_info' => PmbCmsSetting::getValue('agenda_kedatangan_info', 'Santri baru yang telah diterima (ACC) wajib diantar ke pondok pesantren sesuai tanggal kalender yang telah ditetapkan oleh Panitia PMB.'),
+            'program_unggulan' => PmbCmsSetting::getValue('program_unggulan', $defaultPrograms),
+            'fasilitas' => PmbCmsSetting::getValue('fasilitas', $defaultFasilitas),
+        ];
+
+        // Ambil pengumuman dan berita terbaru yang dipublikasikan
+        $announcements = PmbAnnouncement::where('is_published', true)
+            ->orderBy('is_pinned', 'desc')
+            ->orderBy('event_date', 'asc')
+            ->orderBy('id', 'desc')
+            ->limit(10)
+            ->get();
 
         return response()->json([
             'status' => 'success',
@@ -105,16 +127,29 @@ class PmbController extends Controller
                 'active_batch' => $batch,
                 'total_registered' => $totalRegistered,
                 'quota_remaining' => $quotaRemaining,
+                'pmb_is_open' => (bool)$pmbIsOpen,
+                'pmb_closed_message' => $pmbClosedMessage,
                 'profil' => $profil,
+                'announcements' => $announcements,
             ]
         ]);
     }
 
     /**
-     * [PUBLIC] Pendaftaran Santri Baru Online
+     * [PUBLIC] Pendaftaran Santri Baru Online (Hanya jika PMB Dibuka)
      */
     public function register(Request $request): JsonResponse
     {
+        // 1. Cek Apakah PMB sedang dibuka
+        $pmbIsOpen = PmbCmsSetting::getValue('pmb_is_open', true);
+        if (!$pmbIsOpen) {
+            $msg = PmbCmsSetting::getValue('pmb_closed_message', 'Mohon maaf, Pendaftaran Santri Baru (PMB) saat ini sedang DITUTUP oleh Panitia PMB. Silakan pantau pengumuman resmi berkala di halaman ini.');
+            return response()->json([
+                'status' => 'error',
+                'message' => $msg,
+            ], 403);
+        }
+
         $validated = $request->validate([
             'nama_lengkap' => 'required|string|max:150',
             'nama_panggilan' => 'nullable|string|max:60',
@@ -143,9 +178,13 @@ class PmbController extends Controller
             'dokumen_ijazah' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:5120',
         ]);
 
-        // Tentukan Batch
+        // Tentukan Batch Aktif
         $batchId = $validated['pmb_batch_id'] ?? null;
-        if (!$batchId) {
+        $batch = null;
+        if ($batchId) {
+            $batch = PmbBatch::find($batchId);
+        }
+        if (!$batch) {
             $batch = $this->ensureActiveBatch();
             $batchId = $batch->id;
         }
@@ -183,7 +222,6 @@ class PmbController extends Controller
 
         // Generate Password Acak untuk Akun Wali/Santri (Format: QMR + 4 digit angka acak)
         $randomPassword = 'QMR' . mt_rand(1000, 9999);
-        $cleanPhone = preg_replace('/[^0-9]/', '', $validated['no_whatsapp_wali']);
         $waliEmail = strtolower($regNumber) . '@pmb.qomaruddin.ponpes.id';
 
         // Buat Akun Login Pengguna (Role: Wali)
@@ -200,6 +238,8 @@ class PmbController extends Controller
             'must_change_password' => false,
         ]);
 
+        // Simpan ke Staging PMB (Status: pending, BELUM masuk ke Buku Induk)
+        $biayaBatch = (float)($batch->biaya_pendaftaran ?? 150000);
         $registration = PmbRegistration::create([
             'registration_number' => $regNumber,
             'pmb_batch_id' => $batchId,
@@ -231,6 +271,9 @@ class PmbController extends Controller
             'dokumen_ijazah' => $ijazahPath ? "/storage/{$ijazahPath}" : null,
             'catatan_khusus' => $validated['catatan_khusus'] ?? null,
             'status' => 'pending',
+            'payment_status' => 'pending',
+            'payment_amount' => $biayaBatch,
+            'payment_notes' => 'Menunggu verifikasi audit administrasi pendaftaran oleh Panitia PMB.',
             'wa_notif_sent' => false,
         ]);
 
@@ -242,25 +285,26 @@ class PmbController extends Controller
             . "======================================\n\n"
             . "Assalamu'alaikum Warahmatullahi Wabarakatuh,\n\n"
             . "Yth. Bapak/Ibu Wali dari calon santri *{$registration->nama_lengkap}*,\n\n"
-            . "Alhamdulillah, formulir pendaftaran santri baru telah *BERHASIL KAMI TERIMA*.\n\n"
-            . "Berikut adalah rincian pendaftaran & akun login portal Anda:\n"
+            . "Alhamdulillah, formulir pendaftaran santri baru telah *BERHASIL KAMI TERIMA* secara realtime.\n\n"
+            . "Rincian pendaftaran & akun login portal Anda:\n"
             . "--------------------------------------\n"
             . "📋 *No. Registrasi* : *{$regNumber}*\n"
             . "👤 *Nama Santri*     : {$registration->nama_lengkap}\n"
+            . "🌊 *Gelombang*       : {$batch->nama_gelombang}\n"
             . "📅 *Waktu Daftar*    : " . $registration->created_at->format('d M Y H:i') . " WIB\n"
             . "🏢 *Pilihan Program* : {$registration->pilihan_jenjang}\n"
             . "🏠 *Pilihan Asrama*  : {$registration->pilihan_asrama}\n\n"
-            . "🔐 *AKUN LOGIN PORTAL SANTRI*:\n"
+            . "🔐 *AKUN LOGIN PORTAL PMB*:\n"
             . "• *Username / ID* : *{$regNumber}*\n"
             . "• *Password*      : *{$randomPassword}*\n"
             . "--------------------------------------\n\n"
-            . "🌐 *Lacak Status & Cetak Kartu Digital*:\n"
+            . "🌐 *Lacak Status & Melengkapi Berkas*:\n"
             . "{$portalUrl}\n\n"
             . "📌 *PANDUAN TAHAPAN SELANJUTNYA*:\n"
-            . "1. Simpan pesan ini baik-baik sebagai bukti pendaftaran resmi Anda.\n"
-            . "2. Anda dapat memantau proses verifikasi berkas dan pengumuman seleksi melalui link di atas menggunakan No. Registrasi atau No. WhatsApp Anda.\n"
-            . "3. Panitia PMB akan menghubungi nomor WhatsApp ini jika diperlukan verifikasi berkas susulan atau jadwal tes seleksi.\n\n"
-            . "Jazakumullahu Khairan Katsiran atas amanah dan kepercayaan Bapak/Ibu kepada Pondok Pesantren Qomaruddin.\n\n"
+            . "1. Berkas Anda saat ini masuk ke antrian audit panitia PMB.\n"
+            . "2. Anda dapat memantau status audit & rincian pembayaran melalui link portal di atas.\n"
+            . "3. Setelah diaudit dan di-ACC oleh Admin PMB, santri resmi terdaftar di Buku Induk Santri.\n\n"
+            . "Jazakumullahu Khairan Katsiran atas kepercayaan Bapak/Ibu kepada Pondok Pesantren Qomaruddin.\n\n"
             . "Wassalamu'alaikum Warahmatullahi Wabarakatuh.\n"
             . "--------------------------------------\n"
             . "*Panitia PMB Pondok Pesantren Qomaruddin*\n"
@@ -313,9 +357,8 @@ class PmbController extends Controller
             ], 422);
         }
 
-        // Cari berdasarkan nomor registrasi atau nomor whatsapp
         $cleanPhone = preg_replace('/[^0-9]/', '', $queryStr);
-        $registrations = PmbRegistration::with('batch:id,nama_gelombang,tahun_akademik')
+        $registrations = PmbRegistration::with(['batch:id,nama_gelombang,tahun_akademik', 'siswa:id,nis,nama,kelas,kamar'])
             ->where(function ($q) use ($queryStr, $cleanPhone) {
                 $q->where('registration_number', 'ILIKE', "%{$queryStr}%")
                   ->orWhere('no_whatsapp_wali', 'LIKE', "%{$queryStr}%");
@@ -343,16 +386,23 @@ class PmbController extends Controller
                 'pilihan_asrama' => $item->pilihan_asrama,
                 'status' => $item->status,
                 'status_label' => match($item->status) {
-                    'pending' => 'Menunggu Verifikasi',
-                    'reviewed' => 'Sedang Ditinjau Berkas',
-                    'accepted' => 'Diterima (Lolos Seleksi)',
+                    'pending' => 'Menunggu Verifikasi Audit',
+                    'reviewed' => 'Sedang Diaudit Berkas',
+                    'accepted' => 'Diterima Resmi (Lolos Seleksi)',
                     'rejected' => 'Perlu Perbaikan / Belum Lolos',
                     default => 'Diproses'
                 },
+                'payment_status' => $item->payment_status ?? 'pending',
+                'payment_amount' => (float)($item->payment_amount ?? 0),
+                'payment_notes' => $item->payment_notes,
                 'catatan_admin' => $item->catatan_admin,
                 'gelombang' => $item->batch?->nama_gelombang ?? '-',
+                'tahun_akademik' => $item->batch?->tahun_akademik ?? '-',
                 'tanggal_daftar' => $item->created_at?->format('d M Y H:i'),
                 'is_converted' => $item->is_converted,
+                'nis_resmi' => $item->siswa?->nis,
+                'kelas_resmi' => $item->siswa?->kelas,
+                'kamar_resmi' => $item->siswa?->kamar,
             ];
         });
 
@@ -393,6 +443,8 @@ class PmbController extends Controller
             ->limit(5)
             ->get();
 
+        $pmbIsOpen = PmbCmsSetting::getValue('pmb_is_open', true);
+
         return response()->json([
             'status' => 'success',
             'data' => [
@@ -406,6 +458,7 @@ class PmbController extends Controller
                 'putri' => $putri,
                 'jenjang_stats' => $jenjangStats,
                 'latest' => $latest,
+                'pmb_is_open' => (bool)$pmbIsOpen,
             ]
         ]);
     }
@@ -425,6 +478,11 @@ class PmbController extends Controller
         // Filter status
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
+        }
+
+        // Filter status pembayaran
+        if ($request->filled('payment_status') && $request->payment_status !== 'all') {
+            $query->where('payment_status', $request->payment_status);
         }
 
         // Filter jenis kelamin
@@ -472,7 +530,132 @@ class PmbController extends Controller
     }
 
     /**
-     * [ADMIN] Ubah Status Verifikasi (Review / Tolak / Minta Perbaikan)
+     * [ADMIN] Audit Calon Santri (Ubah Status ke Reviewed/Pending/Rejected + Set Instruksi Pembayaran + Kirim WA)
+     */
+    public function auditRegistration(Request $request, $id): JsonResponse
+    {
+        $registration = PmbRegistration::findOrFail($id);
+
+        $validated = $request->validate([
+            'status' => 'required|in:pending,reviewed,accepted,rejected',
+            'catatan_admin' => 'nullable|string',
+            'payment_status' => 'nullable|in:pending,perlu_pelunasan,lunas,gratis',
+            'payment_amount' => 'nullable|numeric|min:0',
+            'payment_notes' => 'nullable|string',
+            'send_wa' => 'boolean',
+        ]);
+
+        $registration->update([
+            'status' => $validated['status'],
+            'catatan_admin' => $validated['catatan_admin'] ?? $registration->catatan_admin,
+            'payment_status' => $validated['payment_status'] ?? $registration->payment_status,
+            'payment_amount' => isset($validated['payment_amount']) ? (float)$validated['payment_amount'] : $registration->payment_amount,
+            'payment_notes' => $validated['payment_notes'] ?? $registration->payment_notes,
+            'verified_at' => now(),
+            'verified_by' => auth()->id(),
+        ]);
+
+        // Kirim WhatsApp Audit / Instruksi Pelunasan jika diminta
+        if (!empty($validated['send_wa']) && !empty($registration->no_whatsapp_wali)) {
+            $portalUrl = rtrim(config('app.url') ?: 'https://ppqomaruddin.itqom.net', '/') . '/?pmb=1';
+            $statusLabel = match($registration->status) {
+                'reviewed' => 'SEDANG DIAUDIT / PERLU TINDAK LANJUT',
+                'accepted' => 'DITERIMA (ACC)',
+                'rejected' => 'PERLU PERBAIKAN BERKAS',
+                default => 'PENDING'
+            };
+
+            $waMsg = "*UPDATE AUDIT & ADMINISTRASI PMB*\n"
+                . "*PONDOK PESANTREN QOMARUDDIN*\n"
+                . "--------------------------------------\n\n"
+                . "Assalamu'alaikum Warahmatullahi Wabarakatuh,\n\n"
+                . "Yth. Bapak/Ibu Wali dari calon santri *{$registration->nama_lengkap}*,\n"
+                . "📋 *No. Registrasi* : *{$registration->registration_number}*\n\n"
+                . "Hasil Audit Panitia: *" . $statusLabel . "*\n"
+                . ($registration->catatan_admin ? "📝 *Catatan Panitia* : {$registration->catatan_admin}\n" : "")
+                . ($registration->payment_status ? "💳 *Status Pembayaran* : *" . strtoupper(str_replace('_', ' ', $registration->payment_status)) . "* (Rp " . number_format((float)$registration->payment_amount, 0, ',', '.') . ")\n" : "")
+                . ($registration->payment_notes ? "📌 *Instruksi* : {$registration->payment_notes}\n\n" : "\n")
+                . "Silakan login ke portal untuk melengkapi berkas atau melihat rincian:\n"
+                . "{$portalUrl}\n\n"
+                . "Wassalamu'alaikum Warahmatullahi Wabarakatuh.\n"
+                . "--------------------------------------\n"
+                . "*Panitia PMB PP Qomaruddin*";
+
+            try {
+                if (class_exists(WhatsAppNotificationService::class)) {
+                    app(WhatsAppNotificationService::class)->queueManual($registration->no_whatsapp_wali, $waMsg);
+                }
+            } catch (\Throwable $e) {
+                Log::warning("Gagal mengirim WA audit PMB {$registration->registration_number}: " . $e->getMessage());
+            }
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => "Audit berkas {$registration->registration_number} berhasil disimpan.",
+            'data' => $registration->fresh(['batch', 'verifier:id,name', 'siswa']),
+        ]);
+    }
+
+    /**
+     * [ADMIN] Update Status Pembayaran Formulir PMB
+     */
+    public function updatePayment(Request $request, $id): JsonResponse
+    {
+        $registration = PmbRegistration::findOrFail($id);
+
+        $validated = $request->validate([
+            'payment_status' => 'required|in:pending,perlu_pelunasan,lunas,gratis',
+            'payment_amount' => 'nullable|numeric|min:0',
+            'payment_notes' => 'nullable|string',
+            'send_wa' => 'boolean',
+        ]);
+
+        $isLunas = in_array($validated['payment_status'], ['lunas', 'gratis']);
+
+        $registration->update([
+            'payment_status' => $validated['payment_status'],
+            'payment_amount' => isset($validated['payment_amount']) ? (float)$validated['payment_amount'] : $registration->payment_amount,
+            'payment_notes' => $validated['payment_notes'] ?? $registration->payment_notes,
+            'payment_verified_at' => $isLunas ? now() : null,
+        ]);
+
+        if (!empty($validated['send_wa']) && !empty($registration->no_whatsapp_wali)) {
+            $statusLabel = strtoupper(str_replace('_', ' ', $registration->payment_status));
+            $nominalFmt = number_format((float)$registration->payment_amount, 0, ',', '.');
+            $waMsg = "*STATUS PEMBAYARAN PMB*\n"
+                . "*PONDOK PESANTREN QOMARUDDIN*\n"
+                . "--------------------------------------\n\n"
+                . "Yth. Bapak/Ibu Wali dari *{$registration->nama_lengkap}*,\n"
+                . "📋 *No. Registrasi* : *{$registration->registration_number}*\n\n"
+                . "Status Pembayaran: *{$statusLabel}*\n"
+                . "Nominal: *Rp {$nominalFmt}*\n"
+                . ($registration->payment_notes ? "Catatan Panitia: {$registration->payment_notes}\n\n" : "\n")
+                . ($isLunas
+                    ? "Alhamdulillah, pembayaran pendaftaran Anda telah *TERVERIFIKASI & LUNAS*.\n"
+                    : "Mohon segera menyelesaikan administrasi pendaftaran sesuai petunjuk di atas.\n")
+                . "Wassalamu'alaikum Warahmatullahi Wabarakatuh.\n"
+                . "--------------------------------------\n"
+                . "*Panitia PMB PP Qomaruddin*";
+
+            try {
+                if (class_exists(WhatsAppNotificationService::class)) {
+                    app(WhatsAppNotificationService::class)->queueManual($registration->no_whatsapp_wali, $waMsg);
+                }
+            } catch (\Throwable $e) {
+                Log::warning("Gagal mengirim WA pembayaran PMB: " . $e->getMessage());
+            }
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => "Status pembayaran {$registration->registration_number} berhasil diperbarui.",
+            'data' => $registration->fresh(['batch', 'verifier:id,name', 'siswa']),
+        ]);
+    }
+
+    /**
+     * [ADMIN] Ubah Status Verifikasi Umum (Review / Tolak / Pending)
      */
     public function updateStatus(Request $request, $id): JsonResponse
     {
@@ -530,7 +713,7 @@ class PmbController extends Controller
             . "👤 *Nama Santri*     : {$registration->nama_lengkap}\n"
             . "🏢 *Pilihan Program* : {$registration->pilihan_jenjang}\n"
             . "🏠 *Pilihan Asrama*  : {$registration->pilihan_asrama}\n\n"
-            . "🔐 *AKUN LOGIN PORTAL SANTRI*:\n"
+            . "🔐 *AKUN LOGIN PORTAL PMB*:\n"
             . "• *Username / ID* : *{$registration->registration_number}*\n"
             . "• *Password*      : *{$password}*\n"
             . "--------------------------------------\n\n"
@@ -569,16 +752,17 @@ class PmbController extends Controller
     }
 
     /**
-     * [ADMIN] FITUR INTI: 1-Klik ACC & Konversi Calon Santri ke Santri Resmi (Tabel Siswa)
+     * [ADMIN] FITUR INTI: 1-Klik ACC & Konversi Calon Santri ke Santri Resmi (Tabel Siswa / Buku Induk)
+     * Otomatis catat histori Gelombang PMB & kirim WhatsApp Resmi Pengumuman Penerimaan ke Wali!
      */
     public function convertToSiswa(Request $request, $id): JsonResponse
     {
-        $registration = PmbRegistration::findOrFail($id);
+        $registration = PmbRegistration::with('batch')->findOrFail($id);
 
         if ($registration->is_converted && $registration->converted_siswa_id) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Calon santri ini sudah pernah dikonversi menjadi santri resmi sebelumnya.',
+                'message' => 'Calon santri ini sudah pernah di-ACC dan dikonversi menjadi santri resmi sebelumnya.',
             ], 422);
         }
 
@@ -591,8 +775,6 @@ class PmbController extends Controller
         ]);
 
         return DB::transaction(function () use ($registration, $validated) {
-            $resolver = app(ReferenceResolver::class);
-
             // 1. Generate NIS jika tidak diinput manual
             $nis = trim($validated['nis'] ?? '');
             if (empty($nis)) {
@@ -609,7 +791,7 @@ class PmbController extends Controller
                 }
             }
 
-            // 2. Buat Akun Wali Santri jika diminta (default true)
+            // 2. Hubungkan atau Buat Akun Wali Santri
             $waliId = null;
             $waliUser = null;
             $createWali = $validated['create_wali_user'] ?? true;
@@ -652,7 +834,13 @@ class PmbController extends Controller
                 $className = $cls?->name;
             }
 
-            // 5. Simpan Data Siswa Resmi ke tabel 'siswa'
+            // 5. Simpan Histori Gelombang PMB ke catatan santri & tahun akademik masuk
+            $batchName = $registration->batch?->nama_gelombang ?? 'Gelombang 1';
+            $batchTahun = $registration->batch?->tahun_akademik ?? (date('Y') . '/' . (date('Y') + 1));
+            $historiPmb = "[Diterima via PMB {$batchName} | No. Reg: {$registration->registration_number}]";
+            $finalCatatan = trim($historiPmb . ' ' . ($registration->catatan_khusus ?? ''));
+
+            // 6. Simpan Data Siswa Resmi ke tabel 'siswa' (Buku Induk Santri)
             $siswa = Siswa::create([
                 'nis' => $nis,
                 'nisn' => $registration->nisn,
@@ -684,25 +872,60 @@ class PmbController extends Controller
                 'nama_ibu' => $registration->nama_ibu,
                 'pekerjaan_ibu' => $registration->pekerjaan_ibu,
                 'foto_santri' => $registration->dokumen_foto,
-                'catatan_santri' => $registration->catatan_khusus,
-                'tahun_akademik_masuk' => $registration->batch?->tahun_akademik ?? '2026/2027',
+                'catatan_santri' => $finalCatatan,
+                'tahun_akademik_masuk' => $batchTahun,
                 'tanggal_masuk' => now()->toDateString(),
                 'tanggal_diterima_pondok' => now()->toDateString(),
             ]);
 
-            // 6. Update status pendaftaran menjadi 'accepted' & 'is_converted'
+            // 7. Update status pendaftaran menjadi 'accepted' & 'is_converted'
             $registration->update([
                 'status' => 'accepted',
                 'is_converted' => true,
                 'converted_siswa_id' => $siswa->id,
                 'verified_at' => now(),
                 'verified_by' => auth()->id(),
-                'catatan_admin' => $validated['catatan_admin'] ?? 'Diterima resmi sebagai santri PP Qomaruddin.',
+                'catatan_admin' => $validated['catatan_admin'] ?? "Diterima resmi sebagai santri PP Qomaruddin via {$batchName}.",
             ]);
+
+            // 8. Kirim Notifikasi WhatsApp Resmi Penerimaan / Kelulusan PMB ke Wali Santri
+            $portalUrl = rtrim(config('app.url') ?: 'https://ppqomaruddin.itqom.net', '/') . '/?pmb=1';
+            $agendaInfo = PmbCmsSetting::getValue('agenda_kedatangan_info', 'Santri baru wajib diantar ke pondok sesuai kalender pesantren dan membawa berkas administrasi fisik.');
+            
+            $waAcceptMsg = "*PENGUMUMAN RESMI KELULUSAN & PENERIMAAN PMB*\n"
+                . "*PONDOK PESANTREN QOMARUDDIN SAMPURNAN*\n"
+                . "======================================\n\n"
+                . "Assalamu'alaikum Warahmatullahi Wabarakatuh,\n\n"
+                . "Kabar Gembira! Kami ucapkan *SELAMAT* kepada Bapak/Ibu Wali,\n"
+                . "Calon santri berikut telah resmi *DITERIMA (ACC)* sebagai Santri Baru Pondok Pesantren Qomaruddin:\n\n"
+                . "👤 *Nama Santri*     : *{$registration->nama_lengkap}*\n"
+                . "📋 *No. Registrasi* : {$registration->registration_number}\n"
+                . "🆔 *NIS Resmi*       : *{$nis}*\n"
+                . "🌊 *Gelombang*       : {$batchName} (TA {$batchTahun})\n"
+                . ($className ? "📚 *Kelas Madin*     : {$className}\n" : "")
+                . ($roomName ? "🏠 *Kamar / Asrama*  : {$roomName} ({$komplekName})\n" : "")
+                . "📅 *Tahun Masuk*     : {$batchTahun}\n\n"
+                . "📌 *INFORMASI KEDATANGAN & MASUK ASRAMA*:\n"
+                . "{$agendaInfo}\n\n"
+                . "Cetak Kartu Santri & Pantau Agenda Resmi:\n"
+                . "{$portalUrl}\n\n"
+                . "Ahlan Wa Sahlan Bi Khudurikum di Pondok Pesantren Qomaruddin.\n\n"
+                . "Wassalamu'alaikum Warahmatullahi Wabarakatuh.\n"
+                . "--------------------------------------\n"
+                . "*Panitia PMB & Pengurus PP Qomaruddin*\n"
+                . "📞 Narahubung: 0812-3456-7890";
+
+            try {
+                if (class_exists(WhatsAppNotificationService::class)) {
+                    app(WhatsAppNotificationService::class)->queueManual($registration->no_whatsapp_wali, $waAcceptMsg);
+                }
+            } catch (\Throwable $e) {
+                Log::warning("Gagal mengirim WA penerimaan santri {$nis}: " . $e->getMessage());
+            }
 
             return response()->json([
                 'status' => 'success',
-                'message' => "Alhamdulillah! Calon santri {$registration->nama_lengkap} berhasil di-ACC dan dikonversi menjadi Santri Resmi PP Qomaruddin dengan NIS: {$nis}.",
+                'message' => "Alhamdulillah! Calon santri {$registration->nama_lengkap} berhasil di-ACC dan dikonversi ke Buku Induk Santri dengan NIS: {$nis}.",
                 'data' => [
                     'siswa' => $siswa,
                     'registration' => $registration,
@@ -797,6 +1020,224 @@ class PmbController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Gelombang PMB berhasil dihapus.',
+        ]);
+    }
+
+    // =========================================================================
+    // CMS WEB PROFIL PESANTREN (ALA WORDPRESS) & MASTER TOGGLE PMB
+    // =========================================================================
+
+    /**
+     * [ADMIN] Sakelar Cerdas: Buka / Tutup Pendaftaran PMB
+     */
+    public function togglePmbStatus(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'is_open' => 'nullable|boolean',
+            'closed_message' => 'nullable|string',
+        ]);
+
+        $current = PmbCmsSetting::getValue('pmb_is_open', true);
+        $newStatus = isset($validated['is_open']) ? (bool)$validated['is_open'] : !$current;
+
+        PmbCmsSetting::setValue('pmb_is_open', $newStatus, 'general', 'Status Pendaftaran PMB Dibuka/Ditutup', 'boolean');
+
+        if (!empty($validated['closed_message'])) {
+            PmbCmsSetting::setValue('pmb_closed_message', $validated['closed_message'], 'general', 'Pesan Penutupan PMB', 'textarea');
+        }
+
+        $statusText = $newStatus ? 'DIBUKA' : 'DITUTUP';
+
+        return response()->json([
+            'status' => 'success',
+            'message' => "Pendaftaran PMB berhasil di-{$statusText}.",
+            'data' => [
+                'pmb_is_open' => $newStatus,
+                'pmb_closed_message' => PmbCmsSetting::getValue('pmb_closed_message'),
+            ]
+        ]);
+    }
+
+    /**
+     * [PUBLIC] Dapatkan Setting CMS Web Profil
+     */
+    public function getCmsSettings(): JsonResponse
+    {
+        $settings = PmbCmsSetting::all();
+        $map = [];
+        foreach ($settings as $s) {
+            if ($s->type === 'boolean') {
+                $map[$s->key] = filter_var($s->value, FILTER_VALIDATE_BOOLEAN);
+            } elseif ($s->type === 'json') {
+                $map[$s->key] = json_decode($s->value, true);
+            } else {
+                $map[$s->key] = $s->value;
+            }
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $map,
+        ]);
+    }
+
+    /**
+     * [ADMIN] Dapatkan Seluruh Setting CMS Lengkap dengan Metadata Form
+     */
+    public function getCmsSettingsAdmin(): JsonResponse
+    {
+        $settings = PmbCmsSetting::orderBy('group')->orderBy('id')->get();
+        return response()->json([
+            'status' => 'success',
+            'data' => $settings,
+        ]);
+    }
+
+    /**
+     * [ADMIN] Update Pengaturan CMS Web Profil ala WordPress
+     */
+    public function updateCmsSettings(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'settings' => 'required|array',
+            'settings.*.key' => 'required|string',
+            'settings.*.value' => 'nullable',
+            'settings.*.group' => 'nullable|string',
+            'settings.*.label' => 'nullable|string',
+            'settings.*.type' => 'nullable|string|in:text,textarea,json,boolean,image',
+        ]);
+
+        foreach ($validated['settings'] as $item) {
+            $key = $item['key'];
+            $value = $item['value'] ?? null;
+            $group = $item['group'] ?? 'general';
+            $label = $item['label'] ?? null;
+            $type = $item['type'] ?? 'text';
+
+            PmbCmsSetting::setValue($key, $value, $group, $label, $type);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Pengaturan Web Profil Pesantren (CMS) berhasil diperbarui.',
+        ]);
+    }
+
+    // =========================================================================
+    // BERITA, PENGUMUMAN & AGENDA KEDATANGAN SANTRI BARU
+    // =========================================================================
+
+    /**
+     * [PUBLIC] Dapatkan Pengumuman & Berita yang Dipublikasikan
+     */
+    public function getPublicAnnouncements(Request $request): JsonResponse
+    {
+        $category = $request->query('category');
+        $query = PmbAnnouncement::where('is_published', true);
+
+        if ($category && $category !== 'all') {
+            $query->where('category', $category);
+        }
+
+        $announcements = $query->orderBy('is_pinned', 'desc')
+            ->orderBy('event_date', 'asc')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $announcements,
+        ]);
+    }
+
+    /**
+     * [ADMIN] Dapatkan Daftar Berita & Agenda PMB
+     */
+    public function getAnnouncementsAdmin(Request $request): JsonResponse
+    {
+        $query = PmbAnnouncement::with('author:id,name');
+
+        if ($request->filled('category') && $request->category !== 'all') {
+            $query->where('category', $request->category);
+        }
+
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'ILIKE', "%{$search}%")
+                  ->orWhere('content', 'ILIKE', "%{$search}%");
+            });
+        }
+
+        $announcements = $query->orderBy('is_pinned', 'desc')->orderBy('id', 'desc')->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $announcements,
+        ]);
+    }
+
+    /**
+     * [ADMIN] Buat Berita / Agenda Santri Baru
+     */
+    public function storeAnnouncement(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:200',
+            'content' => 'required|string',
+            'category' => 'required|in:agenda_kedatangan,pengumuman,berita',
+            'event_date' => 'nullable|date',
+            'is_pinned' => 'boolean',
+            'is_published' => 'boolean',
+        ]);
+
+        $validated['author_id'] = auth()->id();
+
+        $announcement = PmbAnnouncement::create($validated);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Berita / Agenda PMB berhasil dibuat.',
+            'data' => $announcement,
+        ], 201);
+    }
+
+    /**
+     * [ADMIN] Update Berita / Agenda PMB
+     */
+    public function updateAnnouncement(Request $request, $id): JsonResponse
+    {
+        $announcement = PmbAnnouncement::findOrFail($id);
+
+        $validated = $request->validate([
+            'title' => 'required|string|max:200',
+            'content' => 'required|string',
+            'category' => 'required|in:agenda_kedatangan,pengumuman,berita',
+            'event_date' => 'nullable|date',
+            'is_pinned' => 'boolean',
+            'is_published' => 'boolean',
+        ]);
+
+        $announcement->update($validated);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Berita / Agenda PMB berhasil diperbarui.',
+            'data' => $announcement,
+        ]);
+    }
+
+    /**
+     * [ADMIN] Hapus Berita / Agenda PMB
+     */
+    public function deleteAnnouncement($id): JsonResponse
+    {
+        $announcement = PmbAnnouncement::findOrFail($id);
+        $announcement->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Berita / Agenda PMB berhasil dihapus.',
         ]);
     }
 }

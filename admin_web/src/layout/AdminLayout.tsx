@@ -20,6 +20,7 @@ import {
   Compass,
   CreditCard,
   FileText,
+  Globe,
   GraduationCap,
   History,
   Home,
@@ -30,6 +31,7 @@ import {
   LibraryBig,
   ListChecks,
   LogOut,
+  Megaphone,
   Menu,
   MessageCircle,
   MessageSquare,
@@ -134,6 +136,8 @@ const allMenu: MenuItem[] = [
       { label: "Dashboard PMB", page: "pmb", pmbTab: "dashboard", icon: Activity },
       { label: "Data Calon Santri", page: "pmb", pmbTab: "applicants", icon: Users },
       { label: "Gelombang Pendaftaran", page: "pmb", pmbTab: "batches", icon: CalendarRange },
+      { label: "Berita & Agenda Santri", page: "pmb", pmbTab: "announcements", icon: Megaphone },
+      { label: "CMS Profil Pesantren", page: "pmb", pmbTab: "cms", icon: Globe },
     ],
   },
   {
@@ -556,6 +560,8 @@ export function AdminLayout({
             { label: "Dashboard PMB", page: "pmb" as PageKey, pmbTab: "dashboard", icon: Activity },
             { label: "Data Calon Santri", page: "pmb" as PageKey, pmbTab: "applicants", icon: Users },
             { label: "Gelombang Pendaftaran", page: "pmb" as PageKey, pmbTab: "batches", icon: CalendarRange },
+            { label: "Berita & Agenda Santri", page: "pmb" as PageKey, pmbTab: "announcements", icon: Megaphone },
+            { label: "CMS Profil Pesantren", page: "pmb" as PageKey, pmbTab: "cms", icon: Globe },
           ],
         },
         {

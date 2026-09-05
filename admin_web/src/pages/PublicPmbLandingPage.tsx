@@ -1,5 +1,8 @@
 import {
+  AlertCircle,
+  AlertTriangle,
   Award,
+  Bell,
   BookOpen,
   Calendar,
   Check,
@@ -10,6 +13,7 @@ import {
   ExternalLink,
   FileCheck,
   FileText,
+  Globe,
   GraduationCap,
   HeartHandshake,
   HelpCircle,
@@ -17,8 +21,10 @@ import {
   Info,
   KeyRound,
   Landmark,
+  Lock,
   LogIn,
   MapPin,
+  Megaphone,
   MessageCircle,
   Phone,
   Printer,
@@ -26,8 +32,10 @@ import {
   Search,
   Send,
   Share2,
+  ShieldAlert,
   ShieldCheck,
   Sparkles,
+  Tag,
   Upload,
   UserCheck,
   UserPlus,
@@ -53,6 +61,40 @@ interface ActiveBatch {
   keterangan: string | null;
 }
 
+interface ProfilCms {
+  nama_pesantren: string;
+  pendiri: string;
+  tahun_berdiri: string;
+  alamat: string;
+  telepon: string;
+  email: string;
+  website: string;
+  tagline: string;
+  sejarah: string;
+  visi: string;
+  misi: string;
+  agenda_kedatangan_info: string;
+  program_unggulan: Array<{
+    title: string;
+    desc: string;
+    icon?: string;
+  }>;
+  fasilitas: string[];
+}
+
+interface AnnouncementItem {
+  id: number;
+  title: string;
+  slug: string;
+  category: string;
+  excerpt: string | null;
+  content: string;
+  event_date: string | null;
+  is_pinned: boolean;
+  author?: { name: string };
+  created_at: string;
+}
+
 interface RegistrationResult {
   registration_number: string;
   nama_lengkap: string;
@@ -73,17 +115,32 @@ interface StatusCheckItem {
   pilihan_asrama: string;
   status: string;
   status_label: string;
+  payment_status: 'pending' | 'perlu_pelunasan' | 'lunas' | 'gratis' | string;
+  payment_amount: number;
+  payment_notes: string | null;
   catatan_admin: string | null;
   gelombang: string;
+  tahun_akademik?: string;
   tanggal_daftar: string;
   is_converted: boolean;
+  nis_resmi?: string | null;
+  kelas_resmi?: string | null;
+  kamar_resmi?: string | null;
 }
 
 export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps) {
-  const [activeTab, setActiveTab] = useState<'beranda' | 'daftar' | 'status'>('beranda');
+  const [activeTab, setActiveTab] = useState<'beranda' | 'daftar' | 'status' | 'agenda'>('beranda');
   const [activeBatch, setActiveBatch] = useState<ActiveBatch | null>(null);
   const [totalRegistered, setTotalRegistered] = useState(0);
   const [quotaRemaining, setQuotaRemaining] = useState<number | null>(null);
+  const [pmbIsOpen, setPmbIsOpen] = useState<boolean>(true);
+  const [pmbClosedMessage, setPmbClosedMessage] = useState<string>(
+    'Pendaftaran Santri Baru Gelombang Ini Saat Ini Sedang Ditutup. Silakan Pantau Pengumuman Resmi Berkala.'
+  );
+  const [profilCms, setProfilCms] = useState<ProfilCms | null>(null);
+  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<AnnouncementItem | null>(null);
+  const [announcementFilter, setAnnouncementFilter] = useState<string>('all');
   const [isLoadingInfo, setIsLoadingInfo] = useState(true);
 
   // Share & Copy states
@@ -102,8 +159,9 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
   };
 
   const handleShareWhatsApp = () => {
+    const namaPesantren = profilCms?.nama_pesantren || 'Pondok Pesantren Qomaruddin';
     const text = encodeURIComponent(
-      `Penerimaan Santri Baru (PMB) Pondok Pesantren Qomaruddin Sampurnan Bungah Gresik telah dibuka!\n\n` +
+      `Penerimaan Santri Baru (PMB) ${namaPesantren} Sampurnan Bungah Gresik telah dibuka!\n\n` +
       `Mari bergabung bersama keluarga besar Pesantren Salaf Bersejarah (Est. 1775 M).\n` +
       `Pendaftaran online, pilihan jenjang Diniyah, Tahfidz 30 Juz, dan Asrama:\n` +
       `${getPublicPmbUrl()}`
@@ -156,19 +214,24 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
   const [statusSearchError, setStatusSearchError] = useState('');
   const [selectedCardToPrint, setSelectedCardToPrint] = useState<StatusCheckItem | null>(null);
 
-  // Load Public Batch Info
+  // Load Public Batch Info & Dynamic CMS Profil
   useEffect(() => {
     async function loadPublicBatch() {
       setIsLoadingInfo(true);
       try {
-        const res = await api.get<{ batch: ActiveBatch | null; total_registered: number; kuota_sisa: number | null }>('/pmb/public-info');
+        const res = await api.getPmbInfo();
         if (res && res.data) {
-          setActiveBatch(res.data.batch);
-          setTotalRegistered(res.data.total_registered || 0);
-          setQuotaRemaining(res.data.kuota_sisa);
+          const d = res.data as any;
+          if (d.active_batch) setActiveBatch(d.active_batch);
+          if (typeof d.total_registered === 'number') setTotalRegistered(d.total_registered);
+          if (d.quota_remaining !== undefined) setQuotaRemaining(d.quota_remaining);
+          if (typeof d.pmb_is_open === 'boolean') setPmbIsOpen(d.pmb_is_open);
+          if (d.pmb_closed_message) setPmbClosedMessage(d.pmb_closed_message);
+          if (d.profil) setProfilCms(d.profil);
+          if (Array.isArray(d.announcements)) setAnnouncements(d.announcements);
         }
       } catch (err) {
-        console.warn('Gagal memuat batch PMB aktif:', err);
+        console.warn('Gagal memuat batch PMB & profil CMS:', err);
       } finally {
         setIsLoadingInfo(false);
       }
@@ -219,6 +282,12 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
   const handleSubmitRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError('');
+
+    if (!pmbIsOpen) {
+      setSubmitError('Pendaftaran saat ini sedang ditutup oleh panitia PMB. Mohon pantau pengumuman.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -298,8 +367,71 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
     }
   };
 
+  const renderProgramIcon = (iconName?: string) => {
+    switch (iconName) {
+      case 'Award':
+        return <Award className="w-5 h-5 text-[#0D7A6F] dark:text-[#2DD4BF]" />;
+      case 'GraduationCap':
+        return <GraduationCap className="w-5 h-5 text-[#2E86DE] dark:text-sky-400" />;
+      case 'ShieldCheck':
+        return <ShieldCheck className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />;
+      case 'Home':
+        return <Home className="w-5 h-5 text-amber-700 dark:text-amber-400" />;
+      case 'Landmark':
+        return <Landmark className="w-5 h-5 text-purple-700 dark:text-purple-400" />;
+      case 'BookOpen':
+      default:
+        return <BookOpen className="w-5 h-5 text-[#0D7A6F] dark:text-[#2DD4BF]" />;
+    }
+  };
+
+  const getCategoryBadge = (category: string) => {
+    switch (category) {
+      case 'agenda_kedatangan':
+        return {
+          label: 'Agenda Kedatangan',
+          style: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+        };
+      case 'pengumuman':
+        return {
+          label: 'Pengumuman Resmi',
+          style: 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-700'
+        };
+      case 'alur_berkas':
+        return {
+          label: 'Alur & Berkas Fisik',
+          style: 'bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+        };
+      case 'berita':
+        return {
+          label: 'Berita & Seputar Pondok',
+          style: 'bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-700'
+        };
+      default:
+        return {
+          label: 'Informasi',
+          style: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
+        };
+    }
+  };
+
+  const filteredAnnouncements = announcements.filter((a) => {
+    if (announcementFilter === 'all') return true;
+    return a.category === announcementFilter;
+  });
+
   return (
     <div className="min-h-screen bg-[#FFDC80] dark:bg-[#0B1120] text-[#2D3436] dark:text-slate-100 flex flex-col font-sans selection:bg-[#138F81] selection:text-white transition-colors duration-300">
+      {/* 🌟 BANNER STATUS MASTER BUKA/TUTUP JIKA DITUTUP */}
+      {!pmbIsOpen && (
+        <div className="bg-rose-600 dark:bg-rose-900 text-white px-4 py-2.5 text-xs font-bold text-center flex items-center justify-center gap-2 shadow-md">
+          <AlertCircle className="w-4 h-4 shrink-0 text-amber-300 animate-pulse" />
+          <span>
+            <strong>PEMBERITAHUAN PMB:</strong> {pmbClosedMessage}
+          </span>
+        </div>
+      )}
+
       {/* 🌟 TOP NAVBAR KHAS QOMARUDDIN (WARNA KUNING & PUTIH BERSIH / OBSIDIAN DARK) */}
       <header className="sticky top-0 z-50 bg-white/95 dark:bg-[#1E293B]/95 backdrop-blur-md border-b border-amber-300/80 dark:border-slate-800 shadow-sm transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -319,10 +451,10 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-black text-lg sm:text-xl tracking-tight text-[#2D3436] dark:text-slate-100 group-hover:text-[#138F81] dark:group-hover:text-[#2DD4BF] transition-colors">
-                    PP. QOMARUDDIN
+                    {profilCms?.nama_pesantren ? profilCms.nama_pesantren.toUpperCase() : 'PP. QOMARUDDIN'}
                   </span>
                   <span className="text-[10px] font-black tracking-wider px-2 py-0.5 rounded-full bg-[#FFDC80] dark:bg-amber-400/20 text-[#0D7A6F] dark:text-amber-300 border border-amber-300 dark:border-amber-500/30">
-                    EST. 1775 M
+                    {profilCms?.tahun_berdiri ? profilCms.tahun_berdiri.slice(0, 10) : 'EST. 1775 M'}
                   </span>
                 </div>
                 <p className="text-xs text-[#636E72] dark:text-slate-400 hidden sm:block font-medium">
@@ -357,6 +489,11 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
               >
                 <UserPlus className="w-3.5 h-3.5 text-[#FFDC80]" />
                 <span>Daftar Online</span>
+                {!pmbIsOpen && (
+                  <span className="text-[9px] font-black px-1.5 py-0.2 rounded-md bg-rose-500 text-white">
+                    Tutup
+                  </span>
+                )}
               </button>
               <button
                 onClick={() => setActiveTab('status')}
@@ -369,11 +506,26 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                 <Search className="w-3.5 h-3.5 text-[#FFDC80]" />
                 <span>Cek Status Kelulusan</span>
               </button>
+              <button
+                onClick={() => setActiveTab('agenda')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeTab === 'agenda'
+                    ? 'bg-[#138F81] text-white shadow-sm'
+                    : 'text-[#2D3436] dark:text-slate-300 hover:bg-amber-100/70 dark:hover:bg-slate-800'
+                }`}
+              >
+                <Megaphone className="w-3.5 h-3.5 text-[#FFDC80]" />
+                <span>Agenda & Berita</span>
+                {announcements.length > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-600 text-white font-bold">
+                    {announcements.length}
+                  </span>
+                )}
+              </button>
             </nav>
 
             {/* Quick Actions: ThemeToggle, Share PMB & Login Pegawai */}
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* CANGGIH & MODERN THEME TOGGLE */}
               <ThemeToggle showDropdown={true} />
 
               <button
@@ -401,7 +553,7 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
         <div className="md:hidden flex items-center justify-around border-t border-amber-200/60 dark:border-slate-800 bg-amber-50/50 dark:bg-slate-900/90 py-2 px-2 text-xs font-bold">
           <button
             onClick={() => setActiveTab('beranda')}
-            className={`px-3 py-1.5 rounded-lg ${activeTab === 'beranda' ? 'bg-[#138F81] text-white' : 'text-[#2D3436] dark:text-slate-300'}`}
+            className={`px-2.5 py-1.5 rounded-lg ${activeTab === 'beranda' ? 'bg-[#138F81] text-white' : 'text-[#2D3436] dark:text-slate-300'}`}
           >
             Beranda
           </button>
@@ -411,243 +563,408 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
               setFormStep(1);
               setRegistrationSuccess(null);
             }}
-            className={`px-3 py-1.5 rounded-lg flex items-center gap-1 ${activeTab === 'daftar' ? 'bg-[#138F81] text-white' : 'text-[#2D3436] dark:text-slate-300'}`}
+            className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1 ${activeTab === 'daftar' ? 'bg-[#138F81] text-white' : 'text-[#2D3436] dark:text-slate-300'}`}
           >
             <UserPlus size={13} />
             <span>Daftar</span>
+            {!pmbIsOpen && <span className="text-[8px] bg-rose-500 text-white px-1 rounded">Off</span>}
           </button>
           <button
             onClick={() => setActiveTab('status')}
-            className={`px-3 py-1.5 rounded-lg flex items-center gap-1 ${activeTab === 'status' ? 'bg-[#138F81] text-white' : 'text-[#2D3436] dark:text-slate-300'}`}
+            className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1 ${activeTab === 'status' ? 'bg-[#138F81] text-white' : 'text-[#2D3436] dark:text-slate-300'}`}
           >
             <Search size={13} />
-            <span>Cek Status</span>
+            <span>Status</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('agenda')}
+            className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1 ${activeTab === 'agenda' ? 'bg-[#138F81] text-white' : 'text-[#2D3436] dark:text-slate-300'}`}
+          >
+            <Megaphone size={13} />
+            <span>Agenda</span>
           </button>
         </div>
       </header>
 
       {/* 🌟 CONTENT AREA */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* ========================================================================= */}
+        {/* TAB 1: BERANDA & PROFIL PESANTREN (WORDPRESS-STYLE CMS CONTENT) */}
+        {/* ========================================================================= */}
         {activeTab === 'beranda' && (
           <div className="space-y-6 sm:space-y-8">
             {/* HERO CARD ELEGAN BERWARNA PUTIH BERSIH DENGAN AKSEN KUNING-TEAL */}
-            <section className="relative overflow-hidden rounded-[32px] sm:rounded-[40px] bg-white p-6 sm:p-12 shadow-2xl border border-amber-200/80 text-center transition-colors">
+            <section className="relative overflow-hidden rounded-[32px] sm:rounded-[40px] bg-white dark:bg-[#1E293B] p-6 sm:p-12 shadow-2xl border border-amber-200/80 dark:border-slate-800 text-center transition-colors">
               {/* Ornamen Lembut Latar Belakang */}
-              <div className="absolute top-0 right-0 w-80 h-80 bg-amber-100/50 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-              <div className="absolute bottom-0 left-0 w-80 h-80 bg-teal-50/60 rounded-full blur-3xl pointer-events-none -ml-20 -mb-20" />
+              <div className="absolute top-0 right-0 w-80 h-80 bg-amber-100/50 dark:bg-amber-900/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+              <div className="absolute bottom-0 left-0 w-80 h-80 bg-teal-50/60 dark:bg-teal-900/10 rounded-full blur-3xl pointer-events-none -ml-20 -mb-20" />
 
               <div className="relative z-10 max-w-4xl mx-auto">
                 {/* Active Gelombang Badge */}
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#FFDC80] border border-amber-300 text-xs font-black text-[#0D7A6F] mb-6 shadow-xs">
-                  <Sparkles className="w-4 h-4 text-[#D97706]" />
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#FFDC80] dark:bg-amber-400/20 border border-amber-300 dark:border-amber-500/30 text-xs font-black text-[#0D7A6F] dark:text-amber-300 mb-6 shadow-xs">
+                  <Sparkles className="w-4 h-4 text-[#D97706] dark:text-amber-400" />
                   <span>
-                    {activeBatch ? activeBatch.nama_gelombang : 'Penerimaan Santri Baru Telah Dibuka Resmi!'}
+                    {pmbIsOpen
+                      ? (activeBatch ? activeBatch.nama_gelombang : 'Penerimaan Santri Baru Telah Dibuka Resmi!')
+                      : 'Pendaftaran PMB Saat Ini Sedang Ditutup'}
                   </span>
                 </div>
 
                 {/* Main Heading */}
-                <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-[#2D3436] tracking-tight leading-tight mb-4">
+                <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-[#2D3436] dark:text-slate-100 tracking-tight leading-tight mb-4">
                   Penerimaan Santri Baru (PMB) <br />
-                  <span className="text-[#138F81]">Pondok Pesantren Qomaruddin</span>
+                  <span className="text-[#138F81] dark:text-[#2DD4BF]">
+                    {profilCms?.nama_pesantren || 'Pondok Pesantren Qomaruddin'}
+                  </span>
                 </h1>
 
                 {/* Tagline / Subtitle */}
-                <p className="text-xs sm:text-sm lg:text-base text-[#636E72] max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed font-medium">
-                  Menyemai generasi santri tafaqquh fiddin, berakhlakul karimah, dan berwawasan luas dengan barokah sanad keilmuan salaf sejak 1775 M di Sampurnan, Bungah, Gresik.
+                <p className="text-xs sm:text-sm lg:text-base text-[#636E72] dark:text-slate-300 max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed font-medium">
+                  {profilCms?.tagline ||
+                    'Menyemai generasi santri tafaqquh fiddin, berakhlakul karimah, dan berwawasan luas dengan barokah sanad keilmuan salaf sejak 1775 M di Sampurnan, Bungah, Gresik.'}
                 </p>
 
-                {/* CTA Buttons */}
+                {/* CTA Buttons - Cerdas Menyesuaikan Sakelar Buka/Tutup */}
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 max-w-md mx-auto mb-10">
-                  <button
-                    onClick={() => {
-                      setActiveTab('daftar');
-                      setFormStep(1);
-                      setRegistrationSuccess(null);
-                    }}
-                    className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] text-white font-black text-xs sm:text-sm shadow-lg shadow-[#138F81]/25 hover:scale-102 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <UserPlus className="w-4 h-4 text-[#FFDC80]" />
-                    <span>Daftar Santri Baru Sekarang</span>
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+                  {pmbIsOpen ? (
+                    <button
+                      onClick={() => {
+                        setActiveTab('daftar');
+                        setFormStep(1);
+                        setRegistrationSuccess(null);
+                      }}
+                      className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] text-white font-black text-xs sm:text-sm shadow-lg shadow-[#138F81]/25 hover:scale-102 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <UserPlus className="w-4 h-4 text-[#FFDC80]" />
+                      <span>Daftar Santri Baru Sekarang</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setActiveTab('agenda')}
+                      className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs sm:text-sm shadow-lg shadow-amber-500/25 hover:scale-102 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Megaphone className="w-4 h-4 text-white" />
+                      <span>Lihat Agenda & Pengumuman</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  )}
 
                   <button
                     onClick={() => setActiveTab('status')}
-                    className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-[#FFDC80] hover:bg-[#ffe59e] text-[#0D7A6F] font-black text-xs sm:text-sm border-2 border-amber-300 shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-[#FFDC80] dark:bg-slate-800 hover:bg-[#ffe59e] dark:hover:bg-slate-700 text-[#0D7A6F] dark:text-amber-300 font-black text-xs sm:text-sm border-2 border-amber-300 dark:border-slate-700 shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <Search className="w-4 h-4 text-[#0D7A6F]" />
-                    <span>Cek Status Kelulusan</span>
+                    <Search className="w-4 h-4 text-[#0D7A6F] dark:text-amber-300" />
+                    <span>Lacak Status Kelulusan</span>
                   </button>
                 </div>
 
                 {/* Live Stats Cards */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 sm:gap-4 pt-6 border-t border-slate-100">
-                  <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 text-center">
-                    <div className="text-2xl sm:text-3xl font-black text-[#138F81]">250+</div>
-                    <div className="text-[11px] sm:text-xs text-[#636E72] font-semibold mt-0.5">Tahun Khidmah (1775 M)</div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 sm:gap-4 pt-6 border-t border-slate-100 dark:border-slate-800">
+                  <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-slate-800/80 border border-amber-200/80 dark:border-slate-700 text-center">
+                    <div className="text-2xl sm:text-3xl font-black text-[#138F81] dark:text-[#2DD4BF]">250+</div>
+                    <div className="text-[11px] sm:text-xs text-[#636E72] dark:text-slate-400 font-semibold mt-0.5">Tahun Khidmah (1775 M)</div>
                   </div>
-                  <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 text-center">
-                    <div className="text-2xl sm:text-3xl font-black text-[#0D7A6F]">1.850+</div>
-                    <div className="text-[11px] sm:text-xs text-[#636E72] font-semibold mt-0.5">Santri Aktif Mukim</div>
+                  <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-slate-800/80 border border-amber-200/80 dark:border-slate-700 text-center">
+                    <div className="text-2xl sm:text-3xl font-black text-[#0D7A6F] dark:text-teal-400">1.850+</div>
+                    <div className="text-[11px] sm:text-xs text-[#636E72] dark:text-slate-400 font-semibold mt-0.5">Santri Aktif Mukim</div>
                   </div>
-                  <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 text-center">
-                    <div className="text-2xl sm:text-3xl font-black text-[#D97706]">30 Juz</div>
-                    <div className="text-[11px] sm:text-xs text-[#636E72] font-semibold mt-0.5">Tahfidz Bersanad</div>
+                  <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-slate-800/80 border border-amber-200/80 dark:border-slate-700 text-center">
+                    <div className="text-2xl sm:text-3xl font-black text-[#D97706] dark:text-amber-400">30 Juz</div>
+                    <div className="text-[11px] sm:text-xs text-[#636E72] dark:text-slate-400 font-semibold mt-0.5">Tahfidz Bersanad</div>
                   </div>
-                  <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 text-center">
-                    <div className="text-2xl sm:text-3xl font-black text-[#2D3436]">{totalRegistered}</div>
-                    <div className="text-[11px] sm:text-xs text-[#636E72] font-semibold mt-0.5">Pendaftar Gelombang Ini</div>
+                  <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-slate-800/80 border border-amber-200/80 dark:border-slate-700 text-center">
+                    <div className="text-2xl sm:text-3xl font-black text-[#2D3436] dark:text-slate-100">{totalRegistered}</div>
+                    <div className="text-[11px] sm:text-xs text-[#636E72] dark:text-slate-400 font-semibold mt-0.5">Pendaftar Gelombang Ini</div>
                   </div>
                 </div>
               </div>
             </section>
 
-            {/* SEJARAH & KURIKULUM TERPADU */}
+            {/* SEJARAH & KURIKULUM TERPADU DINAMIS CMS */}
             <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-              {/* Kolom Sejarah */}
-              <div className="lg:col-span-5 rounded-3xl bg-white border border-amber-200/80 p-6 sm:p-8 shadow-xl flex flex-col justify-between transition-colors">
+              {/* Kolom Sejarah 1775 M */}
+              <div className="lg:col-span-5 rounded-3xl bg-white dark:bg-[#1E293B] border border-amber-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-xl flex flex-col justify-between transition-colors">
                 <div>
-                  <div className="h-14 w-14 rounded-2xl bg-amber-50 border border-amber-200 p-2 flex items-center justify-center mb-5">
+                  <div className="h-14 w-14 rounded-2xl bg-amber-50 dark:bg-slate-800 border border-amber-200 dark:border-slate-700 p-2 flex items-center justify-center mb-5">
                     <img src="/logo-qomaruddin.png" alt="Qomaruddin" className="h-full w-full object-contain" />
                   </div>
-                  <span className="text-[11px] font-black uppercase tracking-wider text-[#138F81]">
-                    WARISAN SALAF NUSANTARA
+                  <span className="text-[11px] font-black uppercase tracking-wider text-[#138F81] dark:text-[#2DD4BF]">
+                    WARISAN SALAF NUSANTARA • {profilCms?.tahun_berdiri || 'EST. 1775 M'}
                   </span>
-                  <h3 className="text-xl sm:text-2xl font-black text-[#2D3436] mt-1 mb-3">
+                  <h3 className="text-xl sm:text-2xl font-black text-[#2D3436] dark:text-slate-100 mt-1 mb-3">
                     Pesantren Salaf Tertua & Bersejarah
                   </h3>
-                  <p className="text-xs sm:text-sm text-[#636E72] leading-relaxed mb-6">
-                    Didirikan oleh <strong className="text-[#2D3436]">Kiai Qomaruddin</strong> pada tahun 1775 M, Pondok Pesantren Qomaruddin Sampurnan Bungah telah melahirkan ribuan ulama, kiai, dan cendekiawan yang bertebaran di pelosok nusantara hingga mancanegara.
+                  <p className="text-xs sm:text-sm text-[#636E72] dark:text-slate-300 leading-relaxed mb-6 whitespace-pre-line">
+                    {profilCms?.sejarah ||
+                      'Didirikan oleh Kiai Qomaruddin pada tahun 1775 M, Pondok Pesantren Qomaruddin Sampurnan Bungah telah melahirkan ribuan ulama, kiai, dan cendekiawan yang bertebaran di pelosok nusantara hingga mancanegara.'}
                   </p>
                 </div>
 
-                <div className="space-y-2.5 pt-4 border-t border-slate-100 text-xs text-[#2D3436] font-semibold">
+                <div className="space-y-2.5 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs text-[#2D3436] dark:text-slate-300 font-semibold">
                   <div className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-[#138F81] shrink-0" />
-                    <span>Sanad keilmuan muttashil bersambung ke Rasulullah SAW</span>
+                    <CheckCircle2 className="w-4 h-4 text-[#138F81] dark:text-[#2DD4BF] shrink-0" />
+                    <span>Sanad keilmuan muttashil bersambung ke Mbah Kiai Qomaruddin & Rasulullah SAW</span>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-[#138F81] shrink-0" />
-                    <span>Kombinasi sorogan salaf dan manajemen modern terakreditasi</span>
+                    <CheckCircle2 className="w-4 h-4 text-[#138F81] dark:text-[#2DD4BF] shrink-0" />
+                    <span>Kombinasi sorogan salaf dan manajemen keilmuan modern terakreditasi</span>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-[#138F81] shrink-0" />
-                    <span>Fasilitas asrama putra & putri mukim yang aman dan kondusif</span>
+                    <CheckCircle2 className="w-4 h-4 text-[#138F81] dark:text-[#2DD4BF] shrink-0" />
+                    <span>Komplek asrama santri putra & putri mukim yang aman, asri, dan barokah</span>
                   </div>
                 </div>
               </div>
 
-              {/* Kolom Pilihan Program & Kurikulum */}
-              <div className="lg:col-span-7 rounded-3xl bg-white border border-amber-200/80 p-6 sm:p-8 shadow-xl flex flex-col justify-between transition-colors">
+              {/* Kolom Pilihan Program & Kurikulum Dinamis CMS */}
+              <div className="lg:col-span-7 rounded-3xl bg-white dark:bg-[#1E293B] border border-amber-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-xl flex flex-col justify-between transition-colors">
                 <div>
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-amber-100 text-[#0D7A6F] text-xs font-black mb-3">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-[#0D7A6F] dark:text-amber-300 text-xs font-black mb-3">
                     <BookOpen size={14} />
-                    <span>PROGRAM PENDIDIKAN UNGGULAN</span>
+                    <span>PROGRAM PENDIDIKAN UNGGULAN PESANTREN</span>
                   </div>
-                  <h2 className="text-xl sm:text-3xl font-black text-[#2D3436]">
+                  <h2 className="text-xl sm:text-3xl font-black text-[#2D3436] dark:text-slate-100">
                     Pilihan Jenjang & Kurikulum Terpadu
                   </h2>
-                  <p className="text-xs sm:text-sm text-[#636E72] mt-1 mb-6">
+                  <p className="text-xs sm:text-sm text-[#636E72] dark:text-slate-300 mt-1 mb-6">
                     Pesantren menyediakan jalur pendidikan komprehensif bagi santri putra maupun putri:
                   </p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-slate-200/80 hover:border-[#138F81] transition-all">
-                      <div className="h-9 w-9 rounded-xl bg-[#FFDC80] text-[#0D7A6F] flex items-center justify-center mb-2.5">
-                        <BookOpen className="w-4 h-4" />
+                    {(profilCms?.program_unggulan && profilCms.program_unggulan.length > 0
+                      ? profilCms.program_unggulan
+                      : [
+                          {
+                            title: 'Madrasah Diniyah Salafiyah',
+                            desc: 'Kajian kitab kuning berjenjang mendalami Fiqih, Nahwu-Sharaf, Hadits, Tauhid, dan Akhlaq.',
+                            icon: 'BookOpen'
+                          },
+                          {
+                            title: 'Tahfidzul Qur\'an 30 Juz',
+                            desc: 'Halaqah tahfidz intensif dengan musyrif mutqin, setoran tartil, muraja\'ah, dan tasmi\' bersanad.',
+                            icon: 'Award'
+                          },
+                          {
+                            title: 'Sekolah Formal Terpadu',
+                            desc: 'Pilihan pendidikan formal Yayasan: MI, MTs, MA, SMA, SMK Assa\'adah Bungah, hingga Universitas Qomaruddin.',
+                            icon: 'GraduationCap'
+                          },
+                          {
+                            title: 'Asrama Pondok Putra & Putri',
+                            desc: 'Asrama bersih dan asri, sholat jama\'ah 5 waktu, pengajian bandongan, dan muhadhoroh.',
+                            icon: 'Home'
+                          }
+                        ]
+                    ).map((prog, idx) => (
+                      <div
+                        key={idx}
+                        className="p-4 rounded-2xl bg-[#F8FAFC] dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 hover:border-[#138F81] dark:hover:border-[#2DD4BF] transition-all"
+                      >
+                        <div className="h-9 w-9 rounded-xl bg-[#FFDC80] dark:bg-slate-800 text-[#0D7A6F] dark:text-amber-400 flex items-center justify-center mb-2.5 shadow-xs">
+                          {renderProgramIcon(prog.icon)}
+                        </div>
+                        <h4 className="text-sm font-black text-[#2D3436] dark:text-slate-100 mb-1">
+                          {prog.title}
+                        </h4>
+                        <p className="text-xs text-[#636E72] dark:text-slate-400 leading-relaxed">
+                          {prog.desc}
+                        </p>
                       </div>
-                      <h4 className="text-sm font-black text-[#2D3436] mb-1">Madrasah Diniyah Salafiyah</h4>
-                      <p className="text-xs text-[#636E72] leading-relaxed">
-                        Kajian kitab kuning berjenjang mendalami Fiqih, Nahwu-Sharaf, Hadits, Tauhid, dan Akhlaq.
-                      </p>
-                    </div>
-
-                    <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-slate-200/80 hover:border-amber-400 transition-all">
-                      <div className="h-9 w-9 rounded-xl bg-[#FFDC80] text-[#0D7A6F] flex items-center justify-center mb-2.5">
-                        <Award className="w-4 h-4" />
-                      </div>
-                      <h4 className="text-sm font-black text-[#2D3436] mb-1">Tahfidzul Qur'an 30 Juz</h4>
-                      <p className="text-xs text-[#636E72] leading-relaxed">
-                        Halaqah tahfidz intensif dengan musyrif mutqin, setoran tartil, muraja'ah, dan tasmi' bersanad.
-                      </p>
-                    </div>
-
-                    <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-slate-200/80 hover:border-blue-400 transition-all">
-                      <div className="h-9 w-9 rounded-xl bg-[#E1EFF7] text-[#2E86DE] flex items-center justify-center mb-2.5">
-                        <GraduationCap className="w-4 h-4" />
-                      </div>
-                      <h4 className="text-sm font-black text-[#2D3436] mb-1">Sekolah Formal Terpadu</h4>
-                      <p className="text-xs text-[#636E72] leading-relaxed">
-                        Pilihan pendidikan formal Yayasan: MI, MTs, MA, SMA, dan SMK Assa'adah Bungah.
-                      </p>
-                    </div>
-
-                    <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-slate-200/80 hover:border-emerald-400 transition-all">
-                      <div className="h-9 w-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center mb-2.5">
-                        <Home className="w-4 h-4" />
-                      </div>
-                      <h4 className="text-sm font-black text-[#2D3436] mb-1">Asrama Pondok Putra & Putri</h4>
-                      <p className="text-xs text-[#636E72] leading-relaxed">
-                        Asrama bersih dan asri, sholat jama'ah 5 waktu, pengajian bandongan, dan muhadhoroh.
-                      </p>
-                    </div>
+                    ))}
                   </div>
                 </div>
               </div>
             </section>
 
+            {/* VISI & MISI PESANTREN ALA WORDPRESS CMS */}
+            {profilCms && (profilCms.visi || profilCms.misi) && (
+              <section className="rounded-3xl bg-white dark:bg-[#1E293B] border border-amber-200/80 dark:border-slate-800 p-6 sm:p-10 shadow-xl transition-colors">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="p-6 rounded-2xl bg-amber-50/50 dark:bg-slate-900/50 border border-amber-200/60 dark:border-slate-800">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-[#0D7A6F] dark:text-amber-300 text-xs font-black mb-3">
+                      <Sparkles size={14} />
+                      <span>VISI PESANTREN</span>
+                    </div>
+                    <h3 className="text-base sm:text-lg font-black text-[#2D3436] dark:text-slate-100 mb-3">
+                      Arah & Cita-Cita Mulia
+                    </h3>
+                    <p className="text-xs sm:text-sm text-[#636E72] dark:text-slate-300 leading-relaxed italic">
+                      "{profilCms.visi}"
+                    </p>
+                  </div>
+
+                  <div className="p-6 rounded-2xl bg-teal-50/40 dark:bg-slate-900/50 border border-teal-200/60 dark:border-slate-800">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-teal-100 dark:bg-teal-950/60 text-[#0D7A6F] dark:text-[#2DD4BF] text-xs font-black mb-3">
+                      <FileCheck size={14} />
+                      <span>MISI PESANTREN</span>
+                    </div>
+                    <h3 className="text-base sm:text-lg font-black text-[#2D3436] dark:text-slate-100 mb-3">
+                      Langkah & Strategi Khidmah
+                    </h3>
+                    <div className="text-xs sm:text-sm text-[#636E72] dark:text-slate-300 leading-relaxed whitespace-pre-line space-y-1">
+                      {profilCms.misi}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* FASILITAS PESANTREN */}
+            {profilCms && profilCms.fasilitas && profilCms.fasilitas.length > 0 && (
+              <section className="rounded-3xl bg-white dark:bg-[#1E293B] border border-amber-200/80 dark:border-slate-800 p-6 sm:p-10 shadow-xl transition-colors">
+                <div className="text-center max-w-2xl mx-auto mb-8">
+                  <span className="text-xs font-black uppercase tracking-wider text-[#0D7A6F] dark:text-amber-300 bg-[#FFDC80] dark:bg-amber-400/20 px-3.5 py-1 rounded-full border border-amber-300 dark:border-amber-500/30">
+                    SARANA & PRASARANA
+                  </span>
+                  <h2 className="text-xl sm:text-3xl font-black text-[#2D3436] dark:text-slate-100 mt-3">
+                    Fasilitas Lengkap Menunjang Belajar & Nyantri
+                  </h2>
+                  <p className="text-xs sm:text-sm text-[#636E72] dark:text-slate-400 mt-1">
+                    Pesantren didukung fasilitas representatif untuk kenyamanan ibadah, belajar, dan istirahat:
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {profilCms.fasilitas.map((fasi, idx) => (
+                    <div
+                      key={idx}
+                      className="p-4 rounded-2xl bg-amber-50/40 dark:bg-slate-900/60 border border-amber-200/60 dark:border-slate-800 flex items-center gap-3"
+                    >
+                      <div className="h-8 w-8 rounded-xl bg-[#138F81] dark:bg-[#2DD4BF] text-white dark:text-slate-900 flex items-center justify-center shrink-0">
+                        <Check className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs sm:text-sm font-bold text-[#2D3436] dark:text-slate-200">
+                        {fasi}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* PREVIEW AGENDA KEDATANGAN & PENGUMUMAN TERBARU */}
+            {announcements.length > 0 && (
+              <section className="rounded-3xl bg-white dark:bg-[#1E293B] border border-amber-200/80 dark:border-slate-800 p-6 sm:p-10 shadow-xl transition-colors">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider text-[#0D7A6F] dark:text-amber-300 bg-[#FFDC80] dark:bg-amber-400/20 px-3.5 py-1 rounded-full border border-amber-300 dark:border-amber-500/30">
+                      INFO KEDATANGAN & BERITA RESMI
+                    </span>
+                    <h2 className="text-xl sm:text-2xl font-black text-[#2D3436] dark:text-slate-100 mt-2">
+                      Agenda Santri Baru & Berita Terkini
+                    </h2>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('agenda')}
+                    className="inline-flex items-center gap-2 text-xs font-black text-[#138F81] dark:text-[#2DD4BF] hover:underline cursor-pointer"
+                  >
+                    <span>Lihat Semua Pengumuman ({announcements.length})</span>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {announcements.slice(0, 3).map((item) => {
+                    const badge = getCategoryBadge(item.category);
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => {
+                          setSelectedAnnouncement(item);
+                        }}
+                        className="p-5 rounded-2xl bg-[#F8FAFC] dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 hover:border-[#138F81] dark:hover:border-[#2DD4BF] transition-all cursor-pointer flex flex-col justify-between group"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2 mb-2.5">
+                            <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${badge.style}`}>
+                              {badge.label}
+                            </span>
+                            {item.is_pinned && (
+                              <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                <Sparkles size={11} />
+                                <span>Penting</span>
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="text-sm font-black text-[#2D3436] dark:text-slate-100 group-hover:text-[#138F81] dark:group-hover:text-[#2DD4BF] transition-colors mb-2 line-clamp-2">
+                            {item.title}
+                          </h4>
+                          <p className="text-xs text-[#636E72] dark:text-slate-400 line-clamp-3 mb-4">
+                            {item.excerpt || item.content}
+                          </p>
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-[11px] text-[#636E72] dark:text-slate-400">
+                          {item.event_date ? (
+                            <span className="flex items-center gap-1 font-bold text-amber-700 dark:text-amber-400">
+                              <Calendar size={12} />
+                              <span>{item.event_date}</span>
+                            </span>
+                          ) : (
+                            <span>{new Date(item.created_at).toLocaleDateString('id-ID')}</span>
+                          )}
+                          <span className="font-bold text-[#138F81] dark:text-[#2DD4BF]">Baca →</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
             {/* 4 LANGKAH MUDAH PMB */}
-            <section className="rounded-3xl bg-white border border-amber-200/80 p-6 sm:p-10 shadow-2xl transition-colors">
+            <section className="rounded-3xl bg-white dark:bg-[#1E293B] border border-amber-200/80 dark:border-slate-800 p-6 sm:p-10 shadow-2xl transition-colors">
               <div className="text-center max-w-2xl mx-auto mb-8">
-                <span className="text-xs font-black uppercase tracking-wider text-[#0D7A6F] bg-[#FFDC80] px-3.5 py-1 rounded-full border border-amber-300">
-                  ALUR PMB MUDAH
+                <span className="text-xs font-black uppercase tracking-wider text-[#0D7A6F] dark:text-amber-300 bg-[#FFDC80] dark:bg-amber-400/20 px-3.5 py-1 rounded-full border border-amber-300 dark:border-amber-500/30">
+                  ALUR PMB MUDAH & CEPAT
                 </span>
-                <h2 className="text-xl sm:text-3xl font-black text-[#2D3436] mt-3">
+                <h2 className="text-xl sm:text-3xl font-black text-[#2D3436] dark:text-slate-100 mt-3">
                   4 Langkah Pendaftaran Santri Baru
                 </h2>
-                <p className="text-xs sm:text-sm text-[#636E72] mt-1">
+                <p className="text-xs sm:text-sm text-[#636E72] dark:text-slate-400 mt-1">
                   Proses pendaftaran cepat, transparan, dan dapat dipantau langsung oleh wali santri:
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-                <div className="p-5 rounded-2xl bg-amber-50/40 border border-amber-200/70 relative">
+                <div className="p-5 rounded-2xl bg-amber-50/40 dark:bg-slate-900/60 border border-amber-200/70 dark:border-slate-800 relative">
                   <div className="w-9 h-9 rounded-full bg-[#FFDC80] text-[#0D7A6F] font-black text-sm flex items-center justify-center mb-3 border border-amber-300 shadow-xs">
                     1
                   </div>
-                  <h3 className="text-sm font-black text-[#2D3436] mb-1">Isi Formulir Online</h3>
-                  <p className="text-xs text-[#636E72] leading-relaxed">
+                  <h3 className="text-sm font-black text-[#2D3436] dark:text-slate-100 mb-1">Isi Formulir Online</h3>
+                  <p className="text-xs text-[#636E72] dark:text-slate-400 leading-relaxed">
                     Lengkapi biodata santri, data wali santri, pilihan jenjang madin, dan upload dokumen pendukung.
                   </p>
                 </div>
 
-                <div className="p-5 rounded-2xl bg-amber-50/40 border border-amber-200/70 relative">
+                <div className="p-5 rounded-2xl bg-amber-50/40 dark:bg-slate-900/60 border border-amber-200/70 dark:border-slate-800 relative">
                   <div className="w-9 h-9 rounded-full bg-[#FFDC80] text-[#0D7A6F] font-black text-sm flex items-center justify-center mb-3 border border-amber-300 shadow-xs">
                     2
                   </div>
-                  <h3 className="text-sm font-black text-[#2D3436] mb-1">Dapatkan No. Registrasi</h3>
-                  <p className="text-xs text-[#636E72] leading-relaxed">
+                  <h3 className="text-sm font-black text-[#2D3436] dark:text-slate-100 mb-1">Dapatkan No. Registrasi</h3>
+                  <p className="text-xs text-[#636E72] dark:text-slate-400 leading-relaxed">
                     Sistem otomatis menerbitkan Nomor Registrasi unik dan mengirimkan notifikasi login via WhatsApp.
                   </p>
                 </div>
 
-                <div className="p-5 rounded-2xl bg-amber-50/40 border border-amber-200/70 relative">
+                <div className="p-5 rounded-2xl bg-amber-50/40 dark:bg-slate-900/60 border border-amber-200/70 dark:border-slate-800 relative">
                   <div className="w-9 h-9 rounded-full bg-[#FFDC80] text-[#0D7A6F] font-black text-sm flex items-center justify-center mb-3 border border-amber-300 shadow-xs">
                     3
                   </div>
-                  <h3 className="text-sm font-black text-[#2D3436] mb-1">Verifikasi Panitia PMB</h3>
-                  <p className="text-xs text-[#636E72] leading-relaxed">
-                    Panitia PMB memverifikasi keabsahan dokumen, tes baca Al-Qur'an, dan penentuan kamar asrama.
+                  <h3 className="text-sm font-black text-[#2D3436] dark:text-slate-100 mb-1">Audit Panitia & Biaya</h3>
+                  <p className="text-xs text-[#636E72] dark:text-slate-400 leading-relaxed">
+                    Panitia memverifikasi keabsahan dokumen, status biaya pendaftaran, dan kelayakan berkas santri.
                   </p>
                 </div>
 
-                <div className="p-5 rounded-2xl bg-amber-50/40 border border-amber-200/70 relative">
+                <div className="p-5 rounded-2xl bg-amber-50/40 dark:bg-slate-900/60 border border-amber-200/70 dark:border-slate-800 relative">
                   <div className="w-9 h-9 rounded-full bg-[#138F81] text-white font-black text-sm flex items-center justify-center mb-3 shadow-xs">
                     4
                   </div>
-                  <h3 className="text-sm font-black text-[#2D3436] mb-1">ACC & Penetapan Santri</h3>
-                  <p className="text-xs text-[#636E72] leading-relaxed">
-                    Santri resmi mendapatkan NIS pondok, penetapan kelas madin, dan aktivasi penuh portal wali santri.
+                  <h3 className="text-sm font-black text-[#2D3436] dark:text-slate-100 mb-1">ACC & Masuk Buku Induk</h3>
+                  <p className="text-xs text-[#636E72] dark:text-slate-400 leading-relaxed">
+                    Santri resmi mendapatkan NIS pondok, penetapan kamar asrama, dan tercatat di Buku Induk Santri.
                   </p>
                 </div>
               </div>
@@ -659,68 +976,135 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                     Mari Bergabung dengan Pondok Pesantren Qomaruddin
                   </h3>
                   <p className="text-xs sm:text-sm text-teal-100 mt-0.5">
-                    Kuota santri terbatas untuk menjaga mutu bimbingan dan kenyamanan kamar asrama.
+                    {pmbIsOpen
+                      ? 'Kuota santri terbatas untuk menjaga mutu bimbingan dan kenyamanan kamar asrama.'
+                      : pmbClosedMessage}
                   </p>
                 </div>
-                <button
-                  onClick={() => {
-                    setActiveTab('daftar');
-                    setFormStep(1);
-                    setRegistrationSuccess(null);
-                  }}
-                  className="shrink-0 px-6 py-3 rounded-xl bg-[#FFDC80] hover:bg-[#ffe59e] text-[#0D7A6F] font-black text-xs transition-all shadow-md cursor-pointer"
-                >
-                  Daftar Santri Baru Sekarang
-                </button>
+                {pmbIsOpen ? (
+                  <button
+                    onClick={() => {
+                      setActiveTab('daftar');
+                      setFormStep(1);
+                      setRegistrationSuccess(null);
+                    }}
+                    className="shrink-0 px-6 py-3 rounded-xl bg-[#FFDC80] hover:bg-[#ffe59e] text-[#0D7A6F] font-black text-xs transition-all shadow-md cursor-pointer"
+                  >
+                    Daftar Santri Baru Sekarang
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setActiveTab('agenda')}
+                    className="shrink-0 px-6 py-3 rounded-xl bg-white hover:bg-slate-100 text-[#0D7A6F] font-black text-xs transition-all shadow-md cursor-pointer"
+                  >
+                    Lihat Pengumuman & Agenda
+                  </button>
+                )}
               </div>
             </section>
           </div>
         )}
 
-        {/* 🌟 TAB FORMULIR PENDAFTARAN ONLINE */}
+        {/* ========================================================================= */}
+        {/* TAB 2: FORMULIR PENDAFTARAN ONLINE (DENGAN MASTER SAKELAR BUKA/TUTUP) */}
+        {/* ========================================================================= */}
         {activeTab === 'daftar' && (
           <section className="max-w-3xl mx-auto">
-            {registrationSuccess ? (
-              /* MODAL / VIEW SUKSES REGISTRASI */
-              <div className="p-6 sm:p-10 rounded-3xl bg-white border-2 border-emerald-400 shadow-xl text-center">
-                <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-emerald-100 text-[#138F81] flex items-center justify-center mx-auto mb-4 border border-emerald-300 shadow-sm">
-                  <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10 text-[#138F81]" />
+            {!pmbIsOpen ? (
+              /* TAMPILAN JIKA PMB SEDANG DITUTUP SAKELAR ADMIN */
+              <div className="p-8 sm:p-12 rounded-3xl bg-white dark:bg-[#1E293B] border-2 border-amber-300 dark:border-slate-700 shadow-2xl text-center">
+                <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto mb-5 border border-rose-300 dark:border-rose-800 shadow-sm">
+                  <Lock className="w-8 h-8 sm:w-10 sm:h-10 text-rose-600 dark:text-rose-400" />
                 </div>
-                <span className="text-xs font-black uppercase tracking-wider text-[#0D7A6F] bg-[#FFDC80] px-3.5 py-1 rounded-full border border-amber-300">
+                <span className="text-xs font-black uppercase tracking-wider text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-950/70 px-4 py-1.5 rounded-full border border-rose-300 dark:border-rose-800">
+                  PENDAFTARAN SEMENTARA DITUTUP
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-black text-[#2D3436] dark:text-slate-100 mt-4 mb-2">
+                  Penerimaan Santri Baru Ditutup
+                </h2>
+                <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/70 dark:bg-slate-900/60 border border-amber-200 dark:border-slate-800 max-w-lg mx-auto mb-8 text-xs sm:text-sm text-[#636E72] dark:text-slate-300 leading-relaxed font-medium">
+                  {pmbClosedMessage}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 max-w-lg mx-auto mb-8">
+                  <button
+                    onClick={() => setActiveTab('status')}
+                    className="p-4 rounded-2xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-[#138F81] text-center transition-all cursor-pointer"
+                  >
+                    <Search className="w-5 h-5 text-[#138F81] dark:text-[#2DD4BF] mx-auto mb-1.5" />
+                    <div className="text-xs font-black text-[#2D3436] dark:text-slate-100">Lacak Status</div>
+                    <div className="text-[10px] text-[#636E72] dark:text-slate-400 mt-0.5">Bagi yang sudah daftar</div>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('agenda')}
+                    className="p-4 rounded-2xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-[#138F81] text-center transition-all cursor-pointer"
+                  >
+                    <Megaphone className="w-5 h-5 text-amber-600 dark:text-amber-400 mx-auto mb-1.5" />
+                    <div className="text-xs font-black text-[#2D3436] dark:text-slate-100">Agenda & Berita</div>
+                    <div className="text-[10px] text-[#636E72] dark:text-slate-400 mt-0.5">Jadwal kedatangan</div>
+                  </button>
+
+                  <a
+                    href="https://wa.me/6281234567890?text=Assalamu%27alaikum%20Panitia%20PMB%20Qomaruddin%2C%20kapan%20gelombang%20berikutnya%20dibuka%3F"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-4 rounded-2xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-[#138F81] text-center transition-all cursor-pointer"
+                  >
+                    <Phone className="w-5 h-5 text-emerald-600 dark:text-emerald-400 mx-auto mb-1.5" />
+                    <div className="text-xs font-black text-[#2D3436] dark:text-slate-100">Narahubung</div>
+                    <div className="text-[10px] text-[#636E72] dark:text-slate-400 mt-0.5">Konsultasi panitia</div>
+                  </a>
+                </div>
+
+                <button
+                  onClick={() => setActiveTab('beranda')}
+                  className="px-6 py-2.5 rounded-xl bg-[#138F81] text-white font-bold text-xs shadow-md hover:bg-[#0D7A6F] transition-all cursor-pointer"
+                >
+                  Kembali ke Beranda Profil
+                </button>
+              </div>
+            ) : registrationSuccess ? (
+              /* MODAL / VIEW SUKSES REGISTRASI */
+              <div className="p-6 sm:p-10 rounded-3xl bg-white dark:bg-[#1E293B] border-2 border-emerald-400 dark:border-emerald-600 shadow-xl text-center">
+                <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-[#138F81] dark:text-emerald-400 flex items-center justify-center mx-auto mb-4 border border-emerald-300 dark:border-emerald-700 shadow-sm">
+                  <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10 text-[#138F81] dark:text-emerald-400" />
+                </div>
+                <span className="text-xs font-black uppercase tracking-wider text-[#0D7A6F] dark:text-amber-300 bg-[#FFDC80] dark:bg-amber-400/20 px-3.5 py-1 rounded-full border border-amber-300 dark:border-amber-500/30">
                   PENDAFTARAN ONLINE BERHASIL
                 </span>
-                <h2 className="text-2xl sm:text-3xl font-black text-[#2D3436] mt-3 mb-1.5">
+                <h2 className="text-2xl sm:text-3xl font-black text-[#2D3436] dark:text-slate-100 mt-3 mb-1.5">
                   Alhamdulillah, Selamat Datang!
                 </h2>
-                <p className="text-xs sm:text-sm text-[#636E72] max-w-md mx-auto mb-6">
-                  Data calon santri <strong className="text-[#2D3436]">{registrationSuccess.nama_lengkap}</strong> telah resmi terdaftar di Sistem PMB Pondok Pesantren Qomaruddin.
+                <p className="text-xs sm:text-sm text-[#636E72] dark:text-slate-300 max-w-md mx-auto mb-6">
+                  Data calon santri <strong className="text-[#2D3436] dark:text-slate-100">{registrationSuccess.nama_lengkap}</strong> telah resmi terdaftar di Sistem PMB Pondok Pesantren Qomaruddin.
                 </p>
 
                 {/* Card Kredensial & Nomor Registrasi */}
-                <div className="p-5 sm:p-6 rounded-2xl bg-amber-50/60 border border-amber-200 max-w-md mx-auto mb-6 text-left shadow-xs space-y-4">
+                <div className="p-5 sm:p-6 rounded-2xl bg-amber-50/60 dark:bg-slate-900/80 border border-amber-200 dark:border-slate-800 max-w-md mx-auto mb-6 text-left shadow-xs space-y-4">
                   <div>
-                    <div className="text-[11px] uppercase tracking-wider text-[#636E72] font-bold">NOMOR REGISTRASI RESMI:</div>
-                    <div className="text-2xl sm:text-3xl font-black text-[#138F81] tracking-widest font-mono select-all mt-0.5">
+                    <div className="text-[11px] uppercase tracking-wider text-[#636E72] dark:text-slate-400 font-bold">NOMOR REGISTRASI RESMI:</div>
+                    <div className="text-2xl sm:text-3xl font-black text-[#138F81] dark:text-[#2DD4BF] tracking-widest font-mono select-all mt-0.5">
                       {registrationSuccess.registration_number}
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-amber-200/80 space-y-2.5">
-                    <div className="flex items-center gap-1.5 text-xs font-black text-[#0D7A6F]">
+                  <div className="pt-3 border-t border-amber-200/80 dark:border-slate-800 space-y-2.5">
+                    <div className="flex items-center gap-1.5 text-xs font-black text-[#0D7A6F] dark:text-amber-300">
                       <KeyRound className="w-4 h-4" />
                       <span>AKUN LOGIN PORTAL SANTRI & WALI:</span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 bg-white p-3 rounded-xl border border-amber-200 text-xs shadow-xs">
+                    <div className="grid grid-cols-2 gap-2 bg-white dark:bg-slate-800 p-3 rounded-xl border border-amber-200 dark:border-slate-700 text-xs shadow-xs">
                       <div>
-                        <span className="text-[#636E72] block text-[10px] uppercase font-bold">Username / ID</span>
-                        <strong className="text-[#2D3436] font-mono select-all text-xs">
+                        <span className="text-[#636E72] dark:text-slate-400 block text-[10px] uppercase font-bold">Username / ID</span>
+                        <strong className="text-[#2D3436] dark:text-slate-100 font-mono select-all text-xs">
                           {registrationSuccess.username || registrationSuccess.registration_number}
                         </strong>
                       </div>
                       <div>
-                        <span className="text-[#636E72] block text-[10px] uppercase font-bold">Password Otomatis</span>
-                        <strong className="text-[#D97706] font-mono select-all text-xs">
+                        <span className="text-[#636E72] dark:text-slate-400 block text-[10px] uppercase font-bold">Password Otomatis</span>
+                        <strong className="text-[#D97706] dark:text-amber-400 font-mono select-all text-xs">
                           {registrationSuccess.random_password || 'Dibuat otomatis'}
                         </strong>
                       </div>
@@ -734,11 +1118,11 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                           registrationSuccess.random_password || ''
                         )
                       }
-                      className="w-full py-2.5 rounded-xl bg-white hover:bg-amber-50 text-[#0D7A6F] text-xs font-bold border border-amber-300 flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                      className="w-full py-2.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-slate-700 text-[#0D7A6F] dark:text-amber-300 text-xs font-bold border border-amber-300 dark:border-slate-700 flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
                     >
                       {hasCopiedCredentials ? (
                         <>
-                          <Check className="w-3.5 h-3.5 text-[#138F81]" />
+                          <Check className="w-3.5 h-3.5 text-[#138F81] dark:text-[#2DD4BF]" />
                           <span>Kredensial Berhasil Disalin!</span>
                         </>
                       ) : (
@@ -751,14 +1135,14 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                   </div>
 
                   {/* WhatsApp Notification Info */}
-                  <div className="pt-3 border-t border-amber-200/80">
-                    <div className="flex items-start gap-2 text-xs text-[#0D7A6F] bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
-                      <MessageCircle className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                  <div className="pt-3 border-t border-amber-200/80 dark:border-slate-800">
+                    <div className="flex items-start gap-2 text-xs text-[#0D7A6F] dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                      <MessageCircle className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0 mt-0.5" />
                       <div>
                         <strong className="block font-bold">Notifikasi WhatsApp Telah Terkirim</strong>
-                        <span className="text-emerald-900">
+                        <span className="text-emerald-900 dark:text-emerald-200">
                           Rincian akun & bukti registrasi telah dikirimkan ke nomor{' '}
-                          <strong className="font-mono text-[#2D3436]">{registrationSuccess.no_whatsapp_wali}</strong>.
+                          <strong className="font-mono text-[#2D3436] dark:text-white">{registrationSuccess.no_whatsapp_wali}</strong>.
                         </span>
                       </div>
                     </div>
@@ -774,12 +1158,12 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                     className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >
                     <Search className="w-4 h-4 text-[#FFDC80]" />
-                    <span>Lacak Status & Cetak Kartu</span>
+                    <span>Lacak Status & Biaya</span>
                   </button>
 
                   <button
                     onClick={onOpenLogin}
-                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#FFDC80] hover:bg-[#ffe59e] text-[#0D7A6F] font-bold text-xs border border-amber-300 shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#FFDC80] dark:bg-slate-800 hover:bg-[#ffe59e] dark:hover:bg-slate-700 text-[#0D7A6F] dark:text-amber-300 font-bold text-xs border border-amber-300 dark:border-slate-700 shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >
                     <LogIn className="w-4 h-4" />
                     <span>Masuk ke Portal Login</span>
@@ -790,7 +1174,7 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                       setRegistrationSuccess(null);
                       setFormStep(1);
                     }}
-                    className="w-full sm:w-auto px-5 py-3 rounded-xl bg-white hover:bg-slate-50 text-[#636E72] font-bold text-xs border border-slate-200 transition-all cursor-pointer"
+                    className="w-full sm:w-auto px-5 py-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-[#636E72] dark:text-slate-300 font-bold text-xs border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
                   >
                     Daftar Santri Lain
                   </button>
@@ -798,22 +1182,22 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
               </div>
             ) : (
               /* FORMULIR MULTI-STEP WIZARD */
-              <div className="bg-white border border-amber-200/80 rounded-3xl p-6 sm:p-10 shadow-xl">
+              <div className="bg-white dark:bg-[#1E293B] border border-amber-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-xl transition-colors">
                 <div className="text-center mb-8">
-                  <span className="text-xs font-black uppercase tracking-wider text-[#0D7A6F] bg-[#FFDC80] px-3.5 py-1 rounded-full border border-amber-300">
+                  <span className="text-xs font-black uppercase tracking-wider text-[#0D7A6F] dark:text-amber-300 bg-[#FFDC80] dark:bg-amber-400/20 px-3.5 py-1 rounded-full border border-amber-300 dark:border-amber-500/30">
                     FORMULIR PMB ONLINE
                   </span>
-                  <h2 className="text-2xl sm:text-3xl font-black text-[#2D3436] mt-3">
+                  <h2 className="text-2xl sm:text-3xl font-black text-[#2D3436] dark:text-slate-100 mt-3">
                     Pendaftaran Santri Baru
                   </h2>
-                  <p className="text-xs sm:text-sm text-[#636E72] mt-1 font-medium">
-                    Gelombang Aktif: <strong className="text-[#138F81]">{activeBatch?.nama_gelombang ?? 'TA 2026/2027'}</strong>
+                  <p className="text-xs sm:text-sm text-[#636E72] dark:text-slate-400 mt-1 font-medium">
+                    Gelombang Aktif: <strong className="text-[#138F81] dark:text-[#2DD4BF]">{activeBatch?.nama_gelombang ?? 'TA 2026/2027'}</strong>
                   </p>
                 </div>
 
                 {/* Wizard Step Indicators */}
                 <div className="flex items-center justify-between max-w-md mx-auto mb-8 relative">
-                  <div className="absolute top-1/2 left-0 right-0 h-1 bg-amber-100 -translate-y-1/2 z-0" />
+                  <div className="absolute top-1/2 left-0 right-0 h-1 bg-amber-100 dark:bg-slate-800 -translate-y-1/2 z-0" />
                   {[
                     { num: 1, label: 'Santri' },
                     { num: 2, label: 'Program' },
@@ -827,12 +1211,12 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                             ? 'bg-[#FFDC80] text-[#0D7A6F] ring-4 ring-amber-300/50 shadow-sm scale-110'
                             : formStep > s.num
                             ? 'bg-[#138F81] text-white shadow-xs'
-                            : 'bg-slate-100 text-slate-400 border border-slate-200'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700'
                         }`}
                       >
                         {formStep > s.num ? <CheckCircle2 className="w-4 h-4" /> : s.num}
                       </div>
-                      <span className="text-[11px] font-bold text-[#636E72] mt-1 hidden sm:block">
+                      <span className="text-[11px] font-bold text-[#636E72] dark:text-slate-400 mt-1 hidden sm:block">
                         {s.label}
                       </span>
                     </div>
@@ -840,8 +1224,8 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                 </div>
 
                 {submitError && (
-                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold mb-6 flex items-center gap-2">
-                    <Info className="w-4 h-4 shrink-0 text-rose-600" />
+                  <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold mb-6 flex items-center gap-2">
+                    <Info className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
                     <span>{submitError}</span>
                   </div>
                 )}
@@ -850,12 +1234,12 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                   {/* STEP 1: DATA CALON SANTRI */}
                   {formStep === 1 && (
                     <div className="space-y-4">
-                      <div className="text-sm font-black text-[#138F81] border-b border-amber-200 pb-2">
+                      <div className="text-sm font-black text-[#138F81] dark:text-[#2DD4BF] border-b border-amber-200 dark:border-slate-800 pb-2">
                         1. Biodata Calon Santri
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                        <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                           Nama Lengkap Calon Santri <span className="text-rose-500">*</span>
                         </label>
                         <input
@@ -864,14 +1248,14 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                           value={form.nama_lengkap}
                           onChange={handleInputChange}
                           placeholder="Contoh: Muhammad Faiz Al-Qodri"
-                          className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-sm text-[#2D3436] outline-none transition-colors"
+                          className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#138F81] text-sm text-[#2D3436] dark:text-slate-100 outline-none transition-colors"
                           required
                         />
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                          <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                             Nama Panggilan
                           </label>
                           <input
@@ -880,19 +1264,19 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                             value={form.nama_panggilan}
                             onChange={handleInputChange}
                             placeholder="Contoh: Faiz"
-                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-sm text-[#2D3436] outline-none transition-colors"
+                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#138F81] text-sm text-[#2D3436] dark:text-slate-100 outline-none transition-colors"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                          <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                             Jenis Kelamin <span className="text-rose-500">*</span>
                           </label>
                           <select
                             name="jenis_kelamin"
                             value={form.jenis_kelamin}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-sm text-[#2D3436] outline-none transition-colors"
+                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#138F81] text-sm text-[#2D3436] dark:text-slate-100 outline-none transition-colors"
                           >
                             <option value="L">Laki-laki (Putra)</option>
                             <option value="P">Perempuan (Putri)</option>
@@ -902,7 +1286,7 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                          <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                             Tempat Lahir
                           </label>
                           <input
@@ -911,11 +1295,11 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                             value={form.tempat_lahir}
                             onChange={handleInputChange}
                             placeholder="Contoh: Gresik"
-                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-sm text-[#2D3436] outline-none transition-colors"
+                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#138F81] text-sm text-[#2D3436] dark:text-slate-100 outline-none transition-colors"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                          <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                             Tanggal Lahir
                           </label>
                           <input
@@ -923,14 +1307,14 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                             name="tanggal_lahir"
                             value={form.tanggal_lahir}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-sm text-[#2D3436] outline-none transition-colors"
+                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#138F81] text-sm text-[#2D3436] dark:text-slate-100 outline-none transition-colors"
                           />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                          <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                             NIK (Nomor Induk Kependudukan)
                           </label>
                           <input
@@ -939,11 +1323,11 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                             value={form.nik}
                             onChange={handleInputChange}
                             placeholder="16 digit NIK dari Kartu Keluarga"
-                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-sm text-[#2D3436] outline-none transition-colors"
+                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#138F81] text-sm text-[#2D3436] dark:text-slate-100 outline-none transition-colors"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                          <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                             NISN (Nomor Induk Siswa Nasional)
                           </label>
                           <input
@@ -952,13 +1336,13 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                             value={form.nisn}
                             onChange={handleInputChange}
                             placeholder="Nomor NISN jika ada"
-                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-sm text-[#2D3436] outline-none transition-colors"
+                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#138F81] text-sm text-[#2D3436] dark:text-slate-100 outline-none transition-colors"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                        <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                           Asal Sekolah Sebelumnya
                         </label>
                         <input
@@ -967,7 +1351,7 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                           value={form.asal_sekolah}
                           onChange={handleInputChange}
                           placeholder="Contoh: MI / SD Negeri 1 Bungah"
-                          className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-sm text-[#2D3436] outline-none transition-colors"
+                          className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#138F81] text-sm text-[#2D3436] dark:text-slate-100 outline-none transition-colors"
                         />
                       </div>
                     </div>
@@ -976,19 +1360,19 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                   {/* STEP 2: PILIHAN PROGRAM & ASRAMA */}
                   {formStep === 2 && (
                     <div className="space-y-4">
-                      <div className="text-sm font-black text-[#138F81] border-b border-amber-200 pb-2">
+                      <div className="text-sm font-black text-[#138F81] dark:text-[#2DD4BF] border-b border-amber-200 dark:border-slate-800 pb-2">
                         2. Pilihan Program & Asrama Pondok
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                        <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                           Pilihan Program Pendidikan
                         </label>
                         <select
                           name="pilihan_jenjang"
                           value={form.pilihan_jenjang}
                           onChange={handleInputChange}
-                          className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-sm text-[#2D3436] outline-none transition-colors"
+                          className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#138F81] text-sm text-[#2D3436] dark:text-slate-100 outline-none transition-colors"
                         >
                           <option value="Madrasah Diniyah & Pondok">Madrasah Diniyah & Pondok (Salaf Reguler)</option>
                           <option value="Tahfidzul Qur'an & Pondok">Tahfidzul Qur'an 30 Juz & Pondok</option>
@@ -998,14 +1382,14 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                        <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                           Pilihan Asrama / Tempat Tinggal
                         </label>
                         <select
                           name="pilihan_asrama"
                           value={form.pilihan_asrama}
                           onChange={handleInputChange}
-                          className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-sm text-[#2D3436] outline-none transition-colors"
+                          className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#138F81] text-sm text-[#2D3436] dark:text-slate-100 outline-none transition-colors"
                         >
                           {form.jenis_kelamin === 'L' ? (
                             <>
@@ -1024,7 +1408,7 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                        <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                           Riwayat Kesehatan / Bakat Khusus Santri (Opsional)
                         </label>
                         <textarea
@@ -1033,7 +1417,7 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                           value={form.catatan_khusus}
                           onChange={handleInputChange}
                           placeholder="Catatan riwayat alergi, penyakit tertentu, atau prestasi tahfidz/hadrah sebelumnya..."
-                          className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-sm text-[#2D3436] outline-none transition-colors"
+                          className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#138F81] text-sm text-[#2D3436] dark:text-slate-100 outline-none transition-colors"
                         />
                       </div>
                     </div>
@@ -1042,12 +1426,12 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                   {/* STEP 3: DATA ORANG TUA / WALI */}
                   {formStep === 3 && (
                     <div className="space-y-4">
-                      <div className="text-sm font-black text-[#138F81] border-b border-amber-200 pb-2">
+                      <div className="text-sm font-black text-[#138F81] dark:text-[#2DD4BF] border-b border-amber-200 dark:border-slate-800 pb-2">
                         3. Biodata Orang Tua & Kontak WhatsApp
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                        <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                           Nomor WhatsApp Aktif Wali / Orang Tua <span className="text-rose-500">*</span>
                         </label>
                         <div className="relative">
@@ -1057,19 +1441,19 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                             value={form.no_whatsapp_wali}
                             onChange={handleInputChange}
                             placeholder="Contoh: 081234567890"
-                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-sm text-[#2D3436] outline-none transition-colors pl-11"
+                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#138F81] text-sm text-[#2D3436] dark:text-slate-100 outline-none transition-colors pl-11"
                             required
                           />
-                          <Phone className="w-4 h-4 text-[#138F81] absolute left-3.5 top-3" />
+                          <Phone className="w-4 h-4 text-[#138F81] dark:text-[#2DD4BF] absolute left-3.5 top-3" />
                         </div>
-                        <p className="text-[11px] text-[#0D7A6F] font-semibold mt-1">
+                        <p className="text-[11px] text-[#0D7A6F] dark:text-teal-400 font-semibold mt-1">
                           Nomor ini wajib aktif untuk menerima konfirmasi akun portal wali dan pengumuman seleksi.
                         </p>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                          <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                             Nama Lengkap Ayah
                           </label>
                           <input
@@ -1078,12 +1462,12 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                             value={form.nama_ayah}
                             onChange={handleInputChange}
                             placeholder="Nama ayah kandung"
-                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-sm text-[#2D3436] outline-none transition-colors"
+                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#138F81] text-sm text-[#2D3436] dark:text-slate-100 outline-none transition-colors"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                          <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                             Pekerjaan Ayah
                           </label>
                           <input
@@ -1092,14 +1476,14 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                             value={form.pekerjaan_ayah}
                             onChange={handleInputChange}
                             placeholder="Contoh: Wiraswasta / Guru / PNS"
-                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-sm text-[#2D3436] outline-none transition-colors"
+                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#138F81] text-sm text-[#2D3436] dark:text-slate-100 outline-none transition-colors"
                           />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                          <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                             Nama Lengkap Ibu
                           </label>
                           <input
@@ -1108,12 +1492,12 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                             value={form.nama_ibu}
                             onChange={handleInputChange}
                             placeholder="Nama ibu kandung"
-                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-sm text-[#2D3436] outline-none transition-colors"
+                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#138F81] text-sm text-[#2D3436] dark:text-slate-100 outline-none transition-colors"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                          <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                             Pekerjaan Ibu
                           </label>
                           <input
@@ -1122,13 +1506,13 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                             value={form.pekerjaan_ibu}
                             onChange={handleInputChange}
                             placeholder="Contoh: Ibu Rumah Tangga / Guru"
-                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-sm text-[#2D3436] outline-none transition-colors"
+                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#138F81] text-sm text-[#2D3436] dark:text-slate-100 outline-none transition-colors"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                        <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                           Alamat Lengkap Tempat Tinggal
                         </label>
                         <textarea
@@ -1137,13 +1521,13 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                           value={form.alamat_lengkap}
                           onChange={handleInputChange}
                           placeholder="Jalan, RT/RW, Dusun/Desa, Kecamatan..."
-                          className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-sm text-[#2D3436] outline-none transition-colors"
+                          className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#138F81] text-sm text-[#2D3436] dark:text-slate-100 outline-none transition-colors"
                         />
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                          <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                             Kabupaten / Kota
                           </label>
                           <input
@@ -1152,11 +1536,11 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                             value={form.kota}
                             onChange={handleInputChange}
                             placeholder="Contoh: Gresik / Surabaya / Lamongan"
-                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-sm text-[#2D3436] outline-none transition-colors"
+                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#138F81] text-sm text-[#2D3436] dark:text-slate-100 outline-none transition-colors"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                          <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                             Provinsi
                           </label>
                           <input
@@ -1165,7 +1549,7 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                             value={form.provinsi}
                             onChange={handleInputChange}
                             placeholder="Contoh: Jawa Timur"
-                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 focus:bg-white focus:border-[#138F81] text-sm text-[#2D3436] outline-none transition-colors"
+                            className="w-full px-4 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-[#138F81] text-sm text-[#2D3436] dark:text-slate-100 outline-none transition-colors"
                           />
                         </div>
                       </div>
@@ -1175,45 +1559,45 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                   {/* STEP 4: UPLOAD BERKAS & KONFIRMASI */}
                   {formStep === 4 && (
                     <div className="space-y-4">
-                      <div className="text-sm font-black text-[#138F81] border-b border-amber-200 pb-2">
+                      <div className="text-sm font-black text-[#138F81] dark:text-[#2DD4BF] border-b border-amber-200 dark:border-slate-800 pb-2">
                         4. Upload Berkas & Konfirmasi Pendaftaran
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-slate-200">
-                          <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                        <div className="p-4 rounded-2xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                          <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                             Pas Foto Calon Santri (Opsional)
                           </label>
                           <input
                             type="file"
                             accept="image/*"
                             onChange={(e) => setFotoFile(e.target.files?.[0] || null)}
-                            className="text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#FFDC80] file:text-[#0D7A6F] hover:file:bg-[#ffe59e] cursor-pointer"
+                            className="text-xs text-slate-600 dark:text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#FFDC80] file:text-[#0D7A6F] hover:file:bg-[#ffe59e] cursor-pointer"
                           />
                           <p className="text-[10px] text-slate-500 mt-1">Format JPG, PNG (Maksimal 5 MB)</p>
                         </div>
 
-                        <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-slate-200">
-                          <label className="block text-xs font-bold text-[#2D3436] mb-1">
+                        <div className="p-4 rounded-2xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                          <label className="block text-xs font-bold text-[#2D3436] dark:text-slate-200 mb-1">
                             Foto / Scan Kartu Keluarga (Opsional)
                           </label>
                           <input
                             type="file"
                             accept="image/*,application/pdf"
                             onChange={(e) => setKkFile(e.target.files?.[0] || null)}
-                            className="text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#FFDC80] file:text-[#0D7A6F] hover:file:bg-[#ffe59e] cursor-pointer"
+                            className="text-xs text-slate-600 dark:text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#FFDC80] file:text-[#0D7A6F] hover:file:bg-[#ffe59e] cursor-pointer"
                           />
                           <p className="text-[10px] text-slate-500 mt-1">Format PDF atau Gambar (Maksimal 5 MB)</p>
                         </div>
                       </div>
 
                       {/* Ringkasan Pernyataan */}
-                      <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/70 border border-amber-200 text-xs space-y-1.5">
-                        <div className="font-black text-[#0D7A6F] flex items-center gap-1.5">
-                          <CheckCircle2 className="w-4 h-4 text-[#138F81]" />
+                      <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/70 dark:bg-slate-900/60 border border-amber-200 dark:border-slate-800 text-xs space-y-1.5">
+                        <div className="font-black text-[#0D7A6F] dark:text-amber-300 flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-[#138F81] dark:text-[#2DD4BF]" />
                           <span>Pernyataan Kesungguhan & Kebenaran Data</span>
                         </div>
-                        <p className="text-[#636E72] leading-relaxed">
+                        <p className="text-[#636E72] dark:text-slate-300 leading-relaxed">
                           Dengan mengirimkan formulir pendaftaran ini, saya selaku orang tua / wali calon santri menyatakan bahwa data yang diisi adalah benar. Saya bersedia mentaati segenap tata tertib serta bimbingan di Pondok Pesantren Qomaruddin Sampurnan Bungah Gresik.
                         </p>
                       </div>
@@ -1221,12 +1605,12 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                   )}
 
                   {/* Wizard Bottom Navigation Buttons */}
-                  <div className="flex items-center justify-between pt-6 border-t border-slate-100 mt-6">
+                  <div className="flex items-center justify-between pt-6 border-t border-slate-100 dark:border-slate-800 mt-6">
                     {formStep > 1 ? (
                       <button
                         type="button"
                         onClick={handlePrevStep}
-                        className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#2D3436] text-xs font-bold transition-colors cursor-pointer"
+                        className="px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[#2D3436] dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer"
                       >
                         ← Kembali
                       </button>
@@ -1269,32 +1653,34 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
           </section>
         )}
 
-        {/* 🌟 TAB CEK STATUS & KELULUSAN */}
+        {/* ========================================================================= */}
+        {/* TAB 3: CEK STATUS PENDAFTARAN, AUDIT, BIAYA, & PENERIMAAN BUKU INDUK */}
+        {/* ========================================================================= */}
         {activeTab === 'status' && (
           <section className="max-w-3xl mx-auto">
-            <div className="bg-white border border-amber-200/80 rounded-3xl p-6 sm:p-10 shadow-xl">
+            <div className="bg-white dark:bg-[#1E293B] border border-amber-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-xl transition-colors">
               <div className="text-center mb-8">
-                <span className="text-xs font-black uppercase tracking-wider text-[#0D7A6F] bg-[#FFDC80] px-3.5 py-1 rounded-full border border-amber-300">
+                <span className="text-xs font-black uppercase tracking-wider text-[#0D7A6F] dark:text-amber-300 bg-[#FFDC80] dark:bg-amber-400/20 px-3.5 py-1 rounded-full border border-amber-300 dark:border-amber-500/30">
                   PELACAKAN REALTIME PMB
                 </span>
-                <h2 className="text-2xl sm:text-3xl font-black text-[#2D3436] mt-3">
-                  Cek Status Pendaftaran & Kelulusan
+                <h2 className="text-2xl sm:text-3xl font-black text-[#2D3436] dark:text-slate-100 mt-3">
+                  Cek Status Pendaftaran & Hasil Seleksi
                 </h2>
-                <p className="text-xs sm:text-sm text-[#636E72] mt-1">
-                  Masukkan Nomor Registrasi (contoh: <span className="font-mono font-bold text-[#138F81]">PMB-2026-0001</span>) atau Nomor WhatsApp yang terdaftar.
+                <p className="text-xs sm:text-sm text-[#636E72] dark:text-slate-400 mt-1">
+                  Masukkan Nomor Registrasi (contoh: <span className="font-mono font-bold text-[#138F81] dark:text-[#2DD4BF]">PMB-2026-0001</span>) atau Nomor WhatsApp yang terdaftar.
                 </p>
               </div>
 
               {/* Form Search Input */}
               <form onSubmit={handleCheckStatus} className="max-w-xl mx-auto mb-6">
-                <div className="flex items-center gap-2 bg-[#F8FAFC] p-2 rounded-2xl border-2 border-amber-200 focus-within:border-[#138F81] shadow-xs transition-colors">
-                  <Search className="w-5 h-5 text-[#138F81] ml-3 shrink-0" />
+                <div className="flex items-center gap-2 bg-[#F8FAFC] dark:bg-slate-900 p-2 rounded-2xl border-2 border-amber-200 dark:border-slate-700 focus-within:border-[#138F81] dark:focus-within:border-[#2DD4BF] shadow-xs transition-colors">
+                  <Search className="w-5 h-5 text-[#138F81] dark:text-[#2DD4BF] ml-3 shrink-0" />
                   <input
                     type="text"
                     value={searchKeyword}
                     onChange={(e) => setSearchKeyword(e.target.value)}
                     placeholder="Ketik Nomor Registrasi atau No. WhatsApp..."
-                    className="flex-1 bg-transparent px-3 py-2 text-sm text-[#2D3436] placeholder-slate-400 outline-none font-medium"
+                    className="flex-1 bg-transparent px-3 py-2 text-sm text-[#2D3436] dark:text-slate-100 placeholder-slate-400 outline-none font-medium"
                   />
                   <button
                     type="submit"
@@ -1307,45 +1693,54 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
               </form>
 
               {statusSearchError && (
-                <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold max-w-xl mx-auto mb-6 text-center">
+                <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold max-w-xl mx-auto mb-6 text-center">
                   {statusSearchError}
                 </div>
               )}
 
               {/* Hasil Pencarian */}
               {statusResults && statusResults.length > 0 && (
-                <div className="space-y-4 max-w-xl mx-auto pt-2">
-                  <div className="text-xs font-black text-[#138F81] uppercase tracking-wider">
+                <div className="space-y-4 max-w-2xl mx-auto pt-2">
+                  <div className="text-xs font-black text-[#138F81] dark:text-[#2DD4BF] uppercase tracking-wider">
                     Ditemukan {statusResults.length} Data Pendaftaran:
                   </div>
 
                   {statusResults.map((item) => {
                     const isAccepted = item.status === 'accepted';
                     const isRejected = item.status === 'rejected';
+                    const isReviewed = item.status === 'reviewed';
 
                     return (
                       <div
                         key={item.id}
-                        className={`p-6 rounded-2xl border-2 transition-all shadow-sm ${
+                        className={`p-6 rounded-3xl border-2 transition-all shadow-sm ${
                           isAccepted
-                            ? 'bg-emerald-50/80 border-emerald-300'
+                            ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700'
                             : isRejected
-                            ? 'bg-rose-50/80 border-rose-300'
-                            : 'bg-amber-50/60 border-amber-200'
+                            ? 'bg-rose-50/80 dark:bg-rose-950/30 border-rose-300 dark:border-rose-800'
+                            : isReviewed
+                            ? 'bg-sky-50/80 dark:bg-sky-950/30 border-sky-300 dark:border-sky-800'
+                            : 'bg-amber-50/60 dark:bg-slate-900/60 border-amber-200 dark:border-slate-700'
                         }`}
                       >
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3 mb-3">
+                        {/* Header Hasil */}
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-slate-200 dark:border-slate-700/80 pb-3 mb-4">
                           <div>
-                            <span className="text-[11px] font-mono font-black text-[#138F81] bg-white px-2.5 py-1 rounded-md border border-amber-200 shadow-2xs">
-                              {item.registration_number}
-                            </span>
-                            <h3 className="text-lg font-black text-[#2D3436] mt-2">{item.nama_lengkap}</h3>
-                            <p className="text-xs text-[#636E72] font-semibold">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-mono font-black text-[#138F81] dark:text-[#2DD4BF] bg-white dark:bg-slate-800 px-2.5 py-1 rounded-md border border-amber-200 dark:border-slate-700 shadow-2xs">
+                                {item.registration_number}
+                              </span>
+                              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#FFDC80] dark:bg-amber-400/20 text-[#0D7A6F] dark:text-amber-300 border border-amber-300 dark:border-amber-600/30">
+                                {item.gelombang}
+                              </span>
+                            </div>
+                            <h3 className="text-lg font-black text-[#2D3436] dark:text-slate-100 mt-2">{item.nama_lengkap}</h3>
+                            <p className="text-xs text-[#636E72] dark:text-slate-400 font-semibold">
                               {item.pilihan_jenjang} • {item.pilihan_asrama}
                             </p>
                           </div>
 
-                          {/* Status Badge */}
+                          {/* Status Seleksi Badge */}
                           <div>
                             <span
                               className={`px-3.5 py-1.5 rounded-full text-xs font-black inline-flex items-center gap-1.5 shadow-xs ${
@@ -1353,6 +1748,8 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                                   ? 'bg-[#138F81] text-white'
                                   : isRejected
                                   ? 'bg-rose-600 text-white'
+                                  : isReviewed
+                                  ? 'bg-sky-600 text-white'
                                   : 'bg-[#FFDC80] text-[#0D7A6F] border border-amber-300'
                               }`}
                             >
@@ -1362,24 +1759,89 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                           </div>
                         </div>
 
+                        {/* STATUS PEMBAYARAN FORMULIR PMB */}
+                        <div className="mb-4 p-3.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div>
+                            <div className="text-[10px] uppercase font-bold text-[#636E72] dark:text-slate-400">
+                              STATUS BIAYA PENDAFTARAN PMB
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {item.payment_status === 'lunas' ? (
+                                <span className="inline-flex items-center gap-1 text-xs font-black text-emerald-600 dark:text-emerald-400">
+                                  <CheckCircle2 size={14} />
+                                  <span>LUNAS (Rp {Number(item.payment_amount || 0).toLocaleString('id-ID')})</span>
+                                </span>
+                              ) : item.payment_status === 'perlu_pelunasan' ? (
+                                <span className="inline-flex items-center gap-1 text-xs font-black text-amber-600 dark:text-amber-400">
+                                  <AlertCircle size={14} />
+                                  <span>PERLU PELUNASAN: Rp {Number(item.payment_amount || 0).toLocaleString('id-ID')}</span>
+                                </span>
+                              ) : item.payment_status === 'gratis' ? (
+                                <span className="inline-flex items-center gap-1 text-xs font-black text-sky-600 dark:text-sky-400">
+                                  <Sparkles size={14} />
+                                  <span>GRATIS / BEASISWA</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-xs font-black text-slate-600 dark:text-slate-400">
+                                  <Clock size={14} />
+                                  <span>MENUNGGU VERIFIKASI BIAYA</span>
+                                </span>
+                              )}
+                            </div>
+                            {item.payment_notes && (
+                              <p className="text-[11px] text-[#636E72] dark:text-slate-400 mt-1 italic">
+                                Catatan: {item.payment_notes}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="shrink-0 text-right sm:text-right">
+                            <span className="text-[11px] text-[#636E72] dark:text-slate-400 block">Biaya Formulir</span>
+                            <span className="font-bold text-xs text-[#2D3436] dark:text-slate-200">
+                              Rp {Number(item.payment_amount || 0).toLocaleString('id-ID')}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* STATUS BUKU INDUK JIKA DI-ACC RESMI */}
+                        {item.is_converted && (
+                          <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white mb-4 shadow-md">
+                            <div className="flex items-center gap-2 font-black text-xs uppercase tracking-wider text-amber-200 mb-2">
+                              <Award className="w-4 h-4 text-amber-300" />
+                              <span>RESMI TERDAFTAR DI BUKU INDUK SANTRI</span>
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                              <div className="bg-white/10 p-2.5 rounded-xl">
+                                <span className="text-emerald-100 text-[10px] block uppercase font-bold">NIS Resmi</span>
+                                <strong className="font-mono text-sm">{item.nis_resmi || 'Menunggu Sinkron'}</strong>
+                              </div>
+                              <div className="bg-white/10 p-2.5 rounded-xl">
+                                <span className="text-emerald-100 text-[10px] block uppercase font-bold">Kelas Diniyah</span>
+                                <strong>{item.kelas_resmi || '-'}</strong>
+                              </div>
+                              <div className="bg-white/10 p-2.5 rounded-xl col-span-2 sm:col-span-1">
+                                <span className="text-emerald-100 text-[10px] block uppercase font-bold">Kamar Asrama</span>
+                                <strong>{item.kamar_resmi || '-'}</strong>
+                              </div>
+                            </div>
+                            <p className="text-[11px] text-emerald-100 mt-2.5 leading-relaxed">
+                              🎉 Selamat! Calon santri telah resmi di-ACC dan terdaftar di Buku Induk Santri Pondok Pesantren Qomaruddin. Silakan unduh atau cetak Bukti Penerimaan resmi di bawah ini.
+                            </p>
+                          </div>
+                        )}
+
                         {/* Catatan Panitia */}
                         {item.catatan_admin && (
-                          <div className="p-3.5 rounded-xl bg-white border border-slate-200 text-xs text-[#2D3436] mb-3">
-                            <strong className="text-[#0D7A6F]">Catatan Panitia:</strong> {item.catatan_admin}
+                          <div className="p-3.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-[#2D3436] dark:text-slate-200 mb-4">
+                            <strong className="text-[#0D7A6F] dark:text-amber-300">Catatan Panitia PMB:</strong> {item.catatan_admin}
                           </div>
                         )}
 
-                        {isAccepted && (
-                          <div className="p-3.5 rounded-xl bg-emerald-100/70 border border-emerald-300 text-xs text-emerald-900 font-medium mb-3">
-                            🎉 <strong>Selamat!</strong> Calon santri telah lolos seleksi dan resmi diterima di Pondok Pesantren Qomaruddin. Silakan hubungi panitia untuk jadwal kedatangan di pondok.
-                          </div>
-                        )}
-
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[#636E72] pt-1">
-                          <span>Tanggal Daftar: <strong className="text-[#2D3436]">{item.tanggal_daftar}</strong></span>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[#636E72] dark:text-slate-400 pt-1">
+                          <span>Tanggal Daftar: <strong className="text-[#2D3436] dark:text-slate-200">{item.tanggal_daftar}</strong></span>
                           <button
                             onClick={() => setSelectedCardToPrint(item)}
-                            className="px-3.5 py-1.5 rounded-xl bg-[#FFDC80] hover:bg-[#ffe59e] text-[#0D7A6F] border border-amber-300 font-bold flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                            className="px-4 py-2 rounded-xl bg-[#FFDC80] dark:bg-slate-800 hover:bg-[#ffe59e] dark:hover:bg-slate-700 text-[#0D7A6F] dark:text-amber-300 border border-amber-300 dark:border-slate-700 font-black flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
                           >
                             <Printer className="w-3.5 h-3.5" />
                             <span>Cetak Kartu Tanda Peserta</span>
@@ -1393,7 +1855,157 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
             </div>
           </section>
         )}
+
+        {/* ========================================================================= */}
+        {/* TAB 4: AGENDA KEDATANGAN & BERITA SANTRI BARU */}
+        {/* ========================================================================= */}
+        {activeTab === 'agenda' && (
+          <section className="max-w-4xl mx-auto space-y-6">
+            <div className="bg-white dark:bg-[#1E293B] border border-amber-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-xl transition-colors">
+              <div className="text-center max-w-2xl mx-auto mb-8">
+                <span className="text-xs font-black uppercase tracking-wider text-[#0D7A6F] dark:text-amber-300 bg-[#FFDC80] dark:bg-amber-400/20 px-3.5 py-1 rounded-full border border-amber-300 dark:border-amber-500/30">
+                  INFORMASI RESMI PMB
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-black text-[#2D3436] dark:text-slate-100 mt-3">
+                  Agenda Kedatangan & Berita Santri Baru
+                </h2>
+                <p className="text-xs sm:text-sm text-[#636E72] dark:text-slate-400 mt-1">
+                  Pantau tanggal wajib hadir di asrama, daftar berkas fisik asli yang wajib dibawa, serta pengumuman seleksi berkala.
+                </p>
+              </div>
+
+              {/* Filter Tabs Kategori */}
+              <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
+                {[
+                  { key: 'all', label: 'Semua Informasi' },
+                  { key: 'agenda_kedatangan', label: '📅 Agenda Kedatangan' },
+                  { key: 'pengumuman', label: '📢 Pengumuman Seleksi' },
+                  { key: 'alur_berkas', label: '📋 Berkas Fisik Wajib' },
+                  { key: 'berita', label: '📰 Berita Pesantren' }
+                ].map((f) => (
+                  <button
+                    key={f.key}
+                    onClick={() => setAnnouncementFilter(f.key)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      announcementFilter === f.key
+                        ? 'bg-[#138F81] text-white shadow-sm'
+                        : 'bg-slate-100 dark:bg-slate-800 text-[#636E72] dark:text-slate-300 hover:bg-amber-100 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Daftar Pengumuman */}
+              {filteredAnnouncements.length === 0 ? (
+                <div className="p-10 rounded-2xl bg-amber-50/40 dark:bg-slate-900/40 border border-amber-200/60 dark:border-slate-800 text-center">
+                  <Megaphone className="w-10 h-10 text-amber-500 mx-auto mb-3 opacity-60" />
+                  <h4 className="text-sm font-black text-[#2D3436] dark:text-slate-200">
+                    Belum Ada Pengumuman Pada Kategori Ini
+                  </h4>
+                  <p className="text-xs text-[#636E72] dark:text-slate-400 mt-1">
+                    Panitia PMB akan segera mempublikasikan agenda kedatangan santri dan jadwal berkas. Silakan cek berkala.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredAnnouncements.map((item) => {
+                    const badge = getCategoryBadge(item.category);
+                    return (
+                      <div
+                        key={item.id}
+                        className="p-6 rounded-2xl bg-[#F8FAFC] dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 hover:border-[#138F81] dark:hover:border-[#2DD4BF] transition-all"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${badge.style}`}>
+                              {badge.label}
+                            </span>
+                            {item.is_pinned && (
+                              <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 flex items-center gap-1 bg-amber-100 dark:bg-amber-950/50 px-2 py-0.5 rounded-full border border-amber-300">
+                                <Sparkles size={11} />
+                                <span>Penting / Diutamakan</span>
+                              </span>
+                            )}
+                          </div>
+                          {item.event_date && (
+                            <div className="flex items-center gap-1.5 text-xs font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-3 py-1 rounded-xl border border-amber-300 dark:border-amber-800 w-fit">
+                              <Calendar size={13} />
+                              <span>Tanggal Acara: {item.event_date}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <h3 className="text-base sm:text-lg font-black text-[#2D3436] dark:text-slate-100 mb-2">
+                          {item.title}
+                        </h3>
+
+                        <p className="text-xs sm:text-sm text-[#636E72] dark:text-slate-300 leading-relaxed whitespace-pre-line mb-4">
+                          {item.content}
+                        </p>
+
+                        <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between text-[11px] text-[#636E72] dark:text-slate-400">
+                          <span>
+                            Diterbitkan oleh: <strong className="text-[#2D3436] dark:text-slate-200">{item.author?.name || 'Panitia PMB Qomaruddin'}</strong>
+                          </span>
+                          <span>{new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
       </main>
+
+      {/* 🌟 MODAL DETAIL PENGUMUMAN DARI BERANDA */}
+      {selectedAnnouncement && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#1E293B] text-[#2D3436] dark:text-slate-100 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl relative border-2 border-amber-300 dark:border-slate-700">
+            <button
+              onClick={() => setSelectedAnnouncement(null)}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-2 mb-3">
+              <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${getCategoryBadge(selectedAnnouncement.category).style}`}>
+                {getCategoryBadge(selectedAnnouncement.category).label}
+              </span>
+              {selectedAnnouncement.event_date && (
+                <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                  <Calendar size={12} />
+                  <span>{selectedAnnouncement.event_date}</span>
+                </span>
+              )}
+            </div>
+
+            <h3 className="text-lg font-black text-[#2D3436] dark:text-slate-100 mb-4">
+              {selectedAnnouncement.title}
+            </h3>
+
+            <div className="max-h-80 overflow-y-auto pr-2 text-xs sm:text-sm text-[#636E72] dark:text-slate-300 leading-relaxed whitespace-pre-line bg-[#F8FAFC] dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 mb-6">
+              {selectedAnnouncement.content}
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+              <span className="text-[#636E72] dark:text-slate-400">
+                Oleh: <strong>{selectedAnnouncement.author?.name || 'Panitia PMB'}</strong>
+              </span>
+              <button
+                onClick={() => setSelectedAnnouncement(null)}
+                className="px-5 py-2 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white font-black cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 🌟 MODAL CETAK KARTU RESMI PMB */}
       {selectedCardToPrint && (
@@ -1412,13 +2024,13 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                 <img src="/logo-qomaruddin.png" alt="Logo" className="h-full w-full object-contain" />
               </div>
               <div className="text-[11px] font-black uppercase tracking-widest text-[#138F81]">
-                YAYASAN PONDOK PESANTREN QOMARUDDIN
+                {profilCms?.nama_pesantren ? profilCms.nama_pesantren.toUpperCase() : 'YAYASAN PONDOK PESANTREN QOMARUDDIN'}
               </div>
               <h3 className="text-lg font-black text-[#2D3436] mt-0.5">
                 KARTU BUKTI PENDAFTARAN PMB
               </h3>
               <p className="text-[11px] text-[#636E72] font-medium">
-                Jl. Sampurnan No. 01 Bungah Gresik • Tahun Ajaran 2026/2027
+                {profilCms?.alamat || 'Jl. Sampurnan No. 01 Bungah Gresik'} • {selectedCardToPrint.gelombang}
               </p>
             </div>
 
@@ -1452,6 +2064,18 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                 <span className="text-[#636E72] font-semibold">Status Seleksi:</span>
                 <span className="font-black text-[#138F81]">{selectedCardToPrint.status_label}</span>
               </div>
+              <div className="flex justify-between border-b border-slate-200 pb-2">
+                <span className="text-[#636E72] font-semibold">Status Pembayaran:</span>
+                <span className="font-black text-amber-700 uppercase">
+                  {selectedCardToPrint.payment_status} (Rp {Number(selectedCardToPrint.payment_amount || 0).toLocaleString('id-ID')})
+                </span>
+              </div>
+              {selectedCardToPrint.is_converted && (
+                <div className="flex justify-between border-b border-slate-200 pb-2 bg-emerald-50 p-2 rounded-xl border border-emerald-300">
+                  <span className="text-emerald-800 font-bold">NIS Resmi Pondok:</span>
+                  <span className="font-mono font-black text-emerald-900">{selectedCardToPrint.nis_resmi || '-'}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-[#636E72] font-semibold">Waktu Mendaftar:</span>
                 <span className="font-bold text-[#2D3436]">{selectedCardToPrint.tanggal_daftar}</span>
@@ -1480,10 +2104,10 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
       {/* 🌟 MODAL BAGIKAN LINK PMB */}
       {isShareModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-white border-2 border-amber-300 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl text-left relative">
+          <div className="bg-white dark:bg-[#1E293B] border-2 border-amber-300 dark:border-slate-700 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl text-left relative">
             <button
               onClick={() => setIsShareModalOpen(false)}
-              className="absolute top-4 right-4 p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+              className="absolute top-4 right-4 p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -1493,18 +2117,18 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                 <Share2 className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base sm:text-lg font-black text-[#2D3436]">Bagikan Info PMB Online</h3>
-                <p className="text-xs text-[#636E72] font-semibold">Pondok Pesantren Qomaruddin Gresik</p>
+                <h3 className="text-base sm:text-lg font-black text-[#2D3436] dark:text-slate-100">Bagikan Info PMB Online</h3>
+                <p className="text-xs text-[#636E72] dark:text-slate-400 font-semibold">{profilCms?.nama_pesantren || 'Pondok Pesantren Qomaruddin Gresik'}</p>
               </div>
             </div>
 
-            <p className="text-xs text-[#636E72] leading-relaxed mb-5 font-medium">
+            <p className="text-xs text-[#636E72] dark:text-slate-300 leading-relaxed mb-5 font-medium">
               Sebarkan link pendaftaran santri baru kepada kerabat, sanak saudara, dan grup media sosial:
             </p>
 
             {/* Input Link & Tombol Salin */}
             <div className="mb-5">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#636E72] mb-1.5">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#636E72] dark:text-slate-400 mb-1.5">
                 Link Resmi PMB Publik:
               </label>
               <div className="flex items-center gap-2">
@@ -1512,7 +2136,7 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                   type="text"
                   readOnly
                   value={getPublicPmbUrl()}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#F8FAFC] border border-slate-200 text-xs font-mono font-bold text-[#138F81] select-all outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#F8FAFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold text-[#138F81] dark:text-[#2DD4BF] select-all outline-none"
                 />
                 <button
                   type="button"
@@ -1546,12 +2170,12 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
               </button>
 
               <a
-                href="https://wa.me/6281234567890?text=Assalamu%27alaikum%20Panitia%20PMB%20Qomaruddin%2C%20saya%20ingin%20konsultasi%20pendaftaran"
+                href={`https://wa.me/${profilCms?.telepon?.replace(/\D/g, '') || '6281234567890'}?text=Assalamu%27alaikum%20Panitia%20PMB%20Qomaruddin%2C%20saya%20ingin%20konsultasi%20pendaftaran`}
                 target="_blank"
                 rel="noreferrer"
-                className="w-full py-2.5 rounded-2xl bg-white hover:bg-slate-50 text-[#0D7A6F] text-xs font-bold border border-amber-300 flex items-center justify-center gap-2 transition-all"
+                className="w-full py-2.5 rounded-2xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-[#0D7A6F] dark:text-amber-300 text-xs font-bold border border-amber-300 dark:border-slate-700 flex items-center justify-center gap-2 transition-all"
               >
-                <Phone className="w-3.5 h-3.5 text-[#138F81]" />
+                <Phone className="w-3.5 h-3.5 text-[#138F81] dark:text-[#2DD4BF]" />
                 <span>Hubungi Narahubung Panitia PMB</span>
               </a>
             </div>
@@ -1570,7 +2194,7 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                 </div>
                 <div>
                   <h4 className="font-black text-[#2D3436] dark:text-slate-100 text-sm sm:text-base">
-                    Pondok Pesantren Qomaruddin
+                    {profilCms?.nama_pesantren || 'Pondok Pesantren Qomaruddin'}
                   </h4>
                   <p className="text-[11px] text-[#0D7A6F] dark:text-[#2DD4BF] font-bold">
                     Sampurnan Bungah Gresik • Berdiri Sejak 1775 M
@@ -1582,7 +2206,7 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
               </p>
               <div className="flex items-center gap-2 text-xs text-[#2D3436] dark:text-slate-200 font-semibold">
                 <MapPin className="w-4 h-4 text-[#138F81] dark:text-[#2DD4BF] shrink-0" />
-                <span>Jl. Sampurnan No. 01, Bungah, Gresik, Jawa Timur 61152</span>
+                <span>{profilCms?.alamat || 'Jl. Sampurnan No. 01, Bungah, Gresik, Jawa Timur 61152'}</span>
               </div>
             </div>
 
@@ -1603,7 +2227,12 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                 </li>
                 <li>
                   <button onClick={() => setActiveTab('status')} className="hover:text-[#138F81] dark:hover:text-[#2DD4BF] transition-colors">
-                    Cek Status Kelulusan
+                    Cek Status & Biaya
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => setActiveTab('agenda')} className="hover:text-[#138F81] dark:hover:text-[#2DD4BF] transition-colors">
+                    Agenda Kedatangan Santri
                   </button>
                 </li>
                 <li>
@@ -1622,7 +2251,7 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
               <div className="space-y-2">
                 <div className="flex items-center gap-2 font-semibold text-[#2D3436] dark:text-slate-200">
                   <Phone className="w-3.5 h-3.5 text-[#138F81] dark:text-[#2DD4BF]" />
-                  <span>0812-3456-7890 (Sekretariat PMB)</span>
+                  <span>{profilCms?.telepon || '0812-3456-7890'} (Sekretariat PMB)</span>
                 </div>
                 <div className="flex items-center gap-2 text-[#636E72] dark:text-slate-400">
                   <Clock className="w-3.5 h-3.5 text-[#138F81] dark:text-[#2DD4BF]" />
@@ -1630,7 +2259,7 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
                 </div>
                 <div className="pt-2">
                   <a
-                    href="https://wa.me/6281234567890?text=Assalamu%27alaikum%2C%20saya%20ingin%20bertanya%20tentang%20PMB%20Santri%20Baru%20PP%20Qomaruddin"
+                    href={`https://wa.me/${profilCms?.telepon?.replace(/\D/g, '') || '6281234567890'}?text=Assalamu%27alaikum%2C%20saya%20ingin%20bertanya%20tentang%20PMB%20Santri%20Baru%20PP%20Qomaruddin`}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 font-bold transition-all shadow-xs"
@@ -1645,7 +2274,7 @@ export function PublicPmbLandingPage({ onOpenLogin }: PublicPmbLandingPageProps)
 
           <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
             <p className="text-[11px] text-[#7B8794] dark:text-slate-500">
-              © {new Date().getFullYear()} Yayasan Pondok Pesantren Qomaruddin. Hak Cipta Dilindungi.
+              © {new Date().getFullYear()} {profilCms?.nama_pesantren || 'Yayasan Pondok Pesantren Qomaruddin'}. Hak Cipta Dilindungi.
             </p>
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-slate-500">
               <span>Managed & Engineered by</span>

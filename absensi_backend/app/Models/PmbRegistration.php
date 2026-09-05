@@ -49,6 +49,10 @@ class PmbRegistration extends Model
         'account_initial_password',
         'wa_notif_sent',
         'wa_notif_at',
+        'payment_status',
+        'payment_amount',
+        'payment_notes',
+        'payment_verified_at',
     ];
 
     protected $casts = [
@@ -57,6 +61,8 @@ class PmbRegistration extends Model
         'is_converted' => 'boolean',
         'wa_notif_sent' => 'boolean',
         'wa_notif_at' => 'datetime',
+        'payment_amount' => 'decimal:2',
+        'payment_verified_at' => 'datetime',
     ];
 
     public function batch()
