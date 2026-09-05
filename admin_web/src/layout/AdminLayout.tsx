@@ -773,7 +773,7 @@ export function AdminLayout({
         ) : null}
 
         <main className="min-w-0 flex-1 max-w-full overflow-x-hidden">
-          <header className="q-topbar mb-4 sm:mb-6 flex min-h-14 sm:min-h-16 items-center justify-between gap-2 sm:gap-3 rounded-2xl sm:rounded-[26px] bg-[#FFFDF7] px-3 sm:px-6 shadow-xl shadow-black/10 transition-colors duration-300">
+          <header className="q-topbar mb-5 sm:mb-6 lg:mb-8 flex min-h-14 sm:min-h-16 items-center justify-between gap-2 sm:gap-3 rounded-2xl sm:rounded-[26px] bg-[#FFFDF7] dark:bg-slate-900/95 px-3 sm:px-6 shadow-xl shadow-black/10 transition-colors duration-300">
             <div className="min-w-0 flex flex-1 items-center gap-2 sm:gap-3">
               <button
                 className="q-icon-button grid h-9 w-9 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-xl sm:rounded-2xl bg-[#E1EFF7] text-[#138F81] transition hover:scale-105"

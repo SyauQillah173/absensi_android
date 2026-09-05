@@ -426,38 +426,38 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
     <div className="min-h-screen bg-[#FFDC80] dark:bg-[#0B1120] text-[#2D3436] dark:text-slate-100 flex flex-col font-sans selection:bg-[#138F81] selection:text-white transition-colors duration-300">
       {/* 🌟 BANNER KHUSUS MODE PREVIEW ADMIN */}
       {isLoggedIn && (
-        <div className="bg-gradient-to-r from-[#0D7A6F] to-[#138F81] text-white px-4 py-2 text-xs font-bold flex flex-wrap items-center justify-between gap-2 shadow-md border-b border-teal-500/50">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-amber-300 text-slate-900 font-black text-[10px] tracking-wider uppercase shadow-xs">
-              Mode Pratinjau Admin
+        <div className="bg-gradient-to-r from-[#0D7A6F] to-[#138F81] text-white px-3 sm:px-4 py-1.5 sm:py-2 text-xs font-bold flex items-center justify-between gap-2 shadow-md border-b border-teal-500/50">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <span className="px-2 py-0.5 rounded-full bg-amber-300 text-slate-900 font-black text-[9px] sm:text-[10px] tracking-wider uppercase shadow-xs shrink-0">
+              Mode Admin
             </span>
-            <span className="text-[11px] sm:text-xs text-teal-100">
+            <span className="text-[10px] sm:text-xs text-teal-100 truncate hidden sm:inline">
               Anda sedang login sebagai Admin dan melihat tampilan langsung Web Publik PMB & Profil Pesantren.
             </span>
           </div>
           <button
             onClick={onBackToAdmin || onOpenLogin}
-            className="px-3 py-1 rounded-xl bg-white/20 hover:bg-white text-white hover:text-[#0D7A6F] text-xs font-black transition-all flex items-center gap-1.5 border border-white/40 cursor-pointer shadow-xs"
+            className="px-2.5 py-0.5 sm:py-1 rounded-xl bg-white/20 hover:bg-white text-white hover:text-[#0D7A6F] text-[11px] sm:text-xs font-black transition-all flex items-center gap-1 border border-white/40 cursor-pointer shadow-xs shrink-0"
           >
-            <Home className="w-3.5 h-3.5 text-amber-300" />
-            <span>← Kembali ke Dashboard Admin</span>
+            <Home className="w-3 h-3 text-amber-300" />
+            <span>← Dashboard</span>
           </button>
         </div>
       )}
 
       {/* 🌟 BANNER STATUS MASTER BUKA/TUTUP JIKA DITUTUP */}
       {!pmbIsOpen && (
-        <div className="bg-rose-600 dark:bg-rose-900 text-white px-4 py-2.5 text-xs font-bold text-center flex items-center justify-center gap-2 shadow-md">
-          <AlertCircle className="w-4 h-4 shrink-0 text-amber-300 animate-pulse" />
-          <span>
-            <strong>PEMBERITAHUAN PMB:</strong> {pmbClosedMessage}
+        <div className="bg-rose-600 dark:bg-rose-900 text-white px-3 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold text-center flex items-center justify-center gap-1.5 shadow-md">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-300 animate-pulse" />
+          <span className="truncate sm:whitespace-normal">
+            <strong>PEMBERITAHUAN:</strong> {pmbClosedMessage}
           </span>
         </div>
       )}
       {/* 🌟 TOP NAVBAR KHAS QOMARUDDIN (DESAIN ELEGAN, RAPI & PROFESIONAL) */}
       <header className="sticky top-0 z-50 bg-white/95 dark:bg-[#1E293B]/95 backdrop-blur-md border-b border-amber-300/80 dark:border-slate-800 shadow-sm transition-colors duration-300">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-18 sm:h-20 gap-2 sm:gap-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14 sm:h-18 lg:h-20 gap-2 sm:gap-4">
             {/* Logo & Identitas Pesantren */}
             <div
               onClick={() => setActiveTab('beranda')}
@@ -471,12 +471,9 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
                 />
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="flex items-center gap-1.5">
                   <span className="font-black text-sm sm:text-base tracking-tight text-[#2D3436] dark:text-slate-100 group-hover:text-[#138F81] dark:group-hover:text-[#2DD4BF] transition-colors whitespace-nowrap">
                     PP. QOMARUDDIN
-                  </span>
-                  <span className="text-[9px] sm:text-[10px] font-black tracking-wider px-2 py-0.5 rounded-full bg-[#FFDC80] dark:bg-amber-400/20 text-[#0D7A6F] dark:text-amber-300 border border-amber-300 dark:border-amber-500/30 whitespace-nowrap shrink-0">
-                    EST. 1775 M
                   </span>
                 </div>
                 <p className="text-[10px] sm:text-[11px] text-[#636E72] dark:text-slate-400 hidden sm:block font-medium whitespace-nowrap truncate max-w-[200px] md:max-w-none">
@@ -582,11 +579,13 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
         </div>
 
         {/* Mobile Navigation Tabs (untuk layar di bawah 1024px / hp / tablet) */}
-        <div className="lg:hidden flex items-center justify-around border-t border-amber-200/60 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 py-2 px-2 text-xs font-bold shadow-xs">
+        <div className="lg:hidden flex items-center justify-around border-t border-amber-200/60 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 py-1.5 px-2 text-xs font-bold shadow-xs gap-1">
           <button
             onClick={() => setActiveTab('beranda')}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
-              activeTab === 'beranda' ? 'bg-[#138F81] text-white' : 'text-[#2D3436] dark:text-slate-300'
+            className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+              activeTab === 'beranda'
+                ? 'bg-[#138F81] text-white shadow-xs'
+                : 'text-[#2D3436] dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-slate-800'
             }`}
           >
             Beranda
@@ -597,18 +596,22 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
               setFormStep(1);
               setRegistrationSuccess(null);
             }}
-            className={`px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all ${
-              activeTab === 'daftar' ? 'bg-[#138F81] text-white' : 'text-[#2D3436] dark:text-slate-300'
+            className={`px-3 py-1.5 rounded-xl flex items-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'daftar'
+                ? 'bg-[#138F81] text-white shadow-xs'
+                : 'text-[#2D3436] dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-slate-800'
             }`}
           >
             <UserPlus size={13} />
             <span>Daftar</span>
-            {!pmbIsOpen && <span className="text-[8px] bg-rose-500 text-white px-1 rounded">Off</span>}
+            {!pmbIsOpen && <span className="text-[8px] bg-rose-500 text-white px-1.5 py-0.2 rounded-md font-black">Off</span>}
           </button>
           <button
             onClick={() => setActiveTab('status')}
-            className={`px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all ${
-              activeTab === 'status' ? 'bg-[#138F81] text-white' : 'text-[#2D3436] dark:text-slate-300'
+            className={`px-3 py-1.5 rounded-xl flex items-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'status'
+                ? 'bg-[#138F81] text-white shadow-xs'
+                : 'text-[#2D3436] dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-slate-800'
             }`}
           >
             <Search size={13} />
@@ -616,14 +619,16 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
           </button>
           <button
             onClick={() => setActiveTab('agenda')}
-            className={`px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all ${
-              activeTab === 'agenda' ? 'bg-[#138F81] text-white' : 'text-[#2D3436] dark:text-slate-300'
+            className={`px-3 py-1.5 rounded-xl flex items-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'agenda'
+                ? 'bg-[#138F81] text-white shadow-xs'
+                : 'text-[#2D3436] dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-slate-800'
             }`}
           >
             <Megaphone size={13} />
             <span>Agenda</span>
             {announcements.length > 0 && (
-              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-600 text-white font-bold">
+              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-600 text-white font-black">
                 {announcements.length}
               </span>
             )}

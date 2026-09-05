@@ -1,4 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
+import React from 'react';
+import { CountUpNumber } from './CountUpNumber';
 
 export interface StatBreakdownItem {
   label: string;
@@ -56,8 +58,10 @@ export function StatCard({
   compactValue = false,
   breakdown
 }: StatCardProps) {
+  const isNumeric = typeof value === 'number' || (!isNaN(Number(value)) && typeof value === 'string' && value.trim() !== '' && !value.includes('Rp') && !value.includes(' '));
+  const numericVal = isNumeric ? Number(value) : 0;
   const valueStr = String(value ?? '');
-  // Dynamically scale font size for long currency text so it NEVER clips or truncates
+
   const isLongValue = valueStr.length > 11;
   const isVeryLongValue = valueStr.length > 15;
 
@@ -91,7 +95,11 @@ export function StatCard({
             className={`q-stat-value tracking-tight text-gray-900 leading-none whitespace-nowrap overflow-visible ${valueFontSize}`}
             title={valueTitle ?? valueStr}
           >
-            {value}
+            {isNumeric ? (
+              <CountUpNumber end={numericVal} />
+            ) : (
+              value
+            )}
           </p>
         </div>
 
@@ -106,6 +114,9 @@ export function StatCard({
         <div className={`mt-3.5 pt-3 border-t border-slate-100 grid ${gridColsClass}`}>
           {breakdown.map((item, idx) => {
             const style = pillToneMap[item.tone ?? 'neutral'] || pillToneMap.neutral;
+            const itemIsNumeric = typeof item.value === 'number' || (!isNaN(Number(item.value)) && typeof item.value === 'string' && item.value.trim() !== '' && !item.value.includes('Rp'));
+            const itemNum = itemIsNumeric ? Number(item.value) : 0;
+
             return (
               <div
                 key={idx}
@@ -113,7 +124,7 @@ export function StatCard({
                 title={item.tooltip || `${item.label}: ${item.value}`}
               >
                 <span className={`text-xs font-black leading-none ${style.text}`}>
-                  {item.value}
+                  {itemIsNumeric ? <CountUpNumber end={itemNum} duration={800} /> : item.value}
                 </span>
                 <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight mt-0.5 leading-none">
                   {item.label}

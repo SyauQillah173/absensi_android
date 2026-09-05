@@ -86,9 +86,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   const toggleTheme = () => {
-    // Siklus cerdas: Terang -> Gelap -> Otomatis -> Terang
-    const nextMode: ThemeMode =
-      themeMode === 'light' ? 'dark' : themeMode === 'dark' ? 'auto' : 'light';
+    // 2 Mode Langsung: Terang <-> Gelap
+    const nextMode: ThemeMode = resolvedTheme === 'dark' ? 'light' : 'dark';
     setThemeMode(nextMode);
   };
 

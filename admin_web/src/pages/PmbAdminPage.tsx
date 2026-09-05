@@ -511,8 +511,8 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
       )}
 
       {/* 🌟 HEADER PMB ADMIN DENGAN MASTER TOGGLE PMB */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 sm:p-7 rounded-3xl bg-white border border-slate-200/80 shadow-sm">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-6 lg:p-7 rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 shadow-sm transition-all duration-300">
+        <div className="flex items-center gap-3 sm:gap-4">
           <div className="h-14 w-14 rounded-2xl bg-[#FFDC80] text-[#0D7A6F] border border-amber-300 flex items-center justify-center shadow-xs">
             {activeTab === 'dashboard' ? (
               <Activity className="w-7 h-7" />
