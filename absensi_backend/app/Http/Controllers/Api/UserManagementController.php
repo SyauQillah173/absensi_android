@@ -196,6 +196,7 @@ class UserManagementController extends Controller
         }
 
         // 🛡️ Batasan Admin Pengurus: Tidak boleh mengubah user menjadi Panitia PMB jika PMB belum dirilis
+        $pmbVisibleToPengurus = (bool) \App\Models\PmbCmsSetting::getValue('pmb_visible_to_pengurus', false);
         if (in_array($newAdminType, ['pmb', 'admin_pmb'], true) && !$this->isItAdmin($currentUser) && !$pmbVisibleToPengurus) {
             return response()->json([
                 'success' => false,
