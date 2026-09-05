@@ -56,7 +56,13 @@ class PmbCmsSetting extends Model
             $setting->group = $group;
         }
         if ($label && empty($setting->label)) {
-            $setting->label = $label;
+            try {
+                if (\Illuminate\Support\Facades\Schema::hasColumn('pmb_cms_settings', 'label')) {
+                    $setting->label = $label;
+                }
+            } catch (\Throwable $e) {
+                // Ignore if schema check fails
+            }
         }
         $setting->save();
 
