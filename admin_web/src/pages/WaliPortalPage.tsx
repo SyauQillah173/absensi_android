@@ -48,6 +48,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { ThemeToggle } from '../components/ThemeToggle';
 import { api, type ApiRecord } from '../services/api';
 import { ReceiptWaliModal } from '../components/ReceiptWaliModal';
 
@@ -706,15 +707,15 @@ export function WaliPortalPage() {
   };
 
   return (
-    <div className="q-app-shell min-h-screen bg-[#FFDC80] p-2.5 sm:p-4 lg:p-6 theme-light overflow-x-hidden font-sans">
+    <div className="q-app-shell min-h-screen bg-[#FFDC80] dark:bg-[#0B1120] p-2.5 sm:p-4 lg:p-6 theme-light overflow-x-hidden font-sans transition-colors duration-300">
       <div className="mx-auto max-w-7xl space-y-4 sm:space-y-6">
         {/* ========================================================================= */}
-        {/* 1. TOP NAVBAR (MATCHING ADMIN DASHBOARD HEADER) */}
+        {/* 1. TOP NAVBAR (MATCHING ADMIN DASHBOARD HEADER / OBSIDIAN DARK) */}
         {/* ========================================================================= */}
-        <header className="q-topbar flex min-h-14 sm:min-h-16 items-center justify-between gap-2 sm:gap-3 rounded-2xl sm:rounded-[26px] bg-[#FFFDF7] px-4 sm:px-6 shadow-xl shadow-black/5">
+        <header className="q-topbar flex min-h-14 sm:min-h-16 items-center justify-between gap-2 sm:gap-3 rounded-2xl sm:rounded-[26px] bg-[#FFFDF7] dark:bg-[#1E293B] dark:border dark:border-slate-800/80 px-4 sm:px-6 shadow-xl shadow-black/5 transition-colors duration-300">
           {/* BRANDING WITH PROJECT TEAL LOGO */}
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl p-1.5 bg-[#E1EFF7] flex items-center justify-center shadow-xs shrink-0">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl p-1.5 bg-[#E1EFF7] dark:bg-slate-800 flex items-center justify-center shadow-xs shrink-0">
               <img
                 src="/logo-qomaruddin.png"
                 alt="Logo Qomaruddin"
@@ -724,36 +725,39 @@ export function WaliPortalPage() {
 
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-lg font-black text-[#138F81] tracking-tight leading-none">
+                <h1 className="text-base sm:text-lg font-black text-[#138F81] dark:text-[#2DD4BF] tracking-tight leading-none">
                   Portal Wali Santri
                 </h1>
-                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-[#E8F7F3] text-[#138F81] border border-[#138F81]/20">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#138F81] animate-pulse" />
+                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-[#E8F7F3] dark:bg-teal-950/60 text-[#138F81] dark:text-[#2DD4BF] border border-[#138F81]/20 dark:border-teal-800/50">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#138F81] dark:bg-[#2DD4BF] animate-pulse" />
                   Live Database
                 </span>
               </div>
-              <p className="text-xs font-semibold text-[#636E72] mt-0.5 hidden sm:block">
+              <p className="text-xs font-semibold text-[#636E72] dark:text-slate-400 mt-0.5 hidden sm:block">
                 Yayasan Pondok Pesantren Qomaruddin • Sampurnan Bungah Gresik
               </p>
             </div>
           </div>
 
-          {/* USER CONTROLS & WALI PROFILE */}
+          {/* USER CONTROLS, THEMETOGGLE & WALI PROFILE */}
           <div className="flex items-center gap-2 sm:gap-2.5">
-            <div className="hidden lg:flex flex-col items-end pr-3 border-r border-slate-200">
-              <div className="flex items-center gap-1.5 text-xs font-black text-[#2D3436]">
-                <ShieldCheck size={14} className="text-[#138F81]" />
+            <div className="hidden lg:flex flex-col items-end pr-3 border-r border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-1.5 text-xs font-black text-[#2D3436] dark:text-slate-100">
+                <ShieldCheck size={14} className="text-[#138F81] dark:text-[#2DD4BF]" />
                 <span>{session?.name || 'Wali Santri'}</span>
               </div>
-              <span className="text-[10px] font-extrabold text-[#138F81] bg-[#E8F7F3] px-2 py-0.5 rounded-md border border-[#138F81]/20 mt-0.5">
+              <span className="text-[10px] font-extrabold text-[#138F81] dark:text-[#2DD4BF] bg-[#E8F7F3] dark:bg-teal-950/60 px-2 py-0.5 rounded-md border border-[#138F81]/20 dark:border-teal-800/50 mt-0.5">
                 Wali Santri Resmi
               </span>
             </div>
 
+            {/* CANGGIH & MODERN THEME TOGGLE */}
+            <ThemeToggle showDropdown={true} />
+
             <button
               type="button"
               onClick={() => setIsChangePasswordOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#138F81] bg-[#E1EFF7] hover:bg-[#138F81] hover:text-white rounded-xl sm:rounded-2xl transition shadow-xs cursor-pointer active:scale-95"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#138F81] dark:text-[#2DD4BF] bg-[#E1EFF7] dark:bg-slate-800 hover:bg-[#138F81] dark:hover:bg-teal-600 hover:text-white rounded-xl sm:rounded-2xl transition shadow-xs cursor-pointer active:scale-95"
               title="Ganti Kata Sandi Akun"
             >
               <KeyRound size={14} />
@@ -763,7 +767,7 @@ export function WaliPortalPage() {
             <button
               type="button"
               onClick={() => logout()}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-200 rounded-xl sm:rounded-2xl transition shadow-xs cursor-pointer active:scale-95"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-600 hover:text-white border border-rose-200 dark:border-rose-900/50 rounded-xl sm:rounded-2xl transition shadow-xs cursor-pointer active:scale-95"
               title="Keluar dari Portal Wali"
             >
               <LogOut size={14} />
