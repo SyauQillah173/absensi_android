@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\PengeluaranController;
 use App\Http\Controllers\Api\PenilaianController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\PmbController;
+use App\Http\Controllers\Api\PushNotificationController;
 use App\Http\Controllers\Api\ReferenceController;
 use App\Http\Controllers\Api\RegionController;
 use App\Http\Controllers\Api\SiswaController;
@@ -402,6 +403,14 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
             Route::post('announcements', [PmbController::class, 'storeAnnouncement']);
             Route::put('announcements/{id}', [PmbController::class, 'updateAnnouncement']);
             Route::delete('announcements/{id}', [PmbController::class, 'deleteAnnouncement']);
+        });
+
+        // 🔔 Web Push Notifications (Real-time Notifikasi Wali & Admin tanpa Playstore)
+        Route::prefix('push')->group(function () {
+            Route::get('vapid-public-key', [PushNotificationController::class, 'getVapidPublicKey']);
+            Route::post('subscribe', [PushNotificationController::class, 'subscribe']);
+            Route::post('unsubscribe', [PushNotificationController::class, 'unsubscribe']);
+            Route::post('send-test', [PushNotificationController::class, 'sendTest']);
         });
 
         Route::post('upload', [SiswaController::class, 'uploadFile'])->middleware('throttle:15,1');

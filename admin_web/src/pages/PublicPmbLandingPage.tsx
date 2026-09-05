@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { PwaInstallBanner } from '../components/PwaInstallBanner';
 import { api, type ApiRecord } from '../services/api';
 
 interface PublicPmbLandingPageProps {
@@ -2335,6 +2336,9 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
           </div>
         </div>
       </footer>
+
+      {/* 📲 PWA 1-Click Install Banner */}
+      <PwaInstallBanner />
     </div>
   );
 }

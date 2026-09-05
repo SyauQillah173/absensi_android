@@ -49,6 +49,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { PwaInstallBanner } from '../components/PwaInstallBanner';
 import { api, type ApiRecord } from '../services/api';
 import { ReceiptWaliModal } from '../components/ReceiptWaliModal';
 
@@ -2487,6 +2488,9 @@ export function WaliPortalPage() {
           onClose={() => setSelectedReceiptTransaction(null)}
         />
       )}
+
+      {/* 📲 PWA 1-Click Install Banner (Instal Langsung dari Chrome tanpa Play Store) */}
+      <PwaInstallBanner />
     </div>
   );
 }

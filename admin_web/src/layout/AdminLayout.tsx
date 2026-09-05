@@ -69,6 +69,7 @@ import type { BukuIndukSection } from "../pages/BukuIndukPage";
 import { api, type ApiRecord } from "../services/api";
 import { getRoleDisplayName } from "../utils/roleHelper";
 import { ThemeToggle } from "../components/ThemeToggle";
+import { PwaInstallBanner } from "../components/PwaInstallBanner";
 
 
 export type PageKey =
@@ -1112,6 +1113,9 @@ export function AdminLayout({
           </footer>
         </main>
       </div>
+
+      {/* 📲 PWA 1-Click Install Banner (Langsung dari Chrome tanpa Play Store) */}
+      <PwaInstallBanner />
     </div>
   );
 }
