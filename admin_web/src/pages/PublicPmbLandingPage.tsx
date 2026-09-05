@@ -454,49 +454,48 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
           </span>
         </div>
       )}
-
-      {/* 🌟 TOP NAVBAR KHAS QOMARUDDIN (WARNA KUNING & PUTIH BERSIH / OBSIDIAN DARK) */}
+      {/* 🌟 TOP NAVBAR KHAS QOMARUDDIN (DESAIN ELEGAN, RAPI & PROFESIONAL) */}
       <header className="sticky top-0 z-50 bg-white/95 dark:bg-[#1E293B]/95 backdrop-blur-md border-b border-amber-300/80 dark:border-slate-800 shadow-sm transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
+          <div className="flex items-center justify-between h-18 sm:h-20 gap-2 sm:gap-4">
             {/* Logo & Identitas Pesantren */}
             <div
               onClick={() => setActiveTab('beranda')}
-              className="flex items-center gap-3 cursor-pointer group"
+              className="flex items-center gap-2 sm:gap-2.5 cursor-pointer group shrink-0"
             >
-              <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-white dark:bg-slate-800 p-1.5 shadow-sm border border-amber-200 dark:border-slate-700 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-2xl bg-amber-50/80 dark:bg-slate-800 p-1.5 shadow-2xs border border-amber-200 dark:border-slate-700 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
                 <img
                   src="/logo-qomaruddin.png"
                   alt="Logo Qomaruddin"
                   className="h-full w-full object-contain"
                 />
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-black text-lg sm:text-xl tracking-tight text-[#2D3436] dark:text-slate-100 group-hover:text-[#138F81] dark:group-hover:text-[#2DD4BF] transition-colors">
-                    {profilCms?.nama_pesantren ? profilCms.nama_pesantren.toUpperCase() : 'PP. QOMARUDDIN'}
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <span className="font-black text-sm sm:text-base tracking-tight text-[#2D3436] dark:text-slate-100 group-hover:text-[#138F81] dark:group-hover:text-[#2DD4BF] transition-colors whitespace-nowrap">
+                    PP. QOMARUDDIN
                   </span>
-                  <span className="text-[10px] font-black tracking-wider px-2 py-0.5 rounded-full bg-[#FFDC80] dark:bg-amber-400/20 text-[#0D7A6F] dark:text-amber-300 border border-amber-300 dark:border-amber-500/30">
-                    {profilCms?.tahun_berdiri ? profilCms.tahun_berdiri.slice(0, 10) : 'EST. 1775 M'}
+                  <span className="text-[9px] sm:text-[10px] font-black tracking-wider px-2 py-0.5 rounded-full bg-[#FFDC80] dark:bg-amber-400/20 text-[#0D7A6F] dark:text-amber-300 border border-amber-300 dark:border-amber-500/30 whitespace-nowrap shrink-0">
+                    EST. 1775 M
                   </span>
                 </div>
-                <p className="text-xs text-[#636E72] dark:text-slate-400 hidden sm:block font-medium">
-                  Sampurnan Bungah Gresik • Portal PMB & Profil Resmi
+                <p className="text-[10px] sm:text-[11px] text-[#636E72] dark:text-slate-400 hidden sm:block font-medium whitespace-nowrap truncate max-w-[200px] md:max-w-none">
+                  Penerimaan Santri Baru • Sampurnan Bungah
                 </p>
               </div>
             </div>
 
-            {/* Nav Menu Tabs */}
-            <nav className="hidden md:flex items-center gap-1.5 bg-amber-50/80 dark:bg-slate-900/80 p-1.5 rounded-2xl border border-amber-200/80 dark:border-slate-800">
+            {/* Nav Menu Tabs (Hanya ditampilkan pada layar lg >= 1024px agar tidak sesak) */}
+            <nav className="hidden lg:flex items-center gap-1 bg-amber-50/80 dark:bg-slate-900/80 p-1 rounded-2xl border border-amber-200/80 dark:border-slate-800 shrink-0">
               <button
                 onClick={() => setActiveTab('beranda')}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                className={`whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'beranda'
-                    ? 'bg-[#138F81] text-white shadow-sm'
+                    ? 'bg-[#138F81] text-white shadow-xs'
                     : 'text-[#2D3436] dark:text-slate-300 hover:bg-amber-100/70 dark:hover:bg-slate-800'
                 }`}
               >
-                Beranda & Profil
+                Beranda
               </button>
               <button
                 onClick={() => {
@@ -504,9 +503,9 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
                   setFormStep(1);
                   setRegistrationSuccess(null);
                 }}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'daftar'
-                    ? 'bg-[#138F81] text-white shadow-sm'
+                    ? 'bg-[#138F81] text-white shadow-xs'
                     : 'text-[#2D3436] dark:text-slate-300 hover:bg-amber-100/70 dark:hover:bg-slate-800'
                 }`}
               >
@@ -520,20 +519,20 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
               </button>
               <button
                 onClick={() => setActiveTab('status')}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'status'
-                    ? 'bg-[#138F81] text-white shadow-sm'
+                    ? 'bg-[#138F81] text-white shadow-xs'
                     : 'text-[#2D3436] dark:text-slate-300 hover:bg-amber-100/70 dark:hover:bg-slate-800'
                 }`}
               >
                 <Search className="w-3.5 h-3.5 text-[#FFDC80]" />
-                <span>Cek Status Kelulusan</span>
+                <span>Cek Kelulusan</span>
               </button>
               <button
                 onClick={() => setActiveTab('agenda')}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'agenda'
-                    ? 'bg-[#138F81] text-white shadow-sm'
+                    ? 'bg-[#138F81] text-white shadow-xs'
                     : 'text-[#2D3436] dark:text-slate-300 hover:bg-amber-100/70 dark:hover:bg-slate-800'
                 }`}
               >
@@ -547,48 +546,48 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
               </button>
             </nav>
 
-            {/* Quick Actions: ThemeToggle, Share PMB & Login Pegawai */}
-            <div className="flex items-center gap-2 sm:gap-3">
+            {/* Quick Actions: ThemeToggle, Share PMB & Login Pegawai / Dashboard Admin */}
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <ThemeToggle showDropdown={true} />
 
               <button
                 onClick={() => setIsShareModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-slate-700 text-[#0D7A6F] dark:text-[#2DD4BF] border border-amber-300 dark:border-slate-700 transition-all shadow-xs cursor-pointer"
+                className="whitespace-nowrap flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-slate-700 text-[#0D7A6F] dark:text-[#2DD4BF] border border-amber-300 dark:border-slate-700 transition-all shadow-xs cursor-pointer"
                 title="Bagikan Info PMB ke WhatsApp / Media Sosial"
               >
                 <Share2 className="w-3.5 h-3.5 text-[#138F81] dark:text-[#2DD4BF]" />
-                <span className="hidden sm:inline">Bagikan Link</span>
+                <span className="hidden xl:inline">Bagikan</span>
               </button>
 
               {isLoggedIn ? (
                 <button
                   onClick={onBackToAdmin || onOpenLogin}
-                  className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs font-black bg-[#0D7A6F] hover:bg-[#138F81] text-white transition-all shadow-md shadow-[#0D7A6F]/25 border border-teal-400/50 cursor-pointer"
+                  className="whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-[#0D7A6F] hover:bg-[#138F81] text-white transition-all shadow-md shadow-[#0D7A6F]/25 border border-teal-400/40 cursor-pointer"
                   title="Kembali ke Dashboard Admin"
                 >
-                  <Home className="w-4 h-4 text-[#FFDC80]" />
-                  <span className="hidden sm:inline">Kembali ke Dashboard</span>
-                  <span className="sm:hidden">Dashboard</span>
+                  <Home className="w-3.5 h-3.5 text-[#FFDC80]" />
+                  <span>Dashboard</span>
                 </button>
               ) : (
                 <button
                   onClick={onOpenLogin}
-                  className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs font-black bg-[#138F81] hover:bg-[#0D7A6F] text-white transition-all shadow-sm shadow-[#138F81]/25 cursor-pointer"
+                  className="whitespace-nowrap flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black bg-[#138F81] hover:bg-[#0D7A6F] text-white transition-all shadow-sm shadow-[#138F81]/25 cursor-pointer"
                 >
-                  <LogIn className="w-4 h-4 text-[#FFDC80]" />
-                  <span className="hidden sm:inline">Masuk Portal Pegawai</span>
-                  <span className="sm:hidden">Login</span>
+                  <LogIn className="w-3.5 h-3.5 text-[#FFDC80]" />
+                  <span>Portal Pegawai</span>
                 </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Mobile Navigation Tabs */}
-        <div className="md:hidden flex items-center justify-around border-t border-amber-200/60 dark:border-slate-800 bg-amber-50/50 dark:bg-slate-900/90 py-2 px-2 text-xs font-bold">
+        {/* Mobile Navigation Tabs (untuk layar di bawah 1024px / hp / tablet) */}
+        <div className="lg:hidden flex items-center justify-around border-t border-amber-200/60 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 py-2 px-2 text-xs font-bold shadow-xs">
           <button
             onClick={() => setActiveTab('beranda')}
-            className={`px-2.5 py-1.5 rounded-lg ${activeTab === 'beranda' ? 'bg-[#138F81] text-white' : 'text-[#2D3436] dark:text-slate-300'}`}
+            className={`px-3 py-1.5 rounded-lg transition-all ${
+              activeTab === 'beranda' ? 'bg-[#138F81] text-white' : 'text-[#2D3436] dark:text-slate-300'
+            }`}
           >
             Beranda
           </button>
@@ -598,7 +597,9 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
               setFormStep(1);
               setRegistrationSuccess(null);
             }}
-            className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1 ${activeTab === 'daftar' ? 'bg-[#138F81] text-white' : 'text-[#2D3436] dark:text-slate-300'}`}
+            className={`px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all ${
+              activeTab === 'daftar' ? 'bg-[#138F81] text-white' : 'text-[#2D3436] dark:text-slate-300'
+            }`}
           >
             <UserPlus size={13} />
             <span>Daftar</span>
@@ -606,17 +607,26 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
           </button>
           <button
             onClick={() => setActiveTab('status')}
-            className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1 ${activeTab === 'status' ? 'bg-[#138F81] text-white' : 'text-[#2D3436] dark:text-slate-300'}`}
+            className={`px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all ${
+              activeTab === 'status' ? 'bg-[#138F81] text-white' : 'text-[#2D3436] dark:text-slate-300'
+            }`}
           >
             <Search size={13} />
-            <span>Status</span>
+            <span>Cek Status</span>
           </button>
           <button
             onClick={() => setActiveTab('agenda')}
-            className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1 ${activeTab === 'agenda' ? 'bg-[#138F81] text-white' : 'text-[#2D3436] dark:text-slate-300'}`}
+            className={`px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all ${
+              activeTab === 'agenda' ? 'bg-[#138F81] text-white' : 'text-[#2D3436] dark:text-slate-300'
+            }`}
           >
             <Megaphone size={13} />
             <span>Agenda</span>
+            {announcements.length > 0 && (
+              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-600 text-white font-bold">
+                {announcements.length}
+              </span>
+            )}
           </button>
         </div>
       </header>
@@ -660,7 +670,7 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
                 </p>
 
                 {/* CTA Buttons - Cerdas Menyesuaikan Sakelar Buka/Tutup */}
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 max-w-md mx-auto mb-10">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 max-w-xl mx-auto mb-10">
                   {pmbIsOpen ? (
                     <button
                       onClick={() => {
@@ -668,16 +678,16 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
                         setFormStep(1);
                         setRegistrationSuccess(null);
                       }}
-                      className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] text-white font-black text-xs sm:text-sm shadow-lg shadow-[#138F81]/25 hover:scale-102 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full sm:w-auto px-6 sm:px-7 py-3.5 sm:py-4 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] text-white font-black text-xs sm:text-sm shadow-lg shadow-[#138F81]/25 hover:scale-102 transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
                     >
                       <UserPlus className="w-4 h-4 text-[#FFDC80]" />
-                      <span>Daftar Santri Baru Sekarang</span>
+                      <span>Daftar Santri Baru</span>
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   ) : (
                     <button
                       onClick={() => setActiveTab('agenda')}
-                      className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs sm:text-sm shadow-lg shadow-amber-500/25 hover:scale-102 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full sm:w-auto px-6 sm:px-7 py-3.5 sm:py-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs sm:text-sm shadow-lg shadow-amber-500/25 hover:scale-102 transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
                     >
                       <Megaphone className="w-4 h-4 text-white" />
                       <span>Lihat Agenda & Pengumuman</span>
@@ -687,7 +697,7 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
 
                   <button
                     onClick={() => setActiveTab('status')}
-                    className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-[#FFDC80] dark:bg-slate-800 hover:bg-[#ffe59e] dark:hover:bg-slate-700 text-[#0D7A6F] dark:text-amber-300 font-black text-xs sm:text-sm border-2 border-amber-300 dark:border-slate-700 shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full sm:w-auto px-6 py-3.5 sm:py-4 rounded-2xl bg-[#FFDC80] dark:bg-slate-800 hover:bg-[#ffe59e] dark:hover:bg-slate-700 text-[#0D7A6F] dark:text-amber-300 font-black text-xs sm:text-sm border-2 border-amber-300 dark:border-slate-700 shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
                   >
                     <Search className="w-4 h-4 text-[#0D7A6F] dark:text-amber-300" />
                     <span>Lacak Status Kelulusan</span>
