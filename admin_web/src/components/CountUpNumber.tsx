@@ -4,6 +4,8 @@ interface CountUpNumberProps {
   end: number;
   duration?: number; // dalam milidetik, default 1200ms
   formatter?: (val: number) => string;
+  prefix?: string;
+  suffix?: string;
   className?: string;
 }
 
@@ -15,6 +17,8 @@ export function CountUpNumber({
   end,
   duration = 1200,
   formatter,
+  prefix = '',
+  suffix = '',
   className = '',
 }: CountUpNumberProps) {
   const [count, setCount] = useState(0);
@@ -59,5 +63,9 @@ export function CountUpNumber({
 
   const displayValue = formatter ? formatter(count) : count.toLocaleString('id-ID');
 
-  return <span className={className}>{displayValue}</span>;
+  return (
+    <span className={className}>
+      {prefix}{displayValue}{suffix}
+    </span>
+  );
 }

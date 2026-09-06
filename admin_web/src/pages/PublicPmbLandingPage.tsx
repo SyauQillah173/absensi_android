@@ -44,6 +44,7 @@ import {
 import React, { useEffect, useState } from 'react';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { PwaInstallBanner } from '../components/PwaInstallBanner';
+import { CountUpNumber } from '../components/CountUpNumber';
 import { api, type ApiRecord } from '../services/api';
 
 interface PublicPmbLandingPageProps {
@@ -135,6 +136,9 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
   const [activeTab, setActiveTab] = useState<'beranda' | 'daftar' | 'status' | 'agenda'>('beranda');
   const [activeBatch, setActiveBatch] = useState<ActiveBatch | null>(null);
   const [totalRegistered, setTotalRegistered] = useState(0);
+  const [totalSantriMukim, setTotalSantriMukim] = useState(0);
+  const [totalSantriAktif, setTotalSantriAktif] = useState(0);
+  const [tahunKhidmah, setTahunKhidmah] = useState(251);
   const [quotaRemaining, setQuotaRemaining] = useState<number | null>(null);
   const [pmbIsOpen, setPmbIsOpen] = useState<boolean>(true);
   const [pmbClosedMessage, setPmbClosedMessage] = useState<string>(
@@ -227,6 +231,9 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
           const d = res.data as any;
           if (d.active_batch) setActiveBatch(d.active_batch);
           if (typeof d.total_registered === 'number') setTotalRegistered(d.total_registered);
+          if (typeof d.total_santri_mukim === 'number') setTotalSantriMukim(d.total_santri_mukim);
+          if (typeof d.total_santri_aktif === 'number') setTotalSantriAktif(d.total_santri_aktif);
+          if (typeof d.tahun_khidmah === 'number') setTahunKhidmah(d.tahun_khidmah);
           if (d.quota_remaining !== undefined) setQuotaRemaining(d.quota_remaining);
           if (typeof d.pmb_is_open === 'boolean') setPmbIsOpen(d.pmb_is_open);
           if (d.pmb_closed_message) setPmbClosedMessage(d.pmb_closed_message);
@@ -710,22 +717,33 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
                   </button>
                 </div>
 
-                {/* Live Stats Cards */}
+                {/* Live Stats Cards Real-Time Beranimasi */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 sm:gap-4 pt-6 border-t border-slate-100 dark:border-slate-800">
-                  <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-slate-800/80 border border-amber-200/80 dark:border-slate-700 text-center">
-                    <div className="text-2xl sm:text-3xl font-black text-[#138F81] dark:text-[#2DD4BF]">250+</div>
+                  <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-slate-800/80 border border-amber-200/80 dark:border-slate-700 text-center hover:scale-102 hover:shadow-md hover:border-amber-400 dark:hover:border-teal-500/40 transition-all duration-300">
+                    <div className="text-2xl sm:text-3xl font-black text-[#138F81] dark:text-[#2DD4BF] flex items-center justify-center">
+                      <CountUpNumber end={tahunKhidmah || 251} duration={1400} suffix="+" />
+                    </div>
                     <div className="text-[11px] sm:text-xs text-[#636E72] dark:text-slate-400 font-semibold mt-0.5">Tahun Khidmah (1775 M)</div>
                   </div>
-                  <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-slate-800/80 border border-amber-200/80 dark:border-slate-700 text-center">
-                    <div className="text-2xl sm:text-3xl font-black text-[#0D7A6F] dark:text-teal-400">1.850+</div>
+
+                  <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-slate-800/80 border border-amber-200/80 dark:border-slate-700 text-center hover:scale-102 hover:shadow-md hover:border-teal-400 dark:hover:border-teal-500/40 transition-all duration-300">
+                    <div className="text-2xl sm:text-3xl font-black text-[#0D7A6F] dark:text-teal-400 flex items-center justify-center">
+                      <CountUpNumber end={totalSantriMukim || totalSantriAktif || 447} duration={1600} suffix="+" />
+                    </div>
                     <div className="text-[11px] sm:text-xs text-[#636E72] dark:text-slate-400 font-semibold mt-0.5">Santri Aktif Mukim</div>
                   </div>
-                  <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-slate-800/80 border border-amber-200/80 dark:border-slate-700 text-center">
-                    <div className="text-2xl sm:text-3xl font-black text-[#D97706] dark:text-amber-400">30 Juz</div>
+
+                  <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-slate-800/80 border border-amber-200/80 dark:border-slate-700 text-center hover:scale-102 hover:shadow-md hover:border-amber-400 dark:hover:border-amber-500/40 transition-all duration-300">
+                    <div className="text-2xl sm:text-3xl font-black text-[#D97706] dark:text-amber-400 flex items-center justify-center">
+                      <CountUpNumber end={30} duration={1000} suffix=" Juz" />
+                    </div>
                     <div className="text-[11px] sm:text-xs text-[#636E72] dark:text-slate-400 font-semibold mt-0.5">Tahfidz Bersanad</div>
                   </div>
-                  <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-slate-800/80 border border-amber-200/80 dark:border-slate-700 text-center">
-                    <div className="text-2xl sm:text-3xl font-black text-[#2D3436] dark:text-slate-100">{totalRegistered}</div>
+
+                  <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-slate-800/80 border border-amber-200/80 dark:border-slate-700 text-center hover:scale-102 hover:shadow-md hover:border-slate-400 dark:hover:border-slate-600 transition-all duration-300">
+                    <div className="text-2xl sm:text-3xl font-black text-[#2D3436] dark:text-slate-100 flex items-center justify-center">
+                      <CountUpNumber end={totalRegistered} duration={1200} />
+                    </div>
                     <div className="text-[11px] sm:text-xs text-[#636E72] dark:text-slate-400 font-semibold mt-0.5">Pendaftar Gelombang Ini</div>
                   </div>
                 </div>
