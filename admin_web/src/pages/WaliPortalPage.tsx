@@ -753,13 +753,11 @@ export function WaliPortalPage() {
         <header className="q-topbar flex min-h-14 sm:min-h-16 items-center justify-between gap-2 sm:gap-3 rounded-2xl sm:rounded-[26px] bg-[#FFFDF7] px-4 sm:px-6 shadow-xl shadow-black/10 transition-colors duration-300">
           {/* BRANDING WITH PROJECT TEAL LOGO */}
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl p-1.5 bg-[#E1EFF7] flex items-center justify-center shadow-xs shrink-0">
-              <img
-                src="/logo-qomaruddin.png"
-                alt="Logo Qomaruddin"
-                className="h-8 w-8 sm:h-9 sm:w-9 object-contain drop-shadow-xs"
-              />
-            </div>
+            <img
+              src="/logo-qomaruddin.png"
+              alt="Logo Qomaruddin"
+              className="h-10 w-10 sm:h-11 sm:w-11 object-contain drop-shadow-sm rounded-xl shrink-0"
+            />
 
             <div>
               <div className="flex items-center gap-2">

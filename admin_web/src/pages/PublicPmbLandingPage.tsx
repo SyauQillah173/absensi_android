@@ -482,13 +482,11 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
               onClick={() => setActiveTab('beranda')}
               className="flex items-center gap-2 sm:gap-2.5 cursor-pointer group shrink-0 min-w-0"
             >
-              <div className="h-9 w-9 sm:h-11 sm:w-11 rounded-2xl bg-amber-50/80 dark:bg-slate-800 p-1 shadow-2xs border border-amber-200 dark:border-slate-700 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
-                <img
-                  src="/logo-qomaruddin.png"
-                  alt="Logo Qomaruddin"
-                  className="h-full w-full object-contain"
-                />
-              </div>
+              <img
+                src="/logo-qomaruddin.png"
+                alt="Logo Qomaruddin"
+                className="h-10 w-10 sm:h-11 sm:w-11 object-contain drop-shadow-xs rounded-xl shrink-0 group-hover:scale-105 transition-transform"
+              />
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className="font-black text-xs sm:text-base tracking-tight text-[#2D3436] dark:text-slate-100 group-hover:text-[#138F81] dark:group-hover:text-[#2DD4BF] transition-colors whitespace-nowrap">

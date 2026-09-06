@@ -609,7 +609,7 @@ export function AdminLayout({
     >
       <div className={`mb-6 pt-2 text-center ${collapsed ? "px-0" : ""}`}>
         <img
-          className={`q-brand-logo mx-auto ${collapsed ? "h-11 w-11" : "h-14 w-14"}`}
+          className={`q-brand-logo mx-auto rounded-2xl ${collapsed ? "h-11 w-11" : "h-14 w-14"}`}
           src="/logo-qomaruddin.png"
           alt="Logo Qomaruddin"
         />

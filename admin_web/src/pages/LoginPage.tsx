@@ -55,9 +55,9 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
         >
           {/* LOGO QOMARUDDIN & TITLE (PROPORSIONAL & RINGKAS) */}
           <div className="flex flex-col items-center text-center mb-2.5 sm:mb-3">
-            <div className="h-12 w-12 sm:h-13 sm:w-13 rounded-full p-1.5 bg-white dark:bg-slate-800 flex items-center justify-center mb-1.5 transition-transform duration-300 hover:scale-105 shadow-sm border border-slate-100 dark:border-slate-700">
+            <div className="h-14 w-14 sm:h-15 sm:w-15 flex items-center justify-center mb-1.5 transition-transform duration-300 hover:scale-105">
               <img
-                className="h-9 w-9 sm:h-10 sm:w-10 object-contain drop-shadow-xs"
+                className="h-full w-full object-contain drop-shadow-md rounded-2xl"
                 src="/logo-qomaruddin.png"
                 alt="Logo Qomaruddin"
               />
