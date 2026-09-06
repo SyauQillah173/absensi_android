@@ -3,7 +3,7 @@
  * Mendukung PWA Standalone (Tanpa Playstore) & Real-time Web Push Notifications
  */
 
-const CACHE_NAME = 'qomaruddin-pwa-v1';
+const CACHE_NAME = 'qomaruddin-pwa-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -115,24 +115,49 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// 5. Fetch Event: Network-first untuk API & navigasi, cache fallback untuk asset
+// 5. Fetch Event: Network-first untuk aset aplikasi sendiri
 self.addEventListener('fetch', (event) => {
   const request = event.request;
 
-  // Lewati request non-GET atau request ke API/backend
-  if (request.method !== 'GET' || request.url.includes('/api/')) {
+  // 1. Hanya tangani request HTTP/HTTPS dengan metode GET
+  if (request.method !== 'GET') {
     return;
   }
 
-  // Network First Strategy untuk menjaga aplikasi selalu terupdate realtime
+  // 2. Cegah error Chrome Extension / moz-extension / blob / data scheme
+  if (!request.url.startsWith('http://') && !request.url.startsWith('https://')) {
+    return;
+  }
+
+  // 3. Hanya tangani request yang berasal dari domain aplikasi sendiri (same-origin)
+  // Abaikan third-party seperti Cloudflare Turnstile, Google Fonts, CDN, dll
+  try {
+    const url = new URL(request.url);
+    if (url.origin !== self.location.origin) {
+      return;
+    }
+
+    // Lewati request API backend & autentikasi agar selalu fresh ke server
+    if (url.pathname.startsWith('/api/')) {
+      return;
+    }
+  } catch (e) {
+    return;
+  }
+
+  // 4. Network-First Strategy dengan graceful cache fallback
   event.respondWith(
     fetch(request)
       .then((networkResponse) => {
-        // Simpan salinan ke cache jika berhasil
+        // Simpan ke cache hanya jika response valid dan bertipe 'basic' (same origin)
         if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
+            cache.put(request, responseToCache).catch(() => {
+              // Abaikan jika browser menolak menyimpan request tertentu
+            });
+          }).catch(() => {
+            // Ignore cache open error
           });
         }
         return networkResponse;
