@@ -2,6 +2,7 @@ import { ArrowRight, Eye, EyeOff, LockKeyhole, UserRound } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { CloudflareTurnstile } from '../components/CloudflareTurnstile';
 
 interface LoginPageProps {
   onOpenPmb?: () => void;
@@ -12,6 +13,7 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
+  const [turnstileToken, setTurnstileToken] = useState('');
 
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -22,7 +24,7 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
     setError('');
     setIsSubmitting(true);
     try {
-      await login(identifier.trim(), password);
+      await login(identifier.trim(), password, turnstileToken);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login gagal. Periksa kembali username & password Anda.');
     } finally {
@@ -141,6 +143,16 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
                 {error}
               </div>
             )}
+
+            {/* CLOUDFLARE TURNSTILE HUMAN VERIFICATION WIDGET */}
+            <CloudflareTurnstile
+              onVerify={(token) => {
+                setTurnstileToken(token);
+                setError('');
+              }}
+              onExpire={() => setTurnstileToken('')}
+              theme="auto"
+            />
 
             {/* 3D TEAL BRAND ACTION BUTTON */}
             <button

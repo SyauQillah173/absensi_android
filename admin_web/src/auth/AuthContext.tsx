@@ -15,7 +15,7 @@ interface AuthContextValue {
   setPmbVisibleToPengurus: (visible: boolean) => Promise<void>;
   canView: (menuKey: string) => boolean;
   refreshProfile: () => Promise<UserSession | null>;
-  login: (identifier: string, password: string) => Promise<void>;
+  login: (identifier: string, password: string, turnstileToken?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -77,8 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('qomaruddin_auth_expired', handleExpired);
   }, []);
 
-  const login = useCallback(async (identifier: string, password: string) => {
-    const nextSession = await api.login(identifier, password);
+  const login = useCallback(async (identifier: string, password: string, turnstileToken?: string) => {
+    const nextSession = await api.login(identifier, password, turnstileToken);
     setSession(nextSession);
     if (nextSession?.pmb_visible_to_pengurus !== undefined) {
       setPmbVisibleToPengurusState(Boolean(nextSession.pmb_visible_to_pengurus));

@@ -332,10 +332,15 @@ export const api = {
   getCaptcha() {
     return request<{ img: string; key: string }>('/captcha');
   },
-  async login(identifier: string, password: string): Promise<UserSession> {
+  async login(identifier: string, password: string, turnstileToken?: string): Promise<UserSession> {
     const payload = await request<ApiRecord>('/login', {
       method: 'POST',
-      body: JSON.stringify({ identifier, password, device_name: 'admin-web' })
+      body: JSON.stringify({
+        identifier,
+        password,
+        device_name: 'admin-web',
+        ...(turnstileToken ? { cf_turnstile_response: turnstileToken } : {}),
+      })
     });
     const data = payload.data as ApiRecord;
     const token = String(payload.token ?? '');

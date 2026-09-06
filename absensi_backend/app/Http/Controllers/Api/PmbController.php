@@ -242,6 +242,17 @@ class PmbController extends Controller
             ], 403);
         }
 
+        // 2. Verifikasi Cloudflare Turnstile (Anti-Bot & Verifikasi Manusia)
+        if ($request->filled('cf_turnstile_response')) {
+            $turnstile = app(\App\Services\CloudflareTurnstileService::class);
+            if (!$turnstile->verify($request->input('cf_turnstile_response'), $request->ip())) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Verifikasi keamanan Cloudflare gagal. Silakan centang kembali verifikasi manusia.',
+                ], 422);
+            }
+        }
+
         $validated = $request->validate([
             'nama_lengkap' => 'required|string|max:150',
             'nama_panggilan' => 'nullable|string|max:60',

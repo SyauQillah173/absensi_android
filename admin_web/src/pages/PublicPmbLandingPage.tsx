@@ -46,6 +46,7 @@ import { ThemeToggle } from '../components/ThemeToggle';
 import { PwaInstallBanner, PwaHeaderInstallButton } from '../components/PwaInstallBanner';
 import { NotificationPermissionPrompt } from '../components/NotificationPermissionPrompt';
 import { CountUpNumber } from '../components/CountUpNumber';
+import { CloudflareTurnstile } from '../components/CloudflareTurnstile';
 import { api, type ApiRecord } from '../services/api';
 
 interface PublicPmbLandingPageProps {
@@ -213,6 +214,7 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
   const [formStep, setFormStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [pmbTurnstileToken, setPmbTurnstileToken] = useState('');
   const [registrationSuccess, setRegistrationSuccess] = useState<RegistrationResult | null>(null);
 
   // Status Check states
@@ -314,6 +316,9 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
       }
       if (kkFile) {
         formData.append('berkas_kk', kkFile);
+      }
+      if (pmbTurnstileToken) {
+        formData.append('cf_turnstile_response', pmbTurnstileToken);
       }
 
       const res = await api.postForm<RegistrationResult>('/pmb/register', formData);
@@ -1673,6 +1678,15 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
                         <p className="text-[#636E72] dark:text-slate-300 leading-relaxed">
                           Dengan mengirimkan formulir pendaftaran ini, saya selaku orang tua / wali calon santri menyatakan bahwa data yang diisi adalah benar. Saya bersedia mentaati segenap tata tertib serta bimbingan di Pondok Pesantren Qomaruddin Sampurnan Bungah Gresik.
                         </p>
+                      </div>
+
+                      {/* Cloudflare Turnstile Verification */}
+                      <div className="pt-2">
+                        <CloudflareTurnstile
+                          onVerify={(token) => setPmbTurnstileToken(token)}
+                          onExpire={() => setPmbTurnstileToken('')}
+                          theme="auto"
+                        />
                       </div>
                     </div>
                   )}
