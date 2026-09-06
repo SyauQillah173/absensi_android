@@ -22,6 +22,12 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
+
+    if (!turnstileToken) {
+      setError('Verifikasi keamanan Cloudflare wajib diselesaikan terlebih dahulu.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await login(identifier.trim(), password, turnstileToken);
@@ -154,12 +160,31 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
 
             {/* 3D TEAL BRAND ACTION BUTTON */}
             <button
-              className="w-full py-2.8 sm:py-3 px-5 rounded-[16px] bg-[#138F81] hover:bg-[#0e7467] text-xs sm:text-sm font-black tracking-wider uppercase text-white transition-all duration-200 active:scale-[0.98] cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2 shadow-md shadow-[#138F81]/30"
-              disabled={isSubmitting}
+              className={`w-full py-2.8 sm:py-3 px-5 rounded-[16px] text-xs sm:text-sm font-black tracking-wider uppercase transition-all duration-200 flex items-center justify-center gap-2 shadow-md ${
+                !turnstileToken || isSubmitting
+                  ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed shadow-none'
+                  : 'bg-[#138F81] hover:bg-[#0e7467] text-white active:scale-[0.98] cursor-pointer shadow-[#138F81]/30'
+              }`}
+              disabled={!turnstileToken || isSubmitting}
               type="submit"
+              title={!turnstileToken ? 'Harap tunggu atau selesaikan verifikasi Cloudflare' : 'Klik untuk masuk'}
             >
-              <span>{isSubmitting ? 'SIGNING IN...' : 'SIGN IN'}</span>
-              {!isSubmitting && <ArrowRight size={15} />}
+              {!turnstileToken ? (
+                <>
+                  <LockKeyhole size={15} />
+                  <span>VERIFIKASI KEAMANAN DULU</span>
+                </>
+              ) : isSubmitting ? (
+                <>
+                  <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  <span>SIGNING IN...</span>
+                </>
+              ) : (
+                <>
+                  <span>SIGN IN</span>
+                  <ArrowRight size={15} />
+                </>
+              )}
             </button>
 
             {/* QUICK LINK TO PUBLIC PMB & PROFILE PORTAL */}

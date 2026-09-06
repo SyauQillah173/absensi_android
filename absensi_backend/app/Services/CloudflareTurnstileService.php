@@ -34,12 +34,8 @@ class CloudflareTurnstileService
         $secretKey = config('services.cloudflare.turnstile_secret', env('CLOUDFLARE_TURNSTILE_SECRET_KEY', self::DEFAULT_SECRET_KEY));
         $isPrivate = $this->isPrivateOrLocalIp($remoteIp);
 
-        // 1. Jika token kosong sama sekali
+        // 1. Jika token kosong sama sekali (pengguna belum centang atau bot tanpa token) -> WAJIB TOLAK
         if (empty($token)) {
-            // Toleransi hanya jika di mode local dev dan tanpa konfigurasi secret
-            if (app()->environment('local') || empty($secretKey)) {
-                return true;
-            }
             return false;
         }
 

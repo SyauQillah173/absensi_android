@@ -301,6 +301,11 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
       return;
     }
 
+    if (!pmbTurnstileToken) {
+      setSubmitError('Verifikasi keamanan Cloudflare wajib diselesaikan terlebih dahulu.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -1717,10 +1722,20 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
                     ) : (
                       <button
                         type="submit"
-                        disabled={isSubmitting}
-                        className="px-8 py-3 rounded-xl bg-gradient-to-r from-[#138F81] to-[#0D7A6F] hover:from-[#0e7467] hover:to-[#09574e] text-white text-xs font-black shadow-lg shadow-[#138F81]/25 flex items-center gap-2 disabled:opacity-50 transition-all cursor-pointer"
+                        disabled={isSubmitting || !pmbTurnstileToken}
+                        className={`px-8 py-3 rounded-xl text-xs font-black shadow-lg flex items-center gap-2 transition-all ${
+                          !pmbTurnstileToken || isSubmitting
+                            ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed shadow-none'
+                            : 'bg-gradient-to-r from-[#138F81] to-[#0D7A6F] hover:from-[#0e7467] hover:to-[#09574e] text-white shadow-[#138F81]/25 cursor-pointer active:scale-[0.98]'
+                        }`}
+                        title={!pmbTurnstileToken ? 'Harap selesaikan verifikasi Cloudflare terlebih dahulu' : 'Klik untuk kirim data pendaftaran'}
                       >
-                        {isSubmitting ? (
+                        {!pmbTurnstileToken ? (
+                          <>
+                            <Lock className="w-4 h-4 text-slate-400" />
+                            <span>Verifikasi Keamanan Dulu</span>
+                          </>
+                        ) : isSubmitting ? (
                           <>
                             <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                             <span>Mengirim Data Pendaftaran...</span>

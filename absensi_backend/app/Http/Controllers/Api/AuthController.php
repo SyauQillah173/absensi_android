@@ -25,15 +25,16 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        // Verifikasi Cloudflare Turnstile (Anti-Bot & Verifikasi Manusia)
-        if ($request->filled('cf_turnstile_response')) {
-            $turnstile = app(\App\Services\CloudflareTurnstileService::class);
-            if (!$turnstile->verify($request->input('cf_turnstile_response'), $request->ip())) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Verifikasi keamanan Cloudflare gagal atau kadaluarsa. Silakan centang verifikasi manusia kembali.',
-                ], 422);
-            }
+        // Verifikasi Wajib Cloudflare Turnstile (Anti-Bot & Verifikasi Manusia)
+        $turnstile = app(\App\Services\CloudflareTurnstileService::class);
+        $turnstileToken = $request->input('cf_turnstile_response');
+
+        if (!$turnstile->verify($turnstileToken, $request->ip())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Verifikasi keamanan Cloudflare wajib diselesaikan. Pastikan widget verifikasi telah tercentang hijau.',
+                'errors' => ['turnstile' => ['Verifikasi keamanan Cloudflare wajib diselesaikan.']],
+            ], 422);
         }
 
         $user = $this->findUserByIdentifier($request->identifier, $request->password);
