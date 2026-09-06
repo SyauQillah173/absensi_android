@@ -828,61 +828,75 @@ class PaymentBillService
 
     public function reconcilePaidBillsForStudent(int $siswaId): void
     {
-        // Jika santri belum memiliki riwayat transaksi sama sekali, tidak perlu query berulang
-        if (!Pembayaran::query()->where('siswa_id', $siswaId)->exists()) {
+        $allBillIds = PaymentBill::query()
+            ->where('siswa_id', $siswaId)
+            ->pluck('id');
+
+        if ($allBillIds->isEmpty()) {
             return;
         }
 
-        PaymentBill::query()
+        // Jika santri belum memiliki riwayat transaksi sama sekali
+        if (!Pembayaran::query()->where('siswa_id', $siswaId)->exists()) {
+            $hasErroneousLunas = PaymentBill::query()
+                ->where('siswa_id', $siswaId)
+                ->where('status', 'Lunas')
+                ->exists();
+
+            if ($hasErroneousLunas) {
+                $this->recalculateBills($allBillIds);
+            }
+            return;
+        }
+
+        // 1. Tautkan transaksi legacy yang belum memiliki payment_bill_id secara presisi
+        // HANYA untuk record pembayaran yang payment_bill_id masih NULL (tidak pernah menimpa payment_bill_id yang sudah ada)
+        $unlinkedPayments = Pembayaran::query()
             ->where('siswa_id', $siswaId)
-            ->whereIn('status', ['Belum Lunas', 'Terlambat'])
-            ->orderBy('due_date')
-            ->get()
-            ->each(function (PaymentBill $bill) use ($siswaId) {
-                $directPayment = Pembayaran::query()
-                    ->where('payment_bill_id', $bill->id)
-                    ->whereIn('status', ['Lunas', 'Menunggu', 'Menunggu Verifikasi'])
-                    ->orderByRaw("CASE status WHEN 'Lunas' THEN 1 ELSE 2 END")
-                    ->orderByDesc('tanggal')
-                    ->orderByDesc('id')
-                    ->first();
+            ->whereNull('payment_bill_id')
+            ->whereNotIn('status', ['Dibatalkan', 'Batal'])
+            ->get();
 
-                if ($directPayment) {
-                    $bill->update([
-                        'status' => $directPayment->status === 'Lunas' ? 'Lunas' : 'Menunggu Verifikasi',
-                        'payment_transaction_id' => $directPayment->payment_transaction_id,
-                        'paid_at' => $directPayment->status === 'Lunas' ? $directPayment->tanggal : null,
-                    ]);
-                    return;
-                }
-
-                $paymentQuery = Pembayaran::query()
+        if ($unlinkedPayments->isNotEmpty()) {
+            $unlinkedPayments->each(function (Pembayaran $payment) use ($siswaId) {
+                $billQuery = PaymentBill::query()
                     ->where('siswa_id', $siswaId)
-                    ->where('payment_type_id', $bill->payment_type_id)
-                    ->where('status', 'Lunas');
+                    ->where('payment_type_id', $payment->payment_type_id)
+                    ->whereIn('status', ['Belum Lunas', 'Terlambat']);
 
-                if ($bill->period_year && $bill->period_month) {
-                    $paymentQuery
-                        ->whereYear('tanggal', $bill->period_year)
-                        ->whereMonth('tanggal', $bill->period_month);
+                if ($payment->academic_year_id) {
+                    $billQuery->where('academic_year_id', $payment->academic_year_id);
+                }
+                if ($payment->semester_id) {
+                    $billQuery->where('semester_id', $payment->semester_id);
                 }
 
-                $payment = $paymentQuery
-                    ->where('jumlah', '>=', $bill->amount)
-                    ->orderByDesc('tanggal')
-                    ->orderByDesc('id')
-                    ->first();
-
-                if (!$payment) {
-                    return;
+                // Cocokkan secara presisi lewat label periode pada keterangan (misal: "Agustus", "September", "Oktober")
+                if ($payment->keterangan) {
+                    $matchedBill = (clone $billQuery)->get()->first(function (PaymentBill $b) use ($payment) {
+                        return $b->period_label && stripos($payment->keterangan, $b->period_label) !== false;
+                    });
+                    if ($matchedBill) {
+                        $payment->update(['payment_bill_id' => $matchedBill->id]);
+                        return;
+                    }
                 }
 
-                $bill->update([
-                    'status' => 'Lunas',
-                    'payment_transaction_id' => $payment->payment_transaction_id,
-                    'paid_at' => $payment->tanggal,
-                ]);
+                // Untuk tagihan non-bulanan jika hanya ada 1 tagihan tertunggak yang persis sama
+                $possibleBills = $billQuery->get();
+                if ($possibleBills->count() === 1) {
+                    $matchedBill = $possibleBills->first();
+                    $payment->update(['payment_bill_id' => $matchedBill->id]);
+                }
             });
+        }
+
+        // 2. Hitung ulang dan sinkronisasi SELURUH tagihan santri ini secara otoritatif terhadap tabel pembayaran
+        // recalculateBills memeriksa pembayaran aktif dengan payment_bill_id yang valid.
+        // Jika tagihan tidak memiliki pembayaran lunas (misalnya September yang belum dibayar),
+        // statusnya otomatis dikembalikan ke 'Belum Lunas' (atau 'Terlambat' jika lewat jatuh tempo)
+        // dan payment_transaction_id serta paid_at dinetralkan (null).
+        $this->recalculateBills($allBillIds);
     }
 
     public function formatBill(PaymentBill $bill): array
