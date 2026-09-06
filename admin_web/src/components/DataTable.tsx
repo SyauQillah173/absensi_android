@@ -5,7 +5,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 export interface DataColumn<T> {
   key: string;
   header: string;
-  render: (row: T) => ReactNode;
+  render: (row: T, index: number) => ReactNode;
   className?: string;
   sortable?: boolean;
   sortValue?: (row: T) => string | number;
@@ -196,7 +196,7 @@ export function DataTable<T extends { id?: string | number }>({
                             !renderExpandedRow && columnIndex === 0 ? 'rounded-l-2xl' : ''
                           } ${columnIndex === columns.length - 1 ? (isExpanded ? 'rounded-tr-2xl' : 'rounded-r-2xl') : ''} ${column.className ?? ''}`}
                         >
-                          {column.render(row)}
+                          {column.render(row, isPaging ? (safePage - 1) * pageSize + index : index)}
                         </td>
                       ))}
                     </tr>

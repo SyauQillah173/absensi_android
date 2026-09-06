@@ -820,7 +820,7 @@ export function RiwayatPembayaranPanel({
             {
               key: 'no',
               header: 'No',
-              render: (_row, index) => <span className="text-xs font-bold text-gray-500">{index + 1}</span>,
+              render: (_row: ApiRecord, index: number) => <span className="text-xs font-bold text-gray-500">{index + 1}</span>,
             },
             {
               key: 'kode',
