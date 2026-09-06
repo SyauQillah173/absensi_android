@@ -7,10 +7,10 @@
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https: http:; connect-src 'self' http://localhost:* http://127.0.0.1:* https://ppqomaruddin.itqom.net https://absensi-android.vercel.app https://api.sisteminformasipondok.my.id https://cloudflareinsights.com ws: wss:;" />
     <title>Sistem Informasi Yayasan Pondok Pesantren Qomaruddin</title>
-    <link rel="icon" type="image/png" href="/logo-qomaruddin.png" />
-    <link rel="apple-touch-icon" href="/logo-qomaruddin.png" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/pwa-icon-192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#138F81" />
+    <meta name="theme-color" content="#0D7A6F" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -44,7 +44,29 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="app-splash" style="position:fixed;inset:0;background:#ffffff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;font-family:'Poppins',sans-serif;transition:opacity 0.3s ease;">
+        <div style="width:108px;height:108px;border-radius:32px;background:linear-gradient(135deg,#0D7A6F,#138F81);padding:14px;box-shadow:0 14px 34px rgba(13,122,111,0.25);display:flex;align-items:center;justify-content:center;animation:qPulse 2s infinite ease-in-out;">
+          <img src="/logo-qomaruddin.png" alt="Qomaruddin" style="width:100%;height:100%;object-fit:contain;border-radius:20px;" />
+        </div>
+        <div style="margin-top:22px;text-align:center;">
+          <h1 style="font-size:17px;font-weight:800;color:#1e293b;letter-spacing:-0.02em;margin:0;">Pondok Pesantren Qomaruddin</h1>
+          <p style="font-size:12px;font-weight:600;color:#64748b;margin:4px 0 0 0;">Sampurnan Bungah Gresik • Est. 1775 M</p>
+        </div>
+        <div style="margin-top:24px;display:flex;align-items:center;gap:6px;">
+          <span style="width:8px;height:8px;border-radius:50%;background:#0D7A6F;animation:qBounce 1.4s infinite ease-in-out both;"></span>
+          <span style="width:8px;height:8px;border-radius:50%;background:#138F81;animation:qBounce 1.4s infinite ease-in-out 0.2s both;"></span>
+          <span style="width:8px;height:8px;border-radius:50%;background:#FFDC80;animation:qBounce 1.4s infinite ease-in-out 0.4s both;"></span>
+        </div>
+        <style>
+          @keyframes qPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+          @keyframes qBounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+          .dark #app-splash { background: #0f172a !important; }
+          .dark #app-splash h1 { color: #f8fafc !important; }
+          .dark #app-splash p { color: #94a3b8 !important; }
+        </style>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

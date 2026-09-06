@@ -69,7 +69,9 @@ import type { BukuIndukSection } from "../pages/BukuIndukPage";
 import { api, type ApiRecord } from "../services/api";
 import { getRoleDisplayName } from "../utils/roleHelper";
 import { ThemeToggle } from "../components/ThemeToggle";
-import { PwaInstallBanner } from "../components/PwaInstallBanner";
+import { PwaInstallBanner, PwaHeaderInstallButton } from "../components/PwaInstallBanner";
+import { NotificationPermissionPrompt } from "../components/NotificationPermissionPrompt";
+import { subscribeToPushNotifications } from "../utils/pushNotification";
 
 
 export type PageKey =
@@ -814,6 +816,9 @@ export function AdminLayout({
                 </button>
               ) : null}
 
+              {/* TOMBOL INSTAL APLIKASI DI HEADER (RAPI & TIDAK MENGGANGGU) */}
+              <PwaHeaderInstallButton />
+
               {/* CANGGIH & MODERN THEME TOGGLE DENGAN MIKRO-ANIMASI */}
               <ThemeToggle showDropdown={true} />
 
@@ -929,6 +934,31 @@ export function AdminLayout({
                               Batal
                             </button>
                           </div>
+                        </div>
+                      )}
+
+                      {/* Banner Status Notifikasi HP / Push */}
+                      {typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted' && (
+                        <div className="mb-3 p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-center justify-between gap-2.5">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] font-black text-amber-800 dark:text-amber-300">Notifikasi HP Belum Aktif</p>
+                            <p className="text-[10px] text-amber-700/80 dark:text-amber-400">Aktifkan untuk terima info langsung di HP.</p>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              try {
+                                const perm = await Notification.requestPermission();
+                                if (perm === 'granted') {
+                                  await subscribeToPushNotifications({ userId: session?.id, role: session?.role });
+                                  setNotificationOpen(false);
+                                }
+                              } catch (e) {}
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl bg-[#138F81] text-white text-[11px] font-black hover:bg-[#0D7A6F] transition cursor-pointer shrink-0 shadow-xs"
+                            type="button"
+                          >
+                            Aktifkan
+                          </button>
                         </div>
                       )}
 
@@ -1114,8 +1144,11 @@ export function AdminLayout({
         </main>
       </div>
 
-      {/* 📲 PWA 1-Click Install Banner (Langsung dari Chrome tanpa Play Store) */}
+      {/* 📲 PWA 1-Click Install Banner (Sleek Toast & Dismissible) */}
       <PwaInstallBanner />
+
+      {/* 🔔 Izin Notifikasi Real-Time (Muncul otomatis saat awal masuk aplikasi) */}
+      <NotificationPermissionPrompt userId={session?.id} role={session?.role} />
     </div>
   );
 }

@@ -49,7 +49,8 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { PwaInstallBanner } from '../components/PwaInstallBanner';
+import { PwaInstallBanner, PwaHeaderInstallButton } from '../components/PwaInstallBanner';
+import { NotificationPermissionPrompt } from '../components/NotificationPermissionPrompt';
 import { api, type ApiRecord } from '../services/api';
 import { ReceiptWaliModal } from '../components/ReceiptWaliModal';
 
@@ -751,6 +752,9 @@ export function WaliPortalPage() {
                 Wali Santri Resmi
               </span>
             </div>
+
+            {/* TOMBOL INSTAL APLIKASI DI HEADER */}
+            <PwaHeaderInstallButton />
 
             {/* CANGGIH & MODERN THEME TOGGLE */}
             <ThemeToggle showDropdown={true} />
@@ -2641,6 +2645,12 @@ function WaliChangePasswordModal({
           </div>
         </form>
       </div>
+
+      {/* 📲 PWA 1-Click Install Banner */}
+      <PwaInstallBanner />
+
+      {/* 🔔 Izin Notifikasi Real-Time Wali Santri */}
+      <NotificationPermissionPrompt role="wali" />
     </div>
   );
 }

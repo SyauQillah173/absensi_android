@@ -43,7 +43,8 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { PwaInstallBanner } from '../components/PwaInstallBanner';
+import { PwaInstallBanner, PwaHeaderInstallButton } from '../components/PwaInstallBanner';
+import { NotificationPermissionPrompt } from '../components/NotificationPermissionPrompt';
 import { CountUpNumber } from '../components/CountUpNumber';
 import { api, type ApiRecord } from '../services/api';
 
@@ -551,8 +552,10 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
               </button>
             </nav>
 
-            {/* Quick Actions: ThemeToggle, Share PMB & Login Pegawai / Dashboard Admin */}
+            {/* Quick Actions: Install App, ThemeToggle, Share PMB & Login Pegawai / Dashboard Admin */}
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <PwaHeaderInstallButton />
+
               <ThemeToggle showDropdown={true} />
 
               <button
@@ -2357,6 +2360,9 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
 
       {/* 📲 PWA 1-Click Install Banner */}
       <PwaInstallBanner />
+
+      {/* 🔔 Izin Notifikasi Real-Time PMB & Agenda */}
+      <NotificationPermissionPrompt role="public" />
     </div>
   );
 }
