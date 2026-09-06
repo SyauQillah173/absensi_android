@@ -1485,7 +1485,7 @@ function PrayerTypeCms() {
 
 
         <button
-          className="flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-5 text-sm font-extrabold text-white shadow-md shadow-[#138F81]/20 hover:brightness-105 transition-all disabled:opacity-60"
+          className="w-full sm:w-auto flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[#138F81] px-5 text-sm font-extrabold text-white shadow-md shadow-[#138F81]/20 hover:brightness-105 transition-all disabled:opacity-60"
           onClick={() => setForm({ is_active: true, sort_order: items.length * 10 + 10 })}
           type="button"
           disabled={!backendReady}
@@ -1497,8 +1497,8 @@ function PrayerTypeCms() {
 
       {/* Action & Filter Controls */}
       <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-3xl border border-slate-100 shadow-xs">
-        <div className="flex flex-1 flex-wrap items-center gap-2.5">
-          <div className="flex-1 min-w-[220px]">
+        <div className="flex flex-1 flex-col sm:flex-row sm:items-center gap-2.5">
+          <div className="flex-1 min-w-[200px]">
             <SearchInput
               value={searchQuery}
               onChange={setSearchQuery}
@@ -1506,7 +1506,7 @@ function PrayerTypeCms() {
             />
           </div>
 
-          <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 shrink-0">
+          <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 shrink-0 self-start sm:self-auto overflow-x-auto max-w-full">
             <button
               type="button"
               onClick={() => setStatusFilter('all')}
@@ -1546,7 +1546,7 @@ function PrayerTypeCms() {
         </div>
 
         <button
-          className={`flex h-10 items-center gap-2 rounded-2xl bg-white px-3.5 text-xs font-extrabold text-[#138F81] border border-slate-200 shadow-xs hover:bg-slate-50 transition-colors shrink-0 ${
+          className={`flex h-10 items-center justify-center gap-2 rounded-2xl bg-white px-3.5 text-xs font-extrabold text-[#138F81] border border-slate-200 shadow-xs hover:bg-slate-50 transition-colors shrink-0 ${
             isLoading ? 'animate-pulse' : ''
           }`}
           onClick={() => void load(true)}
@@ -1575,6 +1575,51 @@ function PrayerTypeCms() {
                 ? "Tidak ada waktu jama'ah yang nonaktif."
                 : "Belum ada waktu jama'ah sholat."
             }
+            mobileRender={(row) => {
+              const nextActive = row.is_active === false;
+              return (
+                <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-base font-black text-slate-800 leading-snug">{String(row.name || '-')}</p>
+                      <p className="text-xs font-mono font-bold text-slate-400 mt-0.5">Kode: {String(row.code || '-')}</p>
+                    </div>
+                    <StatusBadge
+                      label={row.is_active === false ? 'Nonaktif' : 'Aktif'}
+                      tone={row.is_active === false ? 'neutral' : 'success'}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                    <button
+                      className="flex-1 rounded-xl bg-[#EAF1FF] py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-blue-100 transition-colors flex items-center justify-center gap-1.5"
+                      onClick={() => setForm(row)}
+                      type="button"
+                      disabled={!backendReady}
+                    >
+                      <Edit3 size={14} /> Edit
+                    </button>
+                    <button
+                      className="flex-1 rounded-xl bg-[#FFF3E0] py-2 text-xs font-extrabold text-[#E8590C] hover:bg-orange-100 transition-colors flex items-center justify-center gap-1.5"
+                      onClick={() => setConfirmAction({ id: num(row.id), kind: 'toggle', nextActive })}
+                      type="button"
+                      disabled={!backendReady || num(row.id) <= 0}
+                    >
+                      <Power size={14} /> {nextActive ? 'Aktifkan' : 'Nonaktif'}
+                    </button>
+                    <button
+                      className="rounded-xl bg-[#FDECEC] p-2 text-[#D63031] hover:bg-rose-100 transition-colors"
+                      onClick={() => setConfirmAction({ id: num(row.id), kind: 'delete' })}
+                      type="button"
+                      disabled={!backendReady || num(row.id) <= 0}
+                      title="Hapus"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </article>
+              );
+            }}
           />
         )}
       </section>

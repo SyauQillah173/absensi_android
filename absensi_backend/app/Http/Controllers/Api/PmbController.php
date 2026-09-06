@@ -290,26 +290,32 @@ class PmbController extends Controller
             $regNumber = sprintf("PMB-%s-%04d", $year, $count);
         }
 
-        // Handle File Uploads
+        // Handle File Uploads (Sanitized Extensions)
         $fotoPath = null;
         if ($request->hasFile('dokumen_foto')) {
             $file = $request->file('dokumen_foto');
-            $ext = $file->getClientOriginalExtension();
-            $fotoPath = $file->storeAs('pmb/foto', "{$regNumber}_foto.{$ext}", 'public');
+            $ext = strtolower($file->extension() ?: 'jpg');
+            if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) {
+                $fotoPath = $file->storeAs('pmb/foto', "{$regNumber}_foto.{$ext}", 'public');
+            }
         }
 
         $kkPath = null;
         if ($request->hasFile('dokumen_kk')) {
             $file = $request->file('dokumen_kk');
-            $ext = $file->getClientOriginalExtension();
-            $kkPath = $file->storeAs('pmb/berkas', "{$regNumber}_kk.{$ext}", 'public');
+            $ext = strtolower($file->extension() ?: 'jpg');
+            if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'pdf'])) {
+                $kkPath = $file->storeAs('pmb/berkas', "{$regNumber}_kk.{$ext}", 'public');
+            }
         }
 
         $ijazahPath = null;
         if ($request->hasFile('dokumen_ijazah')) {
             $file = $request->file('dokumen_ijazah');
-            $ext = $file->getClientOriginalExtension();
-            $ijazahPath = $file->storeAs('pmb/berkas', "{$regNumber}_ijazah.{$ext}", 'public');
+            $ext = strtolower($file->extension() ?: 'jpg');
+            if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'pdf'])) {
+                $ijazahPath = $file->storeAs('pmb/berkas', "{$regNumber}_ijazah.{$ext}", 'public');
+            }
         }
 
         // Generate Password Acak untuk Akun Wali/Santri (Format: QMR + 4 digit angka acak)

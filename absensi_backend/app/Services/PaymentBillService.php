@@ -87,6 +87,8 @@ class PaymentBillService
             'target_gender' => $options['target_gender'] ?? $paymentType->target_gender ?? 'ALL',
             'class_id' => $options['class_id'] ?? null,
             'billed_months' => $billedMonths,
+            'month_amounts' => $options['month_amounts'] ?? $rule?->month_amounts ?? $paymentType->month_amounts ?? null,
+            'month_notes' => $options['month_notes'] ?? $rule?->month_notes ?? $paymentType->month_notes ?? null,
             'starts_on' => $options['starts_on'] ?? ($rule && $rule->starts_on ? $rule->starts_on->format('Y-m-d') : now()->format('Y-m-d')),
             'ends_on' => array_key_exists('ends_on', $options) ? $options['ends_on'] : ($rule && $rule->ends_on ? $rule->ends_on->format('Y-m-d') : null),
             'is_active' => $options['is_active'] ?? (($paymentType->status ?? 'Aktif') === 'Aktif'),
@@ -1519,6 +1521,7 @@ class PaymentBillService
                     'period_label' => $periodLabel,
                     'title' => trim($paymentType->nama . ' ' . $periodLabel),
                     'amount' => $this->amountForMonth($paymentType, $rule, (int) $month),
+                    'notes' => $this->noteForMonth($paymentType, $rule, (int) $month),
                     'due_date' => $dueDate->toDateString(),
                     'status' => $status,
                     'academic_year_id' => $academicYear->id,
@@ -1535,24 +1538,41 @@ class PaymentBillService
             PaymentBill::upsert(
                 $chunk,
                 ['payment_bill_rule_id', 'siswa_id', 'period_key'],
-                ['amount', 'title', 'period_label', 'due_date', 'status', 'academic_year_id', 'tahun_ajaran', 'semester_id', 'semester', 'updated_at']
+                ['amount', 'notes', 'title', 'period_label', 'due_date', 'status', 'academic_year_id', 'tahun_ajaran', 'semester_id', 'semester', 'updated_at']
             );
         }
 
-        // Sinkronisasi nominal tagihan yang belum lunas sesuai custom nominal per bulan
-        $unpaidBills = PaymentBill::query()
+        // Sinkronisasi nominal & catatan tagihan yang belum lunas sesuai custom nominal/keterangan per bulan
+        $unpaidBillsQuery = PaymentBill::query()
             ->where('payment_type_id', $paymentType->id)
-            ->where('academic_year_id', $academicYear->id)
-            ->where('semester_id', $targetSemesterId)
             ->whereNotNull('period_month')
             ->whereIn('status', ['Belum Lunas', 'Terlambat'])
-            ->whereDoesntHave('pembayaran')
-            ->get();
+            ->whereDoesntHave('pembayaran');
+
+        if ($academicYear) {
+            $unpaidBillsQuery->where('academic_year_id', $academicYear->id);
+        }
+        if ($targetSemesterId) {
+            $unpaidBillsQuery->where(function ($q) use ($targetSemesterId) {
+                $q->where('semester_id', $targetSemesterId)
+                  ->orWhereNull('semester_id');
+            });
+        }
+
+        $unpaidBills = $unpaidBillsQuery->get();
 
         foreach ($unpaidBills as $unpaidBill) {
             $correctAmount = $this->amountForMonth($paymentType, $rule, (int) $unpaidBill->period_month);
+            $correctNote = $this->noteForMonth($paymentType, $rule, (int) $unpaidBill->period_month);
+            $updates = [];
             if ((int) $unpaidBill->amount !== (int) $correctAmount) {
-                $unpaidBill->update(['amount' => $correctAmount]);
+                $updates['amount'] = $correctAmount;
+            }
+            if ($correctNote !== null && $unpaidBill->notes !== $correctNote) {
+                $updates['notes'] = $correctNote;
+            }
+            if (!empty($updates)) {
+                $unpaidBill->update($updates);
             }
         }
 
@@ -1560,17 +1580,23 @@ class PaymentBillService
         $monthsToDelete = array_diff($all12Months, $monthsToBill);
 
         if (!empty($monthsToDelete)) {
-            PaymentBill::query()
+            $deleteQuery = PaymentBill::query()
                 ->where('payment_type_id', $paymentType->id)
-                ->where('academic_year_id', $academicYear->id)
-                ->where('semester_id', $targetSemesterId)
                 ->whereIn('period_month', $monthsToDelete)
                 ->where(function ($q) {
                     $q->whereNull('status')
                       ->orWhereNotIn('status', ['Lunas', 'Menunggu Verifikasi']);
                 })
-                ->whereDoesntHave('pembayaran')
-                ->delete();
+                ->whereDoesntHave('pembayaran');
+
+            if ($academicYear) {
+                $deleteQuery->where('academic_year_id', $academicYear->id);
+            }
+            if ($targetSemesterId) {
+                $deleteQuery->where('semester_id', $targetSemesterId);
+            }
+
+            $deleteQuery->delete();
         }
     }
 
@@ -1587,5 +1613,20 @@ class PaymentBillService
         }
 
         return (int) ($rule?->nominal ?: ($paymentType?->nominal_default ?? 0));
+    }
+
+    public function noteForMonth(?PaymentType $paymentType, ?PaymentBillRule $rule, int $month): ?string
+    {
+        $monthNotes = $rule?->month_notes ?? $paymentType?->month_notes ?? [];
+        if (is_array($monthNotes)) {
+            if (isset($monthNotes[$month]) && is_string($monthNotes[$month]) && trim($monthNotes[$month]) !== '') {
+                return trim($monthNotes[$month]);
+            }
+            if (isset($monthNotes[(string) $month]) && is_string($monthNotes[(string) $month]) && trim($monthNotes[(string) $month]) !== '') {
+                return trim($monthNotes[(string) $month]);
+            }
+        }
+
+        return null;
     }
 }

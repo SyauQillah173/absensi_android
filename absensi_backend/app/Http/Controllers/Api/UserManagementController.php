@@ -459,7 +459,7 @@ class UserManagementController extends Controller
             'jenis_kelamin' => 'nullable|in:L,P',
             'gender' => 'nullable|in:L,P',
             'nik_user' => 'nullable|string|max:50',
-            'no_hp' => [...$requiredRules, 'string', 'max:50'],
+            'no_hp' => 'nullable|string|max:50',
             'status' => [...$requiredRules, 'in:Aktif,Nonaktif'],
             'user_status_id' => 'nullable|integer|exists:user_statuses,id',
             'password' => $passwordRule,

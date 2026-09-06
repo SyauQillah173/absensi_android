@@ -31,6 +31,7 @@ class PaymentBillRule extends Model
         'semester',
         'billed_months',
         'month_amounts',
+        'month_notes',
     ];
 
     protected $casts = [
@@ -40,6 +41,7 @@ class PaymentBillRule extends Model
         'notification_settings' => 'array',
         'billed_months' => 'array',
         'month_amounts' => 'array',
+        'month_notes' => 'array',
     ];
 
     public function paymentType()

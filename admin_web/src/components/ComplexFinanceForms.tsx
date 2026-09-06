@@ -98,6 +98,18 @@ export function ComplexPaymentTypeForm({
     }
     return res;
   });
+  const [monthNotes, setMonthNotes] = useState<Record<number, string>>(() => {
+    const raw = (row?.month_notes ||
+      (row?.billRules && (row.billRules as unknown[])[0] && ((row.billRules as unknown[])[0] as ApiRecord).month_notes) ||
+      {}) as Record<string, string>;
+    const res: Record<number, string> = {};
+    if (raw && typeof raw === 'object') {
+      Object.entries(raw).forEach(([k, v]) => {
+        if (v) res[Number(k)] = String(v);
+      });
+    }
+    return res;
+  });
 
   const [saving, setSaving] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -124,6 +136,15 @@ export function ComplexPaymentTypeForm({
         });
       }
       setMonthAmounts(loaded);
+
+      const sourceNotes = (row.month_notes || {}) as Record<string, string>;
+      const loadedNotes: Record<number, string> = {};
+      if (sourceNotes && typeof sourceNotes === 'object') {
+        Object.entries(sourceNotes).forEach(([k, v]) => {
+          if (v) loadedNotes[Number(k)] = String(v);
+        });
+      }
+      setMonthNotes(loadedNotes);
       return;
     }
     const rulesArray = Array.isArray(row.bill_rules)
@@ -151,6 +172,15 @@ export function ComplexPaymentTypeForm({
         });
       }
       setMonthAmounts(loaded);
+
+      const sourceNotes = (rule.month_notes || row.month_notes || {}) as Record<string, string>;
+      const loadedNotes: Record<number, string> = {};
+      if (sourceNotes && typeof sourceNotes === 'object') {
+        Object.entries(sourceNotes).forEach(([k, v]) => {
+          if (v) loadedNotes[Number(k)] = String(v);
+        });
+      }
+      setMonthNotes(loadedNotes);
     } else {
       setAmount(String(row.nominal_default ?? ''));
       setBilledMonths(
@@ -161,6 +191,7 @@ export function ComplexPaymentTypeForm({
         )
       );
       setMonthAmounts({});
+      setMonthNotes({});
     }
   }, [targetSemesterId, row]);
 
@@ -198,6 +229,14 @@ export function ComplexPaymentTypeForm({
         }
       });
 
+      const customNotesPayload: Record<number, string> = {};
+      Object.entries(monthNotes).forEach(([k, v]) => {
+        const trimmed = String(v ?? '').trim();
+        if (trimmed) {
+          customNotesPayload[Number(k)] = trimmed;
+        }
+      });
+
       const payload = {
         nama: name.trim(),
         nominal_default: num(amount),
@@ -209,6 +248,7 @@ export function ComplexPaymentTypeForm({
         is_billed_to_all: isBilledToAll,
         billed_months: Array.from(billedMonths),
         month_amounts: Object.keys(customAmountsPayload).length > 0 ? customAmountsPayload : null,
+        month_notes: Object.keys(customNotesPayload).length > 0 ? customNotesPayload : null,
         target_semester_id: targetSemesterId > 0 ? targetSemesterId : null,
       };
 
@@ -525,10 +565,13 @@ export function ComplexPaymentTypeForm({
                           Kosongkan jika bulan tersebut memakai Nominal Standar ({num(amount) > 0 ? formatRupiah(num(amount)) : 'Rp 0'}).
                         </p>
                       </div>
-                      {Object.keys(monthAmounts).length > 0 && (
+                      {(Object.keys(monthAmounts).length > 0 || Object.keys(monthNotes).length > 0) && (
                         <button
                           type="button"
-                          onClick={() => setMonthAmounts({})}
+                          onClick={() => {
+                            setMonthAmounts({});
+                            setMonthNotes({});
+                          }}
                           className="rounded-xl bg-amber-50 px-3 py-1.5 text-xs font-black text-amber-700 hover:bg-amber-100 transition-colors border border-amber-200/70"
                         >
                           Reset ke Standar
@@ -536,11 +579,12 @@ export function ComplexPaymentTypeForm({
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[320px] overflow-y-auto pr-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[360px] overflow-y-auto pr-1">
                       {monthNames.map((m) => {
                         const isBilled = billedMonths.has(m.num);
                         const currentVal = monthAmounts[m.num] ?? '';
-                        const hasCustom = currentVal !== '' && Number(currentVal) !== num(amount);
+                        const currentNote = monthNotes[m.num] ?? '';
+                        const hasCustom = (currentVal !== '' && Number(currentVal) !== num(amount)) || currentNote !== '';
 
                         return (
                           <div
@@ -586,6 +630,25 @@ export function ComplexPaymentTypeForm({
                                     ? 'border-amber-400 bg-white text-amber-950 font-black focus:border-amber-500 focus:ring-2 focus:ring-amber-400/20'
                                     : 'border-slate-200 text-slate-800 bg-white focus:border-[#138F81] focus:ring-2 focus:ring-[#138F81]/10'
                                 }`}
+                              />
+                            </div>
+                            {/* Catatan / Keterangan Opsional Per Bulan */}
+                            <div className="mt-1.5">
+                              <input
+                                type="text"
+                                disabled={!isBilled}
+                                placeholder="Catatan bulan (opsional, misal: Termasuk Seragam)..."
+                                value={currentNote}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setMonthNotes((prev) => {
+                                    const next = { ...prev };
+                                    if (!val.trim()) delete next[m.num];
+                                    else next[m.num] = val;
+                                    return next;
+                                  });
+                                }}
+                                className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-slate-700 placeholder:text-slate-400 focus:border-[#138F81] focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/15 disabled:bg-slate-100 disabled:cursor-not-allowed"
                               />
                             </div>
                           </div>

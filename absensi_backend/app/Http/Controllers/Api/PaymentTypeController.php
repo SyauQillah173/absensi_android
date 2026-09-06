@@ -82,7 +82,8 @@ class PaymentTypeController extends Controller
                                 'nominal' => $ruleOptions['nominal'] ?? $rule->nominal,
                                 'target_gender' => $ruleOptions['target_gender'] ?? $rule->target_gender,
                                 'billed_months' => $ruleOptions['billed_months'] ?? $rule->billed_months,
-                                'month_amounts' => $ruleOptions['month_amounts'] ?? $rule->month_amounts,
+                                'month_amounts' => array_key_exists('month_amounts', $ruleOptions) ? $ruleOptions['month_amounts'] : $rule->month_amounts,
+                                'month_notes' => array_key_exists('month_notes', $ruleOptions) ? $ruleOptions['month_notes'] : $rule->month_notes,
                                 'is_active' => $ruleOptions['is_active'] ?? $rule->is_active,
                             ]);
                         } else {
@@ -181,6 +182,8 @@ class PaymentTypeController extends Controller
             'billed_months.*' => 'integer|between:1,12',
             'month_amounts' => 'nullable|array',
             'month_amounts.*' => 'nullable|integer|min:0',
+            'month_notes' => 'nullable|array',
+            'month_notes.*' => 'nullable|string|max:255',
             'due_day' => 'nullable|integer|between:1,31',
             'target_type' => 'nullable|in:all,class,student',
             'class_id' => 'nullable|integer|exists:classes,id',
@@ -221,7 +224,7 @@ class PaymentTypeController extends Controller
     private function paymentTypePayload(array $validated): array
     {
         return collect($validated)
-            ->only(['nama', 'deskripsi', 'nominal_default', 'periode', 'payment_period_type_id', 'metode_pembayaran', 'status', 'target_gender', 'is_billed_to_all', 'billed_months', 'month_amounts'])
+            ->only(['nama', 'deskripsi', 'nominal_default', 'periode', 'payment_period_type_id', 'metode_pembayaran', 'status', 'target_gender', 'is_billed_to_all', 'billed_months', 'month_amounts', 'month_notes'])
             ->all();
     }
 
@@ -242,6 +245,7 @@ class PaymentTypeController extends Controller
             'student_ids' => $validated['student_ids'] ?? [],
             'billed_months' => $validated['billed_months'] ?? null,
             'month_amounts' => $validated['month_amounts'] ?? null,
+            'month_notes' => $validated['month_notes'] ?? null,
             'starts_on' => $validated['starts_on'] ?? null,
             'ends_on' => $validated['ends_on'] ?? null,
             'is_active' => ($validated['status'] ?? 'Aktif') === 'Aktif',

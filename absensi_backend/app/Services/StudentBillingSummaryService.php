@@ -249,6 +249,10 @@ class StudentBillingSummaryService
                 }
 
                 $configuredAmount = app(\App\Services\PaymentBillService::class)->amountForMonth($paymentType, $rule, $month);
+                $configuredNote = app(\App\Services\PaymentBillService::class)->noteForMonth($paymentType, $rule, $month);
+
+                $effectiveAmount = $isPaid ? (int) ($row['amount'] ?? $configuredAmount) : (int) $configuredAmount;
+                $effectiveRemaining = $isPaid ? 0 : ($isConfiguredToBill ? $configuredAmount : 0);
 
                 return [
                     'month' => $month,
@@ -257,8 +261,9 @@ class StudentBillingSummaryService
                     'is_paid' => $isPaid,
                     'is_billed' => $hasBill && $isConfiguredToBill,
                     'paid_amount' => (int) ($row['paid_amount'] ?? 0),
-                    'amount' => (int) ($row['amount'] ?? $configuredAmount),
-                    'remaining_amount' => (int) ($row['remaining_amount'] ?? ($isConfiguredToBill ? $configuredAmount : 0)),
+                    'amount' => $effectiveAmount,
+                    'remaining_amount' => $effectiveRemaining,
+                    'notes' => $row['notes'] ?? $configuredNote ?? null,
                     'bill_id' => $row['id'] ?? null,
                     'pembayaran_id' => $row['pembayaran_id'] ?? null,
                     'bill' => $row,

@@ -72,7 +72,7 @@ Route::get('health', fn() => response()->json([
 // });
 
 Route::get('captcha', fn() => app('captcha')->create('default', true));
-Route::middleware('throttle:60,1')->group(function () {
+Route::middleware('throttle:10,1')->group(function () {
     Route::post('login', [AuthController::class, 'login']);
     Route::post('change-password', [AuthController::class, 'changePassword']);
 });
@@ -82,7 +82,7 @@ Route::prefix('pmb')->group(function () {
     Route::get('info', [PmbController::class, 'getInfo']);
     Route::get('cms-settings', [PmbController::class, 'getCmsSettings']);
     Route::get('announcements', [PmbController::class, 'getPublicAnnouncements']);
-    Route::post('register', [PmbController::class, 'register'])->middleware('throttle:30,1');
+    Route::post('register', [PmbController::class, 'register'])->middleware('throttle:10,1');
     Route::get('check-status', [PmbController::class, 'checkStatus']);
 });
 

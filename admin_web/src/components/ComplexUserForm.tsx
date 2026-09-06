@@ -148,7 +148,7 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
       setTimeout(() => {
         setIsSuccess(false);
         onSave();
-      }, 600);
+      }, 1000);
 
       
     } catch (err) {
@@ -195,14 +195,16 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
           </div>
 
           {isSuccess && (
-            <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center rounded-3xl bg-white/90 backdrop-blur-sm transition-all duration-300">
-              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-green-100 text-green-500 shadow-xl shadow-green-500/20 mb-6 animate-[bounce_1s_ease-in-out_infinite]">
-                <CheckCircle2 size={56} strokeWidth={2.5} />
+            <div className="fixed top-5 right-5 z-[99999] flex items-center gap-3.5 rounded-2xl bg-white p-4 shadow-2xl border border-emerald-200 shadow-emerald-900/15 transition-all animate-in fade-in slide-in-from-top-4 duration-300 max-w-sm">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
+                <CheckCircle2 size={24} />
               </div>
-              <h2 className="text-2xl font-extrabold text-[#2D3436] animate-[pulse_2s_ease-in-out_infinite]">Berhasil Disimpan!</h2>
-              <p className="mt-2 text-base font-bold text-[#636E72]">
-                {form.id ? 'Data pengguna berhasil diperbarui.' : `Pengguna baru dengan role ${activeRoleOption.label} telah aktif.`}
-              </p>
+              <div>
+                <p className="text-sm font-black text-slate-800">Berhasil Disimpan!</p>
+                <p className="text-xs text-slate-500">
+                  {form.id ? 'Data pengguna berhasil diperbarui.' : `Pengguna baru dengan role ${activeRoleOption.label} telah aktif.`}
+                </p>
+              </div>
             </div>
           )}
 

@@ -1,4 +1,4 @@
-import { Camera, KeyRound, RefreshCw, Save, ShieldCheck, Trash2, UserRound } from 'lucide-react';
+import { Camera, CheckCircle2, KeyRound, RefreshCw, Save, ShieldCheck, Trash2, UserRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { StatusBadge } from '../components/StatusBadge';
@@ -7,6 +7,13 @@ import { getRoleDisplayName } from '../utils/roleHelper';
 
 function valueOf(source: ApiRecord, key: string): string {
   return String(source[key] ?? '').trim();
+}
+
+function normalizeGender(g: string): string {
+  const clean = g.trim().toUpperCase();
+  if (clean === 'L' || clean.startsWith('LAKI') || clean === 'PUTRA') return 'L';
+  if (clean === 'P' || clean.startsWith('PEREMPUAN') || clean === 'PUTRI') return 'P';
+  return '';
 }
 
 function permissionsOf(profile: ApiRecord): ApiRecord[] {
@@ -35,8 +42,13 @@ export function AccountPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isPasswordSaving, setIsPasswordSaving] = useState(false);
   const [isPhotoSaving, setIsPhotoSaving] = useState(false);
-  const [notice, setNotice] = useState('');
+  const [toast, setToast] = useState('');
   const [error, setError] = useState('');
+
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(''), 3000);
+  }
 
   async function load() {
     setIsLoading(true);
@@ -50,7 +62,7 @@ export function AccountPage() {
         email: valueOf(data, 'email') || session?.email || '',
         no_hp: valueOf(data, 'no_hp') || session?.no_hp || '',
         nik_user: valueOf(data, 'nik_user'),
-        jenis_kelamin: valueOf(data, 'jenis_kelamin')
+        jenis_kelamin: normalizeGender(valueOf(data, 'jenis_kelamin') || valueOf(data, 'gender'))
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Profil gagal dimuat.');
@@ -77,12 +89,11 @@ export function AccountPage() {
   async function saveProfile() {
     setIsSaving(true);
     setError('');
-    setNotice('');
     try {
       await api.updateProfile(form);
       await refreshProfile();
       await load();
-      setNotice('Pengaturan akun berhasil diperbarui.');
+      showToast('Profil akun berhasil diperbarui.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Akun gagal diperbarui.');
     } finally {
@@ -97,14 +108,13 @@ export function AccountPage() {
     }
     setIsPasswordSaving(true);
     setError('');
-    setNotice('');
     try {
       await api.changePassword({
         identifier: form.email || session?.email || form.name || session?.name || '',
         ...password
       });
       setPassword({ current_password: '', new_password: '', new_password_confirmation: '' });
-      setNotice('Password berhasil diganti.');
+      showToast('Password baru berhasil disimpan.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Password gagal diganti.');
     } finally {
@@ -116,12 +126,11 @@ export function AccountPage() {
     if (!file) return;
     setIsPhotoSaving(true);
     setError('');
-    setNotice('');
     try {
       await api.uploadProfilePhoto(file);
       await refreshProfile();
       await load();
-      setNotice('Foto profil berhasil diperbarui.');
+      showToast('Foto profil berhasil diperbarui.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Foto profil gagal diperbarui.');
     } finally {
@@ -132,12 +141,11 @@ export function AccountPage() {
   async function deletePhoto() {
     setIsPhotoSaving(true);
     setError('');
-    setNotice('');
     try {
       await api.deleteProfilePhoto();
       await refreshProfile();
       await load();
-      setNotice('Foto profil berhasil dihapus.');
+      showToast('Foto profil berhasil dihapus.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Foto profil gagal dihapus.');
     } finally {
@@ -179,8 +187,19 @@ export function AccountPage() {
         </div>
       </div>
 
+      {toast && (
+        <div className="fixed top-5 right-5 z-[99999] flex items-center gap-3.5 rounded-2xl bg-white p-4 shadow-2xl border border-emerald-200 shadow-emerald-900/15 transition-all animate-in fade-in slide-in-from-top-4 duration-300 max-w-sm">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
+            <CheckCircle2 size={24} />
+          </div>
+          <div>
+            <p className="text-sm font-black text-slate-800">Berhasil Disimpan!</p>
+            <p className="text-xs text-slate-500">{toast}</p>
+          </div>
+        </div>
+      )}
+
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
-      {notice ? <div className="rounded-2xl bg-[#E8F7F3] px-4 py-3 text-sm font-bold text-[#138F81]">{notice}</div> : null}
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section className="q-panel p-4 sm:p-6">
@@ -214,8 +233,8 @@ export function AccountPage() {
               <input className="q-input" type="email" value={form.email} onChange={(event) => setForm((value) => ({ ...value, email: event.target.value }))} />
             </label>
             <label className="space-y-2 text-sm font-bold text-[#636E72]">
-              Nomor HP
-              <input className="q-input" value={form.no_hp} onChange={(event) => setForm((value) => ({ ...value, no_hp: event.target.value }))} />
+              Nomor HP (Opsional)
+              <input className="q-input" value={form.no_hp} onChange={(event) => setForm((value) => ({ ...value, no_hp: event.target.value }))} placeholder="Opsional (contoh: 08123456789)" />
             </label>
             <label className="space-y-2 text-sm font-bold text-[#636E72]">
               NIK/Username
@@ -225,8 +244,8 @@ export function AccountPage() {
               Jenis Kelamin
               <select className="q-input" value={form.jenis_kelamin} onChange={(event) => setForm((value) => ({ ...value, jenis_kelamin: event.target.value }))}>
                 <option value="">Belum diatur</option>
-                <option value="Laki-laki">Laki-laki</option>
-                <option value="Perempuan">Perempuan</option>
+                <option value="L">Laki-laki (Ikhwan)</option>
+                <option value="P">Perempuan (Akhwat)</option>
               </select>
             </label>
           </div>

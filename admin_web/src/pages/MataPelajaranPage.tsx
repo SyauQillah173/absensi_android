@@ -388,7 +388,7 @@ export function MataPelajaranPage() {
 
           <div className="flex flex-wrap items-center gap-2">
             {/* Quick Filter: Mana yang ada jadwal vs belum ada jadwal */}
-            <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 shrink-0">
+            <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 shrink-0 self-start sm:self-auto overflow-x-auto max-w-full">
               <button
                 type="button"
                 onClick={() => setJadwalFilter('all')}
@@ -457,6 +457,58 @@ export function MataPelajaranPage() {
               : 'Belum ada mata pelajaran.'
           }
           minWidth="880px"
+          mobileRender={(row) => {
+            const jadwalList = Array.isArray(row.jadwal) ? (row.jadwal as ApiRecord[]) : [];
+            return (
+              <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-base font-black text-slate-800 leading-snug">{text(row.nama)}</p>
+                    <p className="text-xs font-mono font-bold text-slate-400 mt-0.5">Kode: {text(row.kode)}</p>
+                  </div>
+                  <StatusBadge
+                    label={row.is_active === false || row.status === 'Nonaktif' ? 'Nonaktif' : 'Aktif'}
+                    tone={row.is_active === false || row.status === 'Nonaktif' ? 'neutral' : 'success'}
+                  />
+                </div>
+
+                <div className="space-y-1.5 pt-2 border-t border-slate-100 text-xs">
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <span className="font-bold text-slate-400 shrink-0">Pengajar:</span>
+                    <span className="font-semibold text-slate-700 truncate">{text(row.guru_nama, 'Belum terhubung')}</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-slate-600">
+                    <span className="font-bold text-slate-400 shrink-0 mt-0.5">Jadwal:</span>
+                    {jadwalList.length > 0 ? (
+                      <span className="rounded-lg bg-teal-50 border border-teal-200 px-2 py-0.5 text-xs font-bold text-teal-800">
+                        {jadwalList.length} Slot Jadwal Aktif
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 italic">Belum ada jadwal</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    className="flex-1 rounded-xl bg-[#EAF4FF] py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors inline-flex items-center justify-center gap-1.5"
+                    onClick={() => setActiveFormData(row)}
+                    type="button"
+                  >
+                    <Pencil size={13} /> Edit & Atur Jadwal
+                  </button>
+                  <button
+                    className="rounded-xl bg-[#FDECEC] p-2 text-xs font-extrabold text-[#D63031] hover:bg-[#fad4d4] transition-colors inline-flex items-center justify-center"
+                    onClick={() => setDeleteTarget(row)}
+                    type="button"
+                    title="Hapus Mapel"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </article>
+            );
+          }}
         />
       </section>
 

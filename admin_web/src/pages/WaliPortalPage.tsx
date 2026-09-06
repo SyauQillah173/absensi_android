@@ -290,6 +290,7 @@ export function WaliPortalPage() {
     isPaid: boolean;
     isOverdue: boolean;
     amount: number;
+    notes?: string;
     bill?: ApiRecord;
   }
 
@@ -377,6 +378,7 @@ export function WaliPortalPage() {
             const isPaid = status.toLowerCase() === 'lunas';
             const isOverdue = status.toLowerCase() === 'terlambat';
             const amount = Number(matchBill.amount || matchBill.nominal || 0);
+            const notes = String(matchBill.notes || matchBill.keterangan || '').trim();
             return {
               month: slot.month,
               label: slot.label,
@@ -384,6 +386,7 @@ export function WaliPortalPage() {
               isPaid,
               isOverdue,
               amount,
+              notes: notes || undefined,
               bill: matchBill,
             };
           }
@@ -1269,8 +1272,8 @@ export function WaliPortalPage() {
                                                   !isBilled
                                                     ? `Bulan ${m.label} - Tidak Ditagihkan / Libur`
                                                     : isPaid
-                                                    ? `Bulan ${m.label} - LUNAS ✓ (Rp ${m.amount.toLocaleString('id-ID')})`
-                                                    : `Bulan ${m.label} - BELUM LUNAS (Rp ${m.amount.toLocaleString('id-ID')})`
+                                                    ? `Bulan ${m.label} - LUNAS ✓ (Rp ${m.amount.toLocaleString('id-ID')})${m.notes ? ` • Catatan: ${m.notes}` : ''}`
+                                                    : `Bulan ${m.label} - BELUM LUNAS (Rp ${m.amount.toLocaleString('id-ID')})${m.notes ? ` • Catatan: ${m.notes}` : ''}`
                                                 }
                                               >
                                                 {!isBilled ? (
@@ -1278,12 +1281,24 @@ export function WaliPortalPage() {
                                                     -
                                                   </div>
                                                 ) : isPaid ? (
-                                                  <div className="flex h-11 w-full items-center justify-center bg-[#00A86B] text-white font-bold text-base select-none">
-                                                    ✓
+                                                  <div className="relative flex h-11 w-full items-center justify-center bg-[#00A86B] text-white font-bold text-base select-none">
+                                                    <span>✓</span>
+                                                    {m.notes && (
+                                                      <span
+                                                        className="absolute top-1 right-1 flex h-2 w-2 rounded-full bg-[#FFDC80] ring-1 ring-white shadow-xs"
+                                                        title={`Catatan: ${m.notes}`}
+                                                      />
+                                                    )}
                                                   </div>
                                                 ) : (
-                                                  <div className="flex h-11 w-full items-center justify-center bg-[#E74C3C] text-white font-black text-sm select-none">
-                                                    X
+                                                  <div className="relative flex h-11 w-full items-center justify-center bg-[#E74C3C] text-white font-black text-sm select-none">
+                                                    <span>X</span>
+                                                    {m.notes && (
+                                                      <span
+                                                        className="absolute top-1 right-1 flex h-2 w-2 rounded-full bg-[#FFDC80] ring-1 ring-white shadow-xs"
+                                                        title={`Catatan: ${m.notes}`}
+                                                      />
+                                                    )}
                                                   </div>
                                                 )}
                                               </td>
@@ -1295,25 +1310,58 @@ export function WaliPortalPage() {
                                   </table>
                                 </div>
 
-                                {/* KETERANGAN / LEGEND BULANAN */}
-                                <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-semibold text-gray-500 pt-1">
-                                  <div className="flex items-center gap-4">
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="flex h-4 w-4 items-center justify-center rounded bg-[#00A86B] text-[10px] font-bold text-white">✓</span>
-                                      <span>Sudah Lunas</span>
+                                {/* KETERANGAN / LEGEND BULANAN & CATATAN KHUSUS */}
+                                <div className="space-y-3 pt-1">
+                                  <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-semibold text-gray-500">
+                                    <div className="flex flex-wrap items-center gap-4">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="flex h-4 w-4 items-center justify-center rounded bg-[#00A86B] text-[10px] font-bold text-white">✓</span>
+                                        <span>Sudah Lunas</span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="flex h-4 w-4 items-center justify-center rounded bg-[#E74C3C] text-[10px] font-black text-white">X</span>
+                                        <span>Belum Lunas</span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="flex h-4 w-4 items-center justify-center rounded bg-gray-200 text-[10px] font-bold text-gray-500">-</span>
+                                        <span>Libur / Tidak Ditagihkan</span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="flex h-2.5 w-2.5 rounded-full bg-[#FFDC80] ring-1 ring-amber-400"></span>
+                                        <span className="text-amber-700 font-bold">Ada Catatan Khusus</span>
+                                      </div>
                                     </div>
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="flex h-4 w-4 items-center justify-center rounded bg-[#E74C3C] text-[10px] font-black text-white">X</span>
-                                      <span>Belum Lunas</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="flex h-4 w-4 items-center justify-center rounded bg-gray-200 text-[10px] font-bold text-gray-500">-</span>
-                                      <span>Libur / Tidak Ditagihkan</span>
+                                    <div className="text-[11px] font-medium text-gray-400">
+                                      *Semester Ganjil: Jul–Des • Semester Genap: Jan–Jun
                                     </div>
                                   </div>
-                                  <div className="text-[11px] font-medium text-gray-400">
-                                    *Semester Ganjil: Jul–Des • Semester Genap: Jan–Jun
-                                  </div>
+
+                                  {/* DETAIL CATATAN KHUSUS BULANAN UNTUK WALI SANTRI */}
+                                  {group.monthly.some((r) => r.months.some((m) => Boolean(m.notes))) && (
+                                    <div className="rounded-2xl border border-amber-300 bg-amber-50/90 p-4 text-xs text-amber-950 space-y-2">
+                                      <div className="flex items-center gap-1.5 font-black uppercase tracking-wider text-[11px] text-amber-900">
+                                        <span>💡</span>
+                                        <span>Keterangan Khusus Tagihan Bulanan:</span>
+                                      </div>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-4">
+                                        {group.monthly.flatMap((r) =>
+                                          r.months
+                                            .filter((m) => Boolean(m.notes))
+                                            .map((m) => (
+                                              <div key={`${r.typeName}-${m.month}`} className="rounded-xl bg-white/80 p-2.5 border border-amber-200 space-y-0.5">
+                                                <div className="flex items-center justify-between font-extrabold text-xs text-slate-800">
+                                                  <span>{r.typeName} - Bulan {m.label}</span>
+                                                  <span className="font-black text-[#138F81]">Rp {m.amount.toLocaleString('id-ID')}</span>
+                                                </div>
+                                                <p className="text-[11px] text-amber-900 font-semibold italic">
+                                                  "{m.notes}"
+                                                </p>
+                                              </div>
+                                            ))
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             )}
@@ -1478,6 +1526,12 @@ export function WaliPortalPage() {
                                           <div className="text-[10px] text-slate-500 font-semibold">
                                             Tahun: {String(b.tahun_ajaran || '2025/2026')} {b.due_date ? `• Jatuh Tempo: ${b.due_date}` : ''}
                                           </div>
+                                          {Boolean(b.notes || b.keterangan) && (
+                                            <div className="text-[10px] font-bold text-amber-800 bg-amber-50 rounded-md px-1.5 py-0.5 mt-0.5 inline-flex items-center gap-1 border border-amber-200">
+                                              <span>💡</span>
+                                              <span>{String(b.notes || b.keterangan)}</span>
+                                            </div>
+                                          )}
                                         </div>
                                       </div>
                                       <div className="text-right">

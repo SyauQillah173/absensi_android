@@ -634,9 +634,9 @@ function NgajiMaster() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
           <button
-            className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] px-4.5 text-sm font-extrabold text-white shadow-md shadow-[#138F81]/20 hover:brightness-105 transition-all"
+            className="w-full sm:w-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[#138F81] px-4.5 text-sm font-extrabold text-white shadow-md shadow-[#138F81]/20 hover:brightness-105 transition-all"
             type="button"
             onClick={() => setActiveFormData(null)}
           >
@@ -668,6 +668,59 @@ function NgajiMaster() {
                 : 'Belum ada jadwal ngaji santri yang dibuat.'
             }
             minWidth="860px"
+            mobileRender={(row) => {
+              const bookData = books.find((b) => num(b.id) === num(row.ngaji_book_id)) || {
+                id: row.ngaji_book_id,
+                name: row.kitab,
+              };
+              const cover = getBookCover(String(row.kitab_code || row.ngaji_book_id || row.kitab));
+              return (
+                <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {cover ? (
+                        <img src={cover} alt="Cover" className="h-12 w-10 rounded-xl object-cover shadow-xs border border-slate-200 shrink-0" />
+                      ) : (
+                        <div className="flex h-12 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-[#138F81] font-bold border border-teal-100">
+                          <BookOpen size={18} />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-extrabold text-slate-800 text-sm truncate">{text(row.kitab)}</p>
+                        <p className="text-xs font-semibold text-[#138F81] truncate">{text(row.pengajar, 'Ustadz Pengajar')}</p>
+                        <p className="text-[11px] font-mono text-slate-400 mt-0.5">Sesi: {text(row.sesi)} ({text(row.start_time, '--:--')} - {text(row.end_time, '--:--')} WIB)</p>
+                      </div>
+                    </div>
+                    <StatusBadge label={text(row.status)} tone={statusTone(text(row.status))} />
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100 text-xs font-bold text-slate-600">
+                    <div className="rounded-xl bg-slate-50 px-2.5 py-1.5 border border-slate-100 flex items-center gap-1.5 flex-1">
+                      <UsersRound size={13} className="text-slate-500" />
+                      <span className="truncate">{text(row.kamar ?? row.komplek ?? row.kelas, 'Semua Santri')}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                    <button
+                      className="flex-1 rounded-xl bg-[#EAF4FF] py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors inline-flex items-center justify-center gap-1.5"
+                      type="button"
+                      onClick={() => setActiveFormData(bookData)}
+                    >
+                      <Pencil size={13} /> Edit Jadwal
+                    </button>
+                    <button
+                      className="rounded-xl bg-[#FDECEC] p-2 text-xs font-extrabold text-[#D63031] hover:bg-[#fad4d4] transition-colors inline-flex items-center justify-center"
+                      type="button"
+                      onClick={() => setDeleteTarget({ type: 'schedule', row })}
+                      title="Hapus Jadwal"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </article>
+              );
+            }}
           />
         )}
       </section>
@@ -675,7 +728,7 @@ function NgajiMaster() {
 
       {/* MASTER LIST KITAB DENGAN FOTO */}
       <section className="rounded-3xl bg-white p-6 border border-slate-100 shadow-xs space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div>
             <h3 className="text-lg font-extrabold text-[#2D3436] flex items-center gap-2">
               <BookOpen className="text-[#138F81]" size={20} />
@@ -686,7 +739,7 @@ function NgajiMaster() {
             </p>
           </div>
           <button
-            className="rounded-2xl bg-teal-50 px-3.5 py-2 text-xs font-extrabold text-[#138F81] hover:bg-teal-100 transition-colors inline-flex items-center gap-1.5"
+            className="w-full sm:w-auto rounded-2xl bg-teal-50 px-3.5 py-2 text-xs font-extrabold text-[#138F81] hover:bg-teal-100 transition-colors inline-flex items-center justify-center gap-1.5"
             onClick={() => setActiveFormData(null)}
             type="button"
           >

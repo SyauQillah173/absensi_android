@@ -419,7 +419,7 @@ export function MasterKelasPage() {
           </div>
 
           {/* QUICK FILTER STATUS SANTRI */}
-          <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 shrink-0">
+          <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 shrink-0 self-start sm:self-auto overflow-x-auto max-w-full">
             <button
               type="button"
               onClick={() => setSantriFilter('all')}
@@ -480,6 +480,66 @@ export function MasterKelasPage() {
                 ? 'Seluruh kelas Madin sudah terisi santri.'
                 : 'Tidak ada data kelas Madin yang sesuai filter.'
             }
+            mobileRender={(row) => {
+              const genderGroup = String(row.gender_group || 'PA').toUpperCase();
+              const isPa = genderGroup === 'PA' || genderGroup === 'PUTRA' || genderGroup === 'L';
+              const studentCount = Number(row.student_count ?? row.students_count ?? 0);
+              return (
+                <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-[#138F81] border border-teal-100">
+                        <BookOpen size={18} />
+                      </div>
+                      <div>
+                        <p className="text-base font-black text-slate-800 leading-snug">{String(row.name || '-')}</p>
+                        <p className="text-xs font-mono font-bold text-slate-400 mt-0.5">Kode: {String(row.code || '-')}</p>
+                      </div>
+                    </div>
+                    <span className={`rounded-xl px-2.5 py-1 text-xs font-black inline-flex items-center gap-1 border shrink-0 ${
+                      isPa ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-pink-50 text-pink-700 border-pink-200'
+                    }`}>
+                      {isPa ? '👦 Putra (PA)' : '👧 Putri (PI)'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs font-bold text-slate-600">
+                    <div className="flex items-center gap-1.5 text-slate-500">
+                      <Users size={14} />
+                      <span>{studentCount} Santri Terdaftar</span>
+                    </div>
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-extrabold ${
+                        row.is_active !== false
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${row.is_active !== false ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                      {row.is_active !== false ? 'Aktif' : 'Nonaktif'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                    <button
+                      className="flex-1 rounded-xl bg-[#EAF4FF] py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-blue-100 transition-colors inline-flex items-center justify-center gap-1.5"
+                      onClick={() => setForm(row)}
+                      type="button"
+                    >
+                      <Pencil size={13} /> Edit Kelas
+                    </button>
+                    <button
+                      className="rounded-xl bg-[#FDECEC] p-2 text-xs font-extrabold text-[#D63031] hover:bg-rose-100 transition-colors inline-flex items-center justify-center"
+                      onClick={() => setDeleteTarget(row)}
+                      type="button"
+                      title="Hapus Kelas"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </article>
+              );
+            }}
           />
         )}
       </section>

@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(\App\Http\Middleware\ForceCorsHeaders::class);
+        $middleware->append(\App\Http\Middleware\SanitizeInputAndPreventPhising::class);
         $middleware->alias([
             'api.auth' => \App\Http\Middleware\AuthenticateApiToken::class,
             'role' => \App\Http\Middleware\EnsureApiRole::class,

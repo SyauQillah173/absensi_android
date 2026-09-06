@@ -21,12 +21,14 @@ class PaymentType extends Model
         'is_billed_to_all',
         'billed_months',
         'month_amounts',
+        'month_notes',
     ];
 
     protected $casts = [
         'metode_pembayaran' => 'array',
         'billed_months' => 'array',
         'month_amounts' => 'array',
+        'month_notes' => 'array',
         'is_billed_to_all' => 'boolean',
     ];
 

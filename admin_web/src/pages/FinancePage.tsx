@@ -960,7 +960,7 @@ function DirectPaymentCashier({
 
   // Month Status Map for selected type
   const monthStatusMap = useMemo(() => {
-    const map = new Map<number, { isPaid: boolean; isHoliday: boolean; status: string; amount: number; billId?: number }>();
+    const map = new Map<number, { isPaid: boolean; isHoliday: boolean; status: string; amount: number; billId?: number; notes?: string }>();
     if (summaryData && typeId) {
       const groups = Array.isArray(summaryData.groups) ? (summaryData.groups as ApiRecord[]) : [];
       for (const group of groups) {
@@ -972,19 +972,43 @@ function DirectPaymentCashier({
             const st = str(m.status);
             const isPaid = m.is_paid === true || st.toLowerCase() === 'lunas';
             const isHoliday = st.toLowerCase() === 'libur';
+            const customAmountFromType = (selectedType?.month_amounts as Record<string, number>)?.[String(mNo)];
+            const customNoteFromType = (selectedType?.month_notes as Record<string, string>)?.[String(mNo)];
+            const effectiveAmount = !isPaid && customAmountFromType && customAmountFromType > 0
+              ? customAmountFromType
+              : num(m.amount ?? customAmountFromType ?? selectedType?.nominal_default);
             map.set(mNo, {
               isPaid,
               isHoliday,
               status: st,
-              amount: num(m.amount ?? selectedType?.nominal_default),
-              billId: num(m.bill_id) || undefined
+              amount: effectiveAmount,
+              billId: num(m.bill_id) || undefined,
+              notes: str(m.notes || customNoteFromType, ''),
             });
           }
         }
       }
     }
+    if (selectedType && monthly) {
+      const monthAmounts = (selectedType.month_amounts || {}) as Record<string, number>;
+      const monthNotes = (selectedType.month_notes || {}) as Record<string, string>;
+      const billedMonths = Array.isArray(selectedType.billed_months) ? selectedType.billed_months.map(Number) : [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
+      [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6].forEach((mNo) => {
+        if (!map.has(mNo)) {
+          const isBilled = billedMonths.includes(mNo);
+          map.set(mNo, {
+            isPaid: false,
+            isHoliday: !isBilled,
+            status: !isBilled ? 'Libur' : 'Belum Bayar',
+            amount: num(monthAmounts[mNo] ?? selectedType.nominal_default),
+            billId: undefined,
+            notes: str(monthNotes[mNo], ''),
+          });
+        }
+      });
+    }
     return map;
-  }, [summaryData, typeId, selectedType]);
+  }, [summaryData, typeId, selectedType, monthly]);
 
   // Find matching general / non-bulanan bill from summaryData
   const matchingGeneralBill = useMemo(() => {
@@ -1104,6 +1128,14 @@ function DirectPaymentCashier({
           }];
 
       const discountNotes: string[] = [];
+      if (monthly) {
+        Array.from(selectedMonths).forEach((m) => {
+          const mInfo = monthStatusMap.get(m);
+          if (mInfo?.notes) {
+            discountNotes.push(`Bulan ${monthLabels[m] || m}: ${mInfo.notes}`);
+          }
+        });
+      }
       if (discountGuru > 0) discountNotes.push(`Diskon Guru: ${discountGuru}%`);
       if (discountYatim > 0) discountNotes.push(`Diskon Yatim: ${discountYatim}%`);
       if (discountPrestasi > 0) discountNotes.push(`Diskon Prestasi: ${discountPrestasi}%`);
@@ -1349,10 +1381,13 @@ function DirectPaymentCashier({
                       const isPaid = mInfo?.isPaid === true;
                       const isHoliday = mInfo?.isHoliday === true;
                       const isChecked = selectedMonths.has(mNo);
+                      const isCustomAmount = mInfo?.amount && mInfo.amount !== defaultNominal;
+                      const hasNote = Boolean(mInfo?.notes);
 
                       return (
                         <label
                           key={mNo}
+                          title={hasNote ? `Catatan: ${mInfo?.notes}` : undefined}
                           className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-extrabold transition-all select-none ${
                             isPaid
                               ? 'bg-teal-100/70 text-teal-800 border border-teal-300 cursor-not-allowed opacity-90'
@@ -1370,7 +1405,19 @@ function DirectPaymentCashier({
                             onChange={() => toggleMonth(mNo)}
                             className="h-4 w-4 rounded border-gray-300 text-[#138F81] focus:ring-[#138F81]"
                           />
-                          <span className="flex-1">{monthLabels[mNo]}</span>
+                          <span className="flex-1 flex items-center gap-1.5 flex-wrap">
+                            <span>{monthLabels[mNo]}</span>
+                            {hasNote && (
+                              <span className="text-[11px]" title={mInfo?.notes}>💡</span>
+                            )}
+                            {isCustomAmount && !isPaid && (
+                              <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-md ${
+                                isChecked ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800 border border-amber-200'
+                              }`}>
+                                {formatMoney(mInfo!.amount)}
+                              </span>
+                            )}
+                          </span>
                           <span className="text-[10px] opacity-80">
                             {isPaid ? '✓ Lunas' : isHoliday ? '- Libur' : ''}
                           </span>
@@ -1381,6 +1428,40 @@ function DirectPaymentCashier({
                 </div>
               ))}
             </div>
+
+            {/* KETERANGAN KHUSUS BULAN TERPILIH */}
+            {Array.from(selectedMonths).some((m) => Boolean(monthStatusMap.get(m)?.notes || (monthStatusMap.get(m)?.amount && monthStatusMap.get(m)!.amount !== defaultNominal))) && (
+              <div className="rounded-2xl border border-amber-300 bg-amber-50/90 p-3.5 text-xs text-amber-900 space-y-1.5 animate-in fade-in">
+                <div className="flex items-center gap-1.5 font-black text-amber-900 uppercase tracking-wide text-[11px]">
+                  <span>💡</span>
+                  <span>Catatan Khusus Bulan Terpilih:</span>
+                </div>
+                <div className="space-y-1 pl-5">
+                  {Array.from(selectedMonths).map((m) => {
+                    const mInfo = monthStatusMap.get(m);
+                    const isCustomAmount = mInfo?.amount && mInfo.amount !== defaultNominal;
+                    if (!mInfo?.notes && !isCustomAmount) return null;
+                    return (
+                      <div key={m} className="flex flex-wrap items-center gap-1.5 font-semibold text-xs">
+                        <span className="font-extrabold text-amber-950 underline decoration-amber-400">
+                          {monthLabels[m] || `Bulan ${m}`}:
+                        </span>
+                        {isCustomAmount && (
+                          <span className="font-black text-[#138F81] bg-teal-100/80 px-1.5 py-0.5 rounded-md">
+                            Nominal: {formatMoney(mInfo!.amount)}
+                          </span>
+                        )}
+                        {mInfo?.notes && (
+                          <span className="text-amber-800 italic">
+                            "{mInfo.notes}"
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-3">

@@ -47,12 +47,22 @@ class UserProfileController extends Controller
     // PUT /api/profile
     public function update(Request $request)
     {
+        $rawJk = trim((string) $request->input('jenis_kelamin', ''));
+        if ($rawJk !== '') {
+            $upper = strtoupper($rawJk);
+            if (in_array($upper, ['L', 'LAKI-LAKI', 'LAKI', 'PUTRA'], true)) {
+                $request->merge(['jenis_kelamin' => 'L']);
+            } elseif (in_array($upper, ['P', 'PEREMPUAN', 'PUTRI'], true)) {
+                $request->merge(['jenis_kelamin' => 'P']);
+            }
+        }
+
         $validated = $request->validate([
             'name' => 'sometimes|string',
             'email' => 'sometimes|email',
             'nis' => 'nullable|string',
-            'nik_user' => 'nullable|string|max:16',
-            'no_hp' => 'nullable|string|max:20',
+            'nik_user' => 'nullable|string|max:50',
+            'no_hp' => 'nullable|string|max:50',
             'jenis_kelamin' => 'nullable|in:L,P',
         ]);
 
