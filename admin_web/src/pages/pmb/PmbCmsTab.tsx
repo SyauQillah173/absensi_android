@@ -265,30 +265,30 @@ export function PmbCmsTab() {
       )}
 
       {/* HEADER CMS BANNER */}
-      <div className="p-6 sm:p-7 rounded-3xl bg-white border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-[#FFDC80] text-[#0D7A6F] border border-amber-300 flex items-center justify-center shadow-xs">
-            <Globe className="w-7 h-7" />
+      <div className="p-4 sm:p-6 lg:p-7 rounded-3xl bg-white border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5 sm:gap-4">
+          <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-[#FFDC80] text-[#0D7A6F] border border-amber-300 flex items-center justify-center shrink-0 shadow-xs">
+            <Globe className="w-6 h-6 sm:w-7 sm:h-7" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl sm:text-2xl font-black text-[#2D3436] tracking-tight">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg sm:text-2xl font-black text-[#2D3436] tracking-tight">
                 CMS Web Profil Pesantren
               </h2>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#E8F7F3] text-[#138F81] border border-[#138F81]/20">
                 Wordpress-Style Engine
               </span>
             </div>
-            <p className="text-xs text-[#636E72] font-medium mt-0.5">
+            <p className="text-xs text-[#636E72] font-medium mt-0.5 line-clamp-2 sm:line-clamp-none">
               Admin leluasa memperbarui teks sejarah 1775 M, visi misi, fasilitas, kontak, dan sakelar cerdas buka/tutup PMB.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <button
             onClick={() => window.open('/?pmb=1', '_blank')}
-            className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-[#2D3436] text-xs font-bold border border-slate-200 flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+            className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-[#2D3436] text-xs font-bold border border-slate-200 flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer min-h-[40px]"
           >
             <Eye className="w-3.5 h-3.5 text-[#138F81]" />
             <span>Lihat Live Web Publik</span>
@@ -297,7 +297,7 @@ export function PmbCmsTab() {
           <button
             onClick={handleSaveAllCms}
             disabled={isSaving}
-            className="px-5 py-2.5 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] disabled:opacity-50 text-white text-xs font-black flex items-center gap-2 transition-all shadow-md shadow-[#138F81]/25 cursor-pointer"
+            className="px-5 py-2.5 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] disabled:opacity-50 text-white text-xs font-black flex items-center justify-center gap-2 transition-all shadow-md shadow-[#138F81]/25 cursor-pointer min-h-[40px]"
           >
             {isSaving ? <RefreshCw className="w-4 h-4 animate-spin text-[#FFDC80]" /> : <Save className="w-4 h-4 text-[#FFDC80]" />}
             <span>{isSaving ? 'Menyimpan...' : 'Simpan Perubahan CMS'}</span>
@@ -306,24 +306,24 @@ export function PmbCmsTab() {
       </div>
 
       {/* SAKELAR CERDAS: MASTER BUKA / TUTUP PMB */}
-      <div className={`p-6 rounded-3xl border shadow-sm transition-all ${
+      <div className={`p-4 sm:p-6 rounded-3xl border shadow-sm transition-all ${
         pmbIsOpen 
           ? 'bg-emerald-50/40 border-emerald-200' 
           : 'bg-rose-50/40 border-rose-200'
       }`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
-            <div className={`p-3 rounded-2xl ${
+            <div className={`p-3 rounded-2xl shrink-0 ${
               pmbIsOpen ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
             }`}>
               <Power className="w-6 h-6" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-black text-[#2D3436]">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm sm:text-base font-black text-[#2D3436]">
                   Status Master Pendaftaran PMB Online:
                 </h3>
-                <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+                <span className={`px-3 py-1 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider ${
                   pmbIsOpen ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
                 }`}>
                   {pmbIsOpen ? '🟢 PMB SEDANG DIBUKA' : '🔴 PMB SEDANG DITUTUP'}
@@ -339,7 +339,7 @@ export function PmbCmsTab() {
 
           <button
             onClick={handleTogglePmbStatus}
-            className={`px-5 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all shadow-xs cursor-pointer ${
+            className={`w-full sm:w-auto justify-center px-5 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all shadow-xs cursor-pointer shrink-0 min-h-[40px] ${
               pmbIsOpen
                 ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20'
                 : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
@@ -366,9 +366,9 @@ export function PmbCmsTab() {
       </div>
 
       {/* GRID FORM CMS UTAMA */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
         {/* KARTU 1: IDENTITAS & PROFIL UTAMA PESANTREN */}
-        <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-4">
+        <div className="p-4 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-4">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
             <Building className="w-5 h-5 text-[#138F81]" />
             <h3 className="text-sm font-black text-[#2D3436]">1. Identitas & Slogan Pesantren</h3>
@@ -427,7 +427,7 @@ export function PmbCmsTab() {
         </div>
 
         {/* KARTU 2: KONTAK & NARAHUBUNG PMB */}
-        <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-4">
+        <div className="p-4 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-4">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
             <Phone className="w-5 h-5 text-[#138F81]" />
             <h3 className="text-sm font-black text-[#2D3436]">2. Narahubung & Kanal Digital</h3>
@@ -479,7 +479,7 @@ export function PmbCmsTab() {
         </div>
 
         {/* KARTU 3: SEJARAH KHIDMAH 1775 M */}
-        <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-3 lg:col-span-2">
+        <div className="p-4 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-3 lg:col-span-2">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
             <History className="w-5 h-5 text-[#138F81]" />
             <h3 className="text-sm font-black text-[#2D3436]">3. Sejarah & Khazanah Berdiri Sejak 1775 M</h3>
@@ -496,7 +496,7 @@ export function PmbCmsTab() {
         </div>
 
         {/* KARTU 4: VISI & MISI PESANTREN */}
-        <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-4">
+        <div className="p-4 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-4">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
             <Sparkles className="w-5 h-5 text-[#138F81]" />
             <h3 className="text-sm font-black text-[#2D3436]">4. Visi Pesantren</h3>
@@ -510,7 +510,7 @@ export function PmbCmsTab() {
           />
         </div>
 
-        <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-4">
+        <div className="p-4 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-4">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
             <Sparkles className="w-5 h-5 text-[#138F81]" />
             <h3 className="text-sm font-black text-[#2D3436]">5. Misi Pesantren</h3>
@@ -525,7 +525,7 @@ export function PmbCmsTab() {
         </div>
 
         {/* KARTU 5: 4 PROGRAM UNGGULAN */}
-        <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-4 lg:col-span-2">
+        <div className="p-4 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-4 lg:col-span-2">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
             <Award className="w-5 h-5 text-[#138F81]" />
             <h3 className="text-sm font-black text-[#2D3436]">6. Program Unggulan Pesantren (4 Pilar)</h3>
@@ -564,13 +564,13 @@ export function PmbCmsTab() {
         </div>
 
         {/* KARTU 6: FASILITAS & SARANA PRASARANA */}
-        <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-4 lg:col-span-2">
+        <div className="p-4 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-4 lg:col-span-2">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
             <Layers className="w-5 h-5 text-[#138F81]" />
             <h3 className="text-sm font-black text-[#2D3436]">7. Fasilitas & Sarana Pesantren</h3>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="text"
               value={newFasilitasInput}
@@ -582,15 +582,15 @@ export function PmbCmsTab() {
                 }
               }}
               placeholder="Ketik fasilitas baru (contoh: Lapangan Futsal & Basket)..."
-              className="flex-1 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-[#2D3436] focus:bg-white focus:outline-none focus:border-[#138F81]"
+              className="min-w-0 flex-1 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-[#2D3436] focus:bg-white focus:outline-none focus:border-[#138F81]"
             />
             <button
               onClick={handleAddFasilitas}
               type="button"
-              className="px-4 py-2.5 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              className="w-full sm:w-auto shrink-0 justify-center px-5 py-2.5 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer min-h-[42px]"
             >
               <Plus className="w-4 h-4" />
-              <span>Tambah</span>
+              <span>Tambah Fasilitas</span>
             </button>
           </div>
 
@@ -598,15 +598,15 @@ export function PmbCmsTab() {
             {fasilitas.map((item, idx) => (
               <div
                 key={idx}
-                className="flex items-center justify-between gap-2 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-[#2D3436]"
+                className="flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-[#2D3436]"
               >
-                <div className="flex items-center gap-2 truncate">
+                <div className="flex items-center gap-2 truncate min-w-0">
                   <Check className="w-3.5 h-3.5 text-[#138F81] shrink-0" />
                   <span className="truncate">{item}</span>
                 </div>
                 <button
                   onClick={() => handleRemoveFasilitas(idx)}
-                  className="text-slate-400 hover:text-rose-600 p-1 rounded-lg transition-colors cursor-pointer"
+                  className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg transition-colors cursor-pointer shrink-0"
                   title="Hapus fasilitas ini"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -618,16 +618,16 @@ export function PmbCmsTab() {
       </div>
 
       {/* BOTTOM FLOATING SAVE BAR */}
-      <div className="sticky bottom-6 p-4 rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-xl flex items-center justify-between gap-4">
+      <div className="sticky bottom-4 sm:bottom-6 p-3.5 sm:p-4 rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
         <div className="flex items-center gap-2 text-xs text-[#636E72] font-semibold">
-          <Info className="w-4 h-4 text-[#138F81]" />
-          <span>Setiap perubahan yang Anda simpan akan langsung tampil live di Landing Page Web PMB.</span>
+          <Info className="w-4 h-4 text-[#138F81] shrink-0" />
+          <span className="leading-snug">Setiap perubahan yang Anda simpan akan langsung tampil live di Landing Page Web PMB.</span>
         </div>
 
         <button
           onClick={handleSaveAllCms}
           disabled={isSaving}
-          className="px-6 py-2.5 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] disabled:opacity-50 text-white text-xs font-black flex items-center gap-2 transition-all shadow-md shadow-[#138F81]/25 cursor-pointer shrink-0"
+          className="w-full sm:w-auto justify-center px-6 py-3 sm:py-2.5 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] disabled:opacity-50 text-white text-xs font-black flex items-center gap-2 transition-all shadow-md shadow-[#138F81]/25 cursor-pointer shrink-0 min-h-[44px]"
         >
           {isSaving ? <RefreshCw className="w-4 h-4 animate-spin text-[#FFDC80]" /> : <Save className="w-4 h-4 text-[#FFDC80]" />}
           <span>{isSaving ? 'Menyimpan Pengaturan...' : 'Simpan Seluruh Pengaturan (CMS)'}</span>
