@@ -355,7 +355,7 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
 
 
   useEffect(() => {
-    if (isBendahara1 && !['today', 'verifikasi', 'student', 'history'].includes(activeTab)) {
+    if (isBendahara1 && !['today', 'verifikasi', 'student', 'history', 'settings'].includes(activeTab)) {
       setActiveTab('today');
     }
   }, [isBendahara1, activeTab]);
@@ -378,7 +378,7 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
       case 'verifikasi':
         return { subtitle: 'Persetujuan Pembayaran Online', title: 'Verifikasi Bukti Transfer Wali' };
       case 'settings':
-        return { subtitle: 'Pengaturan & Struk', title: 'Pengaturan Struk / Nota' };
+        return { subtitle: 'Pengaturan Rekening Bank & Cetak Struk', title: 'Rekening Bank Resmi & Format Struk' };
       case 'methods':
         return { subtitle: 'Pengaturan & Sistem', title: 'Metode Pembayaran Pondok' };
       case 'types':
@@ -471,6 +471,19 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab('settings')}
+            className={`flex min-h-11 items-center gap-2 rounded-2xl px-4 text-xs sm:text-sm font-black transition-all cursor-pointer shadow-xs ${
+              activeTab === 'settings'
+                ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25'
+                : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <Building2 size={16} className={activeTab === 'settings' ? 'text-[#FFDC80]' : 'text-[#138F81]'} />
+            <span>Rekening Bank & Struk</span>
+          </button>
+
           <button
             className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white border border-slate-200/80 px-4 text-sm font-bold text-[#138F81] hover:bg-slate-50 transition-all cursor-pointer shadow-xs ${isLoading ? 'is-loading' : ''}`}
             onClick={() => void load()}

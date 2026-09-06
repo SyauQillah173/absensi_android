@@ -195,6 +195,7 @@ const allMenu: MenuItem[] = [
       { label: "Kas Masuk Lain", page: "keuangan", financeTab: "pemasukan_lain", icon: ArrowDownLeft },
       { label: "Pengeluaran Kas", page: "keuangan", financeTab: "pengeluaran", icon: ArrowUpRight },
       { label: "Tipe & Tarif Tagihan", page: "keuangan", financeTab: "types", icon: Tag },
+      { label: "Rekening Bank & Struk", page: "keuangan", financeTab: "settings", icon: Building2 },
     ],
   },
   {
@@ -214,7 +215,7 @@ const allMenu: MenuItem[] = [
     children: [
       { label: "Pengaturan Metode Bayar", page: "keuangan", financeTab: "methods", icon: CreditCard },
       { label: "Pengaturan Periode Bayar", page: "keuangan", financeTab: "periods", icon: CalendarDays },
-      { label: "Pengaturan Struk / Nota", page: "keuangan", financeTab: "settings", icon: Printer },
+      { label: "Rekening Bank & Struk", page: "keuangan", financeTab: "settings", icon: Building2 },
       { label: "Pengaturan Semester & TA", page: "master", masterSection: "akademik", icon: CalendarRange },
       { label: "Profil Identitas Lembaga", page: "master", masterSection: "referensi", icon: Landmark },
       { label: "Pengaturan WhatsApp Bot", page: "whatsapp", icon: MessageSquare },
@@ -488,6 +489,7 @@ export function AdminLayout({
             { label: "Verifikasi Transfer", page: "keuangan" as PageKey, financeTab: "verifikasi", icon: Inbox },
             { label: "Tagihan Santri (SPP)", page: "keuangan" as PageKey, financeTab: "student", icon: ScrollText },
             { label: "Riwayat & Rekap", page: "keuangan" as PageKey, financeTab: "history", icon: History },
+            { label: "Rekening Bank & Struk", page: "keuangan" as PageKey, financeTab: "settings", icon: Building2 },
           ]
         : [
             { label: "Transaksi Hari Ini", page: "keuangan" as PageKey, financeTab: "today", icon: Banknote },
@@ -497,6 +499,7 @@ export function AdminLayout({
             { label: "Kas Masuk Lain", page: "keuangan" as PageKey, financeTab: "pemasukan_lain", icon: ArrowDownLeft },
             { label: "Pengeluaran Kas", page: "keuangan" as PageKey, financeTab: "pengeluaran", icon: ArrowUpRight },
             { label: "Tipe & Tarif Tagihan", page: "keuangan" as PageKey, financeTab: "types", icon: Tag },
+            { label: "Rekening Bank & Struk", page: "keuangan" as PageKey, financeTab: "settings", icon: Building2 },
           ];
 
       return [
@@ -521,7 +524,7 @@ export function AdminLayout({
                 children: [
                   { label: "Pengaturan Metode Bayar", page: "keuangan" as PageKey, financeTab: "methods", icon: CreditCard },
                   { label: "Pengaturan Periode Bayar", page: "keuangan" as PageKey, financeTab: "periods", icon: CalendarDays },
-                  { label: "Pengaturan Struk / Nota", page: "keuangan" as PageKey, financeTab: "settings", icon: Printer },
+                  { label: "Rekening Bank & Struk", page: "keuangan" as PageKey, financeTab: "settings", icon: Building2 },
                   { label: "Pengaturan Akun", page: "account" as PageKey, icon: UserCog },
                 ],
               },
