@@ -54,7 +54,7 @@ import { PwaInstallBanner, PwaHeaderInstallButton } from '../components/PwaInsta
 import { NotificationPermissionPrompt } from '../components/NotificationPermissionPrompt';
 import { api, type ApiRecord } from '../services/api';
 import { ReceiptWaliModal } from '../components/ReceiptWaliModal';
-import { ensurePushSubscribed, sendTestPushNotification, clearAppBadge } from '../utils/pushNotification';
+import { ensurePushSubscribed, subscribeToPushNotifications, sendTestPushNotification, clearAppBadge } from '../utils/pushNotification';
 
 type WaliTabKey = 'biodata' | 'keuangan' | 'absensi' | 'nilai';
 type AbsensiSubTab = 'madin' | 'ngaji' | 'sholat';
@@ -160,7 +160,7 @@ export function WaliPortalPage() {
     setIsTestingNotif(true);
     setNotifTestFeedback(null);
     try {
-      await ensurePushSubscribed({ userId: session?.id, role: 'wali' });
+      await subscribeToPushNotifications({ userId: session?.id, role: 'wali' });
       const res = await sendTestPushNotification({
         userId: session?.id,
         title: 'Qomaruddin: Notifikasi HP Terhubung! 🔔',

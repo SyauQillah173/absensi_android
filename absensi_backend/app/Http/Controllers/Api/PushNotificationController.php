@@ -14,11 +14,42 @@ class PushNotificationController extends Controller
         protected WebPushService $webPushService
     ) {}
 
+    protected function ensureTableExists(): void
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('push_subscriptions')) {
+            try {
+                \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+            } catch (\Throwable $e) {
+                // Ignore
+            }
+
+            if (!\Illuminate\Support\Facades\Schema::hasTable('push_subscriptions')) {
+                try {
+                    \Illuminate\Support\Facades\Schema::create('push_subscriptions', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->id();
+                        $table->unsignedBigInteger('user_id')->nullable()->index();
+                        $table->text('endpoint')->unique();
+                        $table->text('p256dh');
+                        $table->text('auth');
+                        $table->string('role', 30)->nullable()->index();
+                        $table->string('device_info')->nullable();
+                        $table->timestamp('last_used_at')->nullable();
+                        $table->timestamps();
+                    });
+                } catch (\Throwable $e2) {
+                    \Illuminate\Support\Facades\Log::error('[PushNotification] Error creating push_subscriptions table: ' . $e2->getMessage());
+                }
+            }
+        }
+    }
+
     /**
      * Dapatkan Public Key VAPID untuk registrasi di frontend browser
      */
     public function getVapidPublicKey(): JsonResponse
     {
+        $this->ensureTableExists();
+
         return response()->json([
             'success' => true,
             'publicKey' => $this->webPushService->getPublicKey(),
@@ -30,6 +61,8 @@ class PushNotificationController extends Controller
      */
     public function subscribe(Request $request): JsonResponse
     {
+        $this->ensureTableExists();
+
         $validated = $request->validate([
             'endpoint' => 'required|string',
             'p256dh' => 'nullable|string',
@@ -79,6 +112,8 @@ class PushNotificationController extends Controller
      */
     public function unsubscribe(Request $request): JsonResponse
     {
+        $this->ensureTableExists();
+
         $validated = $request->validate([
             'endpoint' => 'required|string',
         ]);
@@ -96,6 +131,8 @@ class PushNotificationController extends Controller
      */
     public function sendTest(Request $request): JsonResponse
     {
+        $this->ensureTableExists();
+
         $validated = $request->validate([
             'endpoint' => 'nullable|string',
             'user_id' => 'nullable|integer',
@@ -145,18 +182,30 @@ class PushNotificationController extends Controller
             $count = $this->webPushService->notifyUser($userId, $title, $body, $url, [
                 'badge_count' => $badgeCount,
             ]);
+            if ($count > 0) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Notifikasi terkirim ke {$count} perangkat Anda.",
+                    'count' => $count,
+                ]);
+            }
+        }
+
+        // Fallback jika user_id belum ter-link tapi ada langganan peran wali
+        $count = $this->webPushService->notifyRole('wali', $title, $body, $url, [
+            'badge_count' => $badgeCount,
+        ]);
+        if ($count > 0) {
             return response()->json([
-                'success' => $count > 0,
-                'message' => $count > 0
-                    ? "Notifikasi terkirim ke {$count} perangkat Anda."
-                    : "Belum ada perangkat terdaftar untuk akun ini. Silakan aktifkan izin notifikasi di aplikasi terlebih dahulu.",
+                'success' => true,
+                'message' => "Notifikasi terkirim ke {$count} perangkat wali santri.",
                 'count' => $count,
             ]);
         }
 
         return response()->json([
             'success' => false,
-            'message' => 'Tidak ditemukan perangkat langganan untuk dikirim.',
+            'message' => 'Belum ada perangkat terdaftar untuk akun ini. Silakan aktifkan izin notifikasi di aplikasi terlebih dahulu.',
         ], 404);
     }
 }
