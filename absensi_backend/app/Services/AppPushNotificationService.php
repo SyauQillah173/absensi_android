@@ -15,7 +15,8 @@ class AppPushNotificationService
     ) {}
 
     /**
-     * Dapatkan daftar ID User Wali yang terhubung dengan santri
+     * Dapatkan daftar ID User yang terhubung dengan santri
+     * Mendukung multi-identitas login: via Nama Santri, NIS, Nama Wali, atau No HP
      */
     protected function getWaliUserIds(Siswa $student): array
     {
@@ -26,32 +27,58 @@ class AppPushNotificationService
             $student->guardianProfile?->user_id,
         ])->filter()->unique()->values()->all();
 
-        // Tambahkan akun yang terhubung via NIS santri jika ada
+        // 1. Tambahkan akun yang terhubung via NIS santri (login via NIS)
         if (!empty($student->nis)) {
-            $matchedUser = \App\Models\User::where('nis', $student->nis)->first();
-            if ($matchedUser && !in_array($matchedUser->id, $ids)) {
-                $ids[] = $matchedUser->id;
-            }
-        }
-
-        if (empty($ids)) {
-            // Coba temukan user wali dari nomor handphone atau NIS
-            $phone = $student->wali_hp ?: $student->no_hp_wali ?: $student->guardianProfile?->phone;
-            if ($phone) {
-                $cleaned = preg_replace('/[^0-9]/', '', $phone);
-                $tail = strlen($cleaned) >= 8 ? substr($cleaned, -8) : $cleaned;
-                $user = \App\Models\User::where('role', 'wali')
-                    ->where(function ($q) use ($phone, $tail) {
-                        $q->where('no_hp', $phone)
-                          ->orWhere('no_hp', 'like', "%{$tail}%");
-                    })->first();
-                if ($user) {
-                    $ids[] = $user->id;
+            $usersByNis = \App\Models\User::where('nis', $student->nis)->pluck('id')->all();
+            foreach ($usersByNis as $uid) {
+                if (!in_array($uid, $ids)) {
+                    $ids[] = $uid;
                 }
             }
         }
 
-        return array_values(array_unique($ids));
+        // 2. Tambahkan akun User yang bernama persis seperti Nama Santri (login via Nama Santri)
+        if (!empty($student->nama)) {
+            $trimmedName = trim($student->nama);
+            $usersByName = \App\Models\User::whereRaw('LOWER(name) = ?', [strtolower($trimmedName)])
+                ->orWhereRaw('LOWER(name) = ?', [strtolower(str_replace(' ', '', $trimmedName))])
+                ->pluck('id')->all();
+            foreach ($usersByName as $uid) {
+                if (!in_array($uid, $ids)) {
+                    $ids[] = $uid;
+                }
+            }
+        }
+
+        // 3. Tambahkan akun User dengan Nama Wali (login via Nama Wali)
+        if (!empty($student->nama_wali)) {
+            $trimmedWali = trim($student->nama_wali);
+            $usersByWali = \App\Models\User::whereRaw('LOWER(name) = ?', [strtolower($trimmedWali)])
+                ->pluck('id')->all();
+            foreach ($usersByWali as $uid) {
+                if (!in_array($uid, $ids)) {
+                    $ids[] = $uid;
+                }
+            }
+        }
+
+        // 4. Temukan user wali dari nomor handphone
+        $phone = $student->wali_hp ?: $student->no_hp_wali ?: $student->guardianProfile?->phone;
+        if ($phone) {
+            $cleaned = preg_replace('/[^0-9]/', '', $phone);
+            $tail = strlen($cleaned) >= 8 ? substr($cleaned, -8) : $cleaned;
+            $usersByPhone = \App\Models\User::where(function ($q) use ($phone, $tail) {
+                    $q->where('no_hp', $phone)
+                      ->orWhere('no_hp', 'like', "%{$tail}%");
+                })->pluck('id')->all();
+            foreach ($usersByPhone as $uid) {
+                if (!in_array($uid, $ids)) {
+                    $ids[] = $uid;
+                }
+            }
+        }
+
+        return array_values(array_unique(array_filter($ids)));
     }
 
     /**
