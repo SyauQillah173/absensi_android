@@ -89,7 +89,7 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
                 value={identifier}
                 onChange={(event) => setIdentifier(event.target.value)}
                 autoComplete="username"
-                placeholder="Username / Email / NIS"
+                placeholder="Nama / Email / Kode Guru / NIS / No HP"
                 required
               />
             </div>
