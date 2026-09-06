@@ -325,6 +325,14 @@ class PaymentVerificationController extends Controller
             return $paymentTransaction;
         });
 
+        // Kirim notifikasi real-time ke HP wali santri & WhatsApp
+        try {
+            app(\App\Services\AppPushNotificationService::class)->notifyPaymentTransaction($transaction);
+            app(\App\Services\WhatsAppNotificationService::class)->queuePaymentTransaction($transaction, $actor->id);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("[PaymentVerification] Notif error: " . $e->getMessage());
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Bukti transfer berhasil disetujui! Pembayaran telah dicatat dan tagihan santri otomatis lunas.',

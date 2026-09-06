@@ -391,7 +391,7 @@ class PembayaranController extends Controller
             'Pembayaran Baru',
             sprintf(
                 'Pembayaran %s sebesar Rp %s berhasil dicatat untuk %s.',
-                $transaction->items->pluck('paymentType.nama')->filter()->unique()->join(', ') ?: 'santri',
+                \App\Services\PaymentHistoryService::formatTransactionTitle($transaction),
                 number_format((float) $transaction->jumlah_total, 0, ',', '.'),
                 $transaction->siswa?->nama ?? 'Santri'
             ),

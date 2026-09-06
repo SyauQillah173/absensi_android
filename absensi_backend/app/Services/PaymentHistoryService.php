@@ -51,6 +51,8 @@ class PaymentHistoryService
             ->unique()
             ->values();
 
+        $smartTitle = self::formatTransactionTitle($transaction);
+
         return [
             'id' => $transaction->id,
             'source' => 'transaction',
@@ -66,7 +68,9 @@ class PaymentHistoryService
             'wali' => $transaction->wali,
             'creator' => $transaction->creator,
             'atas_nama' => $transaction->atas_nama,
-            'jenis' => $names->join(', '),
+            'jenis' => $smartTitle,
+            'jenis_singkat' => $names->join(', '),
+            'smart_title' => $smartTitle,
             'payment_method_id' => $transaction->payment_method_id,
             'payment_status_id' => $transaction->payment_status_id,
             'via' => $transaction->via,
@@ -393,4 +397,88 @@ class PaymentHistoryService
             ] : null,
         ];
     }
+
+    public static function formatTransactionTitle(PaymentTransaction $transaction): string
+    {
+        $transaction->loadMissing([
+            'items.paymentType',
+            'items.paymentBill',
+            'bills.paymentType',
+        ]);
+
+        $items = $transaction->items;
+        if ($items->isEmpty()) {
+            $bills = $transaction->bills;
+            if ($bills->isNotEmpty()) {
+                return $bills->pluck('title')->filter()->unique()->join(', ');
+            }
+            return 'Pembayaran Tagihan';
+        }
+
+        // Group items by normalized payment type name
+        $groups = [];
+        foreach ($items as $item) {
+            $rawName = $item->paymentType?->nama ?? $item->jenis ?? 'Pembayaran';
+            $normalizedName = strtoupper(trim($rawName)) === 'SPP' ? 'SPP' : ucwords(strtolower(trim($rawName)));
+
+            // Extract period label
+            $period = trim((string) (
+                $item->paymentBill?->period_label
+                ?? $item->paymentBill?->title
+                ?? $item->keterangan
+                ?? $item->periode_mulai
+                ?? ''
+            ));
+
+            // Clean up period string
+            $period = trim(preg_replace('/^spp\s+/i', '', $period));
+            if ($period === '-' || $period === '') {
+                $period = null;
+            }
+
+            $groups[$normalizedName][] = $period;
+        }
+
+        $parts = [];
+        foreach ($groups as $typeName => $periods) {
+            $validPeriods = array_values(array_filter(array_unique($periods)));
+
+            if (empty($validPeriods)) {
+                $parts[] = count($periods) > 1 ? "{$typeName} (" . count($periods) . " Item)" : $typeName;
+                continue;
+            }
+
+            if (count($validPeriods) === 1) {
+                $parts[] = "{$typeName} ({$validPeriods[0]})";
+                continue;
+            }
+
+            // Check if all periods end with the same 4-digit year (e.g. "Oktober 2026", "November 2026")
+            $years = [];
+            $monthsOnly = [];
+            $hasConsistentYear = true;
+
+            foreach ($validPeriods as $p) {
+                if (preg_match('/^([a-zA-Z]+)\s+(\d{4})$/i', $p, $matches)) {
+                    $monthsOnly[] = $matches[1];
+                    $years[] = $matches[2];
+                } else {
+                    $hasConsistentYear = false;
+                    break;
+                }
+            }
+
+            if ($hasConsistentYear && count(array_unique($years)) === 1) {
+                $year = $years[0];
+                $monthsStr = implode(', ', $monthsOnly);
+                $parts[] = "{$typeName} " . count($validPeriods) . " Bulan ({$monthsStr} {$year})";
+            } else {
+                $periodsStr = implode(', ', $validPeriods);
+                $parts[] = "{$typeName} " . count($validPeriods) . " Bulan ({$periodsStr})";
+            }
+        }
+
+        return !empty($parts) ? implode(', ', $parts) : 'Pembayaran Santri';
+    }
 }
+

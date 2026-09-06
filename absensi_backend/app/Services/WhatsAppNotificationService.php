@@ -106,10 +106,7 @@ class WhatsAppNotificationService
             return null;
         }
 
-        $items = $transaction->items;
-        $title = $items->pluck('paymentType.nama')->filter()->join(', ')
-            ?: $transaction->bills->pluck('title')->filter()->join(', ')
-            ?: 'Pembayaran';
+        $title = \App\Services\PaymentHistoryService::formatTransactionTitle($transaction);
 
         $notes = trim((string) $transaction->keterangan);
         $notesText = ($notes !== '' && $notes !== '-') ? $notes : '-';

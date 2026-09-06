@@ -253,10 +253,7 @@ class AppPushNotificationService
 
             $studentName = $student->nama ?? 'Santri';
             $nominal = number_format((float) ($transaction->jumlah_total ?? $transaction->nominal ?? $transaction->total_amount ?? 0), 0, ',', '.');
-            $items = $transaction->items;
-            $titlePayment = $items->pluck('paymentType.nama')->filter()->join(', ')
-                ?: $transaction->bills->pluck('title')->filter()->join(', ')
-                ?: 'Pembayaran Tagihan';
+            $titlePayment = \App\Services\PaymentHistoryService::formatTransactionTitle($transaction);
 
             $title = "Pembayaran Diterima: {$studentName}";
             $body = "Alhamdulillah, pembayaran {$titlePayment} sebesar Rp {$nominal} telah berhasil diverifikasi. Ketuk untuk melihat kuitansi.";

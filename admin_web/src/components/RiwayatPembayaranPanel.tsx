@@ -798,33 +798,86 @@ export function RiwayatPembayaranPanel({
           isRowExpandable={(row) => row.is_multi_payment === true || (Array.isArray(row.payment_items) && row.payment_items.length > 1)}
           renderExpandedRow={(row) => {
             const items = Array.isArray(row.payment_items) ? row.payment_items : [];
+            const totalNominal = items.reduce((s, it) => s + num(it.jumlah), 0);
+
             return (
-              <div className="grid gap-2 p-2">
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Item Transaksi Multi-Tagihan</p>
-                <div className="grid max-w-2xl gap-2">
-                  {items.map((item, i) => (
-                    <div key={i} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-3 shadow-2xs">
-                      <div>
-                        <div className="font-bold text-[#2D3436] text-xs">{str(item.nama ?? item.jenis)}</div>
-                        <div className="text-[11px] font-semibold text-gray-500">
-                          {str(item.payment_bill?.period_label ?? item.periode)} {str(item.tahun_ajaran)} {str(item.semester)} {str(item.keterangan)}
+              <div className="overflow-hidden rounded-2xl border border-teal-100/80 bg-white shadow-xs">
+                {/* Header Sub-bar */}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-teal-100/70 bg-gradient-to-r from-teal-50/80 via-emerald-50/40 to-slate-50 px-4 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#138F81] text-white shadow-2xs">
+                      <Receipt size={13} />
+                    </span>
+                    <span className="text-xs font-black uppercase tracking-wider text-teal-900">
+                      Rincian Multi-Tagihan
+                    </span>
+                    <span className="rounded-full bg-teal-100/80 border border-teal-200/80 px-2.5 py-0.5 text-[10px] font-black text-teal-800">
+                      {items.length} Tagihan Terbayar
+                    </span>
+                  </div>
+                  <div className="text-xs font-bold text-slate-600">
+                    Total: <span className="font-mono font-black text-[#138F81] ml-1">Rp {totalNominal.toLocaleString('id-ID')}</span>
+                  </div>
+                </div>
+
+                {/* Compact Responsive Multi-Column Grid (Does not stretch vertically) */}
+                <div className="max-h-[320px] overflow-y-auto q-scrollbar p-3.5 bg-slate-50/40">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                    {items.map((item, i) => {
+                      const itemName = str(item.nama ?? item.jenis);
+                      const isSpp = itemName.toLowerCase().includes('spp');
+                      const period = str(item.payment_bill?.period_label ?? item.periode, '');
+                      const cleanPeriod = period !== '-' ? period : '';
+                      const ta = str(item.tahun_ajaran, '');
+                      const sem = str(item.semester, '');
+                      const infoList = [ta ? `T.A. ${ta}` : '', sem ? `Sem. ${sem}` : ''].filter(Boolean);
+
+                      return (
+                        <div
+                          key={i}
+                          className="flex flex-col justify-between rounded-xl border border-slate-200/90 bg-white p-3 shadow-2xs hover:border-teal-300 hover:shadow-xs transition-all"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className={`text-xs font-black tracking-wide ${isSpp ? 'text-teal-800' : 'text-slate-800'}`}>
+                                  {isSpp ? 'SPP' : itemName}
+                                </span>
+                                {cleanPeriod && (
+                                  <span className="inline-flex items-center rounded-md bg-teal-50 border border-teal-200/80 px-2 py-0.5 text-[10px] font-black text-teal-800">
+                                    {cleanPeriod}
+                                  </span>
+                                )}
+                              </div>
+                              {infoList.length > 0 && (
+                                <p className="text-[10px] font-semibold text-slate-400 mt-1 truncate">
+                                  {infoList.join(' • ')}
+                                </p>
+                              )}
+                            </div>
+
+                            {onDeleteItem && (
+                              <button
+                                type="button"
+                                onClick={() => onDeleteItem(item)}
+                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
+                                title="Hapus item tagihan ini"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2 text-xs">
+                            <span className="text-[10px] font-bold text-slate-400">Nominal:</span>
+                            <span className="font-mono font-black text-[#138F81]">
+                              Rp {num(item.jumlah).toLocaleString('id-ID')}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-extrabold text-[#138F81]">Rp {num(item.jumlah).toLocaleString('id-ID')}</span>
-                        {onDeleteItem && (
-                          <button
-                            type="button"
-                            onClick={() => onDeleteItem(item)}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
-                            title="Hapus Item Ini"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             );
@@ -877,13 +930,48 @@ export function RiwayatPembayaranPanel({
               header: 'Jenis Tagihan',
               render: (row) => {
                 const items = Array.isArray(row.payment_items) ? row.payment_items : [];
-                const first = items[0] ?? {};
-                const periodLabel = str(first.payment_bill?.period_label ?? first.periode, '');
+                const isMulti = items.length > 1;
+
+                let mainLabel = str(row.jenis ?? row.payment_type_name);
+                let subLabel = '';
+
+                if (isMulti) {
+                  const isAllSpp = items.every((it) => str(it.nama ?? it.jenis).toLowerCase().includes('spp'));
+                  if (isAllSpp) {
+                    mainLabel = `SPP (${items.length} Bulan)`;
+                    const periods = items
+                      .map((it) => str(it.payment_bill?.period_label ?? it.periode, ''))
+                      .filter((p) => p && p !== '-');
+                    if (periods.length > 0) {
+                      subLabel = periods.join(', ');
+                    }
+                  } else {
+                    mainLabel = `${items.length} Pos Tagihan`;
+                    const names = Array.from(new Set(items.map((it) => str(it.nama ?? it.jenis))));
+                    subLabel = names.join(', ');
+                  }
+                } else {
+                  const first = items[0] ?? {};
+                  const period = str(first.payment_bill?.period_label ?? first.periode, '');
+                  if (period && period !== '-') {
+                    subLabel = period;
+                  }
+                }
+
                 return (
-                  <div>
-                    <div className="font-bold text-xs text-gray-800">{str(row.jenis ?? row.payment_type_name)}</div>
-                    {periodLabel && periodLabel !== '-' && (
-                      <div className="text-[10px] font-semibold text-teal-700 mt-0.5">{periodLabel}</div>
+                  <div className="max-w-[240px]">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-black text-xs text-gray-800">{mainLabel}</span>
+                      {isMulti && (
+                        <span className="rounded-full bg-teal-50 border border-teal-200/80 px-1.5 py-0.2 text-[9px] font-black text-teal-800">
+                          Multi
+                        </span>
+                      )}
+                    </div>
+                    {subLabel && (
+                      <div className="text-[11px] font-bold text-[#138F81] mt-0.5 truncate" title={subLabel}>
+                        {subLabel}
+                      </div>
                     )}
                   </div>
                 );
