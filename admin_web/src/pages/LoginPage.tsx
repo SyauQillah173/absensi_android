@@ -160,7 +160,7 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
 
             {/* 3D TEAL BRAND ACTION BUTTON */}
             <button
-              className={`w-full py-2.8 sm:py-3 px-5 rounded-[16px] text-xs sm:text-sm font-black tracking-wider uppercase transition-all duration-200 flex items-center justify-center gap-2 shadow-md ${
+              className={`w-full py-3.5 px-5 min-h-[48px] rounded-2xl text-xs sm:text-sm font-black tracking-widest uppercase transition-all duration-200 flex items-center justify-center gap-2 shadow-md ${
                 !turnstileToken || isSubmitting
                   ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed shadow-none'
                   : 'bg-[#138F81] hover:bg-[#0e7467] text-white active:scale-[0.98] cursor-pointer shadow-[#138F81]/30'
@@ -171,7 +171,7 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
             >
               {!turnstileToken ? (
                 <>
-                  <LockKeyhole size={15} />
+                  <LockKeyhole size={17} />
                   <span>VERIFIKASI KEAMANAN DULU</span>
                 </>
               ) : isSubmitting ? (
@@ -182,7 +182,7 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
               ) : (
                 <>
                   <span>SIGN IN</span>
-                  <ArrowRight size={15} />
+                  <ArrowRight size={17} />
                 </>
               )}
             </button>
@@ -192,10 +192,10 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
               <button
                 type="button"
                 onClick={onOpenPmb}
-                className="w-full py-2 px-3.5 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-slate-800 dark:to-teal-950/40 hover:from-emerald-100 hover:to-teal-100 text-[#0f766e] dark:text-[#2DD4BF] text-[11px] sm:text-xs font-bold border border-teal-200/80 dark:border-teal-800/60 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                className="w-full py-2.5 sm:py-3 px-4 min-h-[42px] rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-slate-800 dark:to-teal-950/40 hover:from-emerald-100 hover:to-teal-100 text-[#0f766e] dark:text-[#2DD4BF] text-xs font-extrabold border border-teal-200/80 dark:border-teal-800/60 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
               >
                 <span>🌟 Profil Pesantren & PMB Online</span>
-                <ArrowRight size={12} />
+                <ArrowRight size={14} />
               </button>
             )}
           </form>

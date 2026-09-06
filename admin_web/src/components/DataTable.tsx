@@ -217,7 +217,7 @@ export function DataTable<T extends { id?: string | number }>({
         </table>
       </div>
       {mobileRender ? (
-        <div className="grid gap-3 overflow-y-auto q-scrollbar md:hidden" style={{ maxHeight }}>
+        <div className="grid gap-3 md:hidden">
           {paginatedRows.length === 0 ? (
             <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-semibold text-[#636E72]">{emptyText}</div>
           ) : (

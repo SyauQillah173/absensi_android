@@ -329,45 +329,45 @@ export function MasterKelasPage() {
         </div>
       </div>
 
-      {/* SUMMARY STAT CARDS */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-3xl bg-white p-4.5 border border-slate-100 shadow-xs flex items-center gap-3.5">
-          <div className="h-12 w-12 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-[#138F81] font-black">
-            <BookOpen size={24} />
+      {/* SUMMARY STAT CARDS (2 Cols on Mobile, 4 Cols on Large) */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+        <div className="rounded-2xl sm:rounded-3xl bg-white p-3 sm:p-4.5 border border-slate-100 shadow-xs flex items-center gap-2.5 sm:gap-3.5">
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-[#138F81] font-black shrink-0">
+            <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <p className="text-xs font-bold text-slate-400">Total Rombel Madin</p>
-            <p className="text-xl font-black text-slate-800">{classes.length} Kelas</p>
-          </div>
-        </div>
-
-        <div className="rounded-3xl bg-white p-4.5 border border-slate-100 shadow-xs flex items-center gap-3.5">
-          <div className="h-12 w-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 font-black">
-            <span className="text-xl">👦</span>
-          </div>
-          <div>
-            <p className="text-xs font-bold text-slate-400">Kelas Putra (PA)</p>
-            <p className="text-xl font-black text-blue-800">{totalPa} Rombel</p>
+          <div className="min-w-0">
+            <p className="text-[11px] sm:text-xs font-bold text-slate-400 truncate">Total Rombel</p>
+            <p className="text-base sm:text-xl font-black text-slate-800">{classes.length} <span className="text-xs font-bold text-slate-500 hidden sm:inline">Kelas</span></p>
           </div>
         </div>
 
-        <div className="rounded-3xl bg-white p-4.5 border border-slate-100 shadow-xs flex items-center gap-3.5">
-          <div className="h-12 w-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-700 font-black">
-            <span className="text-xl">👧</span>
+        <div className="rounded-2xl sm:rounded-3xl bg-white p-3 sm:p-4.5 border border-slate-100 shadow-xs flex items-center gap-2.5 sm:gap-3.5">
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 font-black shrink-0">
+            <span className="text-lg sm:text-xl">👦</span>
           </div>
-          <div>
-            <p className="text-xs font-bold text-slate-400">Kelas Putri (PI)</p>
-            <p className="text-xl font-black text-rose-800">{totalPi} Rombel</p>
+          <div className="min-w-0">
+            <p className="text-[11px] sm:text-xs font-bold text-slate-400 truncate">Kelas Putra</p>
+            <p className="text-base sm:text-xl font-black text-blue-800">{totalPa} <span className="text-xs font-bold text-blue-600 hidden sm:inline">Rombel</span></p>
           </div>
         </div>
 
-        <div className="rounded-3xl bg-white p-4.5 border border-slate-100 shadow-xs flex items-center gap-3.5">
-          <div className="h-12 w-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-700 font-black">
-            <Users size={24} />
+        <div className="rounded-2xl sm:rounded-3xl bg-white p-3 sm:p-4.5 border border-slate-100 shadow-xs flex items-center gap-2.5 sm:gap-3.5">
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-700 font-black shrink-0">
+            <span className="text-lg sm:text-xl">👧</span>
           </div>
-          <div>
-            <p className="text-xs font-bold text-slate-400">Total Santri Terhubung</p>
-            <p className="text-xl font-black text-amber-800">{totalSiswa.toLocaleString('id-ID')} Santri</p>
+          <div className="min-w-0">
+            <p className="text-[11px] sm:text-xs font-bold text-slate-400 truncate">Kelas Putri</p>
+            <p className="text-base sm:text-xl font-black text-rose-800">{totalPi} <span className="text-xs font-bold text-rose-600 hidden sm:inline">Rombel</span></p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl sm:rounded-3xl bg-white p-3 sm:p-4.5 border border-slate-100 shadow-xs flex items-center gap-2.5 sm:gap-3.5">
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-700 font-black shrink-0">
+            <Users className="w-5 h-5 sm:w-6 sm:h-6" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] sm:text-xs font-bold text-slate-400 truncate">Total Santri</p>
+            <p className="text-base sm:text-xl font-black text-amber-800">{totalSiswa.toLocaleString('id-ID')} <span className="text-xs font-bold text-amber-600 hidden sm:inline">Santri</span></p>
           </div>
         </div>
       </section>
@@ -384,19 +384,20 @@ export function MasterKelasPage() {
         </div>
       ) : null}
 
-      {/* FILTER & SEARCH CONTROLS */}
-      <section className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-3xl border border-slate-100 shadow-xs">
-        <div className="flex flex-1 flex-wrap items-center gap-2.5">
-          <div className="flex-1 min-w-[240px]">
-            <SearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder="Cari kelas Madin (Sifir, Awal, PA/PI)..."
-            />
-          </div>
+      {/* FILTER & SEARCH CONTROLS (RESPONSIVE & TOUCH-FRIENDLY) */}
+      <section className="flex flex-col gap-3 bg-white p-3 sm:p-5 rounded-3xl border border-slate-100 shadow-xs">
+        <div className="w-full">
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Cari kelas Madin (Sifir, Awal, PA/PI)..."
+          />
+        </div>
 
+        {/* HORIZONTAL SWIPE FILTER CONTAINER */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 w-full flex-nowrap sm:flex-wrap">
           {/* GENDER FILTER PILLS */}
-          <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 shrink-0">
+          <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 shrink-0 whitespace-nowrap">
             {[
               { id: 'all', label: `Semua (${classes.length})` },
               { id: 'PA', label: `👦 PA (${totalPa})` },
@@ -407,7 +408,7 @@ export function MasterKelasPage() {
                 key={g.id}
                 type="button"
                 onClick={() => setGenderFilter(g.id as typeof genderFilter)}
-                className={`px-3 py-1.5 text-xs font-extrabold rounded-xl transition-all ${
+                className={`px-3 py-1.5 text-xs font-extrabold rounded-xl transition-all whitespace-nowrap ${
                   genderFilter === g.id
                     ? 'bg-white text-slate-900 shadow-xs ring-1 ring-black/5'
                     : 'text-slate-600 hover:text-slate-900'
@@ -419,11 +420,11 @@ export function MasterKelasPage() {
           </div>
 
           {/* QUICK FILTER STATUS SANTRI */}
-          <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 shrink-0 self-start sm:self-auto overflow-x-auto max-w-full">
+          <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 shrink-0 whitespace-nowrap">
             <button
               type="button"
               onClick={() => setSantriFilter('all')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap ${
                 santriFilter === 'all'
                   ? 'bg-white text-slate-800 shadow-xs ring-1 ring-black/5'
                   : 'text-slate-500 hover:text-slate-800'
@@ -434,27 +435,27 @@ export function MasterKelasPage() {
             <button
               type="button"
               onClick={() => setSantriFilter('has_santri')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap ${
                 santriFilter === 'has_santri'
                   ? 'bg-[#138F81] text-white shadow-xs'
                   : 'text-slate-600 hover:text-[#138F81]'
               }`}
               title="Tampilkan hanya kelas yang sudah terisi santri"
             >
-              <span className={`h-2 w-2 rounded-full ${santriFilter === 'has_santri' ? 'bg-white' : 'bg-emerald-500'}`} />
+              <span className={`h-2 w-2 rounded-full shrink-0 ${santriFilter === 'has_santri' ? 'bg-white' : 'bg-emerald-500'}`} />
               Ada Santri ({hasSantriCount})
             </button>
             <button
               type="button"
               onClick={() => setSantriFilter('no_santri')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap ${
                 santriFilter === 'no_santri'
                   ? 'bg-slate-700 text-white shadow-xs'
                   : 'text-slate-500 hover:text-slate-700'
               }`}
               title="Tampilkan kelas yang belum ada santrinya"
             >
-              <span className={`h-2 w-2 rounded-full ${santriFilter === 'no_santri' ? 'bg-white' : 'bg-slate-400'}`} />
+              <span className={`h-2 w-2 rounded-full shrink-0 ${santriFilter === 'no_santri' ? 'bg-white' : 'bg-slate-400'}`} />
               Belum Terisi ({noSantriCount})
             </button>
           </div>
@@ -483,20 +484,20 @@ export function MasterKelasPage() {
             mobileRender={(row) => {
               const genderGroup = String(row.gender_group || 'PA').toUpperCase();
               const isPa = genderGroup === 'PA' || genderGroup === 'PUTRA' || genderGroup === 'L';
-              const studentCount = Number(row.student_count ?? row.students_count ?? 0);
+              const studentCount = Number(row.student_count ?? row.students_count ?? (row as any).siswa_count ?? 0);
               return (
-                <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+                <article className="rounded-2xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-xs space-y-3">
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-[#138F81] border border-teal-100">
                         <BookOpen size={18} />
                       </div>
-                      <div>
-                        <p className="text-base font-black text-slate-800 leading-snug">{String(row.name || '-')}</p>
-                        <p className="text-xs font-mono font-bold text-slate-400 mt-0.5">Kode: {String(row.code || '-')}</p>
+                      <div className="min-w-0">
+                        <p className="text-base font-black text-slate-800 leading-snug truncate">{String(row.name || '-')}</p>
+                        <p className="text-xs font-mono font-bold text-slate-400 mt-0.5 truncate">Kode: {String(row.code || '-')}</p>
                       </div>
                     </div>
-                    <span className={`rounded-xl px-2.5 py-1 text-xs font-black inline-flex items-center gap-1 border shrink-0 ${
+                    <span className={`rounded-xl px-2.5 py-1 text-[11px] font-black inline-flex items-center gap-1 border shrink-0 ${
                       isPa ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-pink-50 text-pink-700 border-pink-200'
                     }`}>
                       {isPa ? '👦 Putra (PA)' : '👧 Putri (PI)'}
@@ -522,14 +523,14 @@ export function MasterKelasPage() {
 
                   <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
                     <button
-                      className="flex-1 rounded-xl bg-[#EAF4FF] py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-blue-100 transition-colors inline-flex items-center justify-center gap-1.5"
+                      className="flex-1 rounded-xl bg-[#EAF4FF] py-2.5 text-xs font-extrabold text-[#2E86DE] hover:bg-blue-100 transition-colors inline-flex items-center justify-center gap-1.5 min-h-[40px]"
                       onClick={() => setForm(row)}
                       type="button"
                     >
                       <Pencil size={13} /> Edit Kelas
                     </button>
                     <button
-                      className="rounded-xl bg-[#FDECEC] p-2 text-xs font-extrabold text-[#D63031] hover:bg-rose-100 transition-colors inline-flex items-center justify-center"
+                      className="rounded-xl bg-[#FDECEC] p-2.5 text-xs font-extrabold text-[#D63031] hover:bg-rose-100 transition-colors inline-flex items-center justify-center min-h-[40px] min-w-[40px]"
                       onClick={() => setDeleteTarget(row)}
                       type="button"
                       title="Hapus Kelas"

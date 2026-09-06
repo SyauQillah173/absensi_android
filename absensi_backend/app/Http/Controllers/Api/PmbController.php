@@ -187,26 +187,23 @@ class PmbController extends Controller
             ->limit(10)
             ->get();
 
-        // 🌟 DATA STATISTIK REAL-TIME ASLI DARI DATABASE (BUKAN KARANGAN)
-        // 1. Santri Mukim di Asrama (Tabel santri_pondok aktif / siswa bermukim di komplek asrama)
-        $totalSantriMukimDb = \App\Models\SantriPondok::whereNull('deleted_at')->where('status', 'Aktif')->count()
-            ?: \App\Models\Siswa::whereNotNull('komplek')->where('komplek', '!=', '')->count();
+        // 🌟 DATA STATISTIK REAL-TIME ASLI DARI DATABASE (MASTER DATA SISWA)
+        // Hitung santri yang berstatus Aktif di Master Data
+        $totalSantriAktifDb = \App\Models\Siswa::where('status', 'Aktif')->count();
+        if ($totalSantriAktifDb === 0) {
+            $totalSantriAktifDb = \App\Models\Siswa::where(function ($q) {
+                $q->whereNull('status')->orWhere('status', '!=', 'Nonaktif')->where('status', '!=', 'Lulus');
+            })->count();
+        }
 
-        // 2. Seluruh Siswa/Santri Aktif Terdaftar di Pesantren
-        $totalSantriAktifDb = \App\Models\Siswa::where(function ($q) {
-            $q->whereNull('status')->orWhere('status', 'Aktif');
-        })->count();
-
-        // 3. Tahun Khidmah Pesantren sejak 1775 M
+        // Tahun Khidmah Pesantren sejak 1775 M
         $currentYear = (int) date('Y');
         $tahunKhidmah = max(250, $currentYear - 1775);
 
-        // Opsi CMS override jika pengurus ingin mengatur angka tampilan khusus melalui CMS
-        $customMukim = PmbCmsSetting::getValue('total_santri_mukim', null);
-        $finalSantriMukim = ($customMukim !== null && $customMukim !== '') ? (int) $customMukim : ($totalSantriMukimDb ?: 447);
-
+        // Opsi CMS override jika ada
         $customAktif = PmbCmsSetting::getValue('total_santri_aktif', null);
-        $finalSantriAktif = ($customAktif !== null && $customAktif !== '') ? (int) $customAktif : ($totalSantriAktifDb ?: 951);
+        $finalSantriAktif = ($customAktif !== null && $customAktif !== '') ? (int) $customAktif : $totalSantriAktifDb;
+        $finalSantriMukim = $finalSantriAktif;
 
         return response()->json([
             'status' => 'success',

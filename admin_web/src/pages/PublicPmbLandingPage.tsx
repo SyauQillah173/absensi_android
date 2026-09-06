@@ -742,9 +742,9 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
 
                   <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-slate-800/80 border border-amber-200/80 dark:border-slate-700 text-center hover:scale-102 hover:shadow-md hover:border-teal-400 dark:hover:border-teal-500/40 transition-all duration-300">
                     <div className="text-2xl sm:text-3xl font-black text-[#0D7A6F] dark:text-teal-400 flex items-center justify-center">
-                      <CountUpNumber end={totalSantriMukim || totalSantriAktif || 447} duration={1600} suffix="+" />
+                      <CountUpNumber end={totalSantriAktif || totalSantriMukim} duration={1600} suffix="+" />
                     </div>
-                    <div className="text-[11px] sm:text-xs text-[#636E72] dark:text-slate-400 font-semibold mt-0.5">Santri Aktif Mukim</div>
+                    <div className="text-[11px] sm:text-xs text-[#636E72] dark:text-slate-400 font-semibold mt-0.5">Santri Aktif</div>
                   </div>
 
                   <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-slate-800/80 border border-amber-200/80 dark:border-slate-700 text-center hover:scale-102 hover:shadow-md hover:border-amber-400 dark:hover:border-amber-500/40 transition-all duration-300">
