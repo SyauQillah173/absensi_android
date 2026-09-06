@@ -22,8 +22,15 @@ export function registerServiceWorker(): void {
   if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker
-        .register('/sw.js')
+        .register('/sw.js?v=3')
         .then((registration) => {
+          // Paksa browser memeriksa update sw.js ke server langsung tanpa menunggu 24 jam
+          void registration.update();
+
+          if (registration.waiting) {
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+
           // Cek update berkala setiap kali ada build baru
           registration.addEventListener('updatefound', () => {
             const installingWorker = registration.installing;
@@ -31,8 +38,8 @@ export function registerServiceWorker(): void {
               installingWorker.addEventListener('statechange', () => {
                 if (installingWorker.state === 'installed') {
                   if (navigator.serviceWorker.controller) {
-                    // Update versi baru siap dipakai
-                    console.log('[PWA] Versi baru tersedia, siap di-refresh.');
+                    installingWorker.postMessage({ type: 'SKIP_WAITING' });
+                    console.log('[PWA] Versi baru tersedia, mengaktifkan worker baru.');
                   } else {
                     console.log('[PWA] Aplikasi berhasil di-cache untuk penggunaan offline.');
                   }
