@@ -3,13 +3,24 @@
  * Mendukung PWA Standalone (Tanpa Playstore) & Real-time Web Push Notifications
  */
 
-const CACHE_NAME = 'qomaruddin-pwa-v2';
+const CACHE_NAME = 'qomaruddin-pwa-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/logo-qomaruddin.png',
   '/manifest.webmanifest'
 ];
+
+// Suppress unhandled errors from browser extensions
+self.addEventListener('error', (event) => {
+  if (event.filename && (event.filename.includes('extension') || event.filename.includes('chrome-extension'))) {
+    event.preventDefault();
+  }
+});
+
+self.addEventListener('unhandledrejection', (event) => {
+  event.preventDefault();
+});
 
 // 1. Install Event: Skip waiting untuk auto-update instan
 self.addEventListener('install', (event) => {
@@ -120,19 +131,20 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
 
   // 1. Hanya tangani request HTTP/HTTPS dengan metode GET
-  if (request.method !== 'GET') {
+  if (!request || request.method !== 'GET') {
     return;
   }
 
-  // 2. Cegah error Chrome Extension / moz-extension / blob / data scheme
+  // 2. Cegah keras skema Chrome Extension, moz-extension, blob, data
   if (!request.url.startsWith('http://') && !request.url.startsWith('https://')) {
     return;
   }
 
   // 3. Hanya tangani request yang berasal dari domain aplikasi sendiri (same-origin)
-  // Abaikan third-party seperti Cloudflare Turnstile, Google Fonts, CDN, dll
+  // Abaikan third-party seperti Cloudflare Turnstile, Google Fonts, CDN, dan Chrome Extension
+  let url;
   try {
-    const url = new URL(request.url);
+    url = new URL(request.url);
     if (url.origin !== self.location.origin) {
       return;
     }
@@ -149,16 +161,22 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(request)
       .then((networkResponse) => {
-        // Simpan ke cache hanya jika response valid dan bertipe 'basic' (same origin)
-        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache).catch(() => {
-              // Abaikan jika browser menolak menyimpan request tertentu
-            });
-          }).catch(() => {
-            // Ignore cache open error
-          });
+        // Simpan ke cache hanya jika response valid, same-origin, dan skema http/https
+        if (
+          networkResponse &&
+          networkResponse.status === 200 &&
+          networkResponse.type === 'basic' &&
+          (request.url.startsWith('http://') || request.url.startsWith('https://')) &&
+          !request.url.includes('chrome-extension')
+        ) {
+          try {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseToCache).catch(() => {});
+            }).catch(() => {});
+          } catch (err) {
+            // Ignore clone/put error
+          }
         }
         return networkResponse;
       })
@@ -172,7 +190,7 @@ self.addEventListener('fetch', (event) => {
             return caches.match('/index.html');
           }
           return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
-        });
+        }).catch(() => new Response('Offline', { status: 503, statusText: 'Service Unavailable' }));
       })
   );
 });
