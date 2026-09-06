@@ -68,6 +68,7 @@ import type { AbsensiTab } from "../pages/AbsensiPage";
 import type { BukuIndukSection } from "../pages/BukuIndukPage";
 import { api, type ApiRecord } from "../services/api";
 import { getRoleDisplayName } from "../utils/roleHelper";
+import qomaruddinLogo from "../assets/logo-qomaruddin.png";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { PwaInstallBanner, PwaHeaderInstallButton } from "../components/PwaInstallBanner";
 import { NotificationPermissionPrompt } from "../components/NotificationPermissionPrompt";
@@ -610,7 +611,7 @@ export function AdminLayout({
       <div className={`mb-6 pt-2 text-center ${collapsed ? "px-0" : ""}`}>
         <img
           className={`q-brand-logo mx-auto rounded-2xl ${collapsed ? "h-11 w-11" : "h-14 w-14"}`}
-          src="/logo-qomaruddin.png"
+          src={qomaruddinLogo}
           alt="Logo Qomaruddin"
         />
         {!collapsed ? (

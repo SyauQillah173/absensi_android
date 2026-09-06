@@ -3,11 +3,11 @@
  * Mendukung PWA Standalone (Tanpa Playstore) & Real-time Web Push Notifications
  */
 
-const CACHE_NAME = 'qomaruddin-pwa-v4';
+const CACHE_NAME = 'qomaruddin-pwa-v6';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/logo-qomaruddin.png',
+  '/logo-qomaruddin.png?v=20260907',
   '/manifest.webmanifest'
 ];
 

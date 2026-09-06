@@ -3,6 +3,7 @@ import { FormEvent, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { CloudflareTurnstile } from '../components/CloudflareTurnstile';
+import qomaruddinLogo from '../assets/logo-qomaruddin.png';
 
 interface LoginPageProps {
   onOpenPmb?: () => void;
@@ -58,7 +59,7 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
             <div className="h-14 w-14 sm:h-15 sm:w-15 flex items-center justify-center mb-1.5 transition-transform duration-300 hover:scale-105">
               <img
                 className="h-full w-full object-contain drop-shadow-md rounded-2xl"
-                src="/logo-qomaruddin.png"
+                src={qomaruddinLogo}
                 alt="Logo Qomaruddin"
               />
             </div>

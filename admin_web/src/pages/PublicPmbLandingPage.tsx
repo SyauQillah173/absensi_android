@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { ThemeToggle } from '../components/ThemeToggle';
+import qomaruddinLogo from '../assets/logo-qomaruddin.png';
 import { PwaInstallBanner, PwaHeaderInstallButton } from '../components/PwaInstallBanner';
 import { NotificationPermissionPrompt } from '../components/NotificationPermissionPrompt';
 import { CountUpNumber } from '../components/CountUpNumber';
@@ -483,7 +484,7 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
               className="flex items-center gap-2 sm:gap-2.5 cursor-pointer group shrink-0 min-w-0"
             >
               <img
-                src="/logo-qomaruddin.png"
+                src={qomaruddinLogo}
                 alt="Logo Qomaruddin"
                 className="h-10 w-10 sm:h-11 sm:w-11 object-contain drop-shadow-xs rounded-xl shrink-0 group-hover:scale-105 transition-transform"
               />
@@ -768,7 +769,7 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
               <div className="lg:col-span-5 rounded-3xl bg-white dark:bg-[#1E293B] border border-amber-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-xl flex flex-col justify-between transition-colors">
                 <div>
                   <div className="h-14 w-14 rounded-2xl bg-amber-50 dark:bg-slate-800 border border-amber-200 dark:border-slate-700 p-2 flex items-center justify-center mb-5">
-                    <img src="/logo-qomaruddin.png" alt="Qomaruddin" className="h-full w-full object-contain" />
+                    <img src={qomaruddinLogo} alt="Qomaruddin" className="h-full w-full object-contain" />
                   </div>
                   <span className="text-[11px] font-black uppercase tracking-wider text-[#138F81] dark:text-[#2DD4BF]">
                     WARISAN SALAF NUSANTARA • {profilCms?.tahun_berdiri || 'EST. 1775 M'}
@@ -2121,7 +2122,7 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
             {/* Header Kartu Bukti Pendaftaran */}
             <div className="border-b-2 border-amber-300 pb-4 mb-5 text-center flex flex-col items-center">
               <div className="h-12 w-12 rounded-xl bg-white p-1 border border-amber-200 shadow-xs mb-2">
-                <img src="/logo-qomaruddin.png" alt="Logo" className="h-full w-full object-contain" />
+                <img src={qomaruddinLogo} alt="Logo" className="h-full w-full object-contain" />
               </div>
               <div className="text-[11px] font-black uppercase tracking-widest text-[#138F81]">
                 {profilCms?.nama_pesantren ? profilCms.nama_pesantren.toUpperCase() : 'YAYASAN PONDOK PESANTREN QOMARUDDIN'}
@@ -2290,7 +2291,7 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
             <div className="md:col-span-2">
               <div className="flex items-center gap-3 mb-3">
                 <div className="h-10 w-10 rounded-xl bg-amber-50 dark:bg-slate-800 p-1 border border-amber-200 dark:border-slate-700">
-                  <img src="/logo-qomaruddin.png" alt="Logo Qomaruddin" className="h-full w-full object-contain" />
+                  <img src={qomaruddinLogo} alt="Logo Qomaruddin" className="h-full w-full object-contain" />
                 </div>
                 <div>
                   <h4 className="font-black text-[#2D3436] dark:text-slate-100 text-sm sm:text-base">

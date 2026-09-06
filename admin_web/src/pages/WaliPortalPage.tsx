@@ -55,6 +55,7 @@ import { NotificationPermissionPrompt } from '../components/NotificationPermissi
 import { api, type ApiRecord } from '../services/api';
 import { ReceiptWaliModal } from '../components/ReceiptWaliModal';
 import { ensurePushSubscribed, subscribeToPushNotifications, sendTestPushNotification, clearAppBadge } from '../utils/pushNotification';
+import qomaruddinLogo from '../assets/logo-qomaruddin.png';
 
 type WaliTabKey = 'biodata' | 'keuangan' | 'absensi' | 'nilai';
 type AbsensiSubTab = 'madin' | 'ngaji' | 'sholat';
@@ -754,7 +755,7 @@ export function WaliPortalPage() {
           {/* BRANDING WITH PROJECT TEAL LOGO */}
           <div className="flex items-center gap-3">
             <img
-              src="/logo-qomaruddin.png"
+              src={qomaruddinLogo}
               alt="Logo Qomaruddin"
               className="h-10 w-10 sm:h-11 sm:w-11 object-contain drop-shadow-sm rounded-xl shrink-0"
             />
