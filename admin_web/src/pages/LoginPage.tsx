@@ -33,55 +33,53 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
   }
 
   return (
-    <main className="relative h-[100dvh] w-full flex items-center justify-center p-3 sm:p-5 bg-[#FFDC80] dark:bg-[#0B1120] font-sans select-none overflow-hidden transition-colors duration-300">
+    <main className="relative min-h-[100dvh] w-full flex items-center justify-center p-3 sm:p-4 bg-[#FFDC80] dark:bg-[#0B1120] font-sans select-none overflow-y-auto transition-colors duration-300">
       {/* CORNER THEME TOGGLE DENGAN MIKRO-ANIMASI CERDAS */}
-      <div className="absolute top-4 right-4 z-30">
+      <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-30">
         <ThemeToggle showDropdown={true} />
       </div>
 
-      {/* STANDALONE 3D CARD */}
-      <div className="w-full max-w-[380px] sm:max-w-[400px]">
-        {/* CARD CONTAINER (CLEAN WHITE 3D CARD, RICH SHADOW ON DARK CANVAS) */}
+      {/* COMPACT & RESPONSIVE 3D CARD (TIDAK MEMANJANG) */}
+      <div className="w-full max-w-[360px] sm:max-w-[380px] my-auto">
         <div
-          className="w-full rounded-[36px] sm:rounded-[44px] bg-[#f8fafc] px-6 py-6 sm:px-8 sm:py-8 transition-all duration-300 dark:shadow-[0_25px_60px_-12px_rgba(0,0,0,0.6)]"
+          className="w-full rounded-[28px] sm:rounded-[36px] bg-[#f8fafc] dark:bg-[#1E293B] px-5 py-4 sm:px-6 sm:py-5 transition-all duration-300 border border-slate-100/90 dark:border-slate-800"
           style={{
-            boxShadow: '0 22px 45px -10px rgba(150, 110, 20, 0.35), 0 10px 20px -5px rgba(0, 0, 0, 0.08)',
+            boxShadow: '0 16px 36px -8px rgba(150, 110, 20, 0.28), 0 6px 14px -4px rgba(0, 0, 0, 0.06)',
           }}
         >
-          {/* LOGO QOMARUDDIN */}
-          <div className="flex flex-col items-center text-center mb-4">
-            <div className="h-16 w-16 sm:h-18 sm:w-18 rounded-full p-2 bg-white flex items-center justify-center mb-2.5 transition-transform duration-300 hover:scale-105 shadow-md shadow-black/5 border border-slate-100">
+          {/* LOGO QOMARUDDIN & TITLE (PROPORSIONAL & RINGKAS) */}
+          <div className="flex flex-col items-center text-center mb-2.5 sm:mb-3">
+            <div className="h-12 w-12 sm:h-13 sm:w-13 rounded-full p-1.5 bg-white dark:bg-slate-800 flex items-center justify-center mb-1.5 transition-transform duration-300 hover:scale-105 shadow-sm border border-slate-100 dark:border-slate-700">
               <img
-                className="h-12 w-12 sm:h-13 sm:w-13 object-contain drop-shadow-xs"
+                className="h-9 w-9 sm:h-10 sm:w-10 object-contain drop-shadow-xs"
                 src="/logo-qomaruddin.png"
                 alt="Logo Qomaruddin"
               />
             </div>
 
-            {/* TITLE & SUBTITLE */}
-            <h1 className="text-2xl sm:text-3xl font-black text-[#2D3436] tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-black text-[#2D3436] dark:text-white tracking-tight leading-tight">
               Login
             </h1>
-            <p className="text-[11px] sm:text-xs font-semibold text-[#7B8794] mt-0.5">
+            <p className="text-[11px] font-semibold text-[#7B8794] dark:text-slate-400">
               Sign in to your account
             </p>
           </div>
 
           {/* FORM */}
-          <form className="space-y-3.5 sm:space-y-4" onSubmit={handleSubmit}>
-            {/* USERNAME INPUT (ANJLOK / 3D INSET PERSIS CONTOH) */}
+          <form className="space-y-2.5 sm:space-y-3" onSubmit={handleSubmit}>
+            {/* USERNAME INPUT */}
             <div
-              className="relative rounded-[22px] bg-[#edf2f7] transition-all focus-within:ring-2 focus-within:ring-[#138F81]/40 border border-transparent"
+              className="relative rounded-[18px] bg-[#edf2f7] dark:bg-slate-800/80 transition-all focus-within:ring-2 focus-within:ring-[#138F81]/40 border border-transparent"
               style={{
-                boxShadow: 'inset 4.5px 4.5px 9px #ccd6e2, inset -4.5px -4.5px 9px #ffffff',
+                boxShadow: 'inset 3.5px 3.5px 7px #ccd6e2, inset -3.5px -3.5px 7px #ffffff',
               }}
             >
               <UserRound
-                className="pointer-events-none absolute left-4.5 top-1/2 -translate-y-1/2 text-[#7B8794]"
-                size={19}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#7B8794] dark:text-slate-400"
+                size={17}
               />
               <input
-                className="w-full bg-transparent pl-12 pr-4 py-3.5 text-xs sm:text-sm font-bold text-[#2D3436] placeholder:text-[#9AA5B1] placeholder:font-normal outline-hidden"
+                className="w-full bg-transparent pl-10 pr-3.5 py-2.5 sm:py-2.8 text-xs sm:text-[13px] font-bold text-[#2D3436] dark:text-slate-100 placeholder:text-[#9AA5B1] dark:placeholder:text-slate-500 placeholder:font-normal outline-hidden"
                 value={identifier}
                 onChange={(event) => setIdentifier(event.target.value)}
                 autoComplete="username"
@@ -90,19 +88,19 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
               />
             </div>
 
-            {/* PASSWORD INPUT (ANJLOK / 3D INSET PERSIS CONTOH) */}
+            {/* PASSWORD INPUT */}
             <div
-              className="relative rounded-[22px] bg-[#edf2f7] transition-all focus-within:ring-2 focus-within:ring-[#138F81]/40 border border-transparent"
+              className="relative rounded-[18px] bg-[#edf2f7] dark:bg-slate-800/80 transition-all focus-within:ring-2 focus-within:ring-[#138F81]/40 border border-transparent"
               style={{
-                boxShadow: 'inset 4.5px 4.5px 9px #ccd6e2, inset -4.5px -4.5px 9px #ffffff',
+                boxShadow: 'inset 3.5px 3.5px 7px #ccd6e2, inset -3.5px -3.5px 7px #ffffff',
               }}
             >
               <LockKeyhole
-                className="pointer-events-none absolute left-4.5 top-1/2 -translate-y-1/2 text-[#7B8794]"
-                size={19}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#7B8794] dark:text-slate-400"
+                size={17}
               />
               <input
-                className="w-full bg-transparent pl-12 pr-12 py-3.5 text-xs sm:text-sm font-bold text-[#2D3436] placeholder:text-[#9AA5B1] placeholder:font-normal outline-hidden"
+                className="w-full bg-transparent pl-10 pr-10 py-2.5 sm:py-2.8 text-xs sm:text-[13px] font-bold text-[#2D3436] dark:text-slate-100 placeholder:text-[#9AA5B1] dark:placeholder:text-slate-500 placeholder:font-normal outline-hidden"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -111,35 +109,35 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
                 required
               />
               <button
-                className="absolute right-3.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-xl text-[#7B8794] hover:text-[#2D3436] transition-colors cursor-pointer"
+                className="absolute right-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg text-[#7B8794] dark:text-slate-400 hover:text-[#2D3436] dark:hover:text-slate-200 transition-colors cursor-pointer"
                 onClick={() => setShowPassword((value) => !value)}
                 type="button"
                 aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
 
             {/* REMEMBER ME & HELPER */}
-            <div className="flex items-center justify-between text-xs font-semibold text-[#7B8794] px-1">
-              <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+            <div className="flex items-center justify-between text-xs font-semibold text-[#7B8794] dark:text-slate-400 px-1 pt-0.5">
+              <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="rounded border-gray-300 text-[#138F81] focus:ring-[#138F81] h-3.5 w-3.5 cursor-pointer"
                 />
-                <span className="text-[11px] sm:text-xs">Remember me</span>
+                <span className="text-[11px]">Remember me</span>
               </label>
 
-              <span className="text-[#9AA5B1] text-[10px] sm:text-[11px]">
+              <span className="text-[#9AA5B1] dark:text-slate-500 text-[10px]">
                 Yayasan Qomaruddin
               </span>
             </div>
 
             {/* ERROR MESSAGE */}
             {error && (
-              <div className="rounded-xl bg-rose-50 border border-rose-200/80 px-3.5 py-2.5 text-xs font-bold text-[#D63031] shadow-xs">
+              <div className="rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-800/60 px-3 py-2 text-xs font-bold text-[#D63031] dark:text-rose-400 shadow-xs">
                 {error}
               </div>
             )}
@@ -156,15 +154,12 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
 
             {/* 3D TEAL BRAND ACTION BUTTON */}
             <button
-              className="mt-2 w-full py-3.5 px-6 rounded-2xl bg-[#138F81] hover:bg-[#0e7467] text-xs sm:text-sm font-black tracking-widest uppercase text-white transition-all duration-200 active:scale-[0.98] cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
-              style={{
-                boxShadow: '0 10px 24px -4px rgba(19, 143, 129, 0.45)',
-              }}
+              className="w-full py-2.8 sm:py-3 px-5 rounded-[16px] bg-[#138F81] hover:bg-[#0e7467] text-xs sm:text-sm font-black tracking-wider uppercase text-white transition-all duration-200 active:scale-[0.98] cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2 shadow-md shadow-[#138F81]/30"
               disabled={isSubmitting}
               type="submit"
             >
               <span>{isSubmitting ? 'SIGNING IN...' : 'SIGN IN'}</span>
-              {!isSubmitting && <ArrowRight size={16} />}
+              {!isSubmitting && <ArrowRight size={15} />}
             </button>
 
             {/* QUICK LINK TO PUBLIC PMB & PROFILE PORTAL */}
@@ -172,26 +167,26 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
               <button
                 type="button"
                 onClick={onOpenPmb}
-                className="mt-3 w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 text-[#0f766e] text-xs font-bold border border-teal-200/80 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                className="w-full py-2 px-3.5 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-slate-800 dark:to-teal-950/40 hover:from-emerald-100 hover:to-teal-100 text-[#0f766e] dark:text-[#2DD4BF] text-[11px] sm:text-xs font-bold border border-teal-200/80 dark:border-teal-800/60 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
               >
                 <span>🌟 Profil Pesantren & PMB Online</span>
-                <ArrowRight size={13} />
+                <ArrowRight size={12} />
               </button>
             )}
           </form>
 
-          {/* FOOTER TEXT */}
-          <div className="mt-5 text-center">
-            <p className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-[#138F81]">
+          {/* FOOTER TEXT (COMPACT & SLEEK) */}
+          <div className="mt-3 pt-2 border-t border-slate-200/60 dark:border-slate-800 text-center">
+            <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#138F81] dark:text-[#2DD4BF]">
               Pondok Pesantren Qomaruddin
             </p>
-            <p className="text-[9px] sm:text-[10px] font-medium text-[#7B8794]">
+            <p className="text-[9px] font-medium text-[#7B8794] dark:text-slate-400">
               Sampurnan Bungah Gresik • Jawa Timur
             </p>
-            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-center gap-1.5 text-[10px] font-bold text-slate-400">
-              <span>Managed & Engineered by</span>
-              <span className="px-2 py-0.5 rounded-lg bg-teal-50 text-[#138F81] font-black border border-teal-200/60 text-[10px] tracking-wide">
-                IT QOMARUDDIN ( ITQOM )
+            <div className="mt-1 flex items-center justify-center gap-1 text-[9px] font-semibold text-slate-400 dark:text-slate-500">
+              <span>Engineered by</span>
+              <span className="px-1.5 py-0.2 rounded-md bg-teal-50 dark:bg-teal-950/60 text-[#138F81] dark:text-[#2DD4BF] font-black border border-teal-200/60 dark:border-teal-800/50 text-[9px] tracking-wide">
+                ITQOM
               </span>
             </div>
           </div>
@@ -200,4 +195,3 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
     </main>
   );
 }
-
