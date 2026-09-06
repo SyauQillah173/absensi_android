@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronRight,
+  ChevronLeft,
   ArrowRight,
   Camera,
   Clock,
@@ -55,6 +56,7 @@ import {
   Save,
   Upload,
   AlertCircle,
+  ArrowLeft,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
@@ -63,6 +65,7 @@ import { PwaInstallBanner, PwaHeaderInstallButton } from '../components/PwaInsta
 import { NotificationPermissionPrompt } from '../components/NotificationPermissionPrompt';
 import { api, type ApiRecord } from '../services/api';
 import { ReceiptWaliModal } from '../components/ReceiptWaliModal';
+import SearchableSelect from '../components/SearchableSelect';
 import { ensurePushSubscribed, subscribeToPushNotifications, sendTestPushNotification, clearAppBadge } from '../utils/pushNotification';
 import qomaruddinLogo from '../assets/logo-qomaruddin.png';
 
@@ -218,8 +221,8 @@ export function WaliPortalPage() {
           try {
             localStorage.setItem(`student_avatar_${selectedChildId}`, dataUrl);
             setLocalAvatar(dataUrl);
-            setAvatarToast('Foto santri berhasil disimpan di HP Anda (tidak membebani server pondok)!');
-            setTimeout(() => setAvatarToast(null), 5000);
+            setAvatarToast('Foto profil santri berhasil diperbarui!');
+            setTimeout(() => setAvatarToast(null), 4000);
           } catch {
             alert('Penyimpanan lokal browser perangkat Anda penuh.');
           }
@@ -236,8 +239,8 @@ export function WaliPortalPage() {
     try {
       localStorage.removeItem(`student_avatar_${selectedChildId}`);
       setLocalAvatar(null);
-      setAvatarToast('Foto santri berhasil dihapus dari perangkat ini.');
-      setTimeout(() => setAvatarToast(null), 4000);
+      setAvatarToast('Foto profil santri berhasil dihapus.');
+      setTimeout(() => setAvatarToast(null), 3000);
     } catch {
       // ignore
     }
@@ -757,7 +760,7 @@ export function WaliPortalPage() {
   const handleSubmitTransferProof = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedBillIds.length === 0) {
-      setSubmitTransferError('Silakan centang/pilih minimal satu pos tagihan yang ingin dibayar.');
+      setSubmitTransferError('Silakan centang/pilih minimal satu tagihan yang ingin dibayar.');
       return;
     }
     if (!transferFile) {
@@ -1131,7 +1134,7 @@ export function WaliPortalPage() {
                   }`}
                 >
                   {totalBelumLunas > 0
-                    ? `⚠️ ${tagihanList.filter((t) => t.status_tagihan !== 'Lunas').length} Pos (Rp ${totalBelumLunas.toLocaleString('id-ID')})`
+                    ? `⚠️ ${tagihanList.filter((t) => t.status_tagihan !== 'Lunas').length} Tagihan (Rp ${totalBelumLunas.toLocaleString('id-ID')})`
                     : '✅ Semua Lunas'}
                 </span>
               </button>
@@ -1239,7 +1242,7 @@ export function WaliPortalPage() {
                         </span>
                       </div>
                       <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full bg-black/25 text-white border border-white/20">
-                        {tagihanList.filter((t) => t.status_tagihan !== 'Lunas').length} Pos Belum Lunas
+                        {tagihanList.filter((t) => t.status_tagihan !== 'Lunas').length} Tagihan Belum Lunas
                       </span>
                     </div>
 
@@ -1424,7 +1427,7 @@ export function WaliPortalPage() {
                           <div>
                             <h4 className="text-xs sm:text-sm font-black text-[#2D3436]">Pembayaran Mandiri via Transfer Bank</h4>
                             <p className="text-[11px] font-semibold text-[#636E72]">
-                              Pilih pos tagihan yang ingin dibayar, transfer via BSI, lalu kirim bukti struk untuk diverifikasi bendahara secara realtime.
+                              Pilih tagihan yang ingin dibayar, transfer via BSI, lalu kirim bukti struk untuk diverifikasi bendahara secara realtime.
                             </p>
                           </div>
                         </div>
@@ -1959,7 +1962,7 @@ export function WaliPortalPage() {
                                     Tidak Ada Tagihan Biaya Umum yang Tertunggak
                                   </p>
                                   <p className="text-[10px] text-slate-500 mt-0.5">
-                                    Seluruh pos pembayaran umum (Kitab/Gedung/dll) sudah terselesaikan.
+                                    Seluruh tagihan pembayaran umum (Kitab/Gedung/dll) sudah terselesaikan.
                                   </p>
                                 </div>
                               ) : (
@@ -2492,7 +2495,7 @@ export function WaliPortalPage() {
 
                               {selectedBillIds.length === 0 && (
                                 <p className="text-[11px] text-center text-rose-500 font-bold">
-                                  ⚠️ Pilih minimal satu pos tagihan di Langkah 1 sebelum mengirim
+                                  ⚠️ Pilih minimal satu tagihan di Langkah 1 sebelum mengirim
                                 </p>
                               )}
                             </div>
@@ -2596,7 +2599,7 @@ export function WaliPortalPage() {
                                     {/* BILLS CHIPS */}
                                     <div className="space-y-1">
                                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                                        Rincian Pos Tagihan:
+                                        Rincian Tagihan:
                                       </span>
                                       <div className="flex flex-wrap gap-1.5">
                                         {bills.map((b, bIdx) => (
@@ -2604,7 +2607,7 @@ export function WaliPortalPage() {
                                             key={bIdx}
                                             className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-black text-slate-700 dark:text-slate-200 shadow-xs"
                                           >
-                                            {String(b.title || 'Pos Bayar')} (Rp {Number(b.amount || 0).toLocaleString('id-ID')})
+                                            {String(b.title || 'Tagihan')} (Rp {Number(b.amount || 0).toLocaleString('id-ID')})
                                           </span>
                                         ))}
                                       </div>
@@ -3001,7 +3004,21 @@ export function WaliPortalPage() {
             {/* TAB 3: DATA DIRI SANTRI (BIODATA & AKADEMIK) */}
             {/* ========================================================================= */}
             {activeTab === 'biodata' && (
-              <div className="space-y-6 animate-fadeIn">
+              isEditBiodataOpen && selectedChildId ? (
+                <WaliEditBiodataInlineForm
+                  siswaId={selectedChildId}
+                  currentData={childData || (biodata as ApiRecord) || {}}
+                  onClose={() => setIsEditBiodataOpen(false)}
+                  onSuccess={(updated) => {
+                    setBiodata((prev) => ({ ...prev, ...updated }));
+                    setChildData((prev) => ({ ...prev, ...updated }));
+                    setIsEditBiodataOpen(false);
+                    setBiodataToast('Alhamdulillah, biodata santri berhasil diperbarui realtime ke Master Data!');
+                    setTimeout(() => setBiodataToast(null), 6000);
+                  }}
+                />
+              ) : (
+                <div className="space-y-6 animate-fadeIn">
                 {/* 1. HERO BIODATA HEADER CARD WITH LOCAL AVATAR & EDIT TRIGGER */}
                 <div className="q-card bg-white dark:bg-slate-800 rounded-[28px] p-6 sm:p-7 shadow-xl shadow-black/5 border border-slate-100 dark:border-slate-700">
                   <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-6">
@@ -3040,14 +3057,14 @@ export function WaliPortalPage() {
                           </p>
                         </div>
 
-                        {/* PHOTO BUTTONS (CLIENT-SIDE HP STORAGE ONLY) */}
+                        {/* PHOTO BUTTONS */}
                         <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                           <label
                             htmlFor="biodata-avatar-upload"
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-[#138F81] dark:text-teal-300 hover:bg-teal-100 border border-[#138F81]/25 text-xs font-bold transition cursor-pointer shadow-2xs"
                           >
                             <Camera size={14} />
-                            <span>{localAvatar ? 'Ganti Foto di HP' : 'Pasang Foto Profil di HP'}</span>
+                            <span>{localAvatar ? 'Ganti Foto Profil' : 'Pasang Foto Profil'}</span>
                             <input
                               id="biodata-avatar-upload"
                               type="file"
@@ -3062,17 +3079,13 @@ export function WaliPortalPage() {
                               type="button"
                               onClick={handleRemoveAvatar}
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 hover:bg-rose-100 border border-rose-200 text-xs font-bold transition cursor-pointer"
-                              title="Hapus foto dari HP ini"
+                              title="Hapus foto profil"
                             >
                               <Trash2 size={13} />
                               <span>Hapus</span>
                             </button>
                           )}
                         </div>
-
-                        <p className="text-[10px] text-slate-400 font-medium">
-                          💡 Foto profil santri tersimpan aman di memori HP Anda tanpa membebani server yayasan.
-                        </p>
                       </div>
                     </div>
 
@@ -3304,7 +3317,8 @@ export function WaliPortalPage() {
                   )}
                 </div>
               </div>
-            )}
+            )
+          )}
 
             {/* ========================================================================= */}
             {/* TAB 4: NILAI & HAFALAN SANTRI */}
@@ -3537,20 +3551,6 @@ export function WaliPortalPage() {
         </div>
       )}
 
-      {/* 9. EDIT BIODATA SANTRI REALTIME MODAL */}
-      {isEditBiodataOpen && selectedChildId && (
-        <WaliEditBiodataModal
-          siswaId={selectedChildId}
-          currentData={childData || (biodata as ApiRecord) || {}}
-          onClose={() => setIsEditBiodataOpen(false)}
-          onSuccess={(updated) => {
-            setBiodata((prev) => ({ ...prev, ...updated }));
-            setChildData((prev) => ({ ...prev, ...updated }));
-            setBiodataToast('Alhamdulillah, biodata santri berhasil diperbarui realtime ke Master Data!');
-            setTimeout(() => setBiodataToast(null), 6000);
-          }}
-        />
-      )}
 
       {/* Feedback Toast Avatar Lokal */}
       {avatarToast && (
@@ -3736,19 +3736,31 @@ function WaliChangePasswordModal({
   );
 }
 
-function WaliEditBiodataModal({
-  siswaId,
-  currentData,
-  onClose,
-  onSuccess,
-}: {
+interface WaliEditBiodataInlineFormProps {
   siswaId: number;
   currentData: ApiRecord;
   onClose: () => void;
   onSuccess: (updated: ApiRecord) => void;
-}) {
+}
+
+function WaliEditBiodataInlineForm({
+  siswaId,
+  currentData,
+  onClose,
+  onSuccess,
+}: WaliEditBiodataInlineFormProps) {
   const [activeSubTab, setActiveSubTab] = useState<'personal' | 'alamat' | 'keluarga' | 'catatan'>('personal');
+
+  // Master Options
+  const [masterRefs, setMasterRefs] = useState<ApiRecord[]>([]);
+  const [provinces, setProvinces] = useState<ApiRecord[]>([]);
+  const [cities, setCities] = useState<ApiRecord[]>([]);
+  const [districts, setDistricts] = useState<ApiRecord[]>([]);
+  const [villages, setVillages] = useState<ApiRecord[]>([]);
+  const [birthCities, setBirthCities] = useState<ApiRecord[]>([]);
+
   const [formData, setFormData] = useState({
+    nama: String(currentData.nama || ''),
     nama_panggilan: String(currentData.nama_panggilan || ''),
     tempat_lahir: String(currentData.tempat_lahir || ''),
     tanggal_lahir: String(currentData.tanggal_lahir || ''),
@@ -3756,32 +3768,41 @@ function WaliEditBiodataModal({
     nik: String(currentData.nik || ''),
     no_kk: String(currentData.no_kk || ''),
     no_akta: String(currentData.no_akta || ''),
+    agama: String(currentData.agama || 'Islam'),
+    golongan_darah: String(currentData.golongan_darah || ''),
     anak_ke: currentData.anak_ke != null ? String(currentData.anak_ke) : '',
     jml_saudara: currentData.jml_saudara != null ? String(currentData.jml_saudara) : '',
-    golongan_darah: String(currentData.golongan_darah || ''),
     tinggi_badan: currentData.tinggi_badan != null ? String(currentData.tinggi_badan) : '',
     berat_badan: currentData.berat_badan != null ? String(currentData.berat_badan) : '',
-    // Alamat
+    // Alamat & Wilayah Master
     alamat: String(currentData.alamat || ''),
-    kelurahan: String(currentData.kelurahan || currentData.desa || ''),
-    kecamatan: String(currentData.kecamatan || ''),
-    kota: String(currentData.kota || currentData.kabupaten || ''),
+    province_id: currentData.province_id ? String(currentData.province_id) : '',
     provinsi: String(currentData.provinsi || ''),
+    city_id: currentData.city_id ? String(currentData.city_id) : '',
+    kota: String(currentData.kota || currentData.kabupaten || ''),
+    district_id: currentData.district_id ? String(currentData.district_id) : '',
+    kecamatan: String(currentData.kecamatan || ''),
+    village_id: currentData.village_id ? String(currentData.village_id) : '',
+    kelurahan: String(currentData.kelurahan || currentData.desa || ''),
     kode_pos: String(currentData.kode_pos || ''),
-    // Kontak & Orang Tua
-    no_whatsapp: String(currentData.no_whatsapp || ''),
-    email_siswa: String(currentData.email_siswa || ''),
-    asal_sekolah: String(currentData.asal_sekolah || ''),
+    // Orang Tua & Kontak
     nama_ayah: String(currentData.nama_ayah || ''),
     nik_ayah: String(currentData.nik_ayah || ''),
+    pendidikan_ayah: String(currentData.pendidikan_ayah || ''),
     pekerjaan_ayah: String(currentData.pekerjaan_ayah || ''),
+    agama_ayah: String(currentData.agama_ayah || 'Islam'),
     no_whatsapp_ayah: String(currentData.no_whatsapp_ayah || ''),
     nama_ibu: String(currentData.nama_ibu || ''),
     nik_ibu: String(currentData.nik_ibu || ''),
+    pendidikan_ibu: String(currentData.pendidikan_ibu || ''),
     pekerjaan_ibu: String(currentData.pekerjaan_ibu || ''),
+    agama_ibu: String(currentData.agama_ibu || 'Islam'),
     no_whatsapp_ibu: String(currentData.no_whatsapp_ibu || ''),
     no_telepon_wali: String(currentData.no_telepon_wali || currentData.no_hp || ''),
-    // Catatan
+    // Sekolah & Catatan
+    asal_sekolah: String(currentData.asal_sekolah || ''),
+    no_whatsapp: String(currentData.no_whatsapp || ''),
+    email_siswa: String(currentData.email_siswa || ''),
     catatan_santri: String(currentData.catatan_santri || ''),
   });
 
@@ -3789,10 +3810,214 @@ function WaliEditBiodataModal({
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // 1. Initial Load of Master Data & Cascading Regions
+  useEffect(() => {
+    // Load Master Referensi (Agama, Gol Darah, Pekerjaan, Pendidikan)
+    api.masterReferensi()
+      .then((res) => {
+        if (Array.isArray(res.data)) setMasterRefs(res.data);
+      })
+      .catch(() => {});
+
+    // Load Provinces
+    api.regionProvinces()
+      .then((res) => {
+        if (Array.isArray(res.data)) setProvinces(res.data);
+      })
+      .catch(() => {});
+
+    // Load All 514 Indonesian Cities for Tempat Lahir
+    api.regionCities({ limit: 600, all: true })
+      .then((res) => {
+        if (Array.isArray(res.data)) setBirthCities(res.data);
+      })
+      .catch(() => {});
+
+    // Load Existing Cascading Regions
+    const pId = currentData.province_id ? String(currentData.province_id) : '';
+    const cId = currentData.city_id ? String(currentData.city_id) : '';
+    const dId = currentData.district_id ? String(currentData.district_id) : '';
+
+    if (pId) {
+      api.regionCities({ province_id: pId })
+        .then((res) => {
+          if (Array.isArray(res.data)) setCities(res.data);
+        })
+        .catch(() => {});
+    }
+    if (cId) {
+      api.regionDistricts({ city_id: cId })
+        .then((res) => {
+          if (Array.isArray(res.data)) setDistricts(res.data);
+        })
+        .catch(() => {});
+    }
+    if (dId) {
+      api.regionVillages({ district_id: dId })
+        .then((res) => {
+          if (Array.isArray(res.data)) setVillages(res.data);
+        })
+        .catch(() => {});
+    }
+  }, [currentData]);
+
+  // Auto-match province if currentData has text name but missing province_id
+  useEffect(() => {
+    if (provinces.length > 0 && !formData.province_id && formData.provinsi) {
+      const matchProv = provinces.find(
+        (p) => String(p.name).toLowerCase() === formData.provinsi.toLowerCase()
+      );
+      if (matchProv) {
+        setFormData((prev) => ({ ...prev, province_id: String(matchProv.id) }));
+        api.regionCities({ province_id: String(matchProv.id) })
+          .then((res) => {
+            if (Array.isArray(res.data)) setCities(res.data);
+          })
+          .catch(() => {});
+      }
+    }
+  }, [provinces, formData.province_id, formData.provinsi]);
+
+  // Helpers for Master Referensi
+  const getRef = (kategori: string) =>
+    masterRefs
+      .filter((r) => String(r.kategori).toLowerCase() === kategori.toLowerCase())
+      .map((r) => String(r.nilai));
+
+  const agamaOptions = useMemo(() => {
+    const list = getRef('agama');
+    return list.length > 0 ? list : ['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu'];
+  }, [masterRefs]);
+
+  const golonganDarahOptions = useMemo(() => {
+    const list = getRef('golongan_darah');
+    return list.length > 0 ? list : ['A', 'B', 'AB', 'O', 'Tidak Tahu'];
+  }, [masterRefs]);
+
+  const pekerjaanOptions = useMemo(() => {
+    return getRef('pekerjaan');
+  }, [masterRefs]);
+
+  const pendidikanOptions = useMemo(() => {
+    return getRef('pendidikan');
+  }, [masterRefs]);
+
+  // Options for Tempat Lahir (514 Master Cities + fallback current text)
+  const birthCityOptions = useMemo(() => {
+    const list = birthCities.map((c) => ({
+      value: String(c.name),
+      label: String(c.name),
+    }));
+    if (
+      formData.tempat_lahir &&
+      !list.some((item) => item.value.toLowerCase() === formData.tempat_lahir.toLowerCase())
+    ) {
+      list.unshift({
+        value: formData.tempat_lahir,
+        label: formData.tempat_lahir,
+      });
+    }
+    return list;
+  }, [birthCities, formData.tempat_lahir]);
+
+  // Handle Simple Change
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Handle Cascading Province
+  const handleProvinceChange = async (provId: string | number) => {
+    const pStr = String(provId);
+    const selectedProv = provinces.find((p) => String(p.id) === pStr);
+    setFormData((prev) => ({
+      ...prev,
+      province_id: pStr,
+      provinsi: selectedProv ? String(selectedProv.name) : '',
+      city_id: '',
+      kota: '',
+      district_id: '',
+      kecamatan: '',
+      village_id: '',
+      kelurahan: '',
+      kode_pos: '',
+    }));
+    setCities([]);
+    setDistricts([]);
+    setVillages([]);
+
+    if (pStr) {
+      try {
+        const res = await api.regionCities({ province_id: pStr });
+        if (Array.isArray(res.data)) setCities(res.data);
+      } catch {}
+    }
+  };
+
+  // Handle Cascading City
+  const handleCityChange = async (cityId: string | number) => {
+    const cStr = String(cityId);
+    const selectedCity = cities.find((c) => String(c.id) === cStr);
+    setFormData((prev) => ({
+      ...prev,
+      city_id: cStr,
+      kota: selectedCity ? String(selectedCity.name) : '',
+      district_id: '',
+      kecamatan: '',
+      village_id: '',
+      kelurahan: '',
+      kode_pos: '',
+    }));
+    setDistricts([]);
+    setVillages([]);
+
+    if (cStr) {
+      try {
+        const res = await api.regionDistricts({ city_id: cStr });
+        if (Array.isArray(res.data)) setDistricts(res.data);
+      } catch {}
+    }
+  };
+
+  // Handle Cascading District
+  const handleDistrictChange = async (distId: string | number) => {
+    const dStr = String(distId);
+    const selectedDist = districts.find((d) => String(d.id) === dStr);
+    setFormData((prev) => ({
+      ...prev,
+      district_id: dStr,
+      kecamatan: selectedDist ? String(selectedDist.name) : '',
+      village_id: '',
+      kelurahan: '',
+      kode_pos: '',
+    }));
+    setVillages([]);
+
+    if (dStr) {
+      try {
+        const res = await api.regionVillages({ district_id: dStr });
+        if (Array.isArray(res.data)) setVillages(res.data);
+      } catch {}
+    }
+  };
+
+  // Handle Cascading Village
+  const handleVillageChange = (villId: string | number) => {
+    const vStr = String(villId);
+    const selectedVill = villages.find((v) => String(v.id) === vStr);
+    setFormData((prev) => {
+      const next = {
+        ...prev,
+        village_id: vStr,
+        kelurahan: selectedVill ? String(selectedVill.name) : '',
+      };
+      if (selectedVill && selectedVill.postal_code) {
+        next.kode_pos = String(selectedVill.postal_code);
+      }
+      return next;
+    });
+  };
+
+  // Submit Handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -3807,10 +4032,10 @@ function WaliEditBiodataModal({
 
       const res = await api.waliUpdateBiodata(payload);
       if (res.success) {
-        setSuccessMsg('Alhamdulillah! Biodata santri berhasil diperbarui realtime.');
+        setSuccessMsg('Alhamdulillah! Biodata santri berhasil diperbarui realtime ke Master Data.');
         window.dispatchEvent(new CustomEvent('app:data-updated'));
         setTimeout(() => {
-          onSuccess(res.data as ApiRecord || payload);
+          onSuccess((res.data as ApiRecord) || payload);
           onClose();
         }, 1200);
       } else {
@@ -3823,407 +4048,544 @@ function WaliEditBiodataModal({
     }
   };
 
+  const tabsList = [
+    { key: 'personal', label: 'I. Identitas Pribadi', icon: User },
+    { key: 'alamat', label: 'II. Wilayah & Alamat', icon: MapPin },
+    { key: 'keluarga', label: 'III. Orang Tua & Wali', icon: Users },
+    { key: 'catatan', label: 'IV. Sekolah & Catatan', icon: FileText },
+  ] as const;
+
+  const currentTabIndex = tabsList.findIndex((t) => t.key === activeSubTab);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-      <div className="q-card bg-white dark:bg-slate-800 rounded-[28px] max-w-3xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden">
-        {/* MODAL HEADER */}
-        <div className="p-5 sm:p-6 bg-gradient-to-r from-[#138F81] to-[#0D7A6F] text-white flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/15 backdrop-blur-xs flex items-center justify-center font-bold text-white shadow-xs border border-white/20">
-              <Edit3 size={18} />
-            </div>
-            <div>
-              <h3 className="text-sm sm:text-base font-black tracking-tight">
-                Edit Data Diri Santri
-              </h3>
-              <p className="text-[11px] text-teal-100 font-medium mt-0.5">
-                {String(currentData.nama || 'Santri')} (NIS: {String(currentData.nis || '-')}) • Real-time Master Data
-              </p>
-            </div>
-          </div>
+    <div className="space-y-6 animate-fadeIn">
+      {/* 🌟 1. FORM HEADER CARD (CONSISTENT WITH ADMIN COMPLEX FORM) */}
+      <div className="q-card bg-white dark:bg-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl shadow-black/5 border border-slate-200/80 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-start sm:items-center gap-3.5">
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl bg-white/15 hover:bg-white/25 text-white transition cursor-pointer"
+            className="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-700 hover:bg-[#E8F7F3] dark:hover:bg-teal-950/60 text-slate-700 dark:text-slate-200 hover:text-[#138F81] transition cursor-pointer border border-slate-200 dark:border-slate-600 shrink-0"
+            title="Kembali ke Tampilan Biodata"
           >
-            <X size={18} />
+            <ArrowLeft size={18} />
           </button>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-[#E8F7F3] text-[#138F81] border border-[#138F81]/20">
+                ✏️ Form Edit Biodata Santri
+              </span>
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Sinkron Realtime Master Data
+              </span>
+            </div>
+            <h2 className="text-lg sm:text-xl font-black text-[#2D3436] dark:text-white mt-1">
+              {String(currentData.nama || 'Santri')}
+              <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 ml-2">
+                (NIS: {String(currentData.nis || '-')})
+              </span>
+            </h2>
+            <p className="text-xs text-slate-500 font-medium">
+              Data terintegrasi langsung dengan database kesiswaan dan buku induk pesantren.
+            </p>
+          </div>
         </div>
 
-        {/* FEEDBACK BANNERS */}
-        {errorMsg && (
-          <div className="mx-5 mt-4 p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center gap-2 shrink-0">
-            <AlertCircle size={16} className="shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-        )}
-
-        {successMsg && (
-          <div className="mx-5 mt-4 p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center gap-2 shrink-0">
-            <CheckCircle2 size={16} className="shrink-0" />
-            <span>{successMsg}</span>
-          </div>
-        )}
-
-        {/* TAB NAVIGATION BUTTONS */}
-        <div className="flex items-center gap-1.5 px-5 pt-4 pb-2 border-b border-slate-100 dark:border-slate-700 overflow-x-auto shrink-0 custom-scrollbar">
+        {/* TOP ACTION BUTTONS */}
+        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
           <button
             type="button"
-            onClick={() => setActiveSubTab('personal')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
-              activeSubTab === 'personal'
-                ? 'bg-[#138F81] text-white shadow-xs'
-                : 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-            }`}
+            onClick={onClose}
+            disabled={isSaving}
+            className="px-4 py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 transition cursor-pointer"
           >
-            <User size={13} />
-            <span>Identitas Pribadi</span>
+            Batal
           </button>
-
           <button
-            type="button"
-            onClick={() => setActiveSubTab('alamat')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
-              activeSubTab === 'alamat'
-                ? 'bg-[#138F81] text-white shadow-xs'
-                : 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-            }`}
+            type="submit"
+            form="wali-edit-biodata-inline-form"
+            disabled={isSaving}
+            className="px-5 py-2 text-xs font-black rounded-xl bg-gradient-to-r from-[#138F81] to-[#0D7A6F] hover:from-[#0D7A6F] hover:to-[#0A5C54] text-white disabled:opacity-50 transition cursor-pointer shadow-md shadow-[#138F81]/25 flex items-center gap-1.5"
           >
-            <Home size={13} />
-            <span>Alamat & Domisili</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('keluarga')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
-              activeSubTab === 'keluarga'
-                ? 'bg-[#138F81] text-white shadow-xs'
-                : 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-            }`}
-          >
-            <HeartHandshake size={13} />
-            <span>Orang Tua & Kontak</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('catatan')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
-              activeSubTab === 'catatan'
-                ? 'bg-[#138F81] text-white shadow-xs'
-                : 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-            }`}
-          >
-            <FileText size={13} />
-            <span>Catatan Santri</span>
-          </button>
-        </div>
-
-        {/* FORM BODY */}
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-          <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-4 text-xs custom-scrollbar">
-            {/* SUB-TAB 1: IDENTITAS PRIBADI */}
-            {activeSubTab === 'personal' && (
-              <div className="space-y-4 animate-fadeIn">
-                {/* READ ONLY OFFICIAL INFO */}
-                <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-[11px] font-medium flex items-start gap-2.5">
-                  <Info size={16} className="shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
-                  <div>
-                    <span className="font-bold block">Data Resmi Pesantren Terkunci:</span>
-                    Nama Lengkap (<strong className="font-bold">{String(currentData.nama || '-')}</strong>), NIS (<strong className="font-bold">{String(currentData.nis || '-')}</strong>), dan Kelas Madin dikelola resmi oleh Sekretariat Pondok demi ketertiban administrasi.
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div>
-                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                      Nama Panggilan Santri
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.nama_panggilan}
-                      onChange={(e) => handleChange('nama_panggilan', e.target.value)}
-                      placeholder="Contoh: Diki, Ilham, dll."
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                      Jenis Kelamin
-                    </label>
-                    <select
-                      value={formData.jenis_kelamin}
-                      onChange={(e) => handleChange('jenis_kelamin', e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden cursor-pointer"
-                    >
-                      <option value="L">Laki-laki (Putra)</option>
-                      <option value="P">Perempuan (Putri)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                      Tempat Lahir
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.tempat_lahir}
-                      onChange={(e) => handleChange('tempat_lahir', e.target.value)}
-                      placeholder="Kota kelahiran, misal: Gresik"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                      Tanggal Lahir
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.tanggal_lahir}
-                      onChange={(e) => handleChange('tanggal_lahir', e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden cursor-pointer"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                      NIK Santri (16 Digit)
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={16}
-                      value={formData.nik}
-                      onChange={(e) => handleChange('nik', e.target.value)}
-                      placeholder="Nomor Induk Kependudukan"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                      Nomor Kartu Keluarga (KK)
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={16}
-                      value={formData.no_kk}
-                      onChange={(e) => handleChange('no_kk', e.target.value)}
-                      placeholder="Nomor KK 16 digit"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                      Nomor Akta Kelahiran
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.no_akta}
-                      onChange={(e) => handleChange('no_akta', e.target.value)}
-                      placeholder="No. Akta Kelahiran dari Disdukcapil"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                      Golongan Darah
-                    </label>
-                    <select
-                      value={formData.golongan_darah}
-                      onChange={(e) => handleChange('golongan_darah', e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden cursor-pointer"
-                    >
-                      <option value="">-- Pilih Gol. Darah --</option>
-                      <option value="A">A</option>
-                      <option value="B">B</option>
-                      <option value="AB">AB</option>
-                      <option value="O">O</option>
-                      <option value="-">Tidak Tahu</option>
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                        Anak Ke-
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={formData.anak_ke}
-                        onChange={(e) => handleChange('anak_ke', e.target.value)}
-                        placeholder="1"
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
-                      />
-                    </div>
-                    <div>
-                      <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                        Jml. Saudara
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={formData.jml_saudara}
-                        onChange={(e) => handleChange('jml_saudara', e.target.value)}
-                        placeholder="3"
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                        Tinggi Badan (cm)
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.tinggi_badan}
-                        onChange={(e) => handleChange('tinggi_badan', e.target.value)}
-                        placeholder="165"
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
-                      />
-                    </div>
-                    <div>
-                      <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                        Berat Badan (kg)
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.berat_badan}
-                        onChange={(e) => handleChange('berat_badan', e.target.value)}
-                        placeholder="55"
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
+            {isSaving ? (
+              <>
+                <RefreshCw size={14} className="animate-spin" />
+                <span>Menyimpan...</span>
+              </>
+            ) : (
+              <>
+                <Save size={14} />
+                <span>Simpan Perubahan</span>
+              </>
             )}
+          </button>
+        </div>
+      </div>
 
-            {/* SUB-TAB 2: ALAMAT & DOMISILI */}
-            {activeSubTab === 'alamat' && (
-              <div className="space-y-4 animate-fadeIn">
+      {/* 🌟 2. NOTIFICATIONS ALERT */}
+      {errorMsg && (
+        <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs font-bold flex items-center gap-2.5 animate-fadeIn">
+          <AlertCircle size={18} className="text-rose-600 shrink-0" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-bold flex items-center gap-2.5 animate-fadeIn">
+          <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+
+      {/* 🌟 3. TAB NAVIGATION (MATCHING ADMIN COMPLEX SISWA FORM) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700">
+        {tabsList.map((t) => {
+          const Icon = t.icon;
+          const isActive = activeSubTab === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setActiveSubTab(t.key)}
+              className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                isActive
+                  ? 'bg-gradient-to-r from-[#138F81] to-[#0D7A6F] text-white shadow-md shadow-[#138F81]/25'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700/60'
+              }`}
+            >
+              <Icon size={15} />
+              <span className="truncate">{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 🌟 4. MAIN FORM BODY */}
+      <div className="q-card bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl shadow-black/5 border border-slate-200/80 dark:border-slate-700">
+        <form
+          id="wali-edit-biodata-inline-form"
+          onSubmit={handleSubmit}
+          className="space-y-6"
+        >
+          {/* ========================================================================= */}
+          {/* TAB 1: IDENTITAS PRIBADI */}
+          {/* ========================================================================= */}
+          {activeSubTab === 'personal' && (
+            <div className="space-y-5 animate-fadeIn">
+              <div className="p-4 rounded-2xl bg-teal-50/70 dark:bg-teal-950/30 border border-teal-200/80 dark:border-teal-800/80 text-xs text-teal-900 dark:text-teal-200 font-medium leading-relaxed">
+                ℹ️ <strong>Catatan Integritas Data:</strong> Nama Lengkap, NIS, Kelas, dan Kamar dikelola resmi oleh Sekretariat Lembaga demi keabsahan buku induk & ijazah. Informasi pribadi lainnya dapat diperbarui langsung oleh wali santri.
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                    Alamat Lengkap / Jalan / Dusun / RT / RW
+                  <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                    Nama Lengkap Resmi (Buku Induk)
                   </label>
-                  <textarea
-                    rows={3}
-                    value={formData.alamat}
-                    onChange={(e) => handleChange('alamat', e.target.value)}
-                    placeholder="Contoh: Jl. Sampurnan No. 17 RT 02 RW 03"
+                  <input
+                    type="text"
+                    disabled
+                    value={formData.nama}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 font-bold cursor-not-allowed outline-hidden"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    🔒 Terkunci resmi oleh sistem sekretariat
+                  </span>
+                </div>
+
+                <div>
+                  <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                    Nama Panggilan Santri
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.nama_panggilan}
+                    onChange={(e) => handleChange('nama_panggilan', e.target.value)}
+                    placeholder="Contoh: Diki, Ilham, dll."
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                    Jenis Kelamin
+                  </label>
+                  <select
+                    value={formData.jenis_kelamin}
+                    onChange={(e) => handleChange('jenis_kelamin', e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden cursor-pointer"
+                  >
+                    <option value="L">Laki-laki (Putra)</option>
+                    <option value="P">Perempuan (Putri)</option>
+                  </select>
+                </div>
+
+                {/* TEMPAT LAHIR: MASTER CITIES (514 KOTA/KABUPATEN SE-INDONESIA) */}
+                <div>
+                  <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                    Tempat Lahir (Master Kota/Kabupaten)
+                  </label>
+                  <SearchableSelect
+                    options={birthCityOptions}
+                    value={formData.tempat_lahir}
+                    onChange={(val) => handleChange('tempat_lahir', String(val))}
+                    placeholder="Cari Kota / Kabupaten Lahir..."
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    🌐 Terhubung dengan 514 database master wilayah Indonesia
+                  </span>
+                </div>
+
+                <div>
+                  <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                    Tanggal Lahir
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.tanggal_lahir}
+                    onChange={(e) => handleChange('tanggal_lahir', e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden cursor-pointer"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                    NIK Santri (16 Digit)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={16}
+                    value={formData.nik}
+                    onChange={(e) => handleChange('nik', e.target.value.replace(/\D/g, ''))}
+                    placeholder="Nomor Induk Kependudukan santri"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                    Nomor Kartu Keluarga (No. KK)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={16}
+                    value={formData.no_kk}
+                    onChange={(e) => handleChange('no_kk', e.target.value.replace(/\D/g, ''))}
+                    placeholder="16 digit Nomor Kartu Keluarga"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                    Nomor Akta Kelahiran
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.no_akta}
+                    onChange={(e) => handleChange('no_akta', e.target.value)}
+                    placeholder="Nomor register pada akta lahir"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                  />
+                </div>
+
+                {/* AGAMA: MASTER REFERENSI */}
+                <div>
+                  <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                    Agama
+                  </label>
+                  <select
+                    value={formData.agama}
+                    onChange={(e) => handleChange('agama', e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden cursor-pointer"
+                  >
+                    {agamaOptions.map((agm) => (
+                      <option key={agm} value={agm}>
+                        {agm}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* GOLONGAN DARAH: MASTER REFERENSI */}
+                <div>
+                  <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                    Golongan Darah
+                  </label>
+                  <select
+                    value={formData.golongan_darah}
+                    onChange={(e) => handleChange('golongan_darah', e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden cursor-pointer"
+                  >
+                    <option value="">-- Pilih Golongan Darah --</option>
+                    {golonganDarahOptions.map((gld) => (
+                      <option key={gld} value={gld}>
+                        {gld}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                      Desa / Kelurahan
+                    <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                      Anak Ke-
                     </label>
                     <input
-                      type="text"
-                      value={formData.kelurahan}
-                      onChange={(e) => handleChange('kelurahan', e.target.value)}
-                      placeholder="Nama desa"
+                      type="number"
+                      min={1}
+                      value={formData.anak_ke}
+                      onChange={(e) => handleChange('anak_ke', e.target.value)}
+                      placeholder="1"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
                     />
                   </div>
-
                   <div>
-                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                      Kecamatan
+                    <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                      Jml Saudara
                     </label>
                     <input
-                      type="text"
-                      value={formData.kecamatan}
-                      onChange={(e) => handleChange('kecamatan', e.target.value)}
-                      placeholder="Nama kecamatan, misal: Bungah"
+                      type="number"
+                      min={0}
+                      value={formData.jml_saudara}
+                      onChange={(e) => handleChange('jml_saudara', e.target.value)}
+                      placeholder="3"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
                     />
                   </div>
+                </div>
 
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                      Kota / Kabupaten
+                    <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                      Tinggi Badan (cm)
                     </label>
                     <input
-                      type="text"
-                      value={formData.kota}
-                      onChange={(e) => handleChange('kota', e.target.value)}
-                      placeholder="Misal: Gresik, Surabaya, Lamongan"
+                      type="number"
+                      value={formData.tinggi_badan}
+                      onChange={(e) => handleChange('tinggi_badan', e.target.value)}
+                      placeholder="165"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
                     />
                   </div>
-
                   <div>
-                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                      Provinsi
+                    <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                      Berat Badan (kg)
                     </label>
                     <input
-                      type="text"
-                      value={formData.provinsi}
-                      onChange={(e) => handleChange('provinsi', e.target.value)}
-                      placeholder="Misal: Jawa Timur"
+                      type="number"
+                      value={formData.berat_badan}
+                      onChange={(e) => handleChange('berat_badan', e.target.value)}
+                      placeholder="55"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                      Kode Pos
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={6}
-                      value={formData.kode_pos}
-                      onChange={(e) => handleChange('kode_pos', e.target.value)}
-                      placeholder="61152"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
                     />
                   </div>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* SUB-TAB 3: ORANG TUA & KONTAK */}
-            {activeSubTab === 'keluarga' && (
-              <div className="space-y-4 animate-fadeIn">
-                {/* DATA AYAH */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 space-y-3">
-                  <h5 className="font-black text-[#138F81] dark:text-teal-300 flex items-center gap-1.5">
-                    <User size={14} /> Data Ayah Kandung
-                  </h5>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Nama Ayah</label>
+          {/* ========================================================================= */}
+          {/* TAB 2: ALAMAT & WILAYAH DOMISILI (MASTER CASCADING) */}
+          {/* ========================================================================= */}
+          {activeSubTab === 'alamat' && (
+            <div className="space-y-5 animate-fadeIn">
+              <div className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-800/80 text-xs text-indigo-900 dark:text-indigo-200 font-medium leading-relaxed">
+                🗺️ <strong>Master Wilayah Nasional:</strong> Pilih Provinsi, Kota/Kabupaten, Kecamatan, dan Kelurahan untuk menjamin akurasi data kependudukan santri secara bertingkat.
+              </div>
+
+              <div>
+                <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                  Alamat Lengkap / Nama Jalan / Dusun / RT / RW
+                </label>
+                <textarea
+                  rows={2}
+                  value={formData.alamat}
+                  onChange={(e) => handleChange('alamat', e.target.value)}
+                  placeholder="Contoh: Jl. Sampurnan No. 17 RT 02 RW 03 Dusun Kauman"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* 1. PROVINSI */}
+                <div>
+                  <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                    Provinsi (Master)
+                  </label>
+                  <SearchableSelect
+                    options={provinces.map((p) => ({
+                      value: String(p.id),
+                      label: String(p.name),
+                    }))}
+                    value={formData.province_id}
+                    onChange={handleProvinceChange}
+                    placeholder="Pilih Provinsi..."
+                  />
+                </div>
+
+                {/* 2. KOTA / KABUPATEN */}
+                <div>
+                  <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                    Kota / Kabupaten (Master)
+                  </label>
+                  <SearchableSelect
+                    options={cities.map((c) => ({
+                      value: String(c.id),
+                      label: String(c.name),
+                    }))}
+                    value={formData.city_id}
+                    onChange={handleCityChange}
+                    disabled={!formData.province_id}
+                    placeholder={formData.province_id ? 'Pilih Kota / Kabupaten...' : 'Pilih Provinsi Terlebih Dahulu'}
+                  />
+                </div>
+
+                {/* 3. KECAMATAN */}
+                <div>
+                  <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                    Kecamatan (Master)
+                  </label>
+                  <SearchableSelect
+                    options={districts.map((d) => ({
+                      value: String(d.id),
+                      label: String(d.name),
+                    }))}
+                    value={formData.district_id}
+                    onChange={handleDistrictChange}
+                    disabled={!formData.city_id}
+                    placeholder={formData.city_id ? 'Pilih Kecamatan...' : 'Pilih Kabupaten Terlebih Dahulu'}
+                  />
+                </div>
+
+                {/* 4. DESA / KELURAHAN */}
+                <div>
+                  <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                    Desa / Kelurahan (Master)
+                  </label>
+                  <SearchableSelect
+                    options={villages.map((v) => ({
+                      value: String(v.id),
+                      label: String(v.name),
+                    }))}
+                    value={formData.village_id}
+                    onChange={handleVillageChange}
+                    disabled={!formData.district_id}
+                    placeholder={formData.district_id ? 'Pilih Desa / Kelurahan...' : 'Pilih Kecamatan Terlebih Dahulu'}
+                  />
+                </div>
+
+                {/* 5. KODE POS */}
+                <div>
+                  <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                    Kode Pos
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={formData.kode_pos}
+                    onChange={(e) => handleChange('kode_pos', e.target.value)}
+                    placeholder="61152"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Terisi otomatis dari data kelurahan / dapat disesuaikan
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB 3: DATA ORANG TUA & WALI (MASTER REFERENSI) */}
+          {/* ========================================================================= */}
+          {activeSubTab === 'keluarga' && (
+            <div className="space-y-6 animate-fadeIn">
+              {/* DATA AYAH */}
+              <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-600 space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-600 pb-2">
+                  <User size={16} className="text-[#138F81]" />
+                  <h4 className="font-black text-sm text-[#2D3436] dark:text-white">
+                    Data Ayah Kandung
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300 block mb-1">
+                      Nama Lengkap Ayah
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.nama_ayah}
+                      onChange={(e) => handleChange('nama_ayah', e.target.value)}
+                      placeholder="Nama ayah kandung"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300 block mb-1">
+                      NIK Ayah (16 Digit)
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={16}
+                      value={formData.nik_ayah}
+                      onChange={(e) => handleChange('nik_ayah', e.target.value.replace(/\D/g, ''))}
+                      placeholder="16 digit NIK ayah"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-mono outline-hidden"
+                    />
+                  </div>
+
+                  {/* PENDIDIKAN AYAH: MASTER REFERENSI */}
+                  <div>
+                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300 block mb-1">
+                      Pendidikan Terakhir Ayah
+                    </label>
+                    {pendidikanOptions.length > 0 ? (
+                      <select
+                        value={formData.pendidikan_ayah}
+                        onChange={(e) => handleChange('pendidikan_ayah', e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden cursor-pointer"
+                      >
+                        <option value="">-- Pilih Pendidikan --</option>
+                        {pendidikanOptions.map((pnd) => (
+                          <option key={pnd} value={pnd}>
+                            {pnd}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
                       <input
                         type="text"
-                        value={formData.nama_ayah}
-                        onChange={(e) => handleChange('nama_ayah', e.target.value)}
-                        placeholder="Nama lengkap ayah"
+                        value={formData.pendidikan_ayah}
+                        onChange={(e) => handleChange('pendidikan_ayah', e.target.value)}
+                        placeholder="Contoh: SMA / S1 / Ponpes"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden"
                       />
-                    </div>
-                    <div>
-                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">NIK Ayah</label>
-                      <input
-                        type="text"
-                        maxLength={16}
-                        value={formData.nik_ayah}
-                        onChange={(e) => handleChange('nik_ayah', e.target.value)}
-                        placeholder="16 digit NIK ayah"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-mono outline-hidden"
-                      />
-                    </div>
-                    <div>
-                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Pekerjaan Ayah</label>
+                    )}
+                  </div>
+
+                  {/* PEKERJAAN AYAH: MASTER REFERENSI */}
+                  <div>
+                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300 block mb-1">
+                      Pekerjaan Ayah
+                    </label>
+                    {pekerjaanOptions.length > 0 ? (
+                      <select
+                        value={formData.pekerjaan_ayah}
+                        onChange={(e) => handleChange('pekerjaan_ayah', e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden cursor-pointer"
+                      >
+                        <option value="">-- Pilih Pekerjaan --</option>
+                        {pekerjaanOptions.map((pkj) => (
+                          <option key={pkj} value={pkj}>
+                            {pkj}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
                       <input
                         type="text"
                         value={formData.pekerjaan_ayah}
@@ -4231,178 +4593,300 @@ function WaliEditBiodataModal({
                         placeholder="PNS / Wiraswasta / Petani / dll"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden"
                       />
-                    </div>
-                    <div>
-                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">No. WhatsApp Ayah</label>
-                      <input
-                        type="text"
-                        value={formData.no_whatsapp_ayah}
-                        onChange={(e) => handleChange('no_whatsapp_ayah', e.target.value)}
-                        placeholder="08123456789"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden"
-                      />
-                    </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300 block mb-1">
+                      Agama Ayah
+                    </label>
+                    <select
+                      value={formData.agama_ayah}
+                      onChange={(e) => handleChange('agama_ayah', e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden cursor-pointer"
+                    >
+                      {agamaOptions.map((agm) => (
+                        <option key={agm} value={agm}>
+                          {agm}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300 block mb-1">
+                      No. WhatsApp Ayah
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.no_whatsapp_ayah}
+                      onChange={(e) => handleChange('no_whatsapp_ayah', e.target.value)}
+                      placeholder="08123456789"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden"
+                    />
                   </div>
                 </div>
+              </div>
 
-                {/* DATA IBU */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 space-y-3">
-                  <h5 className="font-black text-[#138F81] dark:text-teal-300 flex items-center gap-1.5">
-                    <User size={14} /> Data Ibu Kandung
-                  </h5>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Nama Ibu</label>
+              {/* DATA IBU */}
+              <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-600 space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-600 pb-2">
+                  <User size={16} className="text-[#138F81]" />
+                  <h4 className="font-black text-sm text-[#2D3436] dark:text-white">
+                    Data Ibu Kandung
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300 block mb-1">
+                      Nama Lengkap Ibu
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.nama_ibu}
+                      onChange={(e) => handleChange('nama_ibu', e.target.value)}
+                      placeholder="Nama ibu kandung"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300 block mb-1">
+                      NIK Ibu (16 Digit)
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={16}
+                      value={formData.nik_ibu}
+                      onChange={(e) => handleChange('nik_ibu', e.target.value.replace(/\D/g, ''))}
+                      placeholder="16 digit NIK ibu"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-mono outline-hidden"
+                    />
+                  </div>
+
+                  {/* PENDIDIKAN IBU: MASTER REFERENSI */}
+                  <div>
+                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300 block mb-1">
+                      Pendidikan Terakhir Ibu
+                    </label>
+                    {pendidikanOptions.length > 0 ? (
+                      <select
+                        value={formData.pendidikan_ibu}
+                        onChange={(e) => handleChange('pendidikan_ibu', e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden cursor-pointer"
+                      >
+                        <option value="">-- Pilih Pendidikan --</option>
+                        {pendidikanOptions.map((pnd) => (
+                          <option key={pnd} value={pnd}>
+                            {pnd}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
                       <input
                         type="text"
-                        value={formData.nama_ibu}
-                        onChange={(e) => handleChange('nama_ibu', e.target.value)}
-                        placeholder="Nama lengkap ibu"
+                        value={formData.pendidikan_ibu}
+                        onChange={(e) => handleChange('pendidikan_ibu', e.target.value)}
+                        placeholder="Contoh: SMA / S1 / Ponpes"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden"
                       />
-                    </div>
-                    <div>
-                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">NIK Ibu</label>
-                      <input
-                        type="text"
-                        maxLength={16}
-                        value={formData.nik_ibu}
-                        onChange={(e) => handleChange('nik_ibu', e.target.value)}
-                        placeholder="16 digit NIK ibu"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-mono outline-hidden"
-                      />
-                    </div>
-                    <div>
-                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Pekerjaan Ibu</label>
+                    )}
+                  </div>
+
+                  {/* PEKERJAAN IBU: MASTER REFERENSI */}
+                  <div>
+                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300 block mb-1">
+                      Pekerjaan Ibu
+                    </label>
+                    {pekerjaanOptions.length > 0 ? (
+                      <select
+                        value={formData.pekerjaan_ibu}
+                        onChange={(e) => handleChange('pekerjaan_ibu', e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden cursor-pointer"
+                      >
+                        <option value="">-- Pilih Pekerjaan --</option>
+                        {pekerjaanOptions.map((pkj) => (
+                          <option key={pkj} value={pkj}>
+                            {pkj}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
                       <input
                         type="text"
                         value={formData.pekerjaan_ibu}
                         onChange={(e) => handleChange('pekerjaan_ibu', e.target.value)}
-                        placeholder="Ibu Rumah Tangga / Guru / dll"
+                        placeholder="Ibu Rumah Tangga / Guru / Pedagang / dll"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden"
                       />
-                    </div>
-                    <div>
-                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">No. WhatsApp Ibu</label>
-                      <input
-                        type="text"
-                        value={formData.no_whatsapp_ibu}
-                        onChange={(e) => handleChange('no_whatsapp_ibu', e.target.value)}
-                        placeholder="08123456789"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden"
-                      />
-                    </div>
+                    )}
                   </div>
-                </div>
 
-                {/* KONTAK WALI & SANTRI */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
-                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                      No. WhatsApp / HP Wali Terdaftar
+                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300 block mb-1">
+                      Agama Ibu
+                    </label>
+                    <select
+                      value={formData.agama_ibu}
+                      onChange={(e) => handleChange('agama_ibu', e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden cursor-pointer"
+                    >
+                      {agamaOptions.map((agm) => (
+                        <option key={agm} value={agm}>
+                          {agm}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300 block mb-1">
+                      No. WhatsApp Ibu
                     </label>
                     <input
                       type="text"
-                      value={formData.no_telepon_wali}
-                      onChange={(e) => handleChange('no_telepon_wali', e.target.value)}
-                      placeholder="Nomor aktif untuk notifikasi sistem"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                      No. WhatsApp Santri (Jika ada)
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.no_whatsapp}
-                      onChange={(e) => handleChange('no_whatsapp', e.target.value)}
-                      placeholder="Nomor HP/WA santri"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                      Email Santri / Wali
-                    </label>
-                    <input
-                      type="email"
-                      value={formData.email_siswa}
-                      onChange={(e) => handleChange('email_siswa', e.target.value)}
-                      placeholder="santri@email.com"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                      Asal Sekolah Formal
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.asal_sekolah}
-                      onChange={(e) => handleChange('asal_sekolah', e.target.value)}
-                      placeholder="Contoh: MTs Assa'adah / SMPN 1"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                      value={formData.no_whatsapp_ibu}
+                      onChange={(e) => handleChange('no_whatsapp_ibu', e.target.value)}
+                      placeholder="08123456789"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden"
                     />
                   </div>
                 </div>
               </div>
-            )}
 
-            {/* SUB-TAB 4: CATATAN KHUSUS */}
-            {activeSubTab === 'catatan' && (
-              <div className="space-y-4 animate-fadeIn">
+              {/* KONTAK WALI RESMI */}
+              <div className="p-5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/80 space-y-2">
+                <label className="font-black text-xs text-amber-950 dark:text-amber-200 block">
+                  🔔 No. WhatsApp / HP Utama Wali Santri (Penerima Notifikasi Resmi)
+                </label>
+                <input
+                  type="text"
+                  value={formData.no_telepon_wali}
+                  onChange={(e) => handleChange('no_telepon_wali', e.target.value)}
+                  placeholder="081234567890"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 font-mono text-sm font-bold focus:ring-2 focus:ring-amber-500/30 outline-hidden"
+                />
+                <p className="text-[11px] text-amber-800 dark:text-amber-300 font-medium">
+                  Nomor ini digunakan server untuk mengirimkan notifikasi tagihan SPP, presensi realtime, dan info pondok via WhatsApp Bot.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* TAB 4: SEKOLAH ASAL, KONTAK SANTRI & CATATAN KHUSUS */}
+          {/* ========================================================================= */}
+          {activeSubTab === 'catatan' && (
+            <div className="space-y-5 animate-fadeIn">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
-                    Catatan Kesehatan, Alergi Makanan/Obat, atau Pesan Khusus
+                  <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                    Asal Sekolah Formal (SD / MI / SMP / MTs Asal)
                   </label>
-                  <p className="text-[11px] text-slate-500 mb-2">
-                    Tuliskan riwayat penyakit khusus, alergi dingin/makanan, obat rutin, atau informasi penting yang perlu diketahui oleh pengurus asrama dan ustadz pembimbing.
-                  </p>
-                  <textarea
-                    rows={6}
-                    value={formData.catatan_santri}
-                    onChange={(e) => handleChange('catatan_santri', e.target.value)}
-                    placeholder="Contoh: Santri memiliki riwayat asma jika terkena debu tebal, alergi udang, dll."
-                    className="w-full p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                  <input
+                    type="text"
+                    value={formData.asal_sekolah}
+                    onChange={(e) => handleChange('asal_sekolah', e.target.value)}
+                    placeholder="Contoh: MTs Assa'adah Bungah / SMPN 1 Gresik"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                    No. WhatsApp Santri (Jika ada)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.no_whatsapp}
+                    onChange={(e) => handleChange('no_whatsapp', e.target.value)}
+                    placeholder="08xxxxxxxxxx"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                  />
+                </div>
+
+                <div className="col-span-full">
+                  <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                    Email Santri / Wali
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email_siswa}
+                    onChange={(e) => handleChange('email_siswa', e.target.value)}
+                    placeholder="santri@email.com"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
                   />
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* MODAL FOOTER */}
-          <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700 flex flex-col-reverse sm:flex-row items-center justify-between gap-3 shrink-0">
-            <span className="text-[11px] text-slate-500 font-medium">
-              Data yang Anda ubah akan langsung tersimpan di database pesantren secara realtime.
-            </span>
+              <div>
+                <label className="font-bold text-xs text-[#2D3436] dark:text-slate-300 block mb-1.5">
+                  Catatan Riwayat Kesehatan, Alergi Makanan/Obat, atau Pesan Khusus Santri
+                </label>
+                <p className="text-[11px] text-slate-500 mb-2">
+                  Tuliskan riwayat penyakit khusus (asma/alergi obat/alergi makanan tertentu), pantangan, atau hal-hal penting yang harus diketahui oleh pengurus asrama dan pembina kamar.
+                </p>
+                <textarea
+                  rows={4}
+                  value={formData.catatan_santri}
+                  onChange={(e) => handleChange('catatan_santri', e.target.value)}
+                  placeholder="Contoh: Santri memiliki alergi seafood, alergi debu tebal, membutuhkan obat tetes mata rutin, dll."
+                  className="w-full p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                />
+              </div>
+            </div>
+          )}
 
-            <div className="flex items-center gap-2 self-end sm:self-auto">
+          {/* 🌟 BOTTOM ACTIONS BAR */}
+          <div className="pt-5 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              {currentTabIndex > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveSubTab(tabsList[currentTabIndex - 1].key)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <ChevronLeft size={14} />
+                  <span>Sebelumnya</span>
+                </button>
+              )}
+
+              {currentTabIndex < tabsList.length - 1 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveSubTab(tabsList[currentTabIndex + 1].key)}
+                  className="px-4 py-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 text-[#138F81] dark:text-teal-300 hover:bg-teal-100 text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <span>Lanjut ke {tabsList[currentTabIndex + 1].label}</span>
+                  <ChevronRight size={14} />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={isSaving}
-                className="px-4 py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-300 bg-slate-200/80 dark:bg-slate-700 hover:bg-slate-300 transition cursor-pointer"
+                className="px-4 py-2.5 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 transition cursor-pointer"
               >
                 Batal
               </button>
               <button
                 type="submit"
                 disabled={isSaving}
-                className="px-5 py-2 text-xs font-black rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white disabled:opacity-50 transition cursor-pointer shadow-md shadow-[#138F81]/25 flex items-center gap-1.5"
+                className="px-6 py-2.5 text-xs font-black rounded-xl bg-gradient-to-r from-[#138F81] to-[#0D7A6F] hover:from-[#0D7A6F] hover:to-[#0A5C54] text-white disabled:opacity-50 transition cursor-pointer shadow-md shadow-[#138F81]/25 flex items-center gap-1.5"
               >
                 {isSaving ? (
                   <>
                     <RefreshCw size={14} className="animate-spin" />
-                    <span>Menyimpan...</span>
+                    <span>Menyimpan ke Master Data...</span>
                   </>
                 ) : (
                   <>
                     <Save size={14} />
-                    <span>Simpan Perubahan</span>
+                    <span>Simpan Perubahan Realtime 🚀</span>
                   </>
                 )}
               </button>

@@ -461,7 +461,7 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
                 Keuangan & Kas Pesantren
               </span>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#FFDC80] text-[#0D7A6F] border border-amber-300">
-                Kasir & SPP
+                Loket Pembayaran & SPP
               </span>
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-[#2D3436] tracking-tight">{pageHeaderInfo.title}</h1>
@@ -1217,7 +1217,7 @@ function DirectPaymentCashier({
 
   return (
     <div className="space-y-6 pt-4">
-      {/* SECTION 1: PEMBAYARAN SEKARANG (SESI KASIR) */}
+      {/* SECTION 1: PEMBAYARAN SEKARANG (SESI LOKET PEMBAYARAN) */}
       <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
         <div className="border-b-2 border-[#138F81] pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
