@@ -692,7 +692,8 @@ class AbsensiNgajiController extends Controller
             }
 
             if ($student) {
-                app(WhatsAppNotificationService::class)->queueAbsensiNgaji($attendance, $student);
+                // Kirim notifikasi lengkap langsung ke aplikasi HP wali santri (Status Bar & In-App)
+                app(\App\Services\AppPushNotificationService::class)->notifyAbsensiNgaji($attendance, $student);
             }
         }
     }

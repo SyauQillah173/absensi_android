@@ -833,34 +833,8 @@ class AbsensiController extends Controller
         }
 
         foreach ($rows as $row) {
-            $row->loadMissing(['siswa.guardianProfile']);
-            $student = $row->siswa;
-            $userIds = collect([
-                $student?->wali_id,
-                $student?->guardianProfile?->user_id,
-            ])->filter()->unique();
-
-            foreach ($userIds as $userId) {
-                AppNotification::query()->create([
-                    'user_id' => $userId,
-                    'title' => 'Absensi Madin',
-                    'message' => sprintf(
-                        '%s tercatat %s pada Absensi Madin tanggal %s.',
-                        $student?->nama ?? 'Santri',
-                        $row->status ?? '-',
-                        optional($row->tanggal)->format('Y-m-d') ?? $row->tanggal
-                    ),
-                    'type' => 'absensi_madin',
-                    'data' => [
-                        'siswa_id' => $row->siswa_id,
-                        'absensi_id' => $row->id,
-                        'tanggal' => optional($row->tanggal)->format('Y-m-d') ?? $row->tanggal,
-                        'status' => $row->status,
-                    ],
-                ]);
-            }
-
-            app(WhatsAppNotificationService::class)->queueAbsensiMadin($row);
+            // Kirim notifikasi lengkap langsung ke aplikasi HP wali santri (Status Bar & In-App)
+            app(\App\Services\AppPushNotificationService::class)->notifyAbsensiMadin($row);
         }
     }
 }

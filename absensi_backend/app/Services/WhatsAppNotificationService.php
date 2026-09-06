@@ -196,6 +196,13 @@ class WhatsAppNotificationService
             ->where('module', $module)
             ->first();
 
+        // Kebijakan Notifikasi Pesantren Qomaruddin:
+        // Notifikasi WhatsApp HANYA dikhususkan untuk Penerimaan Santri Baru (PMB).
+        // Notifikasi Absensi, Transaksi Keuangan, dan Tagihan Santri dikirim langsung ke Aplikasi HP Wali (Push Notification).
+        if (!in_array($module, ['pmb', 'pmb_registration', 'pmb_acceptance'])) {
+            return null;
+        }
+
         if (!$forceQueue && (!$setting || !$setting->is_active || !$setting->channel_whatsapp)) {
             return null;
         }

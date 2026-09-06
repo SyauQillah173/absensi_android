@@ -199,11 +199,9 @@ class PaymentBillController extends Controller
                     'channels' => $channel,
                 ],
             ]);
-        }
 
-        if (in_array($channel, ['whatsapp', 'both'], true)) {
-            $whatsappLog = app(WhatsAppNotificationService::class)
-                ->queuePaymentBill($paymentBill, $actor?->id, $message);
+            // Kirim notifikasi lengkap langsung ke aplikasi HP wali santri (Status Bar & In-App)
+            app(\App\Services\AppPushNotificationService::class)->notifyPaymentBill($paymentBill);
         }
 
         return response()->json([

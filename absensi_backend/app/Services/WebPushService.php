@@ -6,6 +6,9 @@ use App\Models\PushSubscription;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
+use Minishlink\WebPush\WebPush;
+use Minishlink\WebPush\Subscription;
+
 class WebPushService
 {
     /**
@@ -17,7 +20,7 @@ class WebPushService
     }
 
     /**
-     * Kirim push notification ke satu subscription
+     * Kirim push notification ke satu subscription dengan VAPID encryption
      */
     public function sendNotification(PushSubscription $sub, array $payload): bool
     {
@@ -26,19 +29,56 @@ class WebPushService
             return false;
         }
 
+        $url = $payload['url'] ?? '/wali';
         $formattedPayload = json_encode([
             'title' => $payload['title'] ?? 'Pemberitahuan Pesantren Qomaruddin',
             'body' => $payload['body'] ?? 'Ada informasi terbaru untuk Anda.',
             'icon' => $payload['icon'] ?? config('webpush.default_icon', '/logo-qomaruddin.png'),
             'badge' => $payload['badge'] ?? config('webpush.default_badge', '/logo-qomaruddin.png'),
-            'url' => $payload['url'] ?? '/',
+            'url' => $url,
             'tag' => $payload['tag'] ?? 'qomaruddin-' . time(),
             'timestamp' => time() * 1000,
+            'data' => [
+                'url' => $url,
+            ],
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
         try {
-            // Sederhana dan kompatibel: Kirim payload via Web Push protocol
-            // Jika Push Service Google/Chrome, kirim headers standar
+            // Gunakan Minishlink WebPush resmi jika kunci p256dh dan auth tersedia
+            if (class_exists(WebPush::class) && !empty($sub->p256dh) && !empty($sub->auth)) {
+                $auth = [
+                    'VAPID' => [
+                        'subject' => config('webpush.vapid.subject', 'mailto:admin@qomaruddin.ponpes.id'),
+                        'publicKey' => config('webpush.vapid.public_key'),
+                        'privateKey' => config('webpush.vapid.private_key'),
+                    ],
+                ];
+
+                $webPush = new WebPush($auth, ['TTL' => 86400, 'urgency' => 'high']);
+                $webPush->setDefaultOptions(['TTL' => 86400, 'urgency' => 'high']);
+
+                $subscription = Subscription::create([
+                    'endpoint' => $sub->endpoint,
+                    'publicKey' => $sub->p256dh,
+                    'authToken' => $sub->auth,
+                ]);
+
+                $report = $webPush->sendOneNotification($subscription, $formattedPayload);
+                if ($report->isSuccess()) {
+                    $sub->update(['last_used_at' => now()]);
+                    return true;
+                }
+
+                if ($report->isSubscriptionExpired()) {
+                    Log::info("[WebPush] Menghapus subscription kadaluarsa ID: {$sub->id}");
+                    $sub->delete();
+                    return false;
+                }
+
+                Log::warning("[WebPush] Gagal mengirim via WebPush library ke ID {$sub->id}: " . $report->getReason());
+            }
+
+            // Fallback HTTP POST langsung jika push service mendukung direct post
             $response = Http::timeout(8)
                 ->withHeaders([
                     'TTL' => '86400',

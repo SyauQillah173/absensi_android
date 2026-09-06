@@ -346,6 +346,9 @@ class PembayaranController extends Controller
             ],
         );
 
+        // Kirim notifikasi lengkap langsung ke aplikasi HP wali santri (Status Bar & In-App)
+        app(\App\Services\AppPushNotificationService::class)->notifyPaymentTransaction($transaction);
+
         return response()->json([
             'success' => true,
             'message' => 'Pembayaran berhasil dicatat',
@@ -386,11 +389,11 @@ class PembayaranController extends Controller
     public function notifyWa(Request $request, PaymentTransaction $paymentTransaction)
     {
         $actor = $this->resolveActor($request);
-        $log = app(WhatsAppNotificationService::class)->queuePaymentTransaction($paymentTransaction, $actor?->id);
+        app(\App\Services\AppPushNotificationService::class)->notifyPaymentTransaction($paymentTransaction);
 
         return response()->json([
             'success' => true,
-            'message' => $log ? 'Notifikasi WhatsApp berhasil masuk antrean' : 'Tidak dapat mengirim notifikasi WA',
+            'message' => 'Notifikasi ke aplikasi wali santri berhasil dikirim',
         ]);
     }
 
