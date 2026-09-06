@@ -87,7 +87,7 @@ Route::prefix('pmb')->group(function () {
 });
 
 // 🔔 Web Push Notifications (Real-time Notifikasi HP Wali & Admin tanpa Playstore)
-Route::prefix('push')->middleware('throttle:60,1')->group(function () {
+Route::prefix('push')->group(function () {
     Route::get('vapid-public-key', [PushNotificationController::class, 'getVapidPublicKey']);
     Route::post('subscribe', [PushNotificationController::class, 'subscribe']);
     Route::post('unsubscribe', [PushNotificationController::class, 'unsubscribe']);

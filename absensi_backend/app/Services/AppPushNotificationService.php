@@ -26,6 +26,14 @@ class AppPushNotificationService
             $student->guardianProfile?->user_id,
         ])->filter()->unique()->values()->all();
 
+        // Tambahkan akun yang terhubung via NIS santri jika ada
+        if (!empty($student->nis)) {
+            $matchedUser = \App\Models\User::where('nis', $student->nis)->first();
+            if ($matchedUser && !in_array($matchedUser->id, $ids)) {
+                $ids[] = $matchedUser->id;
+            }
+        }
+
         if (empty($ids)) {
             // Coba temukan user wali dari nomor handphone atau NIS
             $phone = $student->wali_hp ?: $student->no_hp_wali ?: $student->guardianProfile?->phone;
@@ -209,12 +217,15 @@ class AppPushNotificationService
             }
 
             $waliUserIds = $this->getWaliUserIds($student);
+            if ($transaction->wali_id && !in_array((int) $transaction->wali_id, $waliUserIds)) {
+                $waliUserIds[] = (int) $transaction->wali_id;
+            }
             if (empty($waliUserIds)) {
                 return;
             }
 
             $studentName = $student->nama ?? 'Santri';
-            $nominal = number_format((float) ($transaction->nominal ?? $transaction->total_amount ?? 0), 0, ',', '.');
+            $nominal = number_format((float) ($transaction->jumlah_total ?? $transaction->nominal ?? $transaction->total_amount ?? 0), 0, ',', '.');
             $items = $transaction->items;
             $titlePayment = $items->pluck('paymentType.nama')->filter()->join(', ')
                 ?: $transaction->bills->pluck('title')->filter()->join(', ')
