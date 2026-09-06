@@ -1183,5 +1183,11 @@ export const api = {
     return request<ApiRecord>(`/pmb/admin/announcements/${id}`, {
       method: 'DELETE',
     });
+  },
+  waliUpdateBiodata(payload: ApiRecord) {
+    return request<ApiRecord>('/wali/biodata', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
   }
 };

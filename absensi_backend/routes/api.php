@@ -124,6 +124,7 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
     Route::middleware('role:wali')->group(function () {
         Route::get('wali/anak', [WaliController::class, 'anak']);
         Route::get('wali/biodata', [WaliController::class, 'biodata'])->middleware('permission:biodata_siswa,view');
+        Route::put('wali/biodata', [WaliController::class, 'updateBiodata'])->middleware('permission:biodata_siswa,update');
         Route::get('wali/absensi', [WaliController::class, 'absensi'])->middleware('permission:absensi,view');
         Route::get('wali/absensi-sholat', [WaliController::class, 'absensiSholat'])->middleware('permission:absensi,view');
         Route::get('wali/absensi-ngaji', [WaliController::class, 'absensiNgaji'])->middleware('permission:absensi,view');

@@ -50,6 +50,11 @@ import {
   X,
   Image as ImageIcon,
   Printer,
+  Edit3,
+  Trash2,
+  Save,
+  Upload,
+  AlertCircle,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
@@ -152,6 +157,91 @@ export function WaliPortalPage() {
   // Month & year filter for attendance
   const [selectedMonth, setSelectedMonth] = useState<number>(() => new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
+
+  // Local Avatar storage (client-side only on device storage, zero server load)
+  const [localAvatar, setLocalAvatar] = useState<string | null>(null);
+  const [avatarToast, setAvatarToast] = useState<string | null>(null);
+
+  // Edit Biodata modal state
+  const [isEditBiodataOpen, setIsEditBiodataOpen] = useState(false);
+  const [biodataToast, setBiodataToast] = useState<string | null>(null);
+
+  // Load avatar from localStorage whenever selectedChildId changes
+  useEffect(() => {
+    if (!selectedChildId) {
+      setLocalAvatar(null);
+      return;
+    }
+    try {
+      const saved = localStorage.getItem(`student_avatar_${selectedChildId}`);
+      setLocalAvatar(saved || null);
+    } catch {
+      setLocalAvatar(null);
+    }
+  }, [selectedChildId]);
+
+  // Handle client-side avatar upload & compress to WebP
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedChildId) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Mohon pilih file foto/gambar.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 320;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/webp', 0.85);
+          try {
+            localStorage.setItem(`student_avatar_${selectedChildId}`, dataUrl);
+            setLocalAvatar(dataUrl);
+            setAvatarToast('Foto santri berhasil disimpan di HP Anda (tidak membebani server pondok)!');
+            setTimeout(() => setAvatarToast(null), 5000);
+          } catch {
+            alert('Penyimpanan lokal browser perangkat Anda penuh.');
+          }
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Handle remove avatar from localStorage
+  const handleRemoveAvatar = () => {
+    if (!selectedChildId) return;
+    try {
+      localStorage.removeItem(`student_avatar_${selectedChildId}`);
+      setLocalAvatar(null);
+      setAvatarToast('Foto santri berhasil dihapus dari perangkat ini.');
+      setTimeout(() => setAvatarToast(null), 4000);
+    } catch {
+      // ignore
+    }
+  };
 
   // Push Notification Test State & Feedback
   const [isTestingNotif, setIsTestingNotif] = useState(false);
@@ -957,13 +1047,38 @@ export function WaliPortalPage() {
 
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="flex items-center gap-4 sm:gap-6">
-              {/* AVATAR WITH YELLOW EMBLEM ACCENT */}
-              <div className="relative shrink-0">
-                <div className="grid h-18 w-18 sm:h-22 sm:w-22 place-items-center rounded-2xl sm:rounded-3xl bg-[#FFDC80] text-[#0D7A6F] text-2xl sm:text-3xl font-black shadow-lg shadow-black/20">
-                  {studentName.charAt(0).toUpperCase()}
+              {/* AVATAR WITH YELLOW EMBLEM ACCENT & CLIENT-SIDE PHOTO UPLOAD */}
+              <div className="relative shrink-0 group">
+                <div className="h-18 w-18 sm:h-22 sm:w-22 rounded-2xl sm:rounded-3xl bg-[#FFDC80] text-[#0D7A6F] overflow-hidden flex items-center justify-center font-black text-2xl sm:text-3xl shadow-lg shadow-black/20 border-2 border-white/30">
+                  {localAvatar ? (
+                    <img
+                      src={localAvatar}
+                      alt={studentName}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    studentName.charAt(0).toUpperCase()
+                  )}
                 </div>
+
+                {/* Camera upload button badge for HP storage */}
+                <label
+                  htmlFor="hero-avatar-input"
+                  className="absolute -bottom-1 -left-1 h-7 w-7 rounded-full bg-white text-[#138F81] hover:bg-[#FFDC80] hover:text-[#0D7A6F] border-2 border-[#138F81] shadow-md flex items-center justify-center cursor-pointer transition transform active:scale-95 z-20"
+                  title="Pasang / Ganti Foto Santri (Disimpan di HP)"
+                >
+                  <Camera size={13} />
+                  <input
+                    id="hero-avatar-input"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarUpload}
+                  />
+                </label>
+
                 <span
-                  className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-emerald-400 border-2 border-[#138F81] shadow-xs"
+                  className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-emerald-400 border-2 border-[#138F81] shadow-xs z-10"
                   title="Santri Aktif Terdaftar"
                 />
               </div>
@@ -1641,7 +1756,7 @@ export function WaliPortalPage() {
                           {/* ========================================================================= */}
                           {/* STEP 1: PILIH TAGIHAN YANG INGIN DIBAYAR */}
                           {/* ========================================================================= */}
-                          <div className="p-4 sm:p-6 rounded-3xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-4 shadow-xs">
+                          <div className="p-4 sm:p-6 rounded-3xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-5 shadow-xs">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/70 dark:border-slate-700/70 pb-3">
                               <div className="flex items-center gap-2.5">
                                 <span className="flex items-center justify-center w-7 h-7 rounded-xl bg-[#138F81] text-white text-xs font-black shadow-sm">
@@ -1652,17 +1767,17 @@ export function WaliPortalPage() {
                                     Pilih Tagihan yang Ingin Dibayar
                                   </h4>
                                   <p className="text-[10px] text-slate-500 font-semibold">
-                                    Bisa bayar 1 bulan atau centang beberapa bulan sekaligus
+                                    Dibedakan antara SPP Bulanan rutin santri dan Pembayaran Umum (Kitab/Gedung/dll) agar jelas & tidak keliru
                                   </p>
                                 </div>
                               </div>
 
-                              {/* QUICK SELECT CHIPS */}
+                              {/* QUICK SELECT GLOBAL CHIPS */}
                               <div className="flex items-center gap-1.5 text-[11px] self-end sm:self-auto">
                                 <button
                                   type="button"
                                   onClick={selectAllUnpaid}
-                                  className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[#138F81] font-black hover:bg-slate-100 transition cursor-pointer"
+                                  className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[#138F81] font-black hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer"
                                 >
                                   Pilih Semua
                                 </button>
@@ -1670,197 +1785,252 @@ export function WaliPortalPage() {
                                   type="button"
                                   onClick={clearSelectedBills}
                                   disabled={selectedBillIds.length === 0}
-                                  className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 font-bold hover:bg-slate-100 disabled:opacity-40 transition cursor-pointer"
+                                  className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 font-bold hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 transition cursor-pointer"
                                 >
-                                  Hapus
+                                  Hapus Pilihan
                                 </button>
                               </div>
                             </div>
 
-                            {/* CATEGORY SELECTOR TABS */}
-                            <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
-                              <button
-                                type="button"
-                                onClick={() => setTransferCategoryFilter('all')}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                                  transferCategoryFilter === 'all'
-                                    ? 'bg-[#138F81] text-white shadow-xs'
-                                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                                }`}
-                              >
-                                <span>Semua Tagihan</span>
-                                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                                  transferCategoryFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                                }`}>
-                                  {unpaidBills.length}
-                                </span>
-                              </button>
+                            {/* ========================================================================= */}
+                            {/* BAGIAN A: 🗓️ SPP BULANAN RUTIN SANTRI */}
+                            {/* ========================================================================= */}
+                            <div className="rounded-2xl border-2 border-[#138F81]/30 bg-teal-50/40 dark:bg-teal-950/20 p-4 sm:p-5 space-y-3.5">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#138F81]/20 pb-2.5">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-xl bg-[#138F81] text-white flex items-center justify-center shadow-xs">
+                                    <Calendar size={16} />
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <h5 className="text-xs sm:text-sm font-black text-[#138F81] dark:text-teal-300">
+                                        SPP Bulanan Rutin
+                                      </h5>
+                                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-[#138F81] text-white">
+                                        {unpaidSppBills.length} Bulan Belum Lunas
+                                      </span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                                      Kewajiban SPP bulanan santri pesantren
+                                    </p>
+                                  </div>
+                                </div>
 
-                              <button
-                                type="button"
-                                onClick={() => setTransferCategoryFilter('spp')}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                                  transferCategoryFilter === 'spp'
-                                    ? 'bg-[#138F81] text-white shadow-xs'
-                                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                                }`}
-                              >
-                                <Calendar size={13} />
-                                <span>SPP Bulanan</span>
-                                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                                  transferCategoryFilter === 'spp' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                                }`}>
-                                  {unpaidSppBills.length}
-                                </span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => setTransferCategoryFilter('non_spp')}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                                  transferCategoryFilter === 'non_spp'
-                                    ? 'bg-[#138F81] text-white shadow-xs'
-                                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                                }`}
-                              >
-                                <BookOpen size={13} />
-                                <span>Biaya Lain (Kitab/Gedung)</span>
-                                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                                  transferCategoryFilter === 'non_spp' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                                }`}>
-                                  {unpaidNonSppBills.length}
-                                </span>
-                              </button>
-                            </div>
-
-                            {/* SMART FAST-ACTION PILLS FOR WALIS */}
-                            {unpaidSppBills.length > 0 && (
-                              <div className="p-2.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/70 flex flex-wrap items-center justify-between gap-2">
-                                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                                  <Zap size={13} className="text-amber-500" />
-                                  Aksi Cepat SPP:
-                                </span>
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={selectNextUnpaidSpp}
-                                    className="px-2.5 py-1 text-[10px] font-black rounded-lg bg-teal-50 dark:bg-teal-950/50 text-[#138F81] dark:text-teal-300 border border-[#138F81]/25 hover:bg-teal-100 transition cursor-pointer"
-                                  >
-                                    ⚡ Bayar 1 Bulan Ini
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={selectAllSpp}
-                                    className="px-2.5 py-1 text-[10px] font-black rounded-lg bg-teal-50 dark:bg-teal-950/50 text-[#138F81] dark:text-teal-300 border border-[#138F81]/25 hover:bg-teal-100 transition cursor-pointer"
-                                  >
-                                    ⚡ Pilih Semua SPP ({unpaidSppBills.length})
-                                  </button>
-                                  {unpaidNonSppBills.length > 0 && (
+                                {/* AKSI CEPAT KHUSUS SPP */}
+                                {unpaidSppBills.length > 0 && (
+                                  <div className="flex items-center gap-1.5 self-end sm:self-auto flex-wrap">
                                     <button
                                       type="button"
-                                      onClick={selectAllNonSpp}
-                                      className="px-2.5 py-1 text-[10px] font-black rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition cursor-pointer"
+                                      onClick={selectNextUnpaidSpp}
+                                      className="px-2.5 py-1 text-[10px] font-black rounded-lg bg-[#138F81] text-white hover:bg-[#0D7A6F] transition cursor-pointer shadow-xs"
+                                      title="Bayar 1 bulan terdekat"
                                     >
-                                      Khusus Biaya Lain ({unpaidNonSppBills.length})
+                                      ⚡ Bayar 1 Bulan
                                     </button>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* BILL ITEMS LIST */}
-                            {filteredUnpaidBills.length === 0 ? (
-                              <div className="p-8 rounded-2xl bg-white dark:bg-slate-800 text-center text-slate-400 border border-slate-200/60 dark:border-slate-700/60">
-                                <CheckCircle2 size={36} className="mx-auto mb-2 text-emerald-500" />
-                                <p className="text-xs sm:text-sm font-black text-[#2D3436] dark:text-white">
-                                  {unpaidBills.length === 0
-                                    ? 'Alhamdulillah, semua tagihan santri sudah lunas!'
-                                    : 'Tidak ada tagihan dalam kategori ini.'}
-                                </p>
-                                <p className="text-[11px] text-slate-500 mt-1">
-                                  {unpaidBills.length === 0
-                                    ? 'Seluruh kewajiban pembayaran telah terselesaikan dengan tertib.'
-                                    : 'Silakan ganti kategori filter di atas untuk melihat tagihan lainnya.'}
-                                </p>
-                              </div>
-                            ) : (
-                              <div className="max-h-[380px] sm:max-h-[440px] overflow-y-auto space-y-2.5 pr-1.5 custom-scrollbar">
-                                {filteredUnpaidBills.map((b) => {
-                                  const bId = Number(b.id);
-                                  const isSelected = selectedBillIds.includes(bId);
-                                  const amount = Number(b.amount || 0);
-                                  const isSpp = isSppBill(b);
-
-                                  return (
-                                    <div
-                                      key={bId}
-                                      onClick={() => toggleBillSelection(bId)}
-                                      className={`p-3.5 rounded-2xl border-2 flex items-center justify-between gap-3 cursor-pointer transition-all select-none ${
-                                        isSelected
-                                          ? 'bg-gradient-to-r from-teal-50/95 via-emerald-50/80 to-teal-50/95 dark:from-teal-950/60 dark:to-emerald-950/40 border-[#138F81] ring-2 ring-[#138F81]/25 shadow-sm'
-                                          : 'bg-white dark:bg-slate-800 border-slate-200/90 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-xs'
-                                      }`}
+                                    <button
+                                      type="button"
+                                      onClick={selectAllSpp}
+                                      className="px-2.5 py-1 text-[10px] font-black rounded-lg bg-white dark:bg-slate-800 text-[#138F81] dark:text-teal-300 border border-[#138F81]/30 hover:bg-teal-50 transition cursor-pointer"
+                                      title="Pilih seluruh tunggakan SPP"
                                     >
-                                      {/* LEFT: CHECKBOX & INFO */}
-                                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                                        <div className={`w-5 h-5 rounded-lg flex items-center justify-center transition-all shrink-0 ${
+                                      ⚡ Semua Bulan SPP
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* LIST SPP */}
+                              {unpaidSppBills.length === 0 ? (
+                                <div className="p-4 rounded-xl bg-white dark:bg-slate-800/80 text-center border border-emerald-200 dark:border-emerald-800/50">
+                                  <CheckCircle2 size={24} className="mx-auto mb-1 text-emerald-500" />
+                                  <p className="text-xs font-black text-emerald-700 dark:text-emerald-300">
+                                    Alhamdulillah, Seluruh SPP Bulanan Santri Telah Lunas!
+                                  </p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">
+                                    Tidak ada tanggungan SPP bulanan yang tertunggak.
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+                                  {unpaidSppBills.map((b) => {
+                                    const bId = Number(b.id);
+                                    const isSelected = selectedBillIds.includes(bId);
+                                    const amount = Number(b.amount || 0);
+
+                                    return (
+                                      <div
+                                        key={bId}
+                                        onClick={() => toggleBillSelection(bId)}
+                                        className={`p-3 rounded-xl border-2 flex items-center justify-between gap-3 cursor-pointer transition-all select-none ${
                                           isSelected
-                                            ? 'bg-[#138F81] text-white shadow-xs'
-                                            : 'border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700'
-                                        }`}>
-                                          {isSelected && <Check size={13} strokeWidth={3.5} />}
-                                        </div>
-
-                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                                          isSpp
-                                            ? 'bg-teal-100/70 dark:bg-teal-900/50 text-[#138F81] dark:text-teal-300'
-                                            : 'bg-amber-100/70 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300'
-                                        }`}>
-                                          {isSpp ? <Calendar size={18} /> : <BookOpen size={18} />}
-                                        </div>
-
-                                        <div className="min-w-0 flex-1">
-                                          <div className="text-xs sm:text-sm font-black text-[#2D3436] dark:text-white capitalize truncate">
-                                            {String(b.title || 'Tagihan')}
+                                            ? 'bg-white dark:bg-slate-800 border-[#138F81] ring-2 ring-[#138F81]/20 shadow-sm'
+                                            : 'bg-white/80 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-[#138F81]/40'
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                          <div className={`w-5 h-5 rounded-lg flex items-center justify-center transition-all shrink-0 ${
+                                            isSelected
+                                              ? 'bg-[#138F81] text-white shadow-xs'
+                                              : 'border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700'
+                                          }`}>
+                                            {isSelected && <Check size={13} strokeWidth={3.5} />}
                                           </div>
-                                          <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold flex items-center gap-1.5 flex-wrap mt-0.5">
-                                            <span>Tahun: {String(b.tahun_ajaran || '2026/2027')}</span>
-                                            {Boolean(b.due_date) && (
-                                              <>
-                                                <span>•</span>
-                                                <span className="text-slate-600 dark:text-slate-300">Tempo: {String(b.due_date)}</span>
-                                              </>
-                                            )}
-                                          </div>
-                                          {Boolean(b.notes || b.keterangan) && (
-                                            <div className="text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 rounded-md px-2 py-0.5 mt-1 inline-flex items-center gap-1 border border-amber-200 dark:border-amber-800">
-                                              <span>💡</span>
-                                              <span className="truncate">{String(b.notes || b.keterangan)}</span>
+                                          <div className="min-w-0 flex-1">
+                                            <div className="text-xs font-black text-[#2D3436] dark:text-white capitalize truncate">
+                                              {String(b.title || 'SPP Bulanan')}
                                             </div>
+                                            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1.5 flex-wrap">
+                                              <span>Tahun: {String(b.tahun_ajaran || '2026/2027')}</span>
+                                              {Boolean(b.due_date) && (
+                                                <>
+                                                  <span>•</span>
+                                                  <span>Tempo: {String(b.due_date)}</span>
+                                                </>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div className="shrink-0 text-right">
+                                          <span className="text-xs font-black text-[#138F81] dark:text-teal-400 whitespace-nowrap block">
+                                            Rp {amount.toLocaleString('id-ID')}
+                                          </span>
+                                          {isSelected ? (
+                                            <span className="inline-block text-[9px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/70 px-1.5 py-0.2 rounded border border-emerald-300 dark:border-emerald-800">
+                                              ✓ Dipilih
+                                            </span>
+                                          ) : (
+                                            <span className="inline-block text-[9px] font-bold text-slate-500 dark:text-slate-400">
+                                              Belum Lunas
+                                            </span>
                                           )}
                                         </div>
                                       </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
 
-                                      {/* RIGHT: NOMINAL & STATUS BADGE (NO SPLIT LINE) */}
-                                      <div className="shrink-0 text-right">
-                                        <span className="text-xs sm:text-sm font-black text-[#138F81] dark:text-teal-400 whitespace-nowrap block">
-                                          Rp {amount.toLocaleString('id-ID')}
-                                        </span>
-                                        {isSelected ? (
-                                          <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/70 px-2 py-0.5 rounded-md mt-1 border border-emerald-300 dark:border-emerald-800">
-                                            ✓ Terpilih
-                                          </span>
-                                        ) : (
-                                          <span className="inline-block text-[9px] font-black uppercase text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-md mt-1">
-                                            Belum Lunas
-                                          </span>
-                                        )}
-                                      </div>
+                            {/* ========================================================================= */}
+                            {/* BAGIAN B: 📚 PEMBAYARAN UMUM & BIAYA NON-SPP */}
+                            {/* ========================================================================= */}
+                            <div className="rounded-2xl border-2 border-indigo-200/90 dark:border-indigo-900/60 bg-indigo-50/30 dark:bg-slate-800/60 p-4 sm:p-5 space-y-3.5">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-200/60 dark:border-indigo-900/40 pb-2.5">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                                    <BookOpen size={16} />
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <h5 className="text-xs sm:text-sm font-black text-indigo-900 dark:text-indigo-300">
+                                        Pembayaran Umum & Non-SPP
+                                      </h5>
+                                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-600 text-white">
+                                        {unpaidNonSppBills.length} Tagihan Umum
+                                      </span>
                                     </div>
-                                  );
-                                })}
+                                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                                      Biaya Kitab, Gedung, Seragam, Ujian & kegiatan non-rutin lainnya
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* AKSI CEPAT KHUSUS BIAYA UMUM */}
+                                {unpaidNonSppBills.length > 0 && (
+                                  <div className="flex items-center gap-1.5 self-end sm:self-auto flex-wrap">
+                                    <button
+                                      type="button"
+                                      onClick={selectAllNonSpp}
+                                      className="px-2.5 py-1 text-[10px] font-black rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition cursor-pointer shadow-xs"
+                                      title="Pilih seluruh biaya umum"
+                                    >
+                                      Pilih Semua Biaya Umum
+                                    </button>
+                                  </div>
+                                )}
                               </div>
-                            )}
+
+                              {/* LIST BIAYA UMUM */}
+                              {unpaidNonSppBills.length === 0 ? (
+                                <div className="p-4 rounded-xl bg-white dark:bg-slate-800/80 text-center border border-indigo-100 dark:border-indigo-900/40">
+                                  <CheckCircle2 size={24} className="mx-auto mb-1 text-indigo-500" />
+                                  <p className="text-xs font-black text-indigo-900 dark:text-indigo-300">
+                                    Tidak Ada Tagihan Biaya Umum yang Tertunggak
+                                  </p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">
+                                    Seluruh pos pembayaran umum (Kitab/Gedung/dll) sudah terselesaikan.
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+                                  {unpaidNonSppBills.map((b) => {
+                                    const bId = Number(b.id);
+                                    const isSelected = selectedBillIds.includes(bId);
+                                    const amount = Number(b.amount || 0);
+
+                                    return (
+                                      <div
+                                        key={bId}
+                                        onClick={() => toggleBillSelection(bId)}
+                                        className={`p-3 rounded-xl border-2 flex items-center justify-between gap-3 cursor-pointer transition-all select-none ${
+                                          isSelected
+                                            ? 'bg-white dark:bg-slate-800 border-indigo-600 ring-2 ring-indigo-600/20 shadow-sm'
+                                            : 'bg-white/80 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-indigo-400'
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                          <div className={`w-5 h-5 rounded-lg flex items-center justify-center transition-all shrink-0 ${
+                                            isSelected
+                                              ? 'bg-indigo-600 text-white shadow-xs'
+                                              : 'border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700'
+                                          }`}>
+                                            {isSelected && <Check size={13} strokeWidth={3.5} />}
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                            <div className="text-xs font-black text-[#2D3436] dark:text-white capitalize truncate">
+                                              {String(b.title || 'Biaya Umum')}
+                                            </div>
+                                            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1.5 flex-wrap">
+                                              <span className="px-1.5 py-0.2 rounded bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold">
+                                                Umum / Non-SPP
+                                              </span>
+                                              <span>Tahun: {String(b.tahun_ajaran || '2026/2027')}</span>
+                                              {Boolean(b.due_date) && (
+                                                <>
+                                                  <span>•</span>
+                                                  <span>Tempo: {String(b.due_date)}</span>
+                                                </>
+                                              )}
+                                            </div>
+                                            {Boolean(b.notes || b.keterangan) && (
+                                              <div className="text-[10px] font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 rounded px-1.5 py-0.5 mt-1 inline-block border border-amber-200 dark:border-amber-800 truncate max-w-[280px]">
+                                                {String(b.notes || b.keterangan)}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        <div className="shrink-0 text-right">
+                                          <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 whitespace-nowrap block">
+                                            Rp {amount.toLocaleString('id-ID')}
+                                          </span>
+                                          {isSelected ? (
+                                            <span className="inline-block text-[9px] font-black text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-950/70 px-1.5 py-0.2 rounded border border-indigo-300 dark:border-indigo-800">
+                                              ✓ Dipilih
+                                            </span>
+                                          ) : (
+                                            <span className="inline-block text-[9px] font-bold text-slate-500 dark:text-slate-400">
+                                              Belum Lunas
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
 
                             {/* STICKY / DOCKED SUMMARY CHECKOUT BAR */}
                             <div className="p-4 rounded-2xl bg-gradient-to-r from-[#138F81]/15 via-teal-500/10 to-[#138F81]/15 border-2 border-[#138F81]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
@@ -2831,135 +3001,307 @@ export function WaliPortalPage() {
             {/* TAB 3: DATA DIRI SANTRI (BIODATA & AKADEMIK) */}
             {/* ========================================================================= */}
             {activeTab === 'biodata' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-                {/* 1. DATA PRIBADI SANTRI */}
-                <div className="q-card bg-white rounded-[28px] p-6 sm:p-7 shadow-xl shadow-black/5 space-y-4">
-                  <h3 className="text-sm font-black text-[#2D3436] flex items-center gap-2 pb-3 border-b border-slate-100">
-                    <UserRound size={18} className="text-[#138F81]" />
-                    Data Identitas Pribadi
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div className="bg-[#E1EFF7]/50 p-3 rounded-2xl border border-[#E1EFF7]">
-                      <span className="text-[#636E72] font-bold block">Nama Lengkap</span>
-                      <p className="font-black text-[#2D3436] text-sm mt-0.5">{studentName}</p>
+              <div className="space-y-6 animate-fadeIn">
+                {/* 1. HERO BIODATA HEADER CARD WITH LOCAL AVATAR & EDIT TRIGGER */}
+                <div className="q-card bg-white dark:bg-slate-800 rounded-[28px] p-6 sm:p-7 shadow-xl shadow-black/5 border border-slate-100 dark:border-slate-700">
+                  <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-6">
+                    {/* AVATAR + CLIENT-SIDE PHOTO CONTROLS */}
+                    <div className="flex flex-col items-center text-center sm:text-left sm:flex-row sm:items-center gap-5">
+                      <div className="relative group shrink-0">
+                        <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-[#FFDC80] text-[#0D7A6F] overflow-hidden flex items-center justify-center font-black text-3xl sm:text-4xl shadow-lg shadow-black/10 border-4 border-white dark:border-slate-700">
+                          {localAvatar ? (
+                            <img
+                              src={localAvatar}
+                              alt={studentName}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            studentName.charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <span
+                          className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-emerald-400 border-2 border-white dark:border-slate-800 shadow-xs"
+                          title="Santri Aktif Terdaftar"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div>
+                          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                            <h3 className="text-lg sm:text-xl font-black text-[#2D3436] dark:text-white">
+                              {studentName}
+                            </h3>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-[#E8F7F3] text-[#138F81] border border-[#138F81]/20">
+                              🟢 {studentStatus}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                            NIS: <strong className="text-[#2D3436] dark:text-slate-200">{studentNis}</strong> • Kelas: <strong className="text-[#2D3436] dark:text-slate-200">{studentKelas}</strong> • Kamar: <strong className="text-[#2D3436] dark:text-slate-200">{studentKamar}</strong>
+                          </p>
+                        </div>
+
+                        {/* PHOTO BUTTONS (CLIENT-SIDE HP STORAGE ONLY) */}
+                        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                          <label
+                            htmlFor="biodata-avatar-upload"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-[#138F81] dark:text-teal-300 hover:bg-teal-100 border border-[#138F81]/25 text-xs font-bold transition cursor-pointer shadow-2xs"
+                          >
+                            <Camera size={14} />
+                            <span>{localAvatar ? 'Ganti Foto di HP' : 'Pasang Foto Profil di HP'}</span>
+                            <input
+                              id="biodata-avatar-upload"
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleAvatarUpload}
+                            />
+                          </label>
+
+                          {localAvatar && (
+                            <button
+                              type="button"
+                              onClick={handleRemoveAvatar}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 hover:bg-rose-100 border border-rose-200 text-xs font-bold transition cursor-pointer"
+                              title="Hapus foto dari HP ini"
+                            >
+                              <Trash2 size={13} />
+                              <span>Hapus</span>
+                            </button>
+                          )}
+                        </div>
+
+                        <p className="text-[10px] text-slate-400 font-medium">
+                          💡 Foto profil santri tersimpan aman di memori HP Anda tanpa membebani server yayasan.
+                        </p>
+                      </div>
                     </div>
-                    <div className="bg-[#E1EFF7]/50 p-3 rounded-2xl border border-[#E1EFF7]">
-                      <span className="text-[#636E72] font-bold block">Nomor Induk Santri (NIS)</span>
-                      <p className="font-black text-[#2D3436] text-sm mt-0.5">{studentNis}</p>
-                    </div>
-                    <div className="bg-[#E1EFF7]/50 p-3 rounded-2xl border border-[#E1EFF7]">
-                      <span className="text-[#636E72] font-bold block">NISN</span>
-                      <p className="font-extrabold text-[#2D3436] mt-0.5">{String(biodata?.nisn || '-')}</p>
-                    </div>
-                    <div className="bg-[#E1EFF7]/50 p-3 rounded-2xl border border-[#E1EFF7]">
-                      <span className="text-[#636E72] font-bold block">Jenis Kelamin</span>
-                      <p className="font-extrabold text-[#2D3436] mt-0.5">
-                        {String(biodata?.jenis_kelamin || '').toUpperCase() === 'L' || String(biodata?.jenis_kelamin || '').toLowerCase().includes('laki')
-                          ? '👨 Laki-laki (Putra)'
-                          : '👩 Perempuan (Putri)'}
-                      </p>
-                    </div>
-                    <div className="bg-[#E1EFF7]/50 p-3 rounded-2xl border border-[#E1EFF7]">
-                      <span className="text-[#636E72] font-bold block">Tempat, Tanggal Lahir</span>
-                      <p className="font-extrabold text-[#2D3436] mt-0.5">
-                        {String(biodata?.tempat_lahir || '-')}, {String(biodata?.tanggal_lahir || '-')}
-                      </p>
-                    </div>
-                    <div className="bg-[#E1EFF7]/50 p-3 rounded-2xl border border-[#E1EFF7]">
-                      <span className="text-[#636E72] font-bold block">Status Santri</span>
-                      <span className="inline-block mt-0.5 px-2.5 py-0.5 text-[10px] font-black text-[#138F81] bg-[#E8F7F3] border border-[#138F81]/20 rounded-md">
-                        🟢 {studentStatus}
+
+                    {/* EDIT BIODATA BUTTON & REALTIME SYNC BADGE */}
+                    <div className="flex flex-col items-center md:items-end gap-2 w-full md:w-auto shrink-0 border-t md:border-t-0 pt-4 md:pt-0 border-slate-100 dark:border-slate-700">
+                      <button
+                        type="button"
+                        onClick={() => setIsEditBiodataOpen(true)}
+                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-[#138F81] to-[#0D7A6F] hover:from-[#0D7A6F] hover:to-[#0A5C54] text-white text-xs font-black shadow-lg shadow-[#138F81]/25 hover:shadow-xl transition transform active:scale-95 cursor-pointer"
+                      >
+                        <Edit3 size={15} />
+                        <span>✏️ Edit Biodata Santri</span>
+                      </button>
+
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        Sinkronisasi Realtime ke Master Data
                       </span>
                     </div>
-                    <div className="sm:col-span-2 bg-[#E1EFF7]/50 p-3 rounded-2xl border border-[#E1EFF7]">
-                      <span className="text-[#636E72] font-bold block">Alamat Lengkap</span>
-                      <p className="font-extrabold text-[#2D3436] mt-0.5">
-                        {String(biodata?.alamat || biodata?.desa || biodata?.kecamatan || biodata?.kabupaten || 'Sampurnan Bungah Gresik')}
-                      </p>
-                    </div>
                   </div>
                 </div>
 
-                {/* 2. DATA AKADEMIK MADIN */}
-                <div className="q-card bg-white rounded-[28px] p-6 sm:p-7 shadow-xl shadow-black/5 space-y-4">
-                  <h3 className="text-sm font-black text-[#2D3436] flex items-center gap-2 pb-3 border-b border-slate-100">
-                    <GraduationCap size={18} className="text-[#138F81]" />
-                    Data Akademik Madrasah Diniyah
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div className="bg-[#E1EFF7]/50 p-3 rounded-2xl border border-[#E1EFF7]">
-                      <span className="text-[#636E72] font-bold block">Kelas Madin</span>
-                      <p className="font-black text-[#2D3436] text-sm mt-0.5">{studentKelas}</p>
-                    </div>
-                    <div className="bg-[#E1EFF7]/50 p-3 rounded-2xl border border-[#E1EFF7]">
-                      <span className="text-[#636E72] font-bold block">Kelompok Belajar</span>
-                      <p className="font-extrabold text-[#2D3436] mt-0.5">
-                        {String((biodata?.kelompok_belajar as Record<string, unknown> | undefined)?.nama ?? biodata?.kelompok ?? 'Reguler')}
-                      </p>
-                    </div>
-                    <div className="bg-[#E1EFF7]/50 p-3 rounded-2xl border border-[#E1EFF7]">
-                      <span className="text-[#636E72] font-bold block">Tahun Masuk / Angkatan</span>
-                      <p className="font-extrabold text-[#2D3436] mt-0.5">{String(biodata?.tahun_masuk || biodata?.angkatan || '2025/2026')}</p>
-                    </div>
-                    <div className="bg-[#E1EFF7]/50 p-3 rounded-2xl border border-[#E1EFF7]">
-                      <span className="text-[#636E72] font-bold block">Asal Sekolah Formal</span>
-                      <p className="font-extrabold text-[#2D3436] mt-0.5">{String(biodata?.asal_sekolah || (biodata?.schoolOrigin as Record<string, unknown> | undefined)?.name || 'MTs Assa\'adah')}</p>
+                {/* 2. GRID OF DETAILED SANTRI DATA */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+                  {/* CARD 1: DATA IDENTITAS PRIBADI & FISIK */}
+                  <div className="q-card bg-white dark:bg-slate-800 rounded-[28px] p-6 sm:p-7 shadow-xl shadow-black/5 border border-slate-100 dark:border-slate-700 space-y-4">
+                    <h3 className="text-sm font-black text-[#2D3436] dark:text-white flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-700">
+                      <UserRound size={18} className="text-[#138F81]" />
+                      <span>Data Identitas & Fisik Santri</span>
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Nama Lengkap (Resmi)</span>
+                        <p className="font-black text-[#2D3436] dark:text-white text-sm mt-0.5">{studentName}</p>
+                      </div>
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Nama Panggilan</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">{String(biodata?.nama_panggilan || '-')}</p>
+                      </div>
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">NIS / NISN</span>
+                        <p className="font-black text-[#2D3436] dark:text-white mt-0.5">{studentNis} / {String(biodata?.nisn || '-')}</p>
+                      </div>
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">NIK Santri</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">{String(biodata?.nik || '-')}</p>
+                      </div>
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">No. Kartu Keluarga (KK)</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">{String(biodata?.no_kk || '-')}</p>
+                      </div>
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">No. Akta Kelahiran</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">{String(biodata?.no_akta || '-')}</p>
+                      </div>
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Jenis Kelamin</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">
+                          {String(biodata?.jenis_kelamin || '').toUpperCase() === 'L' || String(biodata?.jenis_kelamin || '').toLowerCase().includes('laki')
+                            ? '👨 Laki-laki (Putra)'
+                            : '👩 Perempuan (Putri)'}
+                        </p>
+                      </div>
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Tempat, Tanggal Lahir</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">
+                          {String(biodata?.tempat_lahir || '-')}, {String(biodata?.tanggal_lahir || '-')}
+                        </p>
+                      </div>
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Anak Ke / Saudara</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">
+                          Anak ke-{String(biodata?.anak_ke || '-')} dari {String(biodata?.jml_saudara || '-')} bersaudara
+                        </p>
+                      </div>
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Gol. Darah / Fisik</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">
+                          Darah: <strong>{String(biodata?.golongan_darah || '-')}</strong> • {String(biodata?.tinggi_badan || '-')} cm / {String(biodata?.berat_badan || '-')} kg
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* 3. DATA PONDOK & ASRAMA */}
-                <div className="q-card bg-white rounded-[28px] p-6 sm:p-7 shadow-xl shadow-black/5 space-y-4">
-                  <h3 className="text-sm font-black text-[#2D3436] flex items-center gap-2 pb-3 border-b border-slate-100">
-                    <Building2 size={18} className="text-[#138F81]" />
-                    Data Komplek Pondok & Kamar
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div className="bg-[#E1EFF7]/50 p-3 rounded-2xl border border-[#E1EFF7]">
-                      <span className="text-[#636E72] font-bold block">Komplek / Asrama</span>
-                      <p className="font-black text-[#2D3436] text-sm mt-0.5">{studentKomplek}</p>
-                    </div>
-                    <div className="bg-[#E1EFF7]/50 p-3 rounded-2xl border border-[#E1EFF7]">
-                      <span className="text-[#636E72] font-bold block">Nomor / Nama Kamar</span>
-                      <p className="font-black text-[#2D3436] text-sm mt-0.5">{studentKamar}</p>
-                    </div>
-                    <div className="sm:col-span-2 bg-[#E1EFF7]/50 p-3 rounded-2xl border border-[#E1EFF7]">
-                      <span className="text-[#636E72] font-bold block">Status Tempat Tinggal</span>
-                      <p className="font-extrabold text-[#2D3436] mt-0.5">
-                        {studentKomplek !== '-' ? '🏡 Santri Mukim (Mondok)' : '🚶 Santri Kalong'}
-                      </p>
+                  {/* CARD 2: DATA ALAMAT & DOMISILI */}
+                  <div className="q-card bg-white dark:bg-slate-800 rounded-[28px] p-6 sm:p-7 shadow-xl shadow-black/5 border border-slate-100 dark:border-slate-700 space-y-4">
+                    <h3 className="text-sm font-black text-[#2D3436] dark:text-white flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-700">
+                      <Home size={18} className="text-[#138F81]" />
+                      <span>Data Alamat & Domisili</span>
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div className="sm:col-span-2 bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Alamat Lengkap / Jalan</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">
+                          {String(biodata?.alamat || '-')}
+                        </p>
+                      </div>
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Desa / Kelurahan</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">{String(biodata?.kelurahan || biodata?.desa || '-')}</p>
+                      </div>
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Kecamatan</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">{String(biodata?.kecamatan || '-')}</p>
+                      </div>
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Kota / Kabupaten</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">{String(biodata?.kota || biodata?.kabupaten || '-')}</p>
+                      </div>
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Provinsi & Kode Pos</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">
+                          {String(biodata?.provinsi || '-')} ({String(biodata?.kode_pos || '-')})
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* 4. DATA ORANG TUA & WALI */}
-                <div className="q-card bg-white rounded-[28px] p-6 sm:p-7 shadow-xl shadow-black/5 space-y-4">
-                  <h3 className="text-sm font-black text-[#2D3436] flex items-center gap-2 pb-3 border-b border-slate-100">
-                    <HeartHandshake size={18} className="text-[#138F81]" />
-                    Data Orang Tua / Wali
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div className="bg-[#E1EFF7]/50 p-3 rounded-2xl border border-[#E1EFF7]">
-                      <span className="text-[#636E72] font-bold block">Nama Ayah</span>
-                      <p className="font-extrabold text-[#2D3436] mt-0.5">{String(biodata?.nama_ayah || '-')}</p>
-                    </div>
-                    <div className="bg-[#E1EFF7]/50 p-3 rounded-2xl border border-[#E1EFF7]">
-                      <span className="text-[#636E72] font-bold block">Nama Ibu</span>
-                      <p className="font-extrabold text-[#2D3436] mt-0.5">{String(biodata?.nama_ibu || '-')}</p>
-                    </div>
-                    <div className="bg-[#E1EFF7]/50 p-3 rounded-2xl border border-[#E1EFF7]">
-                      <span className="text-[#636E72] font-bold block">Nama Wali Terdaftar</span>
-                      <p className="font-extrabold text-[#2D3436] mt-0.5">
-                        {String(biodata?.nama_wali || (biodata?.wali as Record<string, unknown> | undefined)?.name || session?.name || '-')}
-                      </p>
-                    </div>
-                    <div className="bg-[#E1EFF7]/50 p-3 rounded-2xl border border-[#E1EFF7]">
-                      <span className="text-[#636E72] font-bold block">No. WhatsApp / HP Wali</span>
-                      <p className="font-extrabold text-[#2D3436] mt-0.5">
-                        {String(biodata?.no_telepon_wali || biodata?.no_hp || (biodata?.wali as Record<string, unknown> | undefined)?.no_hp || '-')}
-                      </p>
+                  {/* CARD 3: DATA AKADEMIK MADIN & SEKOLAH */}
+                  <div className="q-card bg-white dark:bg-slate-800 rounded-[28px] p-6 sm:p-7 shadow-xl shadow-black/5 border border-slate-100 dark:border-slate-700 space-y-4">
+                    <h3 className="text-sm font-black text-[#2D3436] dark:text-white flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-700">
+                      <GraduationCap size={18} className="text-[#138F81]" />
+                      <span>Data Akademik Madrasah Diniyah</span>
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Kelas Madin</span>
+                        <p className="font-black text-[#2D3436] dark:text-white text-sm mt-0.5">{studentKelas}</p>
+                      </div>
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Kelompok Belajar</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">
+                          {String((biodata?.kelompok_belajar as Record<string, unknown> | undefined)?.nama ?? biodata?.kelompok ?? 'Reguler')}
+                        </p>
+                      </div>
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Tahun Masuk / Angkatan</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">{String(biodata?.tahun_masuk || biodata?.tahun_akademik_masuk || '2025/2026')}</p>
+                      </div>
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Asal Sekolah Formal</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">{String(biodata?.asal_sekolah || (biodata?.schoolOrigin as Record<string, unknown> | undefined)?.name || 'MTs Assa\'adah')}</p>
+                      </div>
                     </div>
                   </div>
+
+                  {/* CARD 4: DATA ASRAMA & PONDOK */}
+                  <div className="q-card bg-white dark:bg-slate-800 rounded-[28px] p-6 sm:p-7 shadow-xl shadow-black/5 border border-slate-100 dark:border-slate-700 space-y-4">
+                    <h3 className="text-sm font-black text-[#2D3436] dark:text-white flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-700">
+                      <Building2 size={18} className="text-[#138F81]" />
+                      <span>Data Komplek Pondok & Kamar</span>
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Komplek / Asrama</span>
+                        <p className="font-black text-[#2D3436] dark:text-white text-sm mt-0.5">{studentKomplek}</p>
+                      </div>
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Nomor / Nama Kamar</span>
+                        <p className="font-black text-[#2D3436] dark:text-white text-sm mt-0.5">{studentKamar}</p>
+                      </div>
+                      <div className="sm:col-span-2 bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Status Tempat Tinggal</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">
+                          {studentKomplek !== '-' ? '🏡 Santri Mukim (Mondok Penuh)' : '🚶 Santri Kalong (Pulang Pergi)'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CARD 5: DATA ORANG TUA & WALI */}
+                  <div className="q-card bg-white dark:bg-slate-800 rounded-[28px] p-6 sm:p-7 shadow-xl shadow-black/5 border border-slate-100 dark:border-slate-700 space-y-4 sm:col-span-2">
+                    <h3 className="text-sm font-black text-[#2D3436] dark:text-white flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-700">
+                      <HeartHandshake size={18} className="text-[#138F81]" />
+                      <span>Data Orang Tua & Wali Santri</span>
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                      {/* AYAH */}
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Nama Ayah</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">{String(biodata?.nama_ayah || '-')}</p>
+                        <span className="text-[10px] text-slate-400 block mt-1">NIK: {String(biodata?.nik_ayah || '-')}</span>
+                        <span className="text-[10px] text-slate-400 block">Pekerjaan: {String(biodata?.pekerjaan_ayah || '-')}</span>
+                        <span className="text-[10px] text-slate-500 font-semibold block">WA: {String(biodata?.no_whatsapp_ayah || '-')}</span>
+                      </div>
+
+                      {/* IBU */}
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Nama Ibu</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">{String(biodata?.nama_ibu || '-')}</p>
+                        <span className="text-[10px] text-slate-400 block mt-1">NIK: {String(biodata?.nik_ibu || '-')}</span>
+                        <span className="text-[10px] text-slate-400 block">Pekerjaan: {String(biodata?.pekerjaan_ibu || '-')}</span>
+                        <span className="text-[10px] text-slate-500 font-semibold block">WA: {String(biodata?.no_whatsapp_ibu || '-')}</span>
+                      </div>
+
+                      {/* WALI TERDAFTAR */}
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Nama Wali Terdaftar</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">
+                          {String(biodata?.nama_wali || (biodata?.wali as Record<string, unknown> | undefined)?.name || session?.name || '-')}
+                        </p>
+                        <span className="text-[10px] text-slate-500 font-semibold block mt-1">
+                          No. HP / WA Wali:
+                        </span>
+                        <p className="font-bold text-[#138F81] text-xs mt-0.5">
+                          {String(biodata?.no_telepon_wali || biodata?.no_hp || (biodata?.wali as Record<string, unknown> | undefined)?.no_hp || '-')}
+                        </p>
+                      </div>
+
+                      {/* KONTAK SANTRI */}
+                      <div className="bg-[#E1EFF7]/50 dark:bg-slate-700/50 p-3 rounded-2xl border border-[#E1EFF7] dark:border-slate-600">
+                        <span className="text-[#636E72] dark:text-slate-400 font-bold block">Kontak Santri</span>
+                        <p className="font-extrabold text-[#2D3436] dark:text-white mt-0.5">WA: {String(biodata?.no_whatsapp || '-')}</p>
+                        <span className="text-[10px] text-slate-400 block mt-1">Email: {String(biodata?.email_siswa || '-')}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CARD 6: CATATAN KHUSUS SANTRI */}
+                  {Boolean(biodata?.catatan_santri) && (
+                    <div className="q-card bg-amber-50/70 dark:bg-amber-950/30 rounded-[28px] p-6 shadow-xl shadow-black/5 border border-amber-200 dark:border-amber-800 sm:col-span-2">
+                      <h4 className="text-xs font-black text-amber-900 dark:text-amber-300 flex items-center gap-2 mb-2">
+                        <Info size={16} /> Catatan Khusus Santri / Riwayat Kesehatan
+                      </h4>
+                      <p className="text-xs text-amber-900 dark:text-amber-200 font-medium">
+                        {String(biodata?.catatan_santri)}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -3195,8 +3537,48 @@ export function WaliPortalPage() {
         </div>
       )}
 
-      {/* 📲 PWA 1-Click Install Banner (Instal Langsung dari Chrome tanpa Play Store) */}
-      <PwaInstallBanner />
+      {/* 9. EDIT BIODATA SANTRI REALTIME MODAL */}
+      {isEditBiodataOpen && selectedChildId && (
+        <WaliEditBiodataModal
+          siswaId={selectedChildId}
+          currentData={childData || (biodata as ApiRecord) || {}}
+          onClose={() => setIsEditBiodataOpen(false)}
+          onSuccess={(updated) => {
+            setBiodata((prev) => ({ ...prev, ...updated }));
+            setChildData((prev) => ({ ...prev, ...updated }));
+            setBiodataToast('Alhamdulillah, biodata santri berhasil diperbarui realtime ke Master Data!');
+            setTimeout(() => setBiodataToast(null), 6000);
+          }}
+        />
+      )}
+
+      {/* Feedback Toast Avatar Lokal */}
+      {avatarToast && (
+        <div className="fixed bottom-6 left-6 z-50 flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-[#0D7A6F] text-white text-xs font-bold shadow-2xl animate-fade-in border border-teal-300/40">
+          <Camera className="w-4 h-4 text-amber-300 shrink-0" />
+          <span>{avatarToast}</span>
+          <button
+            onClick={() => setAvatarToast(null)}
+            className="ml-2 text-white/70 hover:text-white"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Feedback Toast Biodata Realtime */}
+      {biodataToast && (
+        <div className="fixed bottom-20 right-6 z-50 flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-emerald-700 text-white text-xs font-bold shadow-2xl animate-fade-in border border-emerald-300/40">
+          <CheckCircle2 className="w-4 h-4 text-emerald-200 shrink-0" />
+          <span>{biodataToast}</span>
+          <button
+            onClick={() => setBiodataToast(null)}
+            className="ml-2 text-white/70 hover:text-white"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* 🔔 Izin Notifikasi Real-Time Wali Santri */}
       <NotificationPermissionPrompt userId={session?.id} role="wali" />
@@ -3347,6 +3729,684 @@ function WaliChangePasswordModal({
             >
               {isSaving ? 'Menyimpan...' : 'Simpan Kata Sandi'}
             </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function WaliEditBiodataModal({
+  siswaId,
+  currentData,
+  onClose,
+  onSuccess,
+}: {
+  siswaId: number;
+  currentData: ApiRecord;
+  onClose: () => void;
+  onSuccess: (updated: ApiRecord) => void;
+}) {
+  const [activeSubTab, setActiveSubTab] = useState<'personal' | 'alamat' | 'keluarga' | 'catatan'>('personal');
+  const [formData, setFormData] = useState({
+    nama_panggilan: String(currentData.nama_panggilan || ''),
+    tempat_lahir: String(currentData.tempat_lahir || ''),
+    tanggal_lahir: String(currentData.tanggal_lahir || ''),
+    jenis_kelamin: String(currentData.jenis_kelamin || 'L'),
+    nik: String(currentData.nik || ''),
+    no_kk: String(currentData.no_kk || ''),
+    no_akta: String(currentData.no_akta || ''),
+    anak_ke: currentData.anak_ke != null ? String(currentData.anak_ke) : '',
+    jml_saudara: currentData.jml_saudara != null ? String(currentData.jml_saudara) : '',
+    golongan_darah: String(currentData.golongan_darah || ''),
+    tinggi_badan: currentData.tinggi_badan != null ? String(currentData.tinggi_badan) : '',
+    berat_badan: currentData.berat_badan != null ? String(currentData.berat_badan) : '',
+    // Alamat
+    alamat: String(currentData.alamat || ''),
+    kelurahan: String(currentData.kelurahan || currentData.desa || ''),
+    kecamatan: String(currentData.kecamatan || ''),
+    kota: String(currentData.kota || currentData.kabupaten || ''),
+    provinsi: String(currentData.provinsi || ''),
+    kode_pos: String(currentData.kode_pos || ''),
+    // Kontak & Orang Tua
+    no_whatsapp: String(currentData.no_whatsapp || ''),
+    email_siswa: String(currentData.email_siswa || ''),
+    asal_sekolah: String(currentData.asal_sekolah || ''),
+    nama_ayah: String(currentData.nama_ayah || ''),
+    nik_ayah: String(currentData.nik_ayah || ''),
+    pekerjaan_ayah: String(currentData.pekerjaan_ayah || ''),
+    no_whatsapp_ayah: String(currentData.no_whatsapp_ayah || ''),
+    nama_ibu: String(currentData.nama_ibu || ''),
+    nik_ibu: String(currentData.nik_ibu || ''),
+    pekerjaan_ibu: String(currentData.pekerjaan_ibu || ''),
+    no_whatsapp_ibu: String(currentData.no_whatsapp_ibu || ''),
+    no_telepon_wali: String(currentData.no_telepon_wali || currentData.no_hp || ''),
+    // Catatan
+    catatan_santri: String(currentData.catatan_santri || ''),
+  });
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const handleChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const payload: ApiRecord = {
+        siswa_id: siswaId,
+        ...formData,
+      };
+
+      const res = await api.waliUpdateBiodata(payload);
+      if (res.success) {
+        setSuccessMsg('Alhamdulillah! Biodata santri berhasil diperbarui realtime.');
+        window.dispatchEvent(new CustomEvent('app:data-updated'));
+        setTimeout(() => {
+          onSuccess(res.data as ApiRecord || payload);
+          onClose();
+        }, 1200);
+      } else {
+        setErrorMsg(res.message || 'Gagal menyimpan biodata santri.');
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Terjadi kesalahan saat menyimpan biodata santri.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+      <div className="q-card bg-white dark:bg-slate-800 rounded-[28px] max-w-3xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden">
+        {/* MODAL HEADER */}
+        <div className="p-5 sm:p-6 bg-gradient-to-r from-[#138F81] to-[#0D7A6F] text-white flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-white/15 backdrop-blur-xs flex items-center justify-center font-bold text-white shadow-xs border border-white/20">
+              <Edit3 size={18} />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-black tracking-tight">
+                Edit Data Diri Santri
+              </h3>
+              <p className="text-[11px] text-teal-100 font-medium mt-0.5">
+                {String(currentData.nama || 'Santri')} (NIS: {String(currentData.nis || '-')}) • Real-time Master Data
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-xl bg-white/15 hover:bg-white/25 text-white transition cursor-pointer"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* FEEDBACK BANNERS */}
+        {errorMsg && (
+          <div className="mx-5 mt-4 p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center gap-2 shrink-0">
+            <AlertCircle size={16} className="shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="mx-5 mt-4 p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center gap-2 shrink-0">
+            <CheckCircle2 size={16} className="shrink-0" />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        {/* TAB NAVIGATION BUTTONS */}
+        <div className="flex items-center gap-1.5 px-5 pt-4 pb-2 border-b border-slate-100 dark:border-slate-700 overflow-x-auto shrink-0 custom-scrollbar">
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('personal')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              activeSubTab === 'personal'
+                ? 'bg-[#138F81] text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+            }`}
+          >
+            <User size={13} />
+            <span>Identitas Pribadi</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('alamat')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              activeSubTab === 'alamat'
+                ? 'bg-[#138F81] text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+            }`}
+          >
+            <Home size={13} />
+            <span>Alamat & Domisili</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('keluarga')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              activeSubTab === 'keluarga'
+                ? 'bg-[#138F81] text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+            }`}
+          >
+            <HeartHandshake size={13} />
+            <span>Orang Tua & Kontak</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('catatan')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              activeSubTab === 'catatan'
+                ? 'bg-[#138F81] text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+            }`}
+          >
+            <FileText size={13} />
+            <span>Catatan Santri</span>
+          </button>
+        </div>
+
+        {/* FORM BODY */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-4 text-xs custom-scrollbar">
+            {/* SUB-TAB 1: IDENTITAS PRIBADI */}
+            {activeSubTab === 'personal' && (
+              <div className="space-y-4 animate-fadeIn">
+                {/* READ ONLY OFFICIAL INFO */}
+                <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-[11px] font-medium flex items-start gap-2.5">
+                  <Info size={16} className="shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                  <div>
+                    <span className="font-bold block">Data Resmi Pesantren Terkunci:</span>
+                    Nama Lengkap (<strong className="font-bold">{String(currentData.nama || '-')}</strong>), NIS (<strong className="font-bold">{String(currentData.nis || '-')}</strong>), dan Kelas Madin dikelola resmi oleh Sekretariat Pondok demi ketertiban administrasi.
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                      Nama Panggilan Santri
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.nama_panggilan}
+                      onChange={(e) => handleChange('nama_panggilan', e.target.value)}
+                      placeholder="Contoh: Diki, Ilham, dll."
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                      Jenis Kelamin
+                    </label>
+                    <select
+                      value={formData.jenis_kelamin}
+                      onChange={(e) => handleChange('jenis_kelamin', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden cursor-pointer"
+                    >
+                      <option value="L">Laki-laki (Putra)</option>
+                      <option value="P">Perempuan (Putri)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                      Tempat Lahir
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.tempat_lahir}
+                      onChange={(e) => handleChange('tempat_lahir', e.target.value)}
+                      placeholder="Kota kelahiran, misal: Gresik"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                      Tanggal Lahir
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.tanggal_lahir}
+                      onChange={(e) => handleChange('tanggal_lahir', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                      NIK Santri (16 Digit)
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={16}
+                      value={formData.nik}
+                      onChange={(e) => handleChange('nik', e.target.value)}
+                      placeholder="Nomor Induk Kependudukan"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                      Nomor Kartu Keluarga (KK)
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={16}
+                      value={formData.no_kk}
+                      onChange={(e) => handleChange('no_kk', e.target.value)}
+                      placeholder="Nomor KK 16 digit"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                      Nomor Akta Kelahiran
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.no_akta}
+                      onChange={(e) => handleChange('no_akta', e.target.value)}
+                      placeholder="No. Akta Kelahiran dari Disdukcapil"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                      Golongan Darah
+                    </label>
+                    <select
+                      value={formData.golongan_darah}
+                      onChange={(e) => handleChange('golongan_darah', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden cursor-pointer"
+                    >
+                      <option value="">-- Pilih Gol. Darah --</option>
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="AB">AB</option>
+                      <option value="O">O</option>
+                      <option value="-">Tidak Tahu</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                        Anak Ke-
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={formData.anak_ke}
+                        onChange={(e) => handleChange('anak_ke', e.target.value)}
+                        placeholder="1"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                        Jml. Saudara
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={formData.jml_saudara}
+                        onChange={(e) => handleChange('jml_saudara', e.target.value)}
+                        placeholder="3"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                        Tinggi Badan (cm)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.tinggi_badan}
+                        onChange={(e) => handleChange('tinggi_badan', e.target.value)}
+                        placeholder="165"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                        Berat Badan (kg)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.berat_badan}
+                        onChange={(e) => handleChange('berat_badan', e.target.value)}
+                        placeholder="55"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-TAB 2: ALAMAT & DOMISILI */}
+            {activeSubTab === 'alamat' && (
+              <div className="space-y-4 animate-fadeIn">
+                <div>
+                  <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                    Alamat Lengkap / Jalan / Dusun / RT / RW
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={formData.alamat}
+                    onChange={(e) => handleChange('alamat', e.target.value)}
+                    placeholder="Contoh: Jl. Sampurnan No. 17 RT 02 RW 03"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                      Desa / Kelurahan
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.kelurahan}
+                      onChange={(e) => handleChange('kelurahan', e.target.value)}
+                      placeholder="Nama desa"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                      Kecamatan
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.kecamatan}
+                      onChange={(e) => handleChange('kecamatan', e.target.value)}
+                      placeholder="Nama kecamatan, misal: Bungah"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                      Kota / Kabupaten
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.kota}
+                      onChange={(e) => handleChange('kota', e.target.value)}
+                      placeholder="Misal: Gresik, Surabaya, Lamongan"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                      Provinsi
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.provinsi}
+                      onChange={(e) => handleChange('provinsi', e.target.value)}
+                      placeholder="Misal: Jawa Timur"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                      Kode Pos
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={formData.kode_pos}
+                      onChange={(e) => handleChange('kode_pos', e.target.value)}
+                      placeholder="61152"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-TAB 3: ORANG TUA & KONTAK */}
+            {activeSubTab === 'keluarga' && (
+              <div className="space-y-4 animate-fadeIn">
+                {/* DATA AYAH */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 space-y-3">
+                  <h5 className="font-black text-[#138F81] dark:text-teal-300 flex items-center gap-1.5">
+                    <User size={14} /> Data Ayah Kandung
+                  </h5>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Nama Ayah</label>
+                      <input
+                        type="text"
+                        value={formData.nama_ayah}
+                        onChange={(e) => handleChange('nama_ayah', e.target.value)}
+                        placeholder="Nama lengkap ayah"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">NIK Ayah</label>
+                      <input
+                        type="text"
+                        maxLength={16}
+                        value={formData.nik_ayah}
+                        onChange={(e) => handleChange('nik_ayah', e.target.value)}
+                        placeholder="16 digit NIK ayah"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-mono outline-hidden"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Pekerjaan Ayah</label>
+                      <input
+                        type="text"
+                        value={formData.pekerjaan_ayah}
+                        onChange={(e) => handleChange('pekerjaan_ayah', e.target.value)}
+                        placeholder="PNS / Wiraswasta / Petani / dll"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">No. WhatsApp Ayah</label>
+                      <input
+                        type="text"
+                        value={formData.no_whatsapp_ayah}
+                        onChange={(e) => handleChange('no_whatsapp_ayah', e.target.value)}
+                        placeholder="08123456789"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* DATA IBU */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 space-y-3">
+                  <h5 className="font-black text-[#138F81] dark:text-teal-300 flex items-center gap-1.5">
+                    <User size={14} /> Data Ibu Kandung
+                  </h5>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Nama Ibu</label>
+                      <input
+                        type="text"
+                        value={formData.nama_ibu}
+                        onChange={(e) => handleChange('nama_ibu', e.target.value)}
+                        placeholder="Nama lengkap ibu"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">NIK Ibu</label>
+                      <input
+                        type="text"
+                        maxLength={16}
+                        value={formData.nik_ibu}
+                        onChange={(e) => handleChange('nik_ibu', e.target.value)}
+                        placeholder="16 digit NIK ibu"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-mono outline-hidden"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Pekerjaan Ibu</label>
+                      <input
+                        type="text"
+                        value={formData.pekerjaan_ibu}
+                        onChange={(e) => handleChange('pekerjaan_ibu', e.target.value)}
+                        placeholder="Ibu Rumah Tangga / Guru / dll"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">No. WhatsApp Ibu</label>
+                      <input
+                        type="text"
+                        value={formData.no_whatsapp_ibu}
+                        onChange={(e) => handleChange('no_whatsapp_ibu', e.target.value)}
+                        placeholder="08123456789"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 font-medium outline-hidden"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* KONTAK WALI & SANTRI */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                      No. WhatsApp / HP Wali Terdaftar
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.no_telepon_wali}
+                      onChange={(e) => handleChange('no_telepon_wali', e.target.value)}
+                      placeholder="Nomor aktif untuk notifikasi sistem"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                      No. WhatsApp Santri (Jika ada)
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.no_whatsapp}
+                      onChange={(e) => handleChange('no_whatsapp', e.target.value)}
+                      placeholder="Nomor HP/WA santri"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                      Email Santri / Wali
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email_siswa}
+                      onChange={(e) => handleChange('email_siswa', e.target.value)}
+                      placeholder="santri@email.com"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                      Asal Sekolah Formal
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.asal_sekolah}
+                      onChange={(e) => handleChange('asal_sekolah', e.target.value)}
+                      placeholder="Contoh: MTs Assa'adah / SMPN 1"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-TAB 4: CATATAN KHUSUS */}
+            {activeSubTab === 'catatan' && (
+              <div className="space-y-4 animate-fadeIn">
+                <div>
+                  <label className="font-bold text-[#2D3436] dark:text-slate-300 block mb-1">
+                    Catatan Kesehatan, Alergi Makanan/Obat, atau Pesan Khusus
+                  </label>
+                  <p className="text-[11px] text-slate-500 mb-2">
+                    Tuliskan riwayat penyakit khusus, alergi dingin/makanan, obat rutin, atau informasi penting yang perlu diketahui oleh pengurus asrama dan ustadz pembimbing.
+                  </p>
+                  <textarea
+                    rows={6}
+                    value={formData.catatan_santri}
+                    onChange={(e) => handleChange('catatan_santri', e.target.value)}
+                    placeholder="Contoh: Santri memiliki riwayat asma jika terkena debu tebal, alergi udang, dll."
+                    className="w-full p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-medium focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* MODAL FOOTER */}
+          <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700 flex flex-col-reverse sm:flex-row items-center justify-between gap-3 shrink-0">
+            <span className="text-[11px] text-slate-500 font-medium">
+              Data yang Anda ubah akan langsung tersimpan di database pesantren secara realtime.
+            </span>
+
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isSaving}
+                className="px-4 py-2 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-300 bg-slate-200/80 dark:bg-slate-700 hover:bg-slate-300 transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="px-5 py-2 text-xs font-black rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white disabled:opacity-50 transition cursor-pointer shadow-md shadow-[#138F81]/25 flex items-center gap-1.5"
+              >
+                {isSaving ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" />
+                    <span>Menyimpan...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={14} />
+                    <span>Simpan Perubahan</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>

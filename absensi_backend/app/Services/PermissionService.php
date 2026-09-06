@@ -228,6 +228,10 @@ class PermissionService
             return true;
         }
 
+        if ($role === 'wali') {
+            return $action === 'update' && $menuKey === 'biodata_siswa';
+        }
+
         if ($role !== 'guru') {
             return false;
         }

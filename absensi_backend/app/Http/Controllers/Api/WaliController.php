@@ -455,6 +455,115 @@ class WaliController extends Controller
     }
 
     /**
+     * PUT /api/wali/biodata
+     * Wali memperbarui data profil, kontak, dan data orang tua santri.
+     * Otomatis tersinkronisasi realtime ke Data Master Santri.
+     */
+    public function updateBiodata(Request $request)
+    {
+        $request->validate([
+            'siswa_id' => 'required|integer|exists:siswa,id',
+            'nama' => 'nullable|string|max:150',
+            'nama_panggilan' => 'nullable|string|max:100',
+            'tempat_lahir' => 'nullable|string|max:100',
+            'tanggal_lahir' => 'nullable|date',
+            'jenis_kelamin' => 'nullable|string|max:20',
+            'nik' => 'nullable|string|max:30',
+            'no_kk' => 'nullable|string|max:30',
+            'no_akta' => 'nullable|string|max:50',
+            'alamat' => 'nullable|string|max:500',
+            'provinsi' => 'nullable|string|max:100',
+            'kota' => 'nullable|string|max:100',
+            'kecamatan' => 'nullable|string|max:100',
+            'kelurahan' => 'nullable|string|max:100',
+            'kode_pos' => 'nullable|string|max:10',
+            'no_whatsapp' => 'nullable|string|max:30',
+            'email_siswa' => 'nullable|email|max:100',
+            'no_telepon_wali' => 'nullable|string|max:30',
+            'wali_whatsapp_number' => 'nullable|string|max:30',
+            'anak_ke' => 'nullable|integer|min:1|max:30',
+            'jml_saudara' => 'nullable|integer|min:0|max:30',
+            'nama_ayah' => 'nullable|string|max:150',
+            'nik_ayah' => 'nullable|string|max:30',
+            'pekerjaan_ayah' => 'nullable|string|max:100',
+            'no_whatsapp_ayah' => 'nullable|string|max:30',
+            'nama_ibu' => 'nullable|string|max:150',
+            'nik_ibu' => 'nullable|string|max:30',
+            'pekerjaan_ibu' => 'nullable|string|max:100',
+            'no_whatsapp_ibu' => 'nullable|string|max:30',
+            'tinggi_badan' => 'nullable|integer|min:30|max:250',
+            'berat_badan' => 'nullable|integer|min:10|max:200',
+            'golongan_darah' => 'nullable|string|max:5',
+            'catatan_santri' => 'nullable|string|max:1000',
+            'asal_sekolah' => 'nullable|string|max:150',
+        ]);
+
+        $wali = $request->user();
+        $siswa = Siswa::query()
+            ->where('id', (int) $request->siswa_id)
+            ->where(function ($query) use ($wali) {
+                $query->where('wali_id', $wali?->id)
+                    ->orWhereHas('guardianProfile', fn ($nested) => $nested->where('user_id', $wali?->id));
+            })
+            ->first();
+
+        if (!$siswa) {
+            return $this->forbiddenChildResponse();
+        }
+
+        $fields = $request->only([
+            'nama',
+            'nama_panggilan',
+            'tempat_lahir',
+            'tanggal_lahir',
+            'jenis_kelamin',
+            'nik',
+            'no_kk',
+            'no_akta',
+            'alamat',
+            'provinsi',
+            'kota',
+            'kecamatan',
+            'kelurahan',
+            'kode_pos',
+            'no_whatsapp',
+            'email_siswa',
+            'no_telepon_wali',
+            'wali_whatsapp_number',
+            'anak_ke',
+            'jml_saudara',
+            'nama_ayah',
+            'nik_ayah',
+            'pekerjaan_ayah',
+            'no_whatsapp_ayah',
+            'nama_ibu',
+            'nik_ibu',
+            'pekerjaan_ibu',
+            'no_whatsapp_ibu',
+            'tinggi_badan',
+            'berat_badan',
+            'golongan_darah',
+            'catatan_santri',
+            'asal_sekolah',
+        ]);
+
+        $filtered = array_filter($fields, fn($v) => $v !== null);
+        $siswa->update($filtered);
+
+        \Illuminate\Support\Facades\Cache::flush();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Alhamdulillah, biodata santri berhasil diperbarui dan tersinkronisasi ke Master Data Pesantren.',
+            'data' => $siswa->fresh([
+                'wali:id,name,email,no_hp,status',
+                'schoolOrigin:id,name,code,is_active',
+                'kelompokBelajar:id,nama,kategori,sifir,class_id',
+            ]),
+        ]);
+    }
+
+    /**
      * GET /api/wali/nilai?siswa_id=X&semester=Y
      * Semua nilai anak — per mapel + rata-rata
      */
