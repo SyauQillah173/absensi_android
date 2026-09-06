@@ -72,7 +72,7 @@ Route::get('health', fn() => response()->json([
 // });
 
 Route::get('captcha', fn() => app('captcha')->create('default', true));
-Route::middleware('throttle:10,1')->group(function () {
+Route::middleware('throttle:30,1')->group(function () {
     Route::post('login', [AuthController::class, 'login']);
     Route::post('change-password', [AuthController::class, 'changePassword']);
 });

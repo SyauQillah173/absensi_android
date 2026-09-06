@@ -215,6 +215,9 @@ async function request<T>(
     clearSession();
     window.dispatchEvent(new Event('qomaruddin_auth_expired'));
   }
+  if (response.status === 429) {
+    throw new Error('Terlalu banyak percobaan (Too Many Attempts). Mohon tunggu sekitar 1 menit lalu coba lagi.');
+  }
   if (!response.ok || payload.success === false) {
     throw new Error(payload.message || `Request gagal (${response.status})`);
   }
@@ -243,6 +246,9 @@ async function uploadRequest<T>(
   if (response.status === 401) {
     clearSession();
     window.dispatchEvent(new Event('qomaruddin_auth_expired'));
+  }
+  if (response.status === 429) {
+    throw new Error('Terlalu banyak permintaan (Too Many Attempts). Mohon tunggu sekitar 1 menit lalu coba lagi.');
   }
   if (!response.ok || payload.success === false) {
     throw new Error(payload.message || `Upload gagal (${response.status})`);
