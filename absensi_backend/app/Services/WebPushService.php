@@ -30,6 +30,7 @@ class WebPushService
         }
 
         $url = $payload['url'] ?? '/wali';
+        $badgeCount = isset($payload['badge_count']) ? (int) $payload['badge_count'] : 1;
         $formattedPayload = json_encode([
             'title' => $payload['title'] ?? 'Pemberitahuan Pesantren Qomaruddin',
             'body' => $payload['body'] ?? 'Ada informasi terbaru untuk Anda.',
@@ -37,9 +38,11 @@ class WebPushService
             'badge' => $payload['badge'] ?? config('webpush.default_badge', '/logo-qomaruddin.png'),
             'url' => $url,
             'tag' => $payload['tag'] ?? 'qomaruddin-' . time(),
+            'badge_count' => $badgeCount,
             'timestamp' => time() * 1000,
             'data' => [
                 'url' => $url,
+                'badge_count' => $badgeCount,
             ],
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 

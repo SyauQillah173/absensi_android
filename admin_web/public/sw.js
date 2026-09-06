@@ -3,7 +3,7 @@
  * Mendukung PWA Standalone (Tanpa Playstore) & Real-time Web Push Notifications
  */
 
-const CACHE_NAME = 'qomaruddin-pwa-v3';
+const CACHE_NAME = 'qomaruddin-pwa-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -61,7 +61,8 @@ self.addEventListener('push', (event) => {
     icon: '/logo-qomaruddin.png',
     badge: '/logo-qomaruddin.png',
     url: '/',
-    tag: 'qomaruddin-general-' + Date.now()
+    tag: 'qomaruddin-general-' + Date.now(),
+    badge_count: 1
   };
 
   if (event.data) {
@@ -73,6 +74,13 @@ self.addEventListener('push', (event) => {
     }
   }
 
+  // 🔔 1. UPDATE APP BADGE DI IKON APLIKASI (XIAOMI, ANDROID, IOS PWA)
+  // Menampilkan angka kecil (1, 2, 3...) di samping ikon aplikasi HP
+  if ('setAppBadge' in navigator) {
+    const count = (data.badge_count && Number(data.badge_count)) || (data.data?.badge_count && Number(data.data.badge_count)) || 1;
+    navigator.setAppBadge(count).catch(() => {});
+  }
+
   const notificationOptions = {
     body: data.body,
     icon: data.icon || '/logo-qomaruddin.png',
@@ -80,10 +88,11 @@ self.addEventListener('push', (event) => {
     image: data.image || undefined,
     tag: data.tag || 'qomaruddin-alert',
     renotify: true,
-    vibrate: [100, 50, 100, 50, 200],
+    vibrate: [150, 50, 150, 50, 250],
     data: {
       url: data.url || '/',
       dateOfArrival: Date.now(),
+      badge_count: data.badge_count || 1,
       primaryKey: 1
     },
     actions: [
@@ -106,6 +115,11 @@ self.addEventListener('push', (event) => {
 // 4. Notification Click Event: Buka atau fokus ke aplikasi saat notifikasi di-tap
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+
+  // Bersihkan / turunkan lencana angka di ikon aplikasi saat notifikasi dibuka
+  if ('clearAppBadge' in navigator) {
+    navigator.clearAppBadge().catch(() => {});
+  }
 
   if (event.action === 'close_notification') {
     return;

@@ -21,10 +21,29 @@ class AppPushNotificationService
     {
         $student->loadMissing(['guardianProfile']);
 
-        return collect([
+        $ids = collect([
             $student->wali_id,
             $student->guardianProfile?->user_id,
         ])->filter()->unique()->values()->all();
+
+        if (empty($ids)) {
+            // Coba temukan user wali dari nomor handphone atau NIS
+            $phone = $student->wali_hp ?: $student->no_hp_wali ?: $student->guardianProfile?->phone;
+            if ($phone) {
+                $cleaned = preg_replace('/[^0-9]/', '', $phone);
+                $tail = strlen($cleaned) >= 8 ? substr($cleaned, -8) : $cleaned;
+                $user = \App\Models\User::where('role', 'wali')
+                    ->where(function ($q) use ($phone, $tail) {
+                        $q->where('no_hp', $phone)
+                          ->orWhere('no_hp', 'like', "%{$tail}%");
+                    })->first();
+                if ($user) {
+                    $ids[] = $user->id;
+                }
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /**
@@ -68,9 +87,12 @@ class AppPushNotificationService
                     ],
                 ]);
 
+                $unreadCount = AppNotification::where('user_id', $userId)->where('is_read', false)->count();
+
                 // 2. Tembakkan Web Push ke Status Bar HP Android
                 $this->webPushService->notifyUser($userId, $title, $body, $url, [
                     'tag' => "absensi-madin-{$row->id}",
+                    'badge_count' => max(1, $unreadCount),
                 ]);
             }
         } catch (\Throwable $e) {
@@ -113,8 +135,11 @@ class AppPushNotificationService
                     ],
                 ]);
 
+                $unreadCount = AppNotification::where('user_id', $userId)->where('is_read', false)->count();
+
                 $this->webPushService->notifyUser($userId, $title, $body, $url, [
                     'tag' => "absensi-sholat-" . ($attendance['id'] ?? time()),
+                    'badge_count' => max(1, $unreadCount),
                 ]);
             }
         } catch (\Throwable $e) {
@@ -159,8 +184,11 @@ class AppPushNotificationService
                     ],
                 ]);
 
+                $unreadCount = AppNotification::where('user_id', $userId)->where('is_read', false)->count();
+
                 $this->webPushService->notifyUser($userId, $title, $body, $url, [
                     'tag' => "absensi-ngaji-" . ($attendance['id'] ?? time()),
+                    'badge_count' => max(1, $unreadCount),
                 ]);
             }
         } catch (\Throwable $e) {
@@ -210,8 +238,11 @@ class AppPushNotificationService
                     ],
                 ]);
 
+                $unreadCount = AppNotification::where('user_id', $userId)->where('is_read', false)->count();
+
                 $this->webPushService->notifyUser($userId, $title, $body, $url, [
                     'tag' => "pembayaran-{$transaction->id}",
+                    'badge_count' => max(1, $unreadCount),
                 ]);
             }
         } catch (\Throwable $e) {
@@ -260,8 +291,11 @@ class AppPushNotificationService
                     ],
                 ]);
 
+                $unreadCount = AppNotification::where('user_id', $userId)->where('is_read', false)->count();
+
                 $this->webPushService->notifyUser($userId, $title, $body, $url, [
                     'tag' => "tagihan-{$bill->id}",
+                    'badge_count' => max(1, $unreadCount),
                 ]);
             }
         } catch (\Throwable $e) {

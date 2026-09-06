@@ -40,6 +40,18 @@ class PushNotificationController extends Controller
         ]);
 
         $user = $request->user();
+        if (!$user) {
+            $plainToken = $request->bearerToken();
+            if ($plainToken) {
+                $accessToken = \App\Models\ApiAccessToken::with('user')
+                    ->where('token_hash', hash('sha256', $plainToken))
+                    ->first();
+                if ($accessToken && $accessToken->user && ($accessToken->user->status ?? 'Aktif') === 'Aktif') {
+                    $user = $accessToken->user;
+                }
+            }
+        }
+
         $userId = $user?->id ?? $validated['user_id'] ?? null;
         $role = $user?->role ?? $validated['role'] ?? null;
 
@@ -86,16 +98,32 @@ class PushNotificationController extends Controller
     {
         $validated = $request->validate([
             'endpoint' => 'nullable|string',
+            'user_id' => 'nullable|integer',
             'title' => 'nullable|string',
             'body' => 'nullable|string',
             'url' => 'nullable|string',
+            'badge_count' => 'nullable|integer',
         ]);
 
         $title = $validated['title'] ?? 'Uji Notifikasi Qomaruddin 🔔';
         $body = $validated['body'] ?? 'Alhamdulillah, sistem notifikasi real-time Pondok Qomaruddin berhasil terhubung ke HP Anda!';
-        $url = $validated['url'] ?? '/';
+        $url = $validated['url'] ?? '/wali';
+        $badgeCount = $validated['badge_count'] ?? 1;
 
         $user = $request->user();
+        if (!$user) {
+            $plainToken = $request->bearerToken();
+            if ($plainToken) {
+                $accessToken = \App\Models\ApiAccessToken::with('user')
+                    ->where('token_hash', hash('sha256', $plainToken))
+                    ->first();
+                if ($accessToken && $accessToken->user && ($accessToken->user->status ?? 'Aktif') === 'Aktif') {
+                    $user = $accessToken->user;
+                }
+            }
+        }
+
+        $userId = $user?->id ?? $validated['user_id'] ?? null;
 
         if (!empty($validated['endpoint'])) {
             $sub = PushSubscription::where('endpoint', $validated['endpoint'])->first();
@@ -104,6 +132,7 @@ class PushNotificationController extends Controller
                     'title' => $title,
                     'body' => $body,
                     'url' => $url,
+                    'badge_count' => $badgeCount,
                 ]);
                 return response()->json([
                     'success' => $sent,
@@ -112,11 +141,16 @@ class PushNotificationController extends Controller
             }
         }
 
-        if ($user) {
-            $count = $this->webPushService->notifyUser($user->id, $title, $body, $url);
+        if ($userId) {
+            $count = $this->webPushService->notifyUser($userId, $title, $body, $url, [
+                'badge_count' => $badgeCount,
+            ]);
             return response()->json([
                 'success' => $count > 0,
-                'message' => "Notifikasi terkirim ke {$count} perangkat Anda.",
+                'message' => $count > 0
+                    ? "Notifikasi terkirim ke {$count} perangkat Anda."
+                    : "Belum ada perangkat terdaftar untuk akun ini. Silakan aktifkan izin notifikasi di aplikasi terlebih dahulu.",
+                'count' => $count,
             ]);
         }
 

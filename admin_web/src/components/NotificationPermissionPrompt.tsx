@@ -1,6 +1,6 @@
 import { Bell, BellRing, CheckCircle2, ShieldCheck, Sparkles, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { subscribeToPushNotifications } from '../utils/pushNotification';
+import { ensurePushSubscribed, subscribeToPushNotifications } from '../utils/pushNotification';
 
 interface NotificationPermissionPromptProps {
   userId?: number;
@@ -23,18 +23,31 @@ export function NotificationPermissionPrompt({
       return;
     }
 
-    // 2. Hanya tampilkan jika status permission masih 'default' (belum diizinkan dan belum diblokir)
+    // 2. Jika izin SUDAH 'granted' (misal diizinkan via Pengaturan Android/Xiaomi atau Chrome):
+    // Otomatis sinkronkan langganan push ke backend secara senyap tanpa perlu pop-up lagi!
+    if (Notification.permission === 'granted') {
+      ensurePushSubscribed({ userId, role });
+      return;
+    }
+
+    // 3. Hanya tampilkan jika status permission masih 'default' (belum diizinkan dan belum diblokir)
     if (Notification.permission === 'default') {
       const dismissed = localStorage.getItem('qomaruddin_notif_prompt_dismissed');
-      // Berikan jeda 2 detik setelah halaman dimuat agar tidak mengejutkan pengguna
-      const timer = setTimeout(() => {
-        if (!dismissed) {
-          setShowPrompt(true);
+      // Jika pernah di-dismiss, cek apakah sudah lebih dari 3 hari
+      if (dismissed && !isNaN(Number(dismissed))) {
+        const elapsed = Date.now() - Number(dismissed);
+        if (elapsed < 3 * 24 * 3600 * 1000) {
+          return;
         }
+      }
+
+      // Berikan jeda 1.8 detik setelah halaman dimuat agar tidak mengejutkan pengguna
+      const timer = setTimeout(() => {
+        setShowPrompt(true);
       }, 1800);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [userId, role]);
 
   const handleRequestPermission = async () => {
     setIsRequesting(true);

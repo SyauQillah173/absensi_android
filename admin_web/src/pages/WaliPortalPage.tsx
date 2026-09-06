@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   ArrowUpRight,
   Award,
+  Bell,
   BookOpen,
   Building2,
   Calendar,
@@ -53,6 +54,7 @@ import { PwaInstallBanner, PwaHeaderInstallButton } from '../components/PwaInsta
 import { NotificationPermissionPrompt } from '../components/NotificationPermissionPrompt';
 import { api, type ApiRecord } from '../services/api';
 import { ReceiptWaliModal } from '../components/ReceiptWaliModal';
+import { ensurePushSubscribed, sendTestPushNotification, clearAppBadge } from '../utils/pushNotification';
 
 type WaliTabKey = 'biodata' | 'keuangan' | 'absensi' | 'nilai';
 type AbsensiSubTab = 'madin' | 'ngaji' | 'sholat';
@@ -141,6 +143,37 @@ export function WaliPortalPage() {
   // Month & year filter for attendance
   const [selectedMonth, setSelectedMonth] = useState<number>(() => new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
+
+  // Push Notification Test State & Feedback
+  const [isTestingNotif, setIsTestingNotif] = useState(false);
+  const [notifTestFeedback, setNotifTestFeedback] = useState<string | null>(null);
+
+  // Auto sync push subscription & clear app badge when logged in
+  useEffect(() => {
+    if (session?.id) {
+      ensurePushSubscribed({ userId: session.id, role: 'wali' });
+      clearAppBadge();
+    }
+  }, [session?.id]);
+
+  const handleTestNotification = async () => {
+    setIsTestingNotif(true);
+    setNotifTestFeedback(null);
+    try {
+      await ensurePushSubscribed({ userId: session?.id, role: 'wali' });
+      const res = await sendTestPushNotification({
+        userId: session?.id,
+        title: 'Qomaruddin: Notifikasi HP Terhubung! 🔔',
+        body: `Halo Bapak/Ibu ${session?.name || 'Wali'}, notifikasi real-time presensi & transaksi santri kini aktif di HP Anda!`
+      });
+      setNotifTestFeedback(res.message || 'Notifikasi uji berhasil dikirim ke HP Anda!');
+    } catch (e: any) {
+      setNotifTestFeedback(e?.message || 'Gagal mengirim notifikasi uji. Pastikan izin notifikasi diaktifkan di HP Anda.');
+    } finally {
+      setIsTestingNotif(false);
+      setTimeout(() => setNotifTestFeedback(null), 7000);
+    }
+  };
 
   // Load children list on mount if empty
   useEffect(() => {
@@ -755,6 +788,18 @@ export function WaliPortalPage() {
                 Wali Santri Resmi
               </span>
             </div>
+
+            {/* 🔔 TOMBOL UJI NOTIFIKASI KE HP */}
+            <button
+              type="button"
+              onClick={handleTestNotification}
+              disabled={isTestingNotif}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#0D7A6F] bg-emerald-50 hover:bg-[#138F81] hover:text-white border border-emerald-200/80 rounded-xl sm:rounded-2xl transition shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
+              title="Kirim Notifikasi Uji ke Status Bar HP Ini"
+            >
+              <Bell size={14} className={isTestingNotif ? 'animate-spin' : ''} />
+              <span className="hidden sm:inline">{isTestingNotif ? 'Mengirim...' : 'Uji Notif HP'}</span>
+            </button>
 
             {/* TOMBOL INSTAL APLIKASI DI HEADER */}
             <PwaHeaderInstallButton />
@@ -2547,8 +2592,25 @@ export function WaliPortalPage() {
         />
       )}
 
+      {/* Feedback Toast Uji Notifikasi */}
+      {notifTestFeedback && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-[#0D7A6F] text-white text-xs font-bold shadow-2xl animate-fade-in border border-teal-300/40">
+          <Bell className="w-4 h-4 text-amber-300 shrink-0" />
+          <span>{notifTestFeedback}</span>
+          <button
+            onClick={() => setNotifTestFeedback(null)}
+            className="ml-2 text-white/70 hover:text-white"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* 📲 PWA 1-Click Install Banner (Instal Langsung dari Chrome tanpa Play Store) */}
       <PwaInstallBanner />
+
+      {/* 🔔 Izin Notifikasi Real-Time Wali Santri */}
+      <NotificationPermissionPrompt userId={session?.id} role="wali" />
     </div>
   );
 }
@@ -2699,12 +2761,6 @@ function WaliChangePasswordModal({
           </div>
         </form>
       </div>
-
-      {/* 📲 PWA 1-Click Install Banner */}
-      <PwaInstallBanner />
-
-      {/* 🔔 Izin Notifikasi Real-Time Wali Santri */}
-      <NotificationPermissionPrompt role="wali" />
     </div>
   );
 }
