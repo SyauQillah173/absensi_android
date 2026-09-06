@@ -66,6 +66,7 @@ import { NotificationPermissionPrompt } from '../components/NotificationPermissi
 import { api, type ApiRecord } from '../services/api';
 import { ReceiptWaliModal } from '../components/ReceiptWaliModal';
 import SearchableSelect from '../components/SearchableSelect';
+import { ToastNotification } from '../components/ToastNotification';
 import { ensurePushSubscribed, subscribeToPushNotifications, sendTestPushNotification, clearAppBadge } from '../utils/pushNotification';
 import qomaruddinLogo from '../assets/logo-qomaruddin.png';
 
@@ -3510,47 +3511,31 @@ export function WaliPortalPage() {
       )}
 
       {/* Feedback Toast Uji Notifikasi */}
-      {notifTestFeedback && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-[#0D7A6F] text-white text-xs font-bold shadow-2xl animate-fade-in border border-teal-300/40">
-          <Bell className="w-4 h-4 text-amber-300 shrink-0" />
-          <span>{notifTestFeedback}</span>
-          <button
-            onClick={() => setNotifTestFeedback(null)}
-            className="ml-2 text-white/70 hover:text-white"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
-
+      <ToastNotification
+        show={Boolean(notifTestFeedback)}
+        type="info"
+        title="Notifikasi Uji Coba"
+        message={notifTestFeedback || ''}
+        onClose={() => setNotifTestFeedback(null)}
+      />
 
       {/* Feedback Toast Avatar Lokal */}
-      {avatarToast && (
-        <div className="fixed bottom-6 left-6 z-50 flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-[#0D7A6F] text-white text-xs font-bold shadow-2xl animate-fade-in border border-teal-300/40">
-          <Camera className="w-4 h-4 text-amber-300 shrink-0" />
-          <span>{avatarToast}</span>
-          <button
-            onClick={() => setAvatarToast(null)}
-            className="ml-2 text-white/70 hover:text-white"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
+      <ToastNotification
+        show={Boolean(avatarToast)}
+        type="success"
+        title="Foto Profil Disimpan!"
+        message={avatarToast || ''}
+        onClose={() => setAvatarToast(null)}
+      />
 
       {/* Feedback Toast Biodata Realtime */}
-      {biodataToast && (
-        <div className="fixed bottom-20 right-6 z-50 flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-emerald-700 text-white text-xs font-bold shadow-2xl animate-fade-in border border-emerald-300/40">
-          <CheckCircle2 className="w-4 h-4 text-emerald-200 shrink-0" />
-          <span>{biodataToast}</span>
-          <button
-            onClick={() => setBiodataToast(null)}
-            className="ml-2 text-white/70 hover:text-white"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
+      <ToastNotification
+        show={Boolean(biodataToast)}
+        type="success"
+        title="Biodata Berhasil Disimpan!"
+        message={biodataToast || ''}
+        onClose={() => setBiodataToast(null)}
+      />
 
       {/* 🔔 Izin Notifikasi Real-Time Wali Santri */}
       <NotificationPermissionPrompt userId={session?.id} role="wali" />

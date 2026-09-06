@@ -28,6 +28,7 @@ import { ModalForm } from '../components/ModalForm';
 import { SearchInput } from '../components/SearchInput';
 import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
+import { ToastNotification } from '../components/ToastNotification';
 import { api, type ApiRecord, type ImportResult } from '../services/api';
 import { downloadImportTemplate, exportRowsExcel, parseImportFile, type ImportTemplateType } from '../utils/importTemplates';
 import { getRoleDisplayName } from '../utils/roleHelper';
@@ -588,6 +589,17 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
           </button>
         </div>
       </div>
+
+      {/* Floating Toast Notification Konsisten */}
+      <ToastNotification
+        show={Boolean(notice || error)}
+        type={error ? 'error' : 'success'}
+        message={notice || error}
+        onClose={() => {
+          setNotice('');
+          setError('');
+        }}
+      />
 
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
       {notice ? <div className="rounded-2xl bg-[#E8F7F3] px-4 py-3 text-sm font-bold text-[#138F81]">{notice}</div> : null}

@@ -50,6 +50,7 @@ import { api, type ApiRecord } from '../services/api';
 import { exportRowsExcel } from '../utils/importTemplates';
 import { PmbCmsTab } from './pmb/PmbCmsTab';
 import { PmbAnnouncementsTab } from './pmb/PmbAnnouncementsTab';
+import { ToastNotification } from '../components/ToastNotification';
 
 interface PmbAdminPageProps {
   initialTab?: string;
@@ -497,18 +498,12 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
   return (
     <div className="space-y-6">
       {/* Toast Notification */}
-      {toast && (
-        <div
-          className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3.5 rounded-2xl text-xs font-black shadow-xl animate-fade-in ${
-            toast.type === 'success'
-              ? 'bg-[#0D7A6F] text-white'
-              : 'bg-rose-600 text-white'
-          }`}
-        >
-          {toast.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-[#FFDC80]" /> : <X className="w-4 h-4" />}
-          <span>{toast.message}</span>
-        </div>
-      )}
+      <ToastNotification
+        show={Boolean(toast)}
+        type={toast?.type}
+        message={toast?.message || ''}
+        onClose={() => setToast(null)}
+      />
 
       {/* 🌟 HEADER PMB ADMIN DENGAN MASTER TOGGLE PMB */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-6 lg:p-7 rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 shadow-sm transition-all duration-300">

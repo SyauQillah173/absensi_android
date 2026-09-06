@@ -2,6 +2,7 @@ import QRCode from 'qrcode';
 import { CheckCircle2, MessageCircle, RefreshCw, RotateCcw, Send, Settings, Smartphone, XCircle, type LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, type ApiRecord } from '../services/api';
+import { ToastNotification } from '../components/ToastNotification';
 
 function asArray(value: unknown): ApiRecord[] {
   return Array.isArray(value) ? (value as ApiRecord[]) : [];
@@ -172,6 +173,13 @@ export function WhatsAppBotPage() {
 
   return (
     <div className="q-whatsapp-page w-full max-w-full min-w-0 space-y-4 overflow-hidden sm:space-y-6">
+      {/* Toast Notification */}
+      <ToastNotification
+        show={Boolean(notice)}
+        type={notice.toLowerCase().includes('gagal') ? 'error' : 'success'}
+        message={notice}
+        onClose={() => setNotice('')}
+      />
       <section className="min-w-0 rounded-[22px] bg-[#FFFDF7] p-4 shadow-xl shadow-black/5 sm:rounded-[26px] sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">

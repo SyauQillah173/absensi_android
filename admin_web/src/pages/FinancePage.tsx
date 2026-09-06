@@ -51,6 +51,7 @@ import { PengeluaranPanel } from '../components/PengeluaranPanel';
 import { PemasukanLainPanel } from '../components/PemasukanLainPanel';
 import { RiwayatPembayaranPanel } from '../components/RiwayatPembayaranPanel';
 import { ModernFinanceChart } from '../components/ModernFinanceChart';
+import { ToastNotification } from '../components/ToastNotification';
 import { api, type ApiRecord, type PaymentFormPayload } from '../services/api';
 
 const monthLabels: Record<number, string> = {
@@ -497,11 +498,12 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
         </div>
       </div>
 
-      {toast ? (
-        <div className={`fixed bottom-4 right-4 z-50 rounded-2xl px-6 py-3 text-sm font-bold text-white shadow-xl transition-all duration-300 ${toast.type === 'success' ? 'bg-[#138F81]' : 'bg-[#D63031]'}`}>
-          {toast.message}
-        </div>
-      ) : null}
+      <ToastNotification
+        show={Boolean(toast)}
+        type={toast?.type}
+        message={toast?.message || ''}
+        onClose={() => setToast(null)}
+      />
 
 
 
@@ -789,7 +791,7 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
           />
         ) : null}
         {!isLoading && activeTab === 'settings' ? (
-          <DocumentSettingsPanel settings={documentSettings} onSaved={load} />
+          <DocumentSettingsPanel settings={documentSettings} onSaved={load} showToast={showToast} />
         ) : null}
       </section>
 
@@ -3361,7 +3363,15 @@ const BANK_PRESETS = [
   { name: 'Bank Lainnya (Kustom Manual)', sub: 'Bank Umum', code: '' },
 ];
 
-function DocumentSettingsPanel({ settings, onSaved }: { settings: ApiRecord | null; onSaved: () => Promise<void> }) {
+function DocumentSettingsPanel({
+  settings,
+  onSaved,
+  showToast
+}: {
+  settings: ApiRecord | null;
+  onSaved: () => Promise<void>;
+  showToast?: (message: string, type?: 'success' | 'error') => void;
+}) {
   const { session } = useAuth();
   const [receiptWidth, setReceiptWidth] = useState(String(settings?.receipt_width ?? '58mm'));
   const [paymentAdminName, setPaymentAdminName] = useState(String(settings?.payment_admin_name ?? ''));
@@ -3423,10 +3433,18 @@ function DocumentSettingsPanel({ settings, onSaved }: { settings: ApiRecord | nu
         bank_account_holder: bankAccountHolder.trim() || 'Yayasan Pondok Pesantren Qomaruddin'
       });
       await onSaved();
-      setSuccess('✅ Pengaturan rekening resmi bank & format cetak struk berhasil disimpan! Tampilan di Portal Wali terupdate realtime.');
+      const successMsg = 'Pengaturan rekening resmi bank & format cetak struk berhasil disimpan! Tampilan di Portal Wali terupdate realtime.';
+      setSuccess(successMsg);
+      if (showToast) {
+        showToast(successMsg, 'success');
+      }
       setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Gagal menyimpan pengaturan');
+      const errMsg = err instanceof Error ? err.message : 'Gagal menyimpan pengaturan';
+      setError(errMsg);
+      if (showToast) {
+        showToast(errMsg, 'error');
+      }
     } finally {
       setSaving(false);
     }
@@ -3821,6 +3839,19 @@ function DocumentSettingsPanel({ settings, onSaved }: { settings: ApiRecord | nu
             </div>
           </div>
         </div>
+
+        {/* FLOATING TOAST NOTIFICATION (STANDAR BUKU INDUK SANTRI) */}
+        {!showToast && (
+          <ToastNotification
+            show={Boolean(success || error)}
+            type={success ? 'success' : 'error'}
+            message={success || error}
+            onClose={() => {
+              setSuccess('');
+              setError('');
+            }}
+          />
+        )}
 
         {/* FEEDBACK & TOMBOL SIMPAN UTAMA */}
         <div className="space-y-3">
