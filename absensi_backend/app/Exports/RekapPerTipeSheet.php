@@ -36,8 +36,8 @@ class RekapPerTipeSheet implements FromCollection, ShouldAutoSize, WithTitle, Wi
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
 
-                $tahunText = $this->filters['tahun_ajaran'] ?: 'Semua Tahun Ajaran';
-                $semText = $this->filters['semester'] ?: 'Semua Semester';
+                $tahunText = !empty($this->filters['tahun_ajaran']) ? $this->filters['tahun_ajaran'] : 'Semua Tahun Ajaran';
+                $semText = !empty($this->filters['semester']) ? $this->filters['semester'] : 'Semua Semester';
 
                 // 1. TITLE
                 $sheet->setCellValue('A1', 'RINGKASAN TOTAL PEMBAYARAN PER-TIPE TAGIHAN');

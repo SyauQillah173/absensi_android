@@ -226,6 +226,26 @@ class PaymentHistoryService
             $query->whereDate('tanggal', '<=', $filters['tanggal_akhir']);
         }
 
+        if (!empty($filters['payment_type_id'])) {
+            $query->whereHas('items', fn ($b) => $b->where('payment_type_id', (int) $filters['payment_type_id']));
+        }
+
+        if (!empty($filters['via'])) {
+            $query->where('via', 'like', '%' . $filters['via'] . '%');
+        }
+
+        if (!empty($filters['search'])) {
+            $s = trim((string) $filters['search']);
+            $query->where(function ($q) use ($s) {
+                $q->where('kode_transaksi', 'like', "%{$s}%")
+                  ->orWhere('atas_nama', 'like', "%{$s}%")
+                  ->orWhereHas('siswa', function ($sq) use ($s) {
+                      $sq->where('nama', 'like', "%{$s}%")
+                        ->orWhere('nis', 'like', "%{$s}%");
+                  });
+            });
+        }
+
         $this->applyAcademicFilters($query, $filters);
 
         return $query->orderByDesc('tanggal')->orderByDesc('created_at');
@@ -279,6 +299,26 @@ class PaymentHistoryService
 
         if (!empty($filters['tanggal_akhir'])) {
             $query->whereDate('tanggal', '<=', $filters['tanggal_akhir']);
+        }
+
+        if (!empty($filters['payment_type_id'])) {
+            $query->where('payment_type_id', (int) $filters['payment_type_id']);
+        }
+
+        if (!empty($filters['via'])) {
+            $query->where('via', 'like', '%' . $filters['via'] . '%');
+        }
+
+        if (!empty($filters['search'])) {
+            $s = trim((string) $filters['search']);
+            $query->where(function ($q) use ($s) {
+                $q->where('atas_nama', 'like', "%{$s}%")
+                  ->orWhere('keterangan', 'like', "%{$s}%")
+                  ->orWhereHas('siswa', function ($sq) use ($s) {
+                      $sq->where('nama', 'like', "%{$s}%")
+                        ->orWhere('nis', 'like', "%{$s}%");
+                  });
+            });
         }
 
         $this->applyAcademicFilters($query, $filters);

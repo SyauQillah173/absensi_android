@@ -47,6 +47,7 @@ import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { PengeluaranPanel } from '../components/PengeluaranPanel';
 import { PemasukanLainPanel } from '../components/PemasukanLainPanel';
+import { RiwayatPembayaranPanel } from '../components/RiwayatPembayaranPanel';
 import { api, type ApiRecord, type PaymentFormPayload } from '../services/api';
 
 const monthLabels: Record<number, string> = {
@@ -171,6 +172,20 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
       if (finSummary) {
         setFinancialSummary(finSummary);
       }
+
+      const todayList = Array.isArray((todayResult as ApiRecord)?.data)
+        ? ((todayResult as ApiRecord).data as ApiRecord[])
+        : Array.isArray(todayResult)
+        ? (todayResult as ApiRecord[])
+        : [];
+      const historyList = Array.isArray((historyResult as ApiRecord)?.data)
+        ? ((historyResult as ApiRecord).data as ApiRecord[])
+        : Array.isArray(historyResult)
+        ? (historyResult as ApiRecord[])
+        : [];
+
+      setToday(todayList);
+      setHistory(historyList);
 
       setPaymentTypes(Array.isArray(typesResult.data) ? typesResult.data : []);
       setPaymentMethods(Array.isArray(methodsResult.data) ? methodsResult.data : []);
@@ -651,7 +666,32 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
       <section className="q-panel p-4 sm:p-6">
         {isLoading ? <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-bold text-[#636E72]">Memuat data keuangan...</div> : null}
         {!isLoading && activeTab === 'today' ? <PaymentsTable rows={today} emptyText="Belum ada transaksi hari ini." onDeleteTransaction={(row) => setConfirmDelete({ id: num(row.id), type: row.source === 'legacy' ? 'legacy' : 'transaction', title: `Transaksi ${str(row.transaction_code ?? row.kode_transaksi)}` })} onDeleteItem={(item) => setConfirmDelete({ id: num(item.id), type: 'legacy', title: `Item ${str(item.nama)}` })} /> : null}
-        {!isLoading && activeTab === 'history' ? <PaymentsTable rows={history} emptyText="Riwayat pembayaran masih kosong." onDeleteTransaction={(row) => setConfirmDelete({ id: num(row.id), type: row.source === 'legacy' ? 'legacy' : 'transaction', title: `Transaksi ${str(row.transaction_code ?? row.kode_transaksi)}` })} onDeleteItem={(item) => setConfirmDelete({ id: num(item.id), type: 'legacy', title: `Item ${str(item.nama)}` })} /> : null}
+        {!isLoading && activeTab === 'history' ? (
+          <RiwayatPembayaranPanel
+            rows={history}
+            classes={uniqueClasses}
+            paymentTypes={activeTypes}
+            paymentMethods={activeMethods}
+            academicPeriods={academicPeriods}
+            isLoading={isLoading}
+            onReload={load}
+            onDeleteTransaction={(row) =>
+              setConfirmDelete({
+                id: num(row.id),
+                type: row.source === 'legacy' ? 'legacy' : 'transaction',
+                title: `Transaksi ${str(row.transaction_code ?? row.kode_transaksi)}`,
+              })
+            }
+            onDeleteItem={(item) =>
+              setConfirmDelete({
+                id: num(item.id),
+                type: 'legacy',
+                title: `Item ${str(item.nama)}`,
+              })
+            }
+            showToast={showToast}
+          />
+        ) : null}
         {!isLoading && activeTab === 'verifikasi' ? (
           <VerifikasiTransferPanel
             userId={session?.id ?? 0}

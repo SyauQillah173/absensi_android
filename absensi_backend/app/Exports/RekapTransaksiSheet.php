@@ -41,9 +41,9 @@ class RekapTransaksiSheet implements FromCollection, ShouldAutoSize, WithTitle, 
 
                 $instansi = $this->docSetting?->institution_name ?: "MTS ASSA'ADAH II";
                 $alamat = $this->docSetting?->institution_address ?: 'Sampurnan Bungah Gresik';
-                $tahunText = $this->filters['tahun_ajaran'] ?: 'Semua Tahun Ajaran';
-                $semText = $this->filters['semester'] ?: 'Semua Semester';
-                $kelasText = $this->filters['kelas'] ?: 'Semua Kelas';
+                $tahunText = !empty($this->filters['tahun_ajaran']) ? $this->filters['tahun_ajaran'] : 'Semua Tahun Ajaran';
+                $semText = !empty($this->filters['semester']) ? $this->filters['semester'] : 'Semua Semester';
+                $kelasText = !empty($this->filters['kelas']) ? $this->filters['kelas'] : 'Semua Kelas';
 
                 // 1. KOP & TITLE
                 $sheet->setCellValue('A1', strtoupper($instansi));

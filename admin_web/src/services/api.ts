@@ -773,8 +773,43 @@ export const api = {
   paymentToday() {
     return request<ApiRecord[]>('/pembayaran');
   },
-  paymentAll(limit = 150) {
-    return request<ApiRecord[]>('/pembayaran', {}, { semua: 1, limit });
+  paymentAll(params?: Record<string, string | number | boolean> | number) {
+    if (typeof params === 'number') {
+      return request<ApiRecord[]>('/pembayaran', {}, { semua: 1, limit: params });
+    }
+    return request<ApiRecord[]>('/pembayaran', {}, { semua: 1, ...(params || {}) });
+  },
+  async downloadPaymentRecapExcel(params: Record<string, string | number | boolean> = {}) {
+    const session = readSession();
+    const query = new URLSearchParams({
+      user_id: String(session?.id || ''),
+      ...Object.fromEntries(
+        Object.entries(params)
+          .filter(([_, v]) => v !== undefined && v !== null && v !== '')
+          .map(([k, v]) => [k, String(v)])
+      ),
+    });
+
+    const response = await fetch(`${apiBaseUrl()}/pembayaran/rekap-export?${query.toString()}`, {
+      headers: {
+        Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gagal mengunduh file Excel (${response.statusText})`);
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Rekap_Pembayaran_Santri_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   },
   paymentChart() {
     return request<ApiRecord[]>('/pembayaran/chart');

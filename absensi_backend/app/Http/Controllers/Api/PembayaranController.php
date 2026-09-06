@@ -75,6 +75,8 @@ class PembayaranController extends Controller
 
         $filters = [
             'tanggal' => $request->input('tanggal'),
+            'tanggal_mulai' => $request->input('tanggal_mulai') ?: $request->input('start_date'),
+            'tanggal_akhir' => $request->input('tanggal_akhir') ?: $request->input('end_date'),
             'status' => $request->input('status'),
             'payment_status_id' => $request->input('payment_status_id'),
             'siswa_id' => $request->input('siswa_id'),
@@ -84,10 +86,34 @@ class PembayaranController extends Controller
             'semester_id' => $request->input('semester_id'),
             'tahun_ajaran' => $request->input('tahun_ajaran'),
             'semester' => $request->input('semester'),
-            'limit' => $request->integer('limit') ?: null,
+            'payment_type_id' => $request->input('payment_type_id'),
+            'via' => $request->input('via') ?: $request->input('metode'),
+            'search' => $request->input('search') ?: $request->input('q'),
+            'limit' => $request->has('semua') && !$request->filled('limit') ? null : ($request->integer('limit') ?: null),
         ];
 
-        if ($request->boolean('today') || (!$request->has('semua') && !$request->filled('tanggal') && !$request->filled('siswa_id') && !$request->filled('academic_year_id'))) {
+        // Sistem cerdas rekapan periode: harian, mingguan, bulanan, tahunan, atau semua
+        $periode = strtolower(trim((string) ($request->input('periode') ?: $request->input('preset') ?: '')));
+        if ($periode === 'hari_ini' || $periode === 'today') {
+            $filters['tanggal'] = $request->input('tanggal') ?: now()->toDateString();
+            unset($filters['tanggal_mulai'], $filters['tanggal_akhir']);
+        } elseif ($periode === 'minggu_ini' || $periode === 'week') {
+            $filters['tanggal_mulai'] = now()->startOfWeek()->toDateString();
+            $filters['tanggal_akhir'] = now()->endOfWeek()->toDateString();
+            unset($filters['tanggal']);
+        } elseif ($periode === 'bulan_ini' || $periode === 'month') {
+            $filters['tanggal_mulai'] = now()->startOfMonth()->toDateString();
+            $filters['tanggal_akhir'] = now()->endOfMonth()->toDateString();
+            unset($filters['tanggal']);
+        } elseif ($periode === 'tahun_ini' || $periode === 'year') {
+            $filters['tanggal_mulai'] = now()->startOfYear()->toDateString();
+            $filters['tanggal_akhir'] = now()->endOfYear()->toDateString();
+            unset($filters['tanggal']);
+        } elseif ($periode === 'semua' || $periode === 'all' || $request->has('semua')) {
+            unset($filters['tanggal'], $filters['tanggal_mulai'], $filters['tanggal_akhir']);
+        }
+
+        if ($request->boolean('today') || (!$request->has('semua') && $periode === '' && !$request->filled('tanggal') && !$request->filled('tanggal_mulai') && !$request->filled('siswa_id') && !$request->filled('academic_year_id'))) {
             $filters['today_or_created_today'] = now()->toDateString();
         }
 
@@ -104,6 +130,7 @@ class PembayaranController extends Controller
             'data' => $data->values(),
         ]);
     }
+
 
     public function chart(Request $request)
     {
@@ -579,17 +606,40 @@ class PembayaranController extends Controller
         ]);
 
         $filters = [
+            'tanggal' => $request->input('tanggal'),
+            'tanggal_mulai' => $request->input('tanggal_mulai') ?: $request->input('start_date'),
+            'tanggal_akhir' => $request->input('tanggal_akhir') ?: $request->input('end_date'),
             'kelas' => $request->input('kelas'),
             'class_id' => $request->input('class_id'),
             'status' => $request->input('status'),
             'payment_status_id' => $request->input('payment_status_id'),
-            'tanggal_mulai' => $request->input('tanggal_mulai'),
-            'tanggal_akhir' => $request->input('tanggal_akhir'),
             'academic_year_id' => $request->input('academic_year_id'),
             'semester_id' => $request->input('semester_id'),
             'tahun_ajaran' => $request->input('tahun_ajaran'),
             'semester' => $request->input('semester'),
+            'payment_type_id' => $request->input('payment_type_id'),
+            'via' => $request->input('via') ?: $request->input('metode'),
+            'search' => $request->input('search') ?: $request->input('q'),
         ];
+
+        // Periode preset
+        $periode = strtolower(trim((string) ($request->input('periode') ?: $request->input('preset') ?: '')));
+        if ($periode === 'hari_ini' || $periode === 'today') {
+            $filters['tanggal'] = $request->input('tanggal') ?: now()->toDateString();
+            unset($filters['tanggal_mulai'], $filters['tanggal_akhir']);
+        } elseif ($periode === 'minggu_ini' || $periode === 'week') {
+            $filters['tanggal_mulai'] = now()->startOfWeek()->toDateString();
+            $filters['tanggal_akhir'] = now()->endOfWeek()->toDateString();
+            unset($filters['tanggal']);
+        } elseif ($periode === 'bulan_ini' || $periode === 'month') {
+            $filters['tanggal_mulai'] = now()->startOfMonth()->toDateString();
+            $filters['tanggal_akhir'] = now()->endOfMonth()->toDateString();
+            unset($filters['tanggal']);
+        } elseif ($periode === 'tahun_ini' || $periode === 'year') {
+            $filters['tanggal_mulai'] = now()->startOfYear()->toDateString();
+            $filters['tanggal_akhir'] = now()->endOfYear()->toDateString();
+            unset($filters['tanggal']);
+        }
 
         $transactions = $this->paymentHistoryService->getTransactions($filters);
 
