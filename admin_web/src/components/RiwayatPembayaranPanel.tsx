@@ -24,6 +24,7 @@ import { DataTable } from './DataTable';
 import { formatMoney, MoneyText } from './MoneyText';
 import { StatusBadge } from './StatusBadge';
 import { ReceiptWaliModal } from './ReceiptWaliModal';
+import { ModernFinanceChart } from './ModernFinanceChart';
 import { api, type ApiRecord } from '../services/api';
 
 function num(value: unknown): number {
@@ -65,6 +66,7 @@ interface RiwayatPembayaranPanelProps {
   paymentTypes: ApiRecord[];
   paymentMethods: ApiRecord[];
   academicPeriods: ApiRecord[];
+  chartData?: ApiRecord[];
   isLoading?: boolean;
   onReload: () => Promise<void> | void;
   onDeleteTransaction?: (row: ApiRecord) => void;
@@ -78,6 +80,7 @@ export function RiwayatPembayaranPanel({
   paymentTypes,
   paymentMethods,
   academicPeriods,
+  chartData = [],
   isLoading = false,
   onReload,
   onDeleteTransaction,
@@ -511,7 +514,17 @@ export function RiwayatPembayaranPanel({
         </div>
       </div>
 
-      {/* 🌟 2. PRESET FILTER BAR (SMART PILLS & TABS) */}
+      {/* 🌟 2. MODERN FINANCIAL TREND CHART */}
+      {chartData && chartData.length > 0 && (
+        <ModernFinanceChart
+          data={chartData}
+          year={currentYear}
+          title="Tren Arus Kas Pesantren"
+          subtitle="Grafik Komparasi Pemasukan (Pembayaran Santri & Kas Masuk) vs Pengeluaran Bulanan"
+        />
+      )}
+
+      {/* 🌟 3. PRESET FILTER BAR (SMART PILLS & TABS) */}
       <div className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-gray-100 pb-4">
           <div>

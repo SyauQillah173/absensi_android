@@ -48,6 +48,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { PengeluaranPanel } from '../components/PengeluaranPanel';
 import { PemasukanLainPanel } from '../components/PemasukanLainPanel';
 import { RiwayatPembayaranPanel } from '../components/RiwayatPembayaranPanel';
+import { ModernFinanceChart } from '../components/ModernFinanceChart';
 import { api, type ApiRecord, type PaymentFormPayload } from '../services/api';
 
 const monthLabels: Record<number, string> = {
@@ -469,15 +470,6 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
-            type="button"
-            onClick={() => setShowExportModal(true)}
-            className="flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] px-4 text-sm font-extrabold text-white shadow-sm transition-all cursor-pointer"
-            title="Download Rekapitulasi Keuangan Excel (.xlsx)"
-          >
-            <Download size={17} />
-            <span>Export Rekap Excel</span>
-          </button>
-          <button
             className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white border border-slate-200/80 px-4 text-sm font-bold text-[#138F81] hover:bg-slate-50 transition-all cursor-pointer shadow-xs ${isLoading ? 'is-loading' : ''}`}
             onClick={() => void load()}
             type="button"
@@ -531,7 +523,7 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
 
       {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
 
-      {activeTab === 'today' || activeTab === 'history' ? (
+      {activeTab === 'today' ? (
         <>
           {isBendahara1 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -634,32 +626,12 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
             </div>
           </div>
 
-          <section className="q-card p-5 mb-5">
-            <h2 className="text-lg font-extrabold text-[#2D3436] mb-1">Tren Keuangan Tahun {new Date().getFullYear()}</h2>
-            <p className="text-xs font-semibold text-[#636E72] mb-4">Grafik Pemasukan vs Pengeluaran Bulanan</p>
-            <div className="h-[300px] w-full mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorPemasukan" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#138F81" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#138F81" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorPengeluaran" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#FF7675" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#FF7675" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} tickFormatter={(value) => `Rp ${(value/1000).toFixed(0)}K`} />
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <RechartsTooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} formatter={(value: any) => formatMoney(value)} />
-                  <Area type="monotone" dataKey="Pemasukan" stroke="#138F81" strokeWidth={3} fillOpacity={1} fill="url(#colorPemasukan)" />
-                  <Area type="monotone" dataKey="Pengeluaran" stroke="#FF7675" strokeWidth={3} fillOpacity={1} fill="url(#colorPengeluaran)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
+          <ModernFinanceChart
+            data={chartData}
+            year={new Date().getFullYear()}
+            title="Tren Arus Kas Pesantren"
+            subtitle="Grafik Komparasi Pemasukan vs Pengeluaran Bulanan"
+          />
         </>
       ) : null}
 
@@ -673,6 +645,7 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
             paymentTypes={activeTypes}
             paymentMethods={activeMethods}
             academicPeriods={academicPeriods}
+            chartData={chartData}
             isLoading={isLoading}
             onReload={load}
             onDeleteTransaction={(row) =>

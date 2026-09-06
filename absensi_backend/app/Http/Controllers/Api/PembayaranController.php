@@ -139,34 +139,65 @@ class PembayaranController extends Controller
             return response()->json(['success' => false, 'data' => []]);
         }
 
-        // Get monthly income for the current year
-        $year = now()->year;
-        $payments = Pembayaran::whereYear('tanggal', $year)
-            ->where('status', 'Lunas')
-            ->selectRaw('EXTRACT(MONTH FROM tanggal) as month, SUM(jumlah) as total')
+        $year = (int) ($request->input('year') ?: now()->year);
+
+        $connection = config('database.default');
+        $driver = config("database.connections.{$connection}.driver", 'pgsql');
+        if ($driver === 'sqlite') {
+            $monthExpr = "CAST(strftime('%m', tanggal) AS INTEGER)";
+        } elseif ($driver === 'pgsql') {
+            $monthExpr = "CAST(EXTRACT(MONTH FROM tanggal) AS INTEGER)";
+        } else {
+            $monthExpr = "MONTH(tanggal)";
+        }
+
+        // 1. Pemasukan Transaksi Santri (PaymentTransaction)
+        $trxPayments = PaymentTransaction::query()
+            ->whereYear('tanggal', $year)
+            ->whereNotIn('status', ['Dibatalkan', 'Batal'])
+            ->selectRaw("{$monthExpr} as month, SUM(jumlah_total) as total")
             ->groupBy('month')
-            ->orderBy('month')
             ->get();
 
-        // Get monthly expense for the current year
-        $expenses = Pengeluaran::whereYear('tanggal', $year)
-            ->selectRaw('EXTRACT(MONTH FROM tanggal) as month, SUM(jumlah) as total')
+        // Plus legacy pembayaran (jika ada data lama tanpa payment_transaction_id)
+        $legacyPayments = Pembayaran::query()
+            ->whereNull('payment_transaction_id')
+            ->whereYear('tanggal', $year)
+            ->whereNotIn('status', ['Dibatalkan', 'Batal'])
+            ->selectRaw("{$monthExpr} as month, SUM(jumlah) as total")
             ->groupBy('month')
-            ->orderBy('month')
+            ->get();
+
+        // Plus Pemasukan Kas Lain
+        $kasLain = PemasukanLain::query()
+            ->whereYear('tanggal', $year)
+            ->selectRaw("{$monthExpr} as month, SUM(jumlah) as total")
+            ->groupBy('month')
+            ->get();
+
+        // 2. Pengeluaran Kas
+        $expenses = Pengeluaran::query()
+            ->whereYear('tanggal', $year)
+            ->selectRaw("{$monthExpr} as month, SUM(jumlah) as total")
+            ->groupBy('month')
             ->get();
 
         $months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-        $chartData = collect(range(1, 12))->map(function ($month) use ($payments, $expenses, $months) {
-            $payment = $payments->firstWhere('month', $month);
-            $income = $payment ? (int) $payment->total : 0;
-            
-            $expenseData = $expenses->firstWhere('month', $month);
-            $expense = $expenseData ? (int) $expenseData->total : 0;
-            
+        $chartData = collect(range(1, 12))->map(function ($month) use ($trxPayments, $legacyPayments, $kasLain, $expenses, $months) {
+            $trxTotal = (int) ($trxPayments->firstWhere('month', $month)?->total ?? 0);
+            $legacyTotal = (int) ($legacyPayments->firstWhere('month', $month)?->total ?? 0);
+            $kasLainTotal = (int) ($kasLain->firstWhere('month', $month)?->total ?? 0);
+            $income = $trxTotal + $legacyTotal + $kasLainTotal;
+
+            $expenseTotal = (int) ($expenses->firstWhere('month', $month)?->total ?? 0);
+
             return [
                 'name' => $months[$month - 1],
                 'Pemasukan' => $income,
-                'Pengeluaran' => $expense,
+                'Pengeluaran' => $expenseTotal,
+                'Santri' => $trxTotal + $legacyTotal,
+                'KasLain' => $kasLainTotal,
+                'Netto' => $income - $expenseTotal,
             ];
         });
 
