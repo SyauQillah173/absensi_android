@@ -116,6 +116,11 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
           parsed[key] = String(value);
         }
       });
+      // Set default agama jika belum ada pada data tersimpan
+      if (!parsed.agama) parsed.agama = 'Islam';
+      if (!parsed.agama_ayah) parsed.agama_ayah = 'Islam';
+      if (!parsed.agama_ibu) parsed.agama_ibu = 'Islam';
+      if (!parsed.agama_wali) parsed.agama_wali = 'Islam';
       setForm(parsed);
       
       // Load cascade dropdowns if editing
@@ -131,7 +136,15 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
       if (parsed.city_id_ibu) loadDistricts(parsed.city_id_ibu, 'ibu');
       if (parsed.district_id_ibu) loadVillages(parsed.district_id_ibu, 'ibu');
     } else {
-      setForm({ jenis_kelamin: 'L', status: 'Aktif', kewarganegaraan: 'Indonesia' });
+      setForm({
+        jenis_kelamin: 'L',
+        status: 'Aktif',
+        kewarganegaraan: 'Indonesia',
+        agama: 'Islam',
+        agama_ayah: 'Islam',
+        agama_ibu: 'Islam',
+        agama_wali: 'Islam',
+      });
     }
 
     // Load static dropdowns
@@ -286,6 +299,10 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
   };
 
   const getRef = (kategori: string) => masterRefs.filter(r => String(r.kategori).toLowerCase() === kategori.toLowerCase());
+  const agamaOptions = useMemo(() => {
+    const fromRef = getRef('agama').map(r => String(r.nilai));
+    return fromRef.length > 0 ? fromRef : ['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu'];
+  }, [masterRefs]);
 
   return (
     <div className="w-full flex-1">
@@ -429,13 +446,23 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">No Akta Kelahiran</span>
                       <input className="q-input" name="no_akta" value={String(form.no_akta || '')} onChange={handleChange} />
                     </label>
-                    <label className="block">
-                      <span className="mb-2 block text-sm font-bold text-[#636E72]">Jenis Kelamin</span>
-                      <select className="q-input" name="jenis_kelamin" value={String(form.jenis_kelamin || 'L')} onChange={handleChange} required>
-                        <option value="L">Laki-laki</option>
-                        <option value="P">Perempuan</option>
-                      </select>
-                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <label className="block">
+                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Jenis Kelamin</span>
+                        <select className="q-input" name="jenis_kelamin" value={String(form.jenis_kelamin || 'L')} onChange={handleChange} required disabled={readOnly}>
+                          <option value="L">Laki-laki</option>
+                          <option value="P">Perempuan</option>
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className="mb-2 block text-sm font-bold text-[#636E72]">Agama</span>
+                        <select className="q-input" name="agama" value={String(form.agama || 'Islam')} onChange={handleChange} disabled={readOnly}>
+                          {agamaOptions.map((a) => (
+                            <option key={a} value={a}>{a}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <label className="block">
                         <span className="mb-2 block text-sm font-bold text-[#636E72]">Anak Ke</span>
@@ -592,10 +619,20 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                           <input type="date" className="q-input px-2" name="tanggal_lahir_ayah" value={String(form.tanggal_lahir_ayah || '')} onChange={handleChange} />
                         </label>
                       </div>
-                      <label className="block">
-                        <span className="mb-2 block text-xs font-bold text-[#636E72]">Pendidikan Ayah</span>
-                        <input list="pendidikan-list" className="q-input" name="pendidikan_ayah" value={String(form.pendidikan_ayah || '')} onChange={handleChange} />
-                      </label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-bold text-[#636E72]">Pendidikan Ayah</span>
+                          <input list="pendidikan-list" className="q-input" name="pendidikan_ayah" value={String(form.pendidikan_ayah || '')} onChange={handleChange} disabled={readOnly} />
+                        </label>
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-bold text-[#636E72]">Agama Ayah</span>
+                          <select className="q-input" name="agama_ayah" value={String(form.agama_ayah || 'Islam')} onChange={handleChange} disabled={readOnly}>
+                            {agamaOptions.map((a) => (
+                              <option key={a} value={a}>{a}</option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
                       <div className="grid grid-cols-2 gap-4">
                         <label className="block">
                           <span className="mb-2 block text-xs font-bold text-[#636E72]">Pekerjaan Ayah</span>
@@ -686,10 +723,20 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                           <input type="date" className="q-input px-2" name="tanggal_lahir_ibu" value={String(form.tanggal_lahir_ibu || '')} onChange={handleChange} />
                         </label>
                       </div>
-                      <label className="block">
-                        <span className="mb-2 block text-xs font-bold text-[#636E72]">Pendidikan Ibu</span>
-                        <input list="pendidikan-list" className="q-input" name="pendidikan_ibu" value={String(form.pendidikan_ibu || '')} onChange={handleChange} />
-                      </label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-bold text-[#636E72]">Pendidikan Ibu</span>
+                          <input list="pendidikan-list" className="q-input" name="pendidikan_ibu" value={String(form.pendidikan_ibu || '')} onChange={handleChange} disabled={readOnly} />
+                        </label>
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-bold text-[#636E72]">Agama Ibu</span>
+                          <select className="q-input" name="agama_ibu" value={String(form.agama_ibu || 'Islam')} onChange={handleChange} disabled={readOnly}>
+                            {agamaOptions.map((a) => (
+                              <option key={a} value={a}>{a}</option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
                       <div className="grid grid-cols-2 gap-4">
                         <label className="block">
                           <span className="mb-2 block text-xs font-bold text-[#636E72]">Pekerjaan Ibu</span>
@@ -762,18 +809,26 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                     {/* WALI */}
                     <div className="space-y-4 rounded-3xl bg-[#138F81]/5 p-5 border border-[#138F81]/20 col-span-full shadow-sm">
                       <h4 className="text-base font-extrabold text-[#138F81]">Data Wali (Opsional)</h4>
-                      <div className="grid md:grid-cols-3 gap-4">
+                      <div className="grid md:grid-cols-4 gap-4">
                         <label className="block">
                           <span className="mb-2 block text-xs font-bold text-[#636E72]">Nama Wali</span>
-                          <input className="q-input" name="nama_wali_keluarga" value={String(form.nama_wali_keluarga || '')} onChange={handleChange} />
+                          <input className="q-input" name="nama_wali_keluarga" value={String(form.nama_wali_keluarga || '')} onChange={handleChange} disabled={readOnly} />
                         </label>
                         <label className="block">
                           <span className="mb-2 block text-xs font-bold text-[#636E72]">Hubungan Wali</span>
-                          <input list="hubungan-list" className="q-input" name="wali_sama_dengan" value={String(form.wali_sama_dengan || '')} onChange={handleChange} />
+                          <input list="hubungan-list" className="q-input" name="wali_sama_dengan" value={String(form.wali_sama_dengan || '')} onChange={handleChange} disabled={readOnly} />
                         </label>
                         <label className="block">
                           <span className="mb-2 block text-xs font-bold text-[#636E72]">Pekerjaan Wali</span>
-                          <input list="pekerjaan-list" className="q-input" name="pekerjaan_wali_keluarga" value={String(form.pekerjaan_wali_keluarga || '')} onChange={handleChange} />
+                          <input list="pekerjaan-list" className="q-input" name="pekerjaan_wali_keluarga" value={String(form.pekerjaan_wali_keluarga || '')} onChange={handleChange} disabled={readOnly} />
+                        </label>
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-bold text-[#636E72]">Agama Wali</span>
+                          <select className="q-input" name="agama_wali" value={String(form.agama_wali || 'Islam')} onChange={handleChange} disabled={readOnly}>
+                            {agamaOptions.map((a) => (
+                              <option key={a} value={a}>{a}</option>
+                            ))}
+                          </select>
                         </label>
                       </div>
                       <div className="grid md:grid-cols-2 gap-4">

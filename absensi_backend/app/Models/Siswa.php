@@ -11,7 +11,7 @@ class Siswa extends Model
 
     protected $fillable = [
         'nis', 'nisn', 'nama', 'nama_panggilan', 'tempat_lahir', 'tanggal_lahir',
-        'jenis_kelamin', 'nik', 'no_kk', 'no_akta', 'dokumen_akta',
+        'jenis_kelamin', 'agama', 'nik', 'no_kk', 'no_akta', 'dokumen_akta',
         'nama_wali', 'no_telepon_wali', 'kelas', 'class_id', 'status', 'student_status_id',
         'wali_id', 'guardian_profile_id',
         'alamat', 'kewarganegaraan', 'provinsi', 'kota', 'kecamatan', 'kelurahan',
@@ -21,8 +21,8 @@ class Siswa extends Model
         'tahun_lulus', 'tahun_akademik_masuk', 'tahun_akademik_masuk_formal', 'academic_year_id',
         'jenis_santri', 'student_type_id',
         'anak_ke', 'jml_saudara',
-        'nama_ayah', 'nik_ayah', 'tempat_lahir_ayah', 'tanggal_lahir_ayah',
-        'nama_ibu', 'nik_ibu', 'tempat_lahir_ibu', 'tanggal_lahir_ibu',
+        'nama_ayah', 'nik_ayah', 'tempat_lahir_ayah', 'tanggal_lahir_ayah', 'agama_ayah',
+        'nama_ibu', 'nik_ibu', 'tempat_lahir_ibu', 'tanggal_lahir_ibu', 'agama_ibu',
         'pendidikan_ayah', 'father_education_id', 'pendidikan_ibu', 'mother_education_id',
         'pekerjaan_ayah', 'father_occupation_id', 'penghasilan_ayah', 'father_income_id',
         'pekerjaan_ibu', 'mother_occupation_id', 'penghasilan_ibu', 'mother_income_id',
@@ -31,7 +31,7 @@ class Siswa extends Model
         'province_id_ibu', 'city_id_ibu', 'district_id_ibu', 'village_id_ibu', 'kode_pos_ibu',
         'no_ayah', 'no_whatsapp_ayah', 'no_ibu', 'no_whatsapp_ibu',
         'wali_whatsapp_number', 'notification_whatsapp_enabled', 'notification_app_enabled',
-        'nama_wali_keluarga', 'pekerjaan_wali_keluarga', 'guardian_occupation_id',
+        'nama_wali_keluarga', 'pekerjaan_wali_keluarga', 'agama_wali', 'guardian_occupation_id',
         'alamat_wali_keluarga', 'wali_sama_dengan', 'guardian_relationship_id', 'tanggal_masuk',
         'tempat_tinggal', 'residence_type_id', 'transportasi', 'transport_mode_id',
         'status_mondok', 'boarding_room_id', 'komplek', 'kamar',
