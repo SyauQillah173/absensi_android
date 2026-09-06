@@ -10,6 +10,10 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronUp,
+  ChevronRight,
+  ArrowRight,
+  Camera,
   Clock,
   Copy,
   CreditCard,
@@ -140,6 +144,10 @@ export function WaliPortalPage() {
   const [submitTransferError, setSubmitTransferError] = useState<string | null>(null);
   const [previewProofImage, setPreviewProofImage] = useState<string | null>(null);
   const [selectedReceiptTransaction, setSelectedReceiptTransaction] = useState<ApiRecord | null>(null);
+  const [transferCategoryFilter, setTransferCategoryFilter] = useState<'all' | 'spp' | 'non_spp'>('all');
+  const [copiedNominal, setCopiedNominal] = useState(false);
+  const [showTransferGuide, setShowTransferGuide] = useState(false);
+  const [transferGuideTab, setTransferGuideTab] = useState<'bsi' | 'other_bank' | 'ewallet'>('bsi');
 
   // Month & year filter for attendance
   const [selectedMonth, setSelectedMonth] = useState<number>(() => new Date().getMonth() + 1);
@@ -514,6 +522,27 @@ export function WaliPortalPage() {
     });
   }, [tagihanList]);
 
+  const isSppBill = (b: ApiRecord) => {
+    const pMonth = b.period_month != null ? Number(b.period_month) : null;
+    const periodTypeCode = String(
+      (b.payment_type as Record<string, unknown> | undefined)?.period_type &&
+        typeof (b.payment_type as Record<string, unknown>).period_type === 'object'
+        ? ((b.payment_type as Record<string, unknown>).period_type as Record<string, unknown>).code
+        : ''
+    ).toLowerCase();
+    const title = String(b.title || b.nama || '').toLowerCase();
+    return (pMonth !== null && pMonth >= 1 && pMonth <= 12) || periodTypeCode === 'bulanan' || title.includes('spp');
+  };
+
+  const unpaidSppBills = useMemo(() => unpaidBills.filter(isSppBill), [unpaidBills]);
+  const unpaidNonSppBills = useMemo(() => unpaidBills.filter((b) => !isSppBill(b)), [unpaidBills]);
+
+  const filteredUnpaidBills = useMemo(() => {
+    if (transferCategoryFilter === 'spp') return unpaidSppBills;
+    if (transferCategoryFilter === 'non_spp') return unpaidNonSppBills;
+    return unpaidBills;
+  }, [unpaidBills, unpaidSppBills, unpaidNonSppBills, transferCategoryFilter]);
+
   const totalSelectedTransferAmount = useMemo(() => {
     return unpaidBills
       .filter((b) => selectedBillIds.includes(Number(b.id)))
@@ -530,6 +559,24 @@ export function WaliPortalPage() {
 
   const clearSelectedBills = () => {
     setSelectedBillIds([]);
+  };
+
+  const selectNextUnpaidSpp = () => {
+    if (unpaidSppBills.length === 0) return;
+    const unselected = unpaidSppBills.find((b) => !selectedBillIds.includes(Number(b.id)));
+    if (unselected) {
+      setSelectedBillIds((prev) => [...prev, Number(unselected.id)]);
+    } else {
+      setSelectedBillIds([Number(unpaidSppBills[0].id)]);
+    }
+  };
+
+  const selectAllSpp = () => {
+    setSelectedBillIds(unpaidSppBills.map((b) => Number(b.id)));
+  };
+
+  const selectAllNonSpp = () => {
+    setSelectedBillIds(unpaidNonSppBills.map((b) => Number(b.id)));
   };
 
   const compressImageToWebp = async (file: File, maxDimension = 1200, quality = 0.75): Promise<File> => {
@@ -1160,68 +1207,87 @@ export function WaliPortalPage() {
                   </div>
                 </div>
 
-                {/* SUB-TABS: DAFTAR TAGIHAN VS RIWAYAT TRANSAKSI */}
-                <div className="q-card bg-white rounded-[28px] shadow-xl shadow-black/5 p-5 sm:p-7 space-y-5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                    <div className="flex flex-wrap items-center gap-2">
+                {/* SUB-TABS: SEGMENTED FINTECH NAVIGATION */}
+                <div className="q-card bg-white dark:bg-slate-900 rounded-[28px] shadow-xl shadow-black/5 p-4 sm:p-7 space-y-5">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+                    {/* SLEEK SEGMENTED TAB BAR */}
+                    <div className="w-full md:w-auto bg-slate-100/90 dark:bg-slate-800/90 p-1.5 rounded-2xl grid grid-cols-1 sm:grid-cols-3 gap-1.5 shadow-inner border border-slate-200/60 dark:border-slate-700/60">
                       <button
                         type="button"
                         onClick={() => setKeuanganSubTab('tagihan')}
-                        className={`px-4 py-2.5 text-xs font-black rounded-xl transition cursor-pointer ${
+                        className={`px-3.5 py-2.5 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
                           keuanganSubTab === 'tagihan'
-                            ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25'
-                            : 'bg-[#E1EFF7] text-[#138F81] hover:bg-[#d0e5f2]'
+                            ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25 ring-1 ring-white/20'
+                            : 'text-slate-600 dark:text-slate-300 hover:text-[#138F81] hover:bg-white dark:hover:bg-slate-700'
                         }`}
                       >
-                        📋 Ringkasan Tagihan ({tagihanList.length})
+                        <FileText size={15} />
+                        <span>Ringkasan Tagihan</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                          keuanganSubTab === 'tagihan' ? 'bg-white/25 text-white' : 'bg-slate-200/80 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                        }`}>
+                          {tagihanList.length}
+                        </span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setKeuanganSubTab('transfer')}
-                        className={`px-4 py-2.5 text-xs font-black rounded-xl transition cursor-pointer flex items-center gap-1.5 ${
+                        className={`px-3.5 py-2.5 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
                           keuanganSubTab === 'transfer'
-                            ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25'
-                            : 'bg-[#E1EFF7] text-[#138F81] hover:bg-[#d0e5f2]'
+                            ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25 ring-1 ring-white/20'
+                            : 'text-slate-600 dark:text-slate-300 hover:text-[#138F81] hover:bg-white dark:hover:bg-slate-700'
                         }`}
                       >
-                        <CreditCard size={14} />
-                        <span>Bayar Online & Bukti TF</span>
-                        {verifikasiList.filter((v) => v.status === 'menunggu').length > 0 && (
-                          <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-black animate-pulse">
+                        <CreditCard size={15} />
+                        <span>Bayar Mandiri & Bukti TF</span>
+                        {verifikasiList.filter((v) => v.status === 'menunggu').length > 0 ? (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-black animate-pulse">
                             {verifikasiList.filter((v) => v.status === 'menunggu').length}
                           </span>
-                        )}
+                        ) : unpaidBills.length > 0 ? (
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                            keuanganSubTab === 'transfer' ? 'bg-white/25 text-white' : 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300'
+                          }`}>
+                            {unpaidBills.length}
+                          </span>
+                        ) : null}
                       </button>
                       <button
                         type="button"
                         onClick={() => setKeuanganSubTab('riwayat')}
-                        className={`px-4 py-2.5 text-xs font-black rounded-xl transition cursor-pointer ${
+                        className={`px-3.5 py-2.5 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
                           keuanganSubTab === 'riwayat'
-                            ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25'
-                            : 'bg-[#E1EFF7] text-[#138F81] hover:bg-[#d0e5f2]'
+                            ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25 ring-1 ring-white/20'
+                            : 'text-slate-600 dark:text-slate-300 hover:text-[#138F81] hover:bg-white dark:hover:bg-slate-700'
                         }`}
                       >
-                        🧾 Riwayat Transaksi & Kwitansi ({historyList.length})
+                        <Receipt size={15} />
+                        <span>Riwayat & Kwitansi</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                          keuanganSubTab === 'riwayat' ? 'bg-white/25 text-white' : 'bg-slate-200/80 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                        }`}>
+                          {historyList.length}
+                        </span>
                       </button>
                     </div>
 
                     {/* SEARCH & FILTER CONTROLS FOR BILLS */}
                     {keuanganSubTab === 'tagihan' && (
-                      <div className="flex items-center gap-2">
-                        <div className="relative">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="relative flex-1 sm:flex-initial">
                           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                           <input
                             type="text"
                             placeholder="Cari bulan / tagihan..."
                             value={billSearch}
                             onChange={(e) => setBillSearch(e.target.value)}
-                            className="pl-8 pr-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-[#f8fafc] text-[#2D3436] placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/40"
+                            className="w-full sm:w-48 pl-8 pr-3 py-2 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-[#f8fafc] dark:bg-slate-800 text-[#2D3436] dark:text-white placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/40"
                           />
                         </div>
                         <select
                           value={billStatusFilter}
                           onChange={(e) => setBillStatusFilter(e.target.value as 'all' | 'belum' | 'lunas')}
-                          className="px-3 py-2 text-xs font-black rounded-xl border border-slate-200 bg-[#f8fafc] text-[#2D3436] focus:outline-hidden cursor-pointer"
+                          className="px-3 py-2 text-xs font-black rounded-xl border border-slate-200 dark:border-slate-700 bg-[#f8fafc] dark:bg-slate-800 text-[#2D3436] dark:text-white focus:outline-hidden cursor-pointer"
                         >
                           <option value="all">Semua Status</option>
                           <option value="belum">Belum Lunas</option>
@@ -1483,104 +1549,312 @@ export function WaliPortalPage() {
                     )}
                   </>
                 ) : keuanganSubTab === 'transfer' ? (
-                    /* TAB 3 CONTENT: BAYAR ONLINE VIA TRANSFER & UPLOAD BUKTI TF */
-                    <div className="space-y-6">
+                    /* TAB: BAYAR ONLINE MANDIRI (FINTECH STYLE E-WALLET & BSI INTEGRATION) */
+                    <div className="space-y-6 animate-fadeIn">
                       {/* ALERT FEEDBACK */}
                       {submitTransferSuccess && (
-                        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-start gap-3 text-emerald-800">
-                          <CheckCircle2 className="shrink-0 text-emerald-600 mt-0.5" size={18} />
-                          <div>
-                            <h5 className="text-xs font-black">Bukti Transfer Berhasil Terkirim!</h5>
-                            <p className="text-xs mt-0.5 text-emerald-700">{submitTransferSuccess}</p>
+                        <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-start gap-3 text-emerald-800 dark:text-emerald-200 shadow-xs">
+                          <CheckCircle2 className="shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" size={20} />
+                          <div className="flex-1">
+                            <h5 className="text-xs sm:text-sm font-black">Bukti Transfer Berhasil Terkirim!</h5>
+                            <p className="text-xs mt-0.5 text-emerald-700 dark:text-emerald-300">{submitTransferSuccess}</p>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => setSubmitTransferSuccess(null)}
+                            className="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 cursor-pointer"
+                          >
+                            <X size={16} />
+                          </button>
                         </div>
                       )}
 
                       {submitTransferError && (
-                        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-start gap-3 text-rose-800">
-                          <AlertTriangle className="shrink-0 text-rose-600 mt-0.5" size={18} />
-                          <div>
-                            <h5 className="text-xs font-black">Perhatian / Gagal Mengirim</h5>
-                            <p className="text-xs mt-0.5 text-rose-700">{submitTransferError}</p>
+                        <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 flex items-start gap-3 text-rose-800 dark:text-rose-200 shadow-xs">
+                          <AlertTriangle className="shrink-0 text-rose-600 dark:text-rose-400 mt-0.5" size={20} />
+                          <div className="flex-1">
+                            <h5 className="text-xs sm:text-sm font-black">Perhatian / Gagal Mengirim</h5>
+                            <p className="text-xs mt-0.5 text-rose-700 dark:text-rose-300">{submitTransferError}</p>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => setSubmitTransferError(null)}
+                            className="text-rose-600 hover:text-rose-800 dark:text-rose-400 cursor-pointer"
+                          >
+                            <X size={16} />
+                          </button>
                         </div>
                       )}
 
+                      {/* STEP BREADCRUMB & EDUCATIONAL GUIDANCE BAR */}
+                      <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-[#138F81]/10 via-[#FFDC80]/20 to-[#138F81]/10 border border-[#138F81]/25 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-[#138F81] text-white flex items-center justify-center shadow-md shadow-[#138F81]/25 shrink-0">
+                            <Sparkles size={20} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs sm:text-sm font-black text-[#2D3436] dark:text-white">
+                              Alur Pembayaran Mandiri Santri
+                            </h4>
+                            <p className="text-[11px] font-medium text-slate-600 dark:text-slate-300 mt-0.5">
+                              Pilih tagihan ➔ Transfer ke BSI ➔ Unggah struk transfer. Data real-time & verifikasi otomatis bendahara.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* STEP PILLS INDICATOR */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs font-black">
+                          <div className={`px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 shrink-0 ${
+                            selectedBillIds.length > 0
+                              ? 'bg-[#138F81] text-white shadow-xs'
+                              : 'bg-white dark:bg-slate-800 text-[#138F81] border border-[#138F81]/30'
+                          }`}>
+                            <span className="w-4 h-4 rounded-full bg-black/15 flex items-center justify-center text-[10px]">1</span>
+                            <span>Pilih Tagihan</span>
+                            {selectedBillIds.length > 0 && <span className="text-[10px] opacity-90">({selectedBillIds.length})</span>}
+                          </div>
+                          <ChevronRight size={14} className="text-slate-400 shrink-0" />
+                          <div className={`px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 shrink-0 ${
+                            totalSelectedTransferAmount > 0
+                              ? 'bg-[#138F81] text-white shadow-xs'
+                              : 'bg-white dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700'
+                          }`}>
+                            <span className="w-4 h-4 rounded-full bg-black/15 flex items-center justify-center text-[10px]">2</span>
+                            <span>Transfer BSI</span>
+                          </div>
+                          <ChevronRight size={14} className="text-slate-400 shrink-0" />
+                          <div className={`px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 shrink-0 ${
+                            transferFile
+                              ? 'bg-[#138F81] text-white shadow-xs'
+                              : 'bg-white dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700'
+                          }`}>
+                            <span className="w-4 h-4 rounded-full bg-black/15 flex items-center justify-center text-[10px]">3</span>
+                            <span>Kirim Struk</span>
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         {/* FORM CHECKOUT TRANSFER (7 COLS) */}
-                        <div className="lg:col-span-7 space-y-5">
-                          {/* STEP 1: PILIH TAGIHAN */}
-                          <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#138F81] text-white text-xs font-black">
+                        <div className="lg:col-span-7 space-y-6">
+
+                          {/* ========================================================================= */}
+                          {/* STEP 1: PILIH TAGIHAN YANG INGIN DIBAYAR */}
+                          {/* ========================================================================= */}
+                          <div className="p-4 sm:p-6 rounded-3xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-4 shadow-xs">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/70 dark:border-slate-700/70 pb-3">
+                              <div className="flex items-center gap-2.5">
+                                <span className="flex items-center justify-center w-7 h-7 rounded-xl bg-[#138F81] text-white text-xs font-black shadow-sm">
                                   1
                                 </span>
-                                <h4 className="text-xs sm:text-sm font-black text-[#2D3436]">Pilih Tagihan yang Ingin Dibayar</h4>
+                                <div>
+                                  <h4 className="text-xs sm:text-sm font-black text-[#2D3436] dark:text-white">
+                                    Pilih Tagihan yang Ingin Dibayar
+                                  </h4>
+                                  <p className="text-[10px] text-slate-500 font-semibold">
+                                    Bisa bayar 1 bulan atau centang beberapa bulan sekaligus
+                                  </p>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2 text-xs">
+
+                              {/* QUICK SELECT CHIPS */}
+                              <div className="flex items-center gap-1.5 text-[11px] self-end sm:self-auto">
                                 <button
                                   type="button"
                                   onClick={selectAllUnpaid}
-                                  className="text-[#138F81] hover:underline font-bold cursor-pointer"
+                                  className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[#138F81] font-black hover:bg-slate-100 transition cursor-pointer"
                                 >
                                   Pilih Semua
                                 </button>
-                                <span className="text-slate-300">•</span>
                                 <button
                                   type="button"
                                   onClick={clearSelectedBills}
-                                  className="text-slate-500 hover:underline font-bold cursor-pointer"
+                                  disabled={selectedBillIds.length === 0}
+                                  className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 font-bold hover:bg-slate-100 disabled:opacity-40 transition cursor-pointer"
                                 >
-                                  Hapus Pilihan
+                                  Hapus
                                 </button>
                               </div>
                             </div>
 
-                            {unpaidBills.length === 0 ? (
-                              <div className="p-6 rounded-xl bg-white text-center text-slate-400 border border-slate-200/60">
-                                <CheckCircle2 size={32} className="mx-auto mb-2 text-emerald-500" />
-                                <p className="text-xs font-black text-[#2D3436]">Alhamdulillah, semua tagihan santri sudah lunas!</p>
+                            {/* CATEGORY SELECTOR TABS */}
+                            <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
+                              <button
+                                type="button"
+                                onClick={() => setTransferCategoryFilter('all')}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                                  transferCategoryFilter === 'all'
+                                    ? 'bg-[#138F81] text-white shadow-xs'
+                                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                                }`}
+                              >
+                                <span>Semua Tagihan</span>
+                                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                                  transferCategoryFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                                }`}>
+                                  {unpaidBills.length}
+                                </span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setTransferCategoryFilter('spp')}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                                  transferCategoryFilter === 'spp'
+                                    ? 'bg-[#138F81] text-white shadow-xs'
+                                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                                }`}
+                              >
+                                <Calendar size={13} />
+                                <span>SPP Bulanan</span>
+                                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                                  transferCategoryFilter === 'spp' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                                }`}>
+                                  {unpaidSppBills.length}
+                                </span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setTransferCategoryFilter('non_spp')}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                                  transferCategoryFilter === 'non_spp'
+                                    ? 'bg-[#138F81] text-white shadow-xs'
+                                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                                }`}
+                              >
+                                <BookOpen size={13} />
+                                <span>Biaya Lain (Kitab/Gedung)</span>
+                                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                                  transferCategoryFilter === 'non_spp' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                                }`}>
+                                  {unpaidNonSppBills.length}
+                                </span>
+                              </button>
+                            </div>
+
+                            {/* SMART FAST-ACTION PILLS FOR WALIS */}
+                            {unpaidSppBills.length > 0 && (
+                              <div className="p-2.5 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/70 flex flex-wrap items-center justify-between gap-2">
+                                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                                  <Zap size={13} className="text-amber-500" />
+                                  Aksi Cepat SPP:
+                                </span>
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={selectNextUnpaidSpp}
+                                    className="px-2.5 py-1 text-[10px] font-black rounded-lg bg-teal-50 dark:bg-teal-950/50 text-[#138F81] dark:text-teal-300 border border-[#138F81]/25 hover:bg-teal-100 transition cursor-pointer"
+                                  >
+                                    ⚡ Bayar 1 Bulan Ini
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={selectAllSpp}
+                                    className="px-2.5 py-1 text-[10px] font-black rounded-lg bg-teal-50 dark:bg-teal-950/50 text-[#138F81] dark:text-teal-300 border border-[#138F81]/25 hover:bg-teal-100 transition cursor-pointer"
+                                  >
+                                    ⚡ Pilih Semua SPP ({unpaidSppBills.length})
+                                  </button>
+                                  {unpaidNonSppBills.length > 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={selectAllNonSpp}
+                                      className="px-2.5 py-1 text-[10px] font-black rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition cursor-pointer"
+                                    >
+                                      Khusus Biaya Lain ({unpaidNonSppBills.length})
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* BILL ITEMS LIST */}
+                            {filteredUnpaidBills.length === 0 ? (
+                              <div className="p-8 rounded-2xl bg-white dark:bg-slate-800 text-center text-slate-400 border border-slate-200/60 dark:border-slate-700/60">
+                                <CheckCircle2 size={36} className="mx-auto mb-2 text-emerald-500" />
+                                <p className="text-xs sm:text-sm font-black text-[#2D3436] dark:text-white">
+                                  {unpaidBills.length === 0
+                                    ? 'Alhamdulillah, semua tagihan santri sudah lunas!'
+                                    : 'Tidak ada tagihan dalam kategori ini.'}
+                                </p>
+                                <p className="text-[11px] text-slate-500 mt-1">
+                                  {unpaidBills.length === 0
+                                    ? 'Seluruh kewajiban pembayaran telah terselesaikan dengan tertib.'
+                                    : 'Silakan ganti kategori filter di atas untuk melihat tagihan lainnya.'}
+                                </p>
                               </div>
                             ) : (
-                              <div className="max-h-60 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                                {unpaidBills.map((b) => {
+                              <div className="max-h-[380px] sm:max-h-[440px] overflow-y-auto space-y-2.5 pr-1.5 custom-scrollbar">
+                                {filteredUnpaidBills.map((b) => {
                                   const bId = Number(b.id);
                                   const isSelected = selectedBillIds.includes(bId);
                                   const amount = Number(b.amount || 0);
+                                  const isSpp = isSppBill(b);
+
                                   return (
                                     <div
                                       key={bId}
                                       onClick={() => toggleBillSelection(bId)}
-                                      className={`p-3 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                                      className={`p-3.5 rounded-2xl border-2 flex items-center justify-between gap-3 cursor-pointer transition-all select-none ${
                                         isSelected
-                                          ? 'bg-teal-50/90 border-[#138F81] shadow-xs'
-                                          : 'bg-white border-slate-200 hover:border-slate-300'
+                                          ? 'bg-gradient-to-r from-teal-50/95 via-emerald-50/80 to-teal-50/95 dark:from-teal-950/60 dark:to-emerald-950/40 border-[#138F81] ring-2 ring-[#138F81]/25 shadow-sm'
+                                          : 'bg-white dark:bg-slate-800 border-slate-200/90 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-xs'
                                       }`}
                                     >
-                                      <div className="flex items-center gap-3">
-                                        <input
-                                          type="checkbox"
-                                          checked={isSelected}
-                                          onChange={() => {}}
-                                          className="w-4 h-4 rounded text-[#138F81] focus:ring-[#138F81] border-slate-300 cursor-pointer"
-                                        />
-                                        <div>
-                                          <div className="text-xs font-black text-[#2D3436]">{String(b.title || 'Tagihan')}</div>
-                                          <div className="text-[10px] text-slate-500 font-semibold">
-                                            Tahun: {String(b.tahun_ajaran || '2025/2026')} {b.due_date ? `• Jatuh Tempo: ${b.due_date}` : ''}
+                                      {/* LEFT: CHECKBOX & INFO */}
+                                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                                        <div className={`w-5 h-5 rounded-lg flex items-center justify-center transition-all shrink-0 ${
+                                          isSelected
+                                            ? 'bg-[#138F81] text-white shadow-xs'
+                                            : 'border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700'
+                                        }`}>
+                                          {isSelected && <Check size={13} strokeWidth={3.5} />}
+                                        </div>
+
+                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                                          isSpp
+                                            ? 'bg-teal-100/70 dark:bg-teal-900/50 text-[#138F81] dark:text-teal-300'
+                                            : 'bg-amber-100/70 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300'
+                                        }`}>
+                                          {isSpp ? <Calendar size={18} /> : <BookOpen size={18} />}
+                                        </div>
+
+                                        <div className="min-w-0 flex-1">
+                                          <div className="text-xs sm:text-sm font-black text-[#2D3436] dark:text-white capitalize truncate">
+                                            {String(b.title || 'Tagihan')}
+                                          </div>
+                                          <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold flex items-center gap-1.5 flex-wrap mt-0.5">
+                                            <span>Tahun: {String(b.tahun_ajaran || '2026/2027')}</span>
+                                            {Boolean(b.due_date) && (
+                                              <>
+                                                <span>•</span>
+                                                <span className="text-slate-600 dark:text-slate-300">Tempo: {String(b.due_date)}</span>
+                                              </>
+                                            )}
                                           </div>
                                           {Boolean(b.notes || b.keterangan) && (
-                                            <div className="text-[10px] font-bold text-amber-800 bg-amber-50 rounded-md px-1.5 py-0.5 mt-0.5 inline-flex items-center gap-1 border border-amber-200">
+                                            <div className="text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 rounded-md px-2 py-0.5 mt-1 inline-flex items-center gap-1 border border-amber-200 dark:border-amber-800">
                                               <span>💡</span>
-                                              <span>{String(b.notes || b.keterangan)}</span>
+                                              <span className="truncate">{String(b.notes || b.keterangan)}</span>
                                             </div>
                                           )}
                                         </div>
                                       </div>
-                                      <div className="text-right">
-                                        <span className="text-xs font-black text-[#138F81]">Rp {amount.toLocaleString('id-ID')}</span>
-                                        <div className="text-[9px] font-black uppercase text-amber-600">Belum Lunas</div>
+
+                                      {/* RIGHT: NOMINAL & STATUS BADGE (NO SPLIT LINE) */}
+                                      <div className="shrink-0 text-right">
+                                        <span className="text-xs sm:text-sm font-black text-[#138F81] dark:text-teal-400 whitespace-nowrap block">
+                                          Rp {amount.toLocaleString('id-ID')}
+                                        </span>
+                                        {isSelected ? (
+                                          <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/70 px-2 py-0.5 rounded-md mt-1 border border-emerald-300 dark:border-emerald-800">
+                                            ✓ Terpilih
+                                          </span>
+                                        ) : (
+                                          <span className="inline-block text-[9px] font-black uppercase text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-md mt-1">
+                                            Belum Lunas
+                                          </span>
+                                        )}
                                       </div>
                                     </div>
                                   );
@@ -1588,203 +1862,486 @@ export function WaliPortalPage() {
                               </div>
                             )}
 
-                            {/* TOTAL NOMINAL PILL */}
-                            <div className="p-3.5 rounded-xl bg-[#138F81]/10 border border-[#138F81]/25 flex items-center justify-between">
-                              <span className="text-xs font-bold text-[#2D3436]">
-                                🎯 {selectedBillIds.length} tagihan terpilih
-                              </span>
-                              <div className="text-right">
-                                <span className="text-[10px] text-[#636E72] block font-semibold">Total Nominal Transfer:</span>
-                                <span className="text-sm sm:text-base font-black text-[#138F81]">
-                                  Rp {totalSelectedTransferAmount.toLocaleString('id-ID')}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* STEP 2: REKENING BANK TUJUAN */}
-                          <div className="p-5 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-3">
-                            <div className="flex items-center gap-2">
-                              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#138F81] text-white text-xs font-black">
-                                2
-                              </span>
-                              <h4 className="text-xs sm:text-sm font-black text-[#2D3436]">Transfer ke Rekening Resmi Pondok</h4>
-                            </div>
-                            <div className="p-4 rounded-xl bg-white border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-                              <div>
-                                <span className="text-[11px] font-bold text-slate-500">Bank Syariah Indonesia (BSI)</span>
-                                <div className="text-base sm:text-lg font-black font-mono tracking-wider text-[#2D3436]">
-                                  7171 2026 88
+                            {/* STICKY / DOCKED SUMMARY CHECKOUT BAR */}
+                            <div className="p-4 rounded-2xl bg-gradient-to-r from-[#138F81]/15 via-teal-500/10 to-[#138F81]/15 border-2 border-[#138F81]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-2xl bg-[#138F81] text-white flex items-center justify-center font-black text-sm shadow-md shadow-[#138F81]/25 shrink-0">
+                                  {selectedBillIds.length}
                                 </div>
-                                <span className="text-[11px] font-medium text-slate-600 block">
-                                  a.n. <strong>Yayasan Pondok Pesantren Qomaruddin</strong>
-                                </span>
+                                <div>
+                                  <span className="text-xs font-black text-[#2D3436] dark:text-white block">
+                                    {selectedBillIds.length} Tagihan Terpilih
+                                  </span>
+                                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
+                                    {selectedBillIds.length > 0
+                                      ? 'Siap ditransfer ke rekening resmi pondok'
+                                      : 'Pilih tagihan di atas untuk melanjutkan'}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    navigator.clipboard.writeText('7171202688');
-                                    setCopiedRekening(true);
-                                    setTimeout(() => setCopiedRekening(false), 2000);
-                                  }}
-                                  className="px-3 py-1.5 rounded-lg bg-[#138F81] text-white text-xs font-bold hover:bg-[#0D7A6F] transition cursor-pointer flex items-center gap-1.5"
-                                >
-                                  {copiedRekening ? <Check size={13} /> : <Copy size={13} />}
-                                  <span>{copiedRekening ? 'Tersalin' : 'Salin Rekening'}</span>
-                                </button>
+
+                              <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#138F81]/20">
+                                <div className="text-left sm:text-right">
+                                  <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 dark:text-slate-400 block">
+                                    Total Transfer:
+                                  </span>
+                                  <span className="text-base sm:text-lg font-black text-[#138F81] dark:text-teal-400 whitespace-nowrap">
+                                    Rp {totalSelectedTransferAmount.toLocaleString('id-ID')}
+                                  </span>
+                                </div>
+
                                 {totalSelectedTransferAmount > 0 && (
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      navigator.clipboard.writeText(String(totalSelectedTransferAmount));
-                                      alert(`Nominal Rp ${totalSelectedTransferAmount.toLocaleString('id-ID')} berhasil disalin!`);
+                                      document.getElementById('step-transfer-bank')?.scrollIntoView({ behavior: 'smooth' });
                                     }}
-                                    className="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-900 text-xs font-bold hover:bg-amber-200 transition cursor-pointer flex items-center gap-1.5"
+                                    className="px-4 py-2 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white text-xs font-black shadow-md shadow-[#138F81]/25 transition cursor-pointer flex items-center gap-1.5 shrink-0"
                                   >
-                                    <Copy size={13} />
-                                    <span>Salin Nominal</span>
+                                    <span>Lanjut</span>
+                                    <ChevronDown size={14} />
                                   </button>
                                 )}
                               </div>
                             </div>
                           </div>
 
-                          {/* STEP 3: FORM BUKTI TRANSFER & PENGIRIM */}
-                          <form onSubmit={handleSubmitTransferProof} className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
-                            <div className="flex items-center gap-2">
-                              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#138F81] text-white text-xs font-black">
+                          {/* ========================================================================= */}
+                          {/* STEP 2: TRANSFER KE REKENING RESMI PONDOK */}
+                          {/* ========================================================================= */}
+                          <div id="step-transfer-bank" className="p-4 sm:p-6 rounded-3xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-4 shadow-xs">
+                            <div className="flex items-center gap-2.5 border-b border-slate-200/70 dark:border-slate-700/70 pb-3">
+                              <span className="flex items-center justify-center w-7 h-7 rounded-xl bg-[#138F81] text-white text-xs font-black shadow-sm">
+                                2
+                              </span>
+                              <div>
+                                <h4 className="text-xs sm:text-sm font-black text-[#2D3436] dark:text-white">
+                                  Transfer ke Rekening Resmi Pondok
+                                </h4>
+                                <p className="text-[10px] text-slate-500 font-semibold">
+                                  Kirim dana via ATM, M-Banking, atau Dompet Digital
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* ISLAMIC BANKING DEBIT / VIRTUAL CARD */}
+                            <div className="bg-gradient-to-br from-[#0D7A6F] via-[#0A6357] to-[#03342D] text-white rounded-3xl p-5 sm:p-6 shadow-xl shadow-teal-950/20 border border-teal-400/30 relative overflow-hidden space-y-5">
+                              {/* WATERMARK CIRCLES */}
+                              <div className="absolute -right-10 -bottom-10 w-44 h-44 rounded-full bg-white/5 blur-xl pointer-events-none" />
+                              <div className="absolute left-1/3 -top-10 w-32 h-32 rounded-full bg-[#FFDC80]/10 blur-xl pointer-events-none" />
+
+                              {/* TOP ROW */}
+                              <div className="flex items-center justify-between relative z-10">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+                                    <Building2 size={16} className="text-[#FFDC80]" />
+                                  </div>
+                                  <div>
+                                    <span className="text-xs font-black tracking-wide block">Bank Syariah Indonesia</span>
+                                    <span className="text-[9px] font-bold text-teal-200 block uppercase tracking-wider">BSI Syariah</span>
+                                  </div>
+                                </div>
+                                <span className="px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-md text-[10px] font-black border border-white/20 text-[#FFDC80]">
+                                  Rekening Resmi Yayasan
+                                </span>
+                              </div>
+
+                              {/* CARD CHIP GRAPHIC & NUMBER */}
+                              <div className="space-y-1 relative z-10">
+                                <div className="flex items-center justify-between">
+                                  <div className="w-9 h-7 rounded-md bg-gradient-to-tr from-amber-300 via-yellow-400 to-amber-200 shadow-inner border border-amber-500/40 flex items-center justify-center">
+                                    <div className="w-7 h-5 border border-amber-600/40 rounded-xs grid grid-cols-2 gap-0.5 p-0.5">
+                                      <div className="bg-amber-400/50 rounded-xs" />
+                                      <div className="bg-amber-400/50 rounded-xs" />
+                                    </div>
+                                  </div>
+                                  <span className="text-[10px] font-mono text-teal-200">KODE BANK: 451</span>
+                                </div>
+
+                                <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                  <div className="font-mono text-xl sm:text-2xl font-black tracking-widest text-white drop-shadow-sm select-all">
+                                    7171 2026 88
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText('7171202688');
+                                      setCopiedRekening(true);
+                                      setTimeout(() => setCopiedRekening(false), 2500);
+                                    }}
+                                    className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-xs font-black transition cursor-pointer border border-white/30 shadow-xs"
+                                  >
+                                    {copiedRekening ? <Check size={14} className="text-emerald-300" /> : <Copy size={14} />}
+                                    <span>{copiedRekening ? 'Tersalin! ✅' : 'Salin Nomor'}</span>
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* BOTTOM ROW */}
+                              <div className="pt-2 border-t border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] text-teal-100 font-medium relative z-10">
+                                <div>
+                                  <span className="text-[10px] opacity-75 block">Atas Nama Rekening:</span>
+                                  <strong className="text-white font-black text-xs sm:text-sm">
+                                    Yayasan Pondok Pesantren Qomaruddin
+                                  </strong>
+                                </div>
+                                <span className="text-[10px] text-[#FFDC80] font-bold">
+                                  Mendukung BI-FAST & Seluruh Bank
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* DYNAMIC EXACT NOMINAL CARD */}
+                            {totalSelectedTransferAmount > 0 && (
+                              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300/80 dark:border-amber-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                                <div>
+                                  <span className="text-[10px] uppercase font-bold text-amber-800 dark:text-amber-300 block">
+                                    Nominal Tepat yang Harus Ditransfer:
+                                  </span>
+                                  <div className="text-base sm:text-xl font-black text-amber-900 dark:text-amber-200">
+                                    Rp {totalSelectedTransferAmount.toLocaleString('id-ID')}
+                                  </div>
+                                  <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-0.5">
+                                    💡 Salin nominal ini agar tidak salah ketik di M-Banking
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(String(totalSelectedTransferAmount));
+                                    setCopiedNominal(true);
+                                    setTimeout(() => setCopiedNominal(false), 2500);
+                                  }}
+                                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-200 dark:bg-amber-900/60 hover:bg-amber-300 text-amber-950 dark:text-amber-100 text-xs font-black transition cursor-pointer border border-amber-300 dark:border-amber-700 shrink-0"
+                                >
+                                  {copiedNominal ? <Check size={14} className="text-emerald-700" /> : <Copy size={14} />}
+                                  <span>{copiedNominal ? 'Tersalin! ✅' : 'Salin Nominal'}</span>
+                                </button>
+                              </div>
+                            )}
+
+                            {/* COLLAPSIBLE TRANSFER GUIDE ACCORDION */}
+                            <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => setShowTransferGuide(!showTransferGuide)}
+                                className="w-full p-3.5 text-left flex items-center justify-between text-xs font-black text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <HelpCircle size={15} className="text-[#138F81]" />
+                                  Panduan Cara Transfer via M-Banking / ATM / DANA
+                                </span>
+                                {showTransferGuide ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                              </button>
+
+                              {showTransferGuide && (
+                                <div className="p-4 pt-0 border-t border-slate-100 dark:border-slate-700/60 space-y-3">
+                                  <div className="flex items-center gap-2 pt-3">
+                                    <button
+                                      type="button"
+                                      onClick={() => setTransferGuideTab('bsi')}
+                                      className={`px-3 py-1 text-xs font-bold rounded-lg transition cursor-pointer ${
+                                        transferGuideTab === 'bsi'
+                                          ? 'bg-[#138F81] text-white'
+                                          : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                                      }`}
+                                    >
+                                      BSI Mobile
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setTransferGuideTab('other_bank')}
+                                      className={`px-3 py-1 text-xs font-bold rounded-lg transition cursor-pointer ${
+                                        transferGuideTab === 'other_bank'
+                                          ? 'bg-[#138F81] text-white'
+                                          : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                                      }`}
+                                    >
+                                      BCA / BRI / Mandiri
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setTransferGuideTab('ewallet')}
+                                      className={`px-3 py-1 text-xs font-bold rounded-lg transition cursor-pointer ${
+                                        transferGuideTab === 'ewallet'
+                                          ? 'bg-[#138F81] text-white'
+                                          : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                                      }`}
+                                    >
+                                      DANA / OVO / GoPay
+                                    </button>
+                                  </div>
+
+                                  <div className="text-xs text-slate-600 dark:text-slate-300 space-y-1.5 leading-relaxed bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                                    {transferGuideTab === 'bsi' && (
+                                      <ol className="list-decimal pl-4 space-y-1">
+                                        <li>Buka aplikasi <strong>BSI Mobile</strong> di HP Anda.</li>
+                                        <li>Pilih menu <strong>Transfer</strong> ➔ <strong>Rekening BSI</strong>.</li>
+                                        <li>Masukkan nomor rekening: <strong>7171 2026 88</strong>.</li>
+                                        <li>Masukkan nominal tepat: <strong>Rp {totalSelectedTransferAmount > 0 ? totalSelectedTransferAmount.toLocaleString('id-ID') : '...'}</strong>.</li>
+                                        <li>Konfirmasi nama penerima: <strong>Yayasan Pondok Pesantren Qomaruddin</strong>.</li>
+                                        <li>Simpan / screenshot struk bukti transfer dan unggah di Langkah 3 di bawah.</li>
+                                      </ol>
+                                    )}
+
+                                    {transferGuideTab === 'other_bank' && (
+                                      <ol className="list-decimal pl-4 space-y-1">
+                                        <li>Buka M-Banking Anda (BCA, Mandiri Livin, BRImo, BNI, dll).</li>
+                                        <li>Pilih menu <strong>Transfer Antar Bank</strong>.</li>
+                                        <li>Pilih bank tujuan: <strong>Bank Syariah Indonesia (BSI)</strong> (Kode Bank: <strong>451</strong>).</li>
+                                        <li>Gunakan layanan <strong>BI-FAST</strong> (biaya transfer hemat hanya Rp 2.500).</li>
+                                        <li>Masukkan rekening <strong>7171 2026 88</strong> a.n <strong>Yayasan Pondok Pesantren Qomaruddin</strong>.</li>
+                                        <li>Simpan struk transaksi dan unggah fotonya di formulir Langkah 3 di bawah.</li>
+                                      </ol>
+                                    )}
+
+                                    {transferGuideTab === 'ewallet' && (
+                                      <ol className="list-decimal pl-4 space-y-1">
+                                        <li>Buka aplikasi <strong>DANA / GoPay / OVO</strong> Anda.</li>
+                                        <li>Pilih menu <strong>Kirim / Transfer ke Bank</strong>.</li>
+                                        <li>Cari dan pilih bank: <strong>Bank Syariah Indonesia (BSI)</strong>.</li>
+                                        <li>Masukkan nomor rekening: <strong>7171 2026 88</strong>.</li>
+                                        <li>Pastikan muncul nama <strong>Yayasan Pondok Pesantren Qomaruddin</strong>.</li>
+                                        <li>Selesaikan pembayaran dan screenshot struk bukti transfer untuk diunggah di bawah.</li>
+                                      </ol>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* ========================================================================= */}
+                          {/* STEP 3: UNGGAH BUKTI STRUK & IDENTITAS PENGIRIM */}
+                          {/* ========================================================================= */}
+                          <form
+                            id="step-upload-struk"
+                            onSubmit={handleSubmitTransferProof}
+                            className="p-4 sm:p-6 rounded-3xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-4 shadow-xs"
+                          >
+                            <div className="flex items-center gap-2.5 border-b border-slate-200/70 dark:border-slate-700/70 pb-3">
+                              <span className="flex items-center justify-center w-7 h-7 rounded-xl bg-[#138F81] text-white text-xs font-black shadow-sm">
                                 3
                               </span>
-                              <h4 className="text-xs sm:text-sm font-black text-[#2D3436]">Unggah Struk TF & Identitas Pengirim</h4>
+                              <div>
+                                <h4 className="text-xs sm:text-sm font-black text-[#2D3436] dark:text-white">
+                                  Unggah Bukti Struk & Konfirmasi
+                                </h4>
+                                <p className="text-[10px] text-slate-500 font-semibold">
+                                  Bendahara akan mencocokkan struk dan menerbitkan kwitansi resmi sah
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* QUICK BANK SELECTOR CHIPS */}
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                                <span>Pilih Bank Pengirim Cepat:</span>
+                              </label>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {['BSI', 'BCA', 'BRI', 'Mandiri', 'DANA', 'Lainnya'].map((bank) => (
+                                  <button
+                                    key={bank}
+                                    type="button"
+                                    onClick={() => setTransferBank(bank === 'Lainnya' ? '' : bank)}
+                                    className={`px-3 py-1.5 text-xs font-black rounded-xl transition cursor-pointer ${
+                                      transferBank.toUpperCase() === bank.toUpperCase() || (bank === 'Lainnya' && !['BSI', 'BCA', 'BRI', 'MANDIRI', 'DANA'].includes(transferBank.toUpperCase()))
+                                        ? 'bg-[#138F81] text-white shadow-xs'
+                                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                                    }`}
+                                  >
+                                    {bank}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div>
-                                <label className="text-xs font-bold text-slate-700 block mb-1">Tanggal Transfer *</label>
+                                <label className="text-xs font-bold text-slate-700 dark:text-slate-200 block mb-1">
+                                  Tanggal Transfer *
+                                </label>
                                 <input
                                   type="date"
                                   value={transferDate}
                                   onChange={(e) => setTransferDate(e.target.value)}
                                   required
-                                  className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-[#2D3436] focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/40"
+                                  className="w-full px-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[#2D3436] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/40"
                                 />
                               </div>
+
                               <div>
-                                <label className="text-xs font-bold text-slate-700 block mb-1">Bank Pengirim *</label>
+                                <label className="text-xs font-bold text-slate-700 dark:text-slate-200 block mb-1">
+                                  Nama Bank Pengirim *
+                                </label>
                                 <input
                                   type="text"
-                                  placeholder="BSI / BCA / BRI / Mandiri / DANA"
+                                  placeholder="BSI / BCA / BRI / Mandiri / DANA / dll"
                                   value={transferBank}
                                   onChange={(e) => setTransferBank(e.target.value)}
                                   required
-                                  className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-[#2D3436] focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/40"
+                                  className="w-full px-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[#2D3436] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/40"
                                 />
                               </div>
+
                               <div>
-                                <label className="text-xs font-bold text-slate-700 block mb-1">Atas Nama Rekening Pengirim *</label>
+                                <label className="text-xs font-bold text-slate-700 dark:text-slate-200 block mb-1">
+                                  Atas Nama Rekening Pengirim *
+                                </label>
                                 <input
                                   type="text"
                                   placeholder="Nama pemilik rekening pengirim"
                                   value={transferSenderName}
                                   onChange={(e) => setTransferSenderName(e.target.value)}
                                   required
-                                  className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-[#2D3436] focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/40"
+                                  className="w-full px-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[#2D3436] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/40"
                                 />
                               </div>
+
                               <div>
-                                <label className="text-xs font-bold text-slate-700 block mb-1">Nomor Rekening Pengirim (Opsional)</label>
+                                <label className="text-xs font-bold text-slate-700 dark:text-slate-200 block mb-1">
+                                  Nomor Rekening Pengirim (Opsional)
+                                </label>
                                 <input
                                   type="text"
-                                  placeholder="Nomor rekening pengirim"
+                                  placeholder="Nomor rekening pengirim jika ada"
                                   value={transferSenderRek}
                                   onChange={(e) => setTransferSenderRek(e.target.value)}
-                                  className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-[#2D3436] focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/40"
+                                  className="w-full px-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[#2D3436] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/40"
                                 />
                               </div>
                             </div>
 
                             <div>
-                              <label className="text-xs font-bold text-slate-700 block mb-1">Catatan Tambahan untuk Bendahara (Opsional)</label>
+                              <label className="text-xs font-bold text-slate-700 dark:text-slate-200 block mb-1">
+                                Catatan Tambahan untuk Bendahara (Opsional)
+                              </label>
                               <input
                                 type="text"
-                                placeholder="Contoh: Titipan SPP 2 bulan dari ibu"
+                                placeholder="Contoh: Titipan SPP 2 bulan dari ibu / Pembayaran seragam santri"
                                 value={transferNotes}
                                 onChange={(e) => setTransferNotes(e.target.value)}
-                                className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-[#2D3436] focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/40"
+                                className="w-full px-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[#2D3436] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#138F81]/40"
                               />
                             </div>
 
                             {/* UPLOAD STRUK ZONE */}
-                            <div>
-                              <label className="text-xs font-bold text-slate-700 block mb-1">Foto Bukti Transfer (Struk ATM / M-Banking) *</label>
-                              <div className="relative border-2 border-dashed border-slate-300 hover:border-[#138F81] rounded-2xl p-4 text-center bg-white transition-colors">
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-bold text-slate-700 dark:text-slate-200 block">
+                                Foto Bukti Transfer (Struk ATM / Screenshot M-Banking) *
+                              </label>
+
+                              <div className="relative border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-[#138F81] rounded-3xl p-5 text-center bg-white dark:bg-slate-800 transition-colors">
                                 <input
                                   type="file"
                                   accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf"
                                   onChange={handleFileChange}
                                   required={!transferFile}
-                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                 />
+
                                 {isCompressingImage ? (
                                   <div className="flex flex-col items-center justify-center py-6 text-slate-500">
-                                    <RefreshCw size={24} className="animate-spin text-[#138F81] mb-2" />
-                                    <span className="text-xs font-bold text-[#138F81]">Mengompres & mengoptimasi foto...</span>
+                                    <RefreshCw size={28} className="animate-spin text-[#138F81] mb-2" />
+                                    <span className="text-xs font-black text-[#138F81]">Mengompres & mengoptimasi foto...</span>
+                                    <span className="text-[10px] text-slate-400 mt-1">Menghemat kuota Anda & memori server</span>
                                   </div>
                                 ) : transferFilePreview ? (
-                                  <div className="flex flex-col items-center gap-2">
+                                  <div className="flex flex-col items-center gap-2.5 relative z-0">
                                     <img
                                       src={transferFilePreview}
                                       alt="Preview Struk"
-                                      className="max-h-44 rounded-xl object-contain border border-slate-200 shadow-xs"
+                                      className="max-h-48 rounded-2xl object-contain border border-slate-200 dark:border-slate-700 shadow-md"
                                     />
-                                    <span className="text-[11px] font-bold text-emerald-700">✓ {transferFile?.name}</span>
+                                    <div className="text-xs font-black text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                                      <CheckCircle2 size={15} />
+                                      <span>{transferFile?.name}</span>
+                                    </div>
+
                                     {compressedInfo && (
-                                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold">
-                                        <span>⚡ Hemat:</span>
+                                      <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-[11px] font-black">
+                                        <span>⚡ Kompresi:</span>
                                         <span className="line-through text-slate-400 text-[10px]">{compressedInfo.origSize}</span>
                                         <span>➔ {compressedInfo.compSize}</span>
-                                        <span className="bg-emerald-600 text-white text-[9px] px-1.5 py-0.5 rounded-full">Turun {compressedInfo.savedPercent}%</span>
+                                        <span className="bg-emerald-600 text-white text-[9px] px-2 py-0.5 rounded-full">
+                                          Hemat {compressedInfo.savedPercent}%
+                                        </span>
                                       </div>
                                     )}
-                                    <span className="text-[10px] text-slate-400">Klik untuk mengganti foto struk</span>
+
+                                    <span className="text-[11px] font-bold text-[#138F81] hover:underline cursor-pointer">
+                                      Klik di sini untuk mengganti foto struk
+                                    </span>
                                   </div>
                                 ) : (
-                                  <div className="flex flex-col items-center justify-center py-4">
-                                    <UploadCloud size={36} className="text-[#138F81] mb-2" />
-                                    <span className="text-xs font-black text-[#2D3436]">Pilih atau Tarik Foto Bukti Transfer ke Sini</span>
-                                    <span className="text-[10px] text-slate-400 mt-1">Format: JPG, PNG, WEBP (Otomatis dikompres hemat server)</span>
+                                  <div className="flex flex-col items-center justify-center py-6">
+                                    <div className="w-14 h-14 rounded-2xl bg-teal-50 dark:bg-teal-950/50 text-[#138F81] flex items-center justify-center mb-3 shadow-inner">
+                                      <Camera size={28} />
+                                    </div>
+                                    <span className="text-xs sm:text-sm font-black text-[#2D3436] dark:text-white">
+                                      Sentuh untuk Ambil Foto Struk atau Pilih Gambar
+                                    </span>
+                                    <span className="text-[11px] text-slate-400 mt-1">
+                                      Mendukung: Foto Kamera HP, Screenshot M-Banking (JPG, PNG, WEBP)
+                                    </span>
+                                    <span className="mt-2.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold">
+                                      🛡️ Otomatis dikompres aman & hemat data
+                                    </span>
                                   </div>
                                 )}
                               </div>
                             </div>
 
-                            <button
-                              type="submit"
-                              disabled={isSubmittingTransfer || selectedBillIds.length === 0}
-                              className="w-full py-3 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] disabled:opacity-50 text-white font-black text-xs sm:text-sm shadow-md shadow-[#138F81]/25 transition cursor-pointer flex items-center justify-center gap-2"
-                            >
-                              {isSubmittingTransfer ? (
-                                <>
-                                  <RefreshCw size={16} className="animate-spin" />
-                                  <span>Mengirim Bukti Transfer ke Bendahara...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <CreditCard size={16} />
-                                  <span>Kirim Bukti Pembayaran ke Bendahara 🚀</span>
-                                </>
+                            {/* SUBMIT BUTTON WITH ANTI-DOUBLE CLICK & TOTAL SUMMARY */}
+                            <div className="pt-2 space-y-3">
+                              <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-700/60 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200">
+                                <span>Tagihan Terpilih: {selectedBillIds.length} item</span>
+                                <span className="font-black text-[#138F81] dark:text-teal-400 text-sm">
+                                  Rp {totalSelectedTransferAmount.toLocaleString('id-ID')}
+                                </span>
+                              </div>
+
+                              <button
+                                type="submit"
+                                disabled={isSubmittingTransfer || selectedBillIds.length === 0 || !transferFile}
+                                className="w-full py-3.5 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] disabled:opacity-50 text-white font-black text-xs sm:text-sm shadow-lg shadow-[#138F81]/25 transition cursor-pointer flex items-center justify-center gap-2"
+                              >
+                                {isSubmittingTransfer ? (
+                                  <>
+                                    <RefreshCw size={18} className="animate-spin" />
+                                    <span>Mengirim Bukti Transfer ke Bendahara...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <CreditCard size={18} />
+                                    <span>Kirim Bukti Pembayaran ke Bendahara 🚀</span>
+                                  </>
+                                )}
+                              </button>
+
+                              {selectedBillIds.length === 0 && (
+                                <p className="text-[11px] text-center text-rose-500 font-bold">
+                                  ⚠️ Pilih minimal satu pos tagihan di Langkah 1 sebelum mengirim
+                                </p>
                               )}
-                            </button>
+                            </div>
                           </form>
                         </div>
 
+                        {/* ========================================================================= */}
                         {/* STATUS PENGAJUAN BUKTI TF (5 COLS) */}
+                        {/* ========================================================================= */}
                         <div className="lg:col-span-5 space-y-4">
                           <div className="flex items-center justify-between">
-                            <h4 className="text-xs sm:text-sm font-black text-[#2D3436]">
-                              Status Pengajuan Online ({verifikasiList.length})
-                            </h4>
+                            <div>
+                              <h4 className="text-xs sm:text-sm font-black text-[#2D3436] dark:text-white">
+                                Status Pengajuan Online ({verifikasiList.length})
+                              </h4>
+                              <p className="text-[10px] text-slate-500 font-semibold">
+                                Riwayat dan pantauan verifikasi struk
+                              </p>
+                            </div>
                             <button
                               type="button"
                               onClick={async () => {
@@ -1795,20 +2352,24 @@ export function WaliPortalPage() {
                                   }
                                 }
                               }}
-                              className="text-[11px] font-bold text-[#138F81] hover:underline flex items-center gap-1 cursor-pointer"
+                              className="text-[11px] font-bold text-[#138F81] hover:underline flex items-center gap-1 cursor-pointer bg-teal-50 dark:bg-teal-950/40 px-2.5 py-1.5 rounded-xl border border-[#138F81]/20"
                             >
-                              <RefreshCw size={11} /> Refresh
+                              <RefreshCw size={12} /> Refresh
                             </button>
                           </div>
 
                           {verifikasiList.length === 0 ? (
-                            <div className="p-8 rounded-2xl bg-slate-50 border border-slate-200 text-center text-slate-400">
-                              <Receipt size={36} className="mx-auto mb-2 text-slate-300" />
-                              <p className="text-xs font-black text-[#2D3436]">Belum ada riwayat transfer online.</p>
-                              <p className="text-[11px] text-slate-500 mt-0.5">Bukti transfer yang Anda kirim akan muncul di sini beserta status ACC/Tolak dari bendahara.</p>
+                            <div className="p-8 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-center text-slate-400">
+                              <Receipt size={40} className="mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+                              <p className="text-xs sm:text-sm font-black text-[#2D3436] dark:text-white">
+                                Belum ada pengajuan transfer online.
+                              </p>
+                              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                                Bukti transfer yang Anda kirim akan muncul di sini beserta status ACC/Tolak dari bendahara pondok.
+                              </p>
                             </div>
                           ) : (
-                            <div className="space-y-3 max-h-[680px] overflow-y-auto pr-1 custom-scrollbar">
+                            <div className="space-y-3.5 max-h-[720px] overflow-y-auto pr-1.5 custom-scrollbar">
                               {verifikasiList.map((item, idx) => {
                                 const isMenunggu = item.status === 'menunggu';
                                 const isDisetujui = item.status === 'disetujui';
@@ -1819,92 +2380,121 @@ export function WaliPortalPage() {
                                 return (
                                   <div
                                     key={item.id ? String(item.id) : idx}
-                                    className={`p-4 rounded-2xl border transition-all ${
+                                    className={`p-4 sm:p-5 rounded-3xl border-2 transition-all space-y-3 ${
                                       isMenunggu
-                                        ? 'bg-amber-50/50 border-amber-200'
+                                        ? 'bg-amber-50/70 dark:bg-amber-950/30 border-amber-300/80 dark:border-amber-700/80 shadow-xs'
                                         : isDisetujui
-                                        ? 'bg-emerald-50/50 border-emerald-200'
-                                        : 'bg-rose-50/50 border-rose-200'
+                                        ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-300/80 dark:border-emerald-700/80 shadow-xs'
+                                        : 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-300/80 dark:border-rose-700/80 shadow-xs'
                                     }`}
                                   >
-                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                    <div className="flex items-start justify-between gap-2">
                                       <div>
-                                        <span className="font-mono text-[11px] font-black text-[#2D3436]">
+                                        <span className="font-mono text-xs font-black text-[#2D3436] dark:text-white">
                                           {String(item.kode_pengajuan || '-')}
                                         </span>
-                                        <div className="text-[10px] text-slate-500 font-semibold">
+                                        <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
                                           TF: {String(item.tanggal_transfer || item.created_at || '-')}
                                         </div>
                                       </div>
                                       <div>
                                         {isMenunggu && (
-                                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black border border-amber-300">
-                                            <Clock size={11} className="animate-spin" /> Menunggu Verifikasi
+                                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 text-[10px] font-black border border-amber-300 dark:border-amber-700">
+                                            <Clock size={12} className="animate-spin" /> Menunggu Verifikasi
                                           </span>
                                         )}
                                         {isDisetujui && (
-                                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black border border-emerald-300">
-                                            <CheckCircle2 size={11} /> Disetujui (Lunas)
+                                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 text-[10px] font-black border border-emerald-300 dark:border-emerald-700">
+                                            <CheckCircle2 size={12} /> Disetujui (Lunas)
                                           </span>
                                         )}
                                         {isDitolak && (
-                                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 text-[10px] font-black border border-rose-300">
-                                            <XCircle size={11} /> Ditolak
+                                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 dark:bg-rose-900/60 text-rose-900 dark:text-rose-200 text-[10px] font-black border border-rose-300 dark:border-rose-700">
+                                            <XCircle size={12} /> Ditolak
                                           </span>
                                         )}
                                       </div>
                                     </div>
 
-                                    <div className="text-sm font-black text-[#138F81] mb-2">
+                                    <div className="text-base font-black text-[#138F81] dark:text-teal-400">
                                       Rp {totalNominal.toLocaleString('id-ID')}
-                                      <span className="text-[10px] font-normal text-slate-500 ml-1">
+                                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 ml-1.5 block sm:inline">
                                         (via {String(item.bank_pengirim || 'Bank')} a.n {String(item.nama_pengirim || '-')})
                                       </span>
                                     </div>
 
                                     {/* BILLS CHIPS */}
-                                    <div className="flex flex-wrap gap-1 mb-2.5">
-                                      {bills.map((b, bIdx) => (
-                                        <span
-                                          key={bIdx}
-                                          className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[10px] font-bold text-slate-700"
-                                        >
-                                          {String(b.title || 'Pos Bayar')} (Rp {Number(b.amount || 0).toLocaleString('id-ID')})
-                                        </span>
-                                      ))}
+                                    <div className="space-y-1">
+                                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                                        Rincian Pos Tagihan:
+                                      </span>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {bills.map((b, bIdx) => (
+                                          <span
+                                            key={bIdx}
+                                            className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-black text-slate-700 dark:text-slate-200 shadow-xs"
+                                          >
+                                            {String(b.title || 'Pos Bayar')} (Rp {Number(b.amount || 0).toLocaleString('id-ID')})
+                                          </span>
+                                        ))}
+                                      </div>
                                     </div>
 
                                     {/* CATATAN PETUGAS / ALASAN PENOLAKAN */}
                                     {Boolean(item.catatan_petugas) && (
-                                      <div className={`p-2.5 rounded-xl text-[11px] mb-2.5 ${
+                                      <div className={`p-3 rounded-2xl text-[11px] ${
                                         isDitolak
-                                          ? 'bg-rose-100 text-rose-800 font-bold border border-rose-200'
-                                          : 'bg-white text-slate-600 border border-slate-200'
+                                          ? 'bg-rose-100/80 dark:bg-rose-950/70 text-rose-900 dark:text-rose-200 font-bold border border-rose-200 dark:border-rose-800'
+                                          : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                                       }`}>
                                         <span className="font-black">Catatan Bendahara:</span> {String(item.catatan_petugas)}
-                                        <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
-                                          {Boolean(item.bukti_url) ? (
-                                            <button
-                                              type="button"
-                                              onClick={() => setPreviewProofImage(String(item.bukti_url))}
-                                              className="text-xs font-bold text-[#138F81] hover:underline flex items-center gap-1 cursor-pointer"
-                                            >
-                                              <Eye size={13} /> Lihat Foto Struk
-                                            </button>
-                                          ) : (
-                                            <span className="text-[11px] font-semibold text-slate-500 italic flex items-center gap-1">
-                                              <CheckCircle2 size={12} className="text-emerald-600" />
-                                              {item.is_purged ? 'Arsip foto dibersihkan (Lunas & Sah)' : 'Tanpa lampiran foto'}
-                                            </span>
-                                          )}
-                                          {Boolean(item.kode_transaksi) && (
-                                            <span className="text-[10px] font-mono text-emerald-700 font-bold">
-                                              No. TRX: {String(item.kode_transaksi)}
-                                            </span>
-                                          )}
-                                        </div>
                                       </div>
                                     )}
+
+                                    {/* FOOTER ACTIONS */}
+                                    <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex flex-wrap items-center justify-between gap-2 text-xs">
+                                      {Boolean(item.bukti_url) ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => setPreviewProofImage(String(item.bukti_url))}
+                                          className="text-xs font-bold text-[#138F81] hover:underline flex items-center gap-1.5 cursor-pointer"
+                                        >
+                                          <Eye size={14} /> Lihat Foto Struk
+                                        </button>
+                                      ) : (
+                                        <span className="text-[11px] font-semibold text-slate-500 italic flex items-center gap-1">
+                                          <CheckCircle2 size={12} className="text-emerald-600" />
+                                          {item.is_purged ? 'Arsip foto dibersihkan (Lunas & Sah)' : 'Tanpa lampiran foto'}
+                                        </span>
+                                      )}
+
+                                      {/* KWITANSI RESMI CTA JIKA SUDAH DISETUJUI */}
+                                      {isDisetujui && Boolean(item.payment_transaction_id) && (
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            try {
+                                              const res = await api.waliGetTransaksiKwitansi(Number(item.payment_transaction_id));
+                                              if (res.success && res.data) {
+                                                setSelectedReceiptTransaction(res.data);
+                                              }
+                                            } catch (err) {
+                                              console.error('Failed to load receipt', err);
+                                            }
+                                          }}
+                                          className="px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black shadow-xs transition cursor-pointer flex items-center gap-1"
+                                        >
+                                          <Receipt size={12} />
+                                          <span>Cetak Kwitansi</span>
+                                        </button>
+                                      )}
+
+                                      {Boolean(item.kode_transaksi) && (
+                                        <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 font-bold">
+                                          TRX: {String(item.kode_transaksi)}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 );
                               })}

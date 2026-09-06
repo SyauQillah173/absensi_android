@@ -391,7 +391,7 @@ class PembayaranController extends Controller
             'Pembayaran Baru',
             sprintf(
                 'Pembayaran %s sebesar Rp %s berhasil dicatat untuk %s.',
-                \App\Services\PaymentHistoryService::formatTransactionTitle($transaction),
+                PaymentHistoryService::formatTransactionTitle($transaction),
                 number_format((float) $transaction->jumlah_total, 0, ',', '.'),
                 $transaction->siswa?->nama ?? 'Santri'
             ),
@@ -824,7 +824,7 @@ class PembayaranController extends Controller
                     $itemPeriodForBill = $this->normalizeAcademicPaymentPeriod($item, $rootPeriod);
                     $academicYearId = (int) ($itemPeriodForBill['academic_year_id'] ?? 0);
                     if ($academicYearId <= 0) {
-                        $activePeriod = app(\App\Services\AcademicPeriodService::class)->active();
+                        $activePeriod = app(AcademicPeriodService::class)->active();
                         $academicYearId = (int) ($activePeriod['academic_year_id'] ?? 0);
                         if (empty($itemPeriodForBill['semester_id'])) {
                             $itemPeriodForBill['semester_id'] = $activePeriod['semester_id'] ?? null;
