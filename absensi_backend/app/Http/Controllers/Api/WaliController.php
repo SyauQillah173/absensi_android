@@ -373,6 +373,15 @@ class WaliController extends Controller
             ->map(fn (PaymentBill $bill) => $this->billService->formatBill($bill))
             ->values();
 
+        $docSetting = \App\Models\DocumentSetting::query()->first();
+        $rekeningResmi = [
+            'bank_name' => $docSetting?->bank_name ?: 'Bank Syariah Indonesia (BSI)',
+            'bank_code' => $docSetting?->bank_code ?: '451',
+            'bank_account_number' => $docSetting?->bank_account_number ?: '7171 2026 88',
+            'bank_account_holder' => $docSetting?->bank_account_holder ?: 'Yayasan Pondok Pesantren Qomaruddin',
+            'bank_sub_name' => $docSetting?->bank_sub_name ?: 'BSI SYARIAH',
+        ];
+
         return response()->json([
             'success' => true,
             'siswa' => $siswa,
@@ -380,6 +389,7 @@ class WaliController extends Controller
             'total_belum_lunas' => (int) $tagihan->whereIn('status_tagihan', ['Belum Lunas', 'Terlambat'])->sum('amount'),
             'summary' => [],
             'tagihan' => $tagihan,
+            'rekening_resmi' => $rekeningResmi,
             'riwayat_transaksi' => $transactions->values(),
             'data' => $transactions->values(),
             'transaksi' => $transactions->values(),

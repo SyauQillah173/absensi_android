@@ -26,7 +26,9 @@ import {
   Search,
   Image as ImageIcon,
   Receipt,
-  XCircle
+  XCircle,
+  Building2,
+  Copy
 } from 'lucide-react';
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
@@ -3329,11 +3331,36 @@ function StatusPicker({ value, onChange }: { value: string; onChange: (value: st
   );
 }
 
+const BANK_PRESETS = [
+  { name: 'Bank Syariah Indonesia (BSI)', sub: 'BSI Syariah', code: '451' },
+  { name: 'Bank Central Asia (BCA)', sub: 'BCA', code: '014' },
+  { name: 'Bank Rakyat Indonesia (BRI)', sub: 'BRI', code: '002' },
+  { name: 'Bank Negara Indonesia (BNI)', sub: 'BNI', code: '009' },
+  { name: 'Bank Mandiri', sub: 'Mandiri', code: '008' },
+  { name: 'Bank Muamalat Indonesia', sub: 'Muamalat', code: '147' },
+  { name: 'Bank CIMB Niaga / Syariah', sub: 'CIMB Niaga', code: '022' },
+  { name: 'Bank Tabungan Negara (BTN / Syariah)', sub: 'BTN', code: '200' },
+  { name: 'Bank Jatim / Syariah', sub: 'Bank Jatim', code: '114' },
+  { name: 'Bank Permata / Syariah', sub: 'Permata', code: '013' },
+  { name: 'Bank Danamon / Syariah', sub: 'Danamon', code: '011' },
+  { name: 'Bank BTPN / Jenius', sub: 'BTPN / Jenius', code: '213' },
+  { name: 'Bank Mega / Syariah', sub: 'Bank Mega', code: '506' },
+  { name: 'Bank Lainnya (Kustom Manual)', sub: 'Bank Umum', code: '' },
+];
+
 function DocumentSettingsPanel({ settings, onSaved }: { settings: ApiRecord | null; onSaved: () => Promise<void> }) {
   const { session } = useAuth();
   const [receiptWidth, setReceiptWidth] = useState(String(settings?.receipt_width ?? '58mm'));
   const [paymentAdminName, setPaymentAdminName] = useState(String(settings?.payment_admin_name ?? ''));
   const [paymentAdminTitle, setPaymentAdminTitle] = useState(String(settings?.payment_admin_title ?? ''));
+
+  // Official Pondok Bank Settings
+  const [bankName, setBankName] = useState(String(settings?.bank_name ?? 'Bank Syariah Indonesia (BSI)'));
+  const [bankSubName, setBankSubName] = useState(String(settings?.bank_sub_name ?? 'BSI Syariah'));
+  const [bankCode, setBankCode] = useState(String(settings?.bank_code ?? '451'));
+  const [bankAccountNumber, setBankAccountNumber] = useState(String(settings?.bank_account_number ?? '7171 2026 88'));
+  const [bankAccountHolder, setBankAccountHolder] = useState(String(settings?.bank_account_holder ?? 'Yayasan Pondok Pesantren Qomaruddin'));
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -3344,8 +3371,24 @@ function DocumentSettingsPanel({ settings, onSaved }: { settings: ApiRecord | nu
       if (settings.receipt_width) setReceiptWidth(String(settings.receipt_width));
       if (settings.payment_admin_name !== undefined) setPaymentAdminName(String(settings.payment_admin_name ?? ''));
       if (settings.payment_admin_title !== undefined) setPaymentAdminTitle(String(settings.payment_admin_title ?? ''));
+      if (settings.bank_name !== undefined) setBankName(String(settings.bank_name || 'Bank Syariah Indonesia (BSI)'));
+      if (settings.bank_sub_name !== undefined) setBankSubName(String(settings.bank_sub_name || 'BSI Syariah'));
+      if (settings.bank_code !== undefined) setBankCode(String(settings.bank_code || '451'));
+      if (settings.bank_account_number !== undefined) setBankAccountNumber(String(settings.bank_account_number || '7171 2026 88'));
+      if (settings.bank_account_holder !== undefined) setBankAccountHolder(String(settings.bank_account_holder || 'Yayasan Pondok Pesantren Qomaruddin'));
     }
   }, [settings]);
+
+  const handleSelectBankPreset = (presetName: string) => {
+    const found = BANK_PRESETS.find((b) => b.name === presetName);
+    if (found) {
+      setBankName(found.name);
+      setBankSubName(found.sub);
+      if (found.code) {
+        setBankCode(found.code);
+      }
+    }
+  };
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -3359,11 +3402,16 @@ function DocumentSettingsPanel({ settings, onSaved }: { settings: ApiRecord | nu
         receipt_width: receiptWidth,
         payment_admin_name: paymentAdminName.trim() || "MTS ASSA'ADAH II",
         payment_admin_title: paymentAdminTitle.trim() || 'JL. MASJID KIYAI GEDE BUNGAH',
-        payment_signature_mode: settings?.payment_signature_mode ?? 'kosong'
+        payment_signature_mode: settings?.payment_signature_mode ?? 'kosong',
+        bank_name: bankName.trim() || 'Bank Syariah Indonesia (BSI)',
+        bank_sub_name: bankSubName.trim() || 'BSI Syariah',
+        bank_code: bankCode.trim() || '451',
+        bank_account_number: bankAccountNumber.trim() || '7171 2026 88',
+        bank_account_holder: bankAccountHolder.trim() || 'Yayasan Pondok Pesantren Qomaruddin'
       });
       await onSaved();
-      setSuccess('✅ Pengaturan judul struk & printer berhasil disimpan!');
-      setTimeout(() => setSuccess(''), 4000);
+      setSuccess('✅ Pengaturan rekening resmi bank & format cetak struk berhasil disimpan! Tampilan di Portal Wali terupdate realtime.');
+      setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal menyimpan pengaturan');
     } finally {
@@ -3375,187 +3423,407 @@ function DocumentSettingsPanel({ settings, onSaved }: { settings: ApiRecord | nu
   const previewAddress = paymentAdminTitle.trim() || 'JL. MASJID KIYAI GEDE BUNGAH';
 
   return (
-    <div className="space-y-6">
-      <div className="border-b border-gray-200 pb-4">
-        <h2 className="text-xl font-extrabold text-[#2D3436]">Pengaturan Format & Judul Struk</h2>
-        <p className="text-xs font-semibold text-[#636E72] mt-1">
-          Ubah nama aplikasi/institusi, alamat, dan ukuran kertas printer yang tercetak pada struk / kwitansi pembayaran secara fleksibel tanpa edit kodingan.
-        </p>
-      </div>
+    <div className="space-y-8">
+      {/* FORM UTAMA */}
+      <form onSubmit={submit} className="space-y-8">
 
-      <div className="grid gap-6 lg:grid-cols-12 items-start">
-        {/* FORM SETTINGS */}
-        <div className="lg:col-span-7 rounded-3xl bg-white p-6 shadow-sm border border-gray-100 space-y-5">
-          <form onSubmit={submit} className="space-y-4">
+        {/* SECTION 1: REKENING RESMI BANK PESANTREN */}
+        <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
-                Judul Struk / Nama Aplikasi & Lembaga
-              </label>
-              <input
-                type="text"
-                className="q-input font-bold"
-                value={paymentAdminName}
-                onChange={(e) => setPaymentAdminName(e.target.value)}
-                placeholder="Contoh: MTS ASSA'ADAH II / SISTEM INFORMASI PONDOK"
-                required
-              />
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                <span className="text-[11px] font-semibold text-gray-400">Contoh Cepat:</span>
-                <button
-                  type="button"
-                  onClick={() => setPaymentAdminName("MTS ASSA'ADAH II")}
-                  className="rounded-md bg-gray-100 hover:bg-gray-200 px-2 py-0.5 text-[11px] font-bold text-gray-700 transition-colors"
-                >
-                  MTS ASSA'ADAH II
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentAdminName('YAYASAN PONDOK PESANTREN QOMARUDDIN')}
-                  className="rounded-md bg-gray-100 hover:bg-gray-200 px-2 py-0.5 text-[11px] font-bold text-gray-700 transition-colors"
-                >
-                  PONDOK PESANTREN
-                </button>
+              <div className="flex items-center gap-2">
+                <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-teal-50 text-[#138F81] border border-teal-200/60">
+                  <Building2 size={18} />
+                </span>
+                <h2 className="text-lg font-extrabold text-[#2D3436]">
+                  Rekening Resmi Bank Pesantren (Tujuan Transfer Wali)
+                </h2>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
-                Alamat / Kontak / Keterangan Baris Ke-2
-              </label>
-              <input
-                type="text"
-                className="q-input font-medium"
-                value={paymentAdminTitle}
-                onChange={(e) => setPaymentAdminTitle(e.target.value)}
-                placeholder="Contoh: JL. MASJID KIYAI GEDE BUNGAH (031) 3949818"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
-                Ukuran Printer & Format Kertas
-              </label>
-              <select
-                className="q-input font-bold text-gray-800"
-                value={receiptWidth}
-                onChange={(e) => setReceiptWidth(e.target.value)}
-              >
-                <option value="58mm">58mm (Printer Thermal Struk Kecil / Bluetooth 58mm)</option>
-                <option value="80mm">80mm (Printer Thermal Struk Standar / Desktop 80mm)</option>
-                <option value="100%">100% / A4 / A5 (Kertas Biasa / Inkjet / Laser Printer)</option>
-              </select>
-              <p className="mt-1 text-[11px] text-gray-500 font-medium">
-                💡 Struk otomatis auto-fit margin saat dicetak di printer apapun tanpa ada teks terpotong.
+              <p className="text-xs font-semibold text-[#636E72] mt-1">
+                Atur bank resmi yayasan yang digunakan wali santri untuk transfer online. Perubahan di sini langsung terbit realtime di portal wali santri.
               </p>
             </div>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-black text-emerald-800 shrink-0">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              Tersinkron Realtime ke Wali
+            </span>
+          </div>
 
-            {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-xs font-bold text-[#D63031]">{error}</div> : null}
-            {success ? <div className="rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-xs font-black text-emerald-800">{success}</div> : null}
+          <div className="grid gap-6 lg:grid-cols-12 items-start">
+            {/* FORM INPUTS */}
+            <div className="lg:col-span-7 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                  Pilih Bank Tujuan (Kode Bank Otomatis Terisi)
+                </label>
+                <select
+                  className="q-input font-bold text-gray-800"
+                  value={bankName}
+                  onChange={(e) => handleSelectBankPreset(e.target.value)}
+                >
+                  {BANK_PRESETS.map((bp) => (
+                    <option key={bp.name} value={bp.name}>
+                      {bp.name} {bp.code ? `(Kode Bank: ${bp.code})` : ''}
+                    </option>
+                  ))}
+                </select>
 
-            <div className="pt-2">
-              <button
-                type="submit"
-                disabled={saving}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#138F81] px-5 py-3.5 text-sm font-extrabold text-white hover:bg-[#0F7A6E] shadow-md shadow-[#138F81]/25 transition-all disabled:opacity-50"
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] font-semibold text-gray-400">Pilihan Populer:</span>
+                  {['Bank Syariah Indonesia (BSI)', 'Bank Central Asia (BCA)', 'Bank Rakyat Indonesia (BRI)', 'Bank Negara Indonesia (BNI)', 'Bank Mandiri', 'Bank Jatim / Syariah'].map((bPresetName) => {
+                    const presetObj = BANK_PRESETS.find((p) => p.name === bPresetName);
+                    return (
+                      <button
+                        key={bPresetName}
+                        type="button"
+                        onClick={() => handleSelectBankPreset(bPresetName)}
+                        className={`rounded-lg px-2 py-0.5 text-[10px] font-black transition cursor-pointer ${
+                          bankName === bPresetName
+                            ? 'bg-[#138F81] text-white shadow-xs'
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                        }`}
+                      >
+                        {presetObj?.sub || bPresetName} {presetObj?.code ? `(${presetObj.code})` : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                    Nama Lengkap Bank
+                  </label>
+                  <input
+                    type="text"
+                    className="q-input font-semibold"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    placeholder="Contoh: Bank Syariah Indonesia (BSI)"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                    Kode Bank (3 Digit)
+                  </label>
+                  <input
+                    type="text"
+                    className="q-input font-mono font-bold text-[#138F81]"
+                    value={bankCode}
+                    onChange={(e) => setBankCode(e.target.value)}
+                    placeholder="451"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                    Nomor Rekening Resmi Pesantren
+                  </label>
+                  <input
+                    type="text"
+                    className="q-input font-mono font-extrabold text-base tracking-wider text-gray-900"
+                    value={bankAccountNumber}
+                    onChange={(e) => setBankAccountNumber(e.target.value)}
+                    placeholder="Contoh: 7171 2026 88"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                    Singkatan / Label
+                  </label>
+                  <input
+                    type="text"
+                    className="q-input font-bold"
+                    value={bankSubName}
+                    onChange={(e) => setBankSubName(e.target.value)}
+                    placeholder="BSI Syariah"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                  Atas Nama Pemilik Rekening Resmi
+                </label>
+                <input
+                  type="text"
+                  className="q-input font-bold"
+                  value={bankAccountHolder}
+                  onChange={(e) => setBankAccountHolder(e.target.value)}
+                  placeholder="Contoh: Yayasan Pondok Pesantren Qomaruddin"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* LIVE PREVIEW KARTU ATM VIRTUAL */}
+            <div className="lg:col-span-5 rounded-3xl bg-slate-50 p-5 border border-slate-200/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                  <CreditCard size={14} className="text-[#138F81]" />
+                  Live Preview Kartu ATM Wali
+                </span>
+                <span className="rounded-full bg-teal-100 px-2.5 py-0.5 text-[10px] font-black text-teal-800">
+                  Tampilan di HP Wali
+                </span>
+              </div>
+
+              {/* ATM CARD DESIGN */}
+              <div className="bg-gradient-to-br from-[#0D7A6F] via-[#0A6357] to-[#03342D] text-white rounded-3xl p-5 shadow-xl shadow-teal-950/25 border border-teal-400/30 relative overflow-hidden space-y-4">
+                <div className="absolute -right-8 -bottom-8 w-36 h-36 rounded-full bg-white/5 blur-xl pointer-events-none" />
+                <div className="absolute left-1/4 -top-8 w-28 h-28 rounded-full bg-[#FFDC80]/10 blur-xl pointer-events-none" />
+
+                <div className="flex items-center justify-between relative z-10">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+                      <Building2 size={16} className="text-[#FFDC80]" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black tracking-wide block truncate max-w-[160px]">
+                        {bankName || 'Bank Pesantren'}
+                      </span>
+                      <span className="text-[9px] font-bold text-teal-200 block uppercase tracking-wider">
+                        {bankSubName || 'Rekening Resmi'}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full bg-white/15 backdrop-blur-md text-[9px] font-black border border-white/20 text-[#FFDC80]">
+                    Rekening Resmi
+                  </span>
+                </div>
+
+                <div className="space-y-1 relative z-10">
+                  <div className="flex items-center justify-between">
+                    <div className="w-8 h-6 rounded-md bg-gradient-to-tr from-amber-300 via-yellow-400 to-amber-200 shadow-inner border border-amber-500/40 flex items-center justify-center">
+                      <div className="w-6 h-4 border border-amber-600/40 rounded-xs grid grid-cols-2 gap-0.5 p-0.5">
+                        <div className="bg-amber-400/50 rounded-xs" />
+                        <div className="bg-amber-400/50 rounded-xs" />
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-teal-200">
+                      KODE BANK: {bankCode || '---'}
+                    </span>
+                  </div>
+
+                  <div className="pt-2">
+                    <div className="font-mono text-lg sm:text-xl font-black tracking-widest text-white drop-shadow-sm select-all">
+                      {bankAccountNumber || '---- ---- ----'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-white/15 flex items-center justify-between gap-1 text-[11px] text-teal-100 font-medium relative z-10">
+                  <div>
+                    <span className="text-[9px] opacity-75 block">Atas Nama:</span>
+                    <strong className="text-white font-black text-xs block truncate max-w-[180px]">
+                      {bankAccountHolder || 'Nama Pemilik Rekening'}
+                    </strong>
+                  </div>
+                  <span className="text-[9px] text-[#FFDC80] font-bold shrink-0">
+                    BI-FAST & Online
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                💡 Tampilan kartu ini adalah wujud nyata yang dilihat wali santri di portal wali saat memilih transfer bank mandiri.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION 2: FORMAT & JUDUL STRUK THERMAL */}
+        <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100 space-y-6">
+          <div className="border-b border-gray-100 pb-4">
+            <h2 className="text-lg font-extrabold text-[#2D3436]">
+              Pengaturan Format & Judul Struk Cetak
+            </h2>
+            <p className="text-xs font-semibold text-[#636E72] mt-1">
+              Ubah nama institusi, alamat, dan ukuran kertas printer yang tercetak pada struk pembayaran fisik.
+            </p>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-12 items-start">
+            {/* FORM STRUK */}
+            <div className="lg:col-span-7 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                  Judul Struk / Nama Aplikasi & Lembaga
+                </label>
+                <input
+                  type="text"
+                  className="q-input font-bold"
+                  value={paymentAdminName}
+                  onChange={(e) => setPaymentAdminName(e.target.value)}
+                  placeholder="Contoh: MTS ASSA'ADAH II / SISTEM INFORMASI PONDOK"
+                  required
+                />
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  <span className="text-[11px] font-semibold text-gray-400">Contoh Cepat:</span>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentAdminName("MTS ASSA'ADAH II")}
+                    className="rounded-md bg-gray-100 hover:bg-gray-200 px-2 py-0.5 text-[11px] font-bold text-gray-700 transition-colors"
+                  >
+                    MTS ASSA'ADAH II
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentAdminName('YAYASAN PONDOK PESANTREN QOMARUDDIN')}
+                    className="rounded-md bg-gray-100 hover:bg-gray-200 px-2 py-0.5 text-[11px] font-bold text-gray-700 transition-colors"
+                  >
+                    PONDOK PESANTREN
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                  Alamat / Kontak / Keterangan Baris Ke-2
+                </label>
+                <input
+                  type="text"
+                  className="q-input font-medium"
+                  value={paymentAdminTitle}
+                  onChange={(e) => setPaymentAdminTitle(e.target.value)}
+                  placeholder="Contoh: JL. MASJID KIYAI GEDE BUNGAH (031) 3949818"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                  Ukuran Printer & Format Kertas
+                </label>
+                <select
+                  className="q-input font-bold text-gray-800"
+                  value={receiptWidth}
+                  onChange={(e) => setReceiptWidth(e.target.value)}
+                >
+                  <option value="58mm">58mm (Printer Thermal Struk Kecil / Bluetooth 58mm)</option>
+                  <option value="80mm">80mm (Printer Thermal Struk Standar / Desktop 80mm)</option>
+                  <option value="100%">100% / A4 / A5 (Kertas Biasa / Inkjet / Laser Printer)</option>
+                </select>
+                <p className="mt-1 text-[11px] text-gray-500 font-medium">
+                  💡 Struk otomatis auto-fit margin saat dicetak di printer apapun tanpa ada teks terpotong.
+                </p>
+              </div>
+            </div>
+
+            {/* REALTIME THERMAL PREVIEW */}
+            <div className="lg:col-span-5 rounded-3xl bg-gray-50 p-6 border border-gray-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-gray-600">
+                  Live Preview Struk Thermal
+                </span>
+                <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-black text-teal-800">
+                  {receiptWidth === '80mm' ? '80mm' : receiptWidth === '100%' ? 'A4/A5' : '58mm'}
+                </span>
+              </div>
+
+              <div
+                className="mx-auto rounded-xl bg-white p-3.5 shadow-md border border-gray-300 text-black font-mono leading-tight space-y-1.5 transition-all duration-300"
+                style={{
+                  width: receiptWidth === '80mm' ? '100%' : receiptWidth === '100%' ? '100%' : '240px',
+                  fontSize: '11px',
+                }}
               >
-                {saving ? <RefreshCw className="animate-spin" size={18} /> : <Save size={18} />}
-                {saving ? 'Menyimpan...' : 'Simpan Pengaturan Struk'}
-              </button>
+                {/* KOP */}
+                <div className="text-center space-y-0.5">
+                  <div className="font-extrabold text-[12px] uppercase tracking-wider break-words">{previewName}</div>
+                  <div className="text-[10px] font-bold uppercase break-words">{previewAddress}</div>
+                </div>
+
+                <div className="border-b border-black border-dashed my-1" />
+
+                <div className="text-center font-black tracking-widest text-[11px] uppercase">
+                  BUKTI PEMBAYARAN
+                </div>
+
+                <div className="border-b border-black border-dashed my-1" />
+
+                {/* METADATA */}
+                <div className="space-y-0.5 text-[10px]">
+                  <div className="flex justify-between"><span>Tanggal</span><span>: 10-08-2026</span></div>
+                  <div className="flex justify-between"><span>No. Trx</span><span className="font-bold">: TR-R95F5FF...</span></div>
+                  <div className="flex justify-between"><span>Nama</span><span className="font-bold">: AHMAD ZAKI (240188)</span></div>
+                  <div className="flex justify-between"><span>Kelas</span><span>: Sifir Awal A</span></div>
+                  <div className="flex justify-between"><span>Thn Ajaran</span><span>: 2025/2026 (1)</span></div>
+                </div>
+
+                <div className="border-b-[1.5px] border-black my-1" />
+
+                {/* TABLE */}
+                <div className="flex justify-between font-extrabold text-[10px]">
+                  <span>Uraian</span>
+                  <span>Nominal</span>
+                </div>
+
+                <div className="border-b-[1.5px] border-black my-1" />
+
+                <div className="space-y-1 text-[10px]">
+                  <div>
+                    <div className="flex justify-between font-bold">
+                      <span>1. SPP 2025/2026 Bulan</span>
+                      <span>350.000</span>
+                    </div>
+                    <div className="pl-3 text-[9px]">Agustus</div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between font-bold">
+                      <span>2. Bayar Kitab Kuning</span>
+                      <span>120.000</span>
+                    </div>
+                    <div className="pl-3 text-[9px]">2025/2026 (Lunas)</div>
+                  </div>
+                </div>
+
+                <div className="border-b border-black border-dashed my-1" />
+
+                <div className="flex justify-between font-black text-[11px]">
+                  <span>TOTAL</span>
+                  <span>470.000</span>
+                </div>
+
+                <div className="border-b-[1.5px] border-black my-1" />
+
+                <div className="mt-2 text-[10px]">
+                  <div className="font-bold">Petugas</div>
+                  <div className="h-6" />
+                  <div className="font-bold uppercase underline">ADMIN MADRASAH</div>
+                </div>
+
+                <div className="mt-3 text-center text-[9px] space-y-0.5">
+                  <div className="font-extrabold">*** TERIMA KASIH ***</div>
+                  <div className="italic">Struk ini adalah bukti pembayaran yang sah</div>
+                </div>
+              </div>
             </div>
-          </form>
+          </div>
         </div>
 
-        {/* REALTIME THERMAL PREVIEW */}
-        <div className="lg:col-span-5 rounded-3xl bg-gray-50 p-6 border border-gray-200 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-wider text-gray-600">
-              Live Preview Struk Thermal
-            </span>
-            <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-black text-teal-800">
-              {receiptWidth === '80mm' ? '80mm' : receiptWidth === '100%' ? 'A4/A5' : '58mm'}
-            </span>
-          </div>
+        {/* FEEDBACK & TOMBOL SIMPAN UTAMA */}
+        <div className="space-y-3">
+          {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-xs font-bold text-[#D63031]">{error}</div> : null}
+          {success ? <div className="rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-xs font-black text-emerald-800">{success}</div> : null}
 
-          <div
-            className="mx-auto rounded-xl bg-white p-3.5 shadow-md border border-gray-300 text-black font-mono leading-tight space-y-1.5 transition-all duration-300"
-            style={{
-              width: receiptWidth === '80mm' ? '100%' : receiptWidth === '100%' ? '100%' : '240px',
-              fontSize: '11px',
-            }}
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[#138F81] px-6 py-4 text-base font-black text-white hover:bg-[#0F7A6E] shadow-xl shadow-[#138F81]/25 transition-all disabled:opacity-50 cursor-pointer"
           >
-            {/* KOP */}
-            <div className="text-center space-y-0.5">
-              <div className="font-extrabold text-[12px] uppercase tracking-wider break-words">{previewName}</div>
-              <div className="text-[10px] font-bold uppercase break-words">{previewAddress}</div>
-            </div>
-
-            <div className="border-b border-black border-dashed my-1" />
-
-            <div className="text-center font-black tracking-widest text-[11px] uppercase">
-              BUKTI PEMBAYARAN
-            </div>
-
-            <div className="border-b border-black border-dashed my-1" />
-
-            {/* METADATA */}
-            <div className="space-y-0.5 text-[10px]">
-              <div className="flex justify-between"><span>Tanggal</span><span>: 10-08-2026</span></div>
-              <div className="flex justify-between"><span>No. Trx</span><span className="font-bold">: TR-R95F5FF...</span></div>
-              <div className="flex justify-between"><span>Nama</span><span className="font-bold">: AHMAD ZAKI (240188)</span></div>
-              <div className="flex justify-between"><span>Kelas</span><span>: Sifir Awal A</span></div>
-              <div className="flex justify-between"><span>Thn Ajaran</span><span>: 2025/2026 (1)</span></div>
-            </div>
-
-            <div className="border-b-[1.5px] border-black my-1" />
-
-            {/* TABLE */}
-            <div className="flex justify-between font-extrabold text-[10px]">
-              <span>Uraian</span>
-              <span>Nominal</span>
-            </div>
-
-            <div className="border-b-[1.5px] border-black my-1" />
-
-            <div className="space-y-1 text-[10px]">
-              <div>
-                <div className="flex justify-between font-bold">
-                  <span>1. SPP 2025/2026 Bulan</span>
-                  <span>350.000</span>
-                </div>
-                <div className="pl-3 text-[9px]">Agustus</div>
-              </div>
-              <div>
-                <div className="flex justify-between font-bold">
-                  <span>2. Bayar Kitab Kuning</span>
-                  <span>120.000</span>
-                </div>
-                <div className="pl-3 text-[9px]">2025/2026 (Lunas)</div>
-              </div>
-            </div>
-
-            <div className="border-b border-black border-dashed my-1" />
-
-            <div className="flex justify-between font-black text-[11px]">
-              <span>TOTAL</span>
-              <span>470.000</span>
-            </div>
-
-            <div className="border-b-[1.5px] border-black my-1" />
-
-            <div className="mt-2 text-[10px]">
-              <div className="font-bold">Petugas</div>
-              <div className="h-6" />
-              <div className="font-bold uppercase underline">ADMIN MADRASAH</div>
-            </div>
-
-            <div className="mt-3 text-center text-[9px] space-y-0.5">
-              <div className="font-extrabold">*** TERIMA KASIH ***</div>
-              <div className="italic">Struk ini adalah bukti pembayaran yang sah</div>
-            </div>
-          </div>
+            {saving ? <RefreshCw className="animate-spin" size={20} /> : <Save size={20} />}
+            {saving ? 'Menyimpan Pengaturan...' : 'Simpan Seluruh Pengaturan Sistem (Rekening Resmi & Format Struk)'}
+          </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }

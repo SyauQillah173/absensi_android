@@ -19,5 +19,10 @@ class DocumentSetting extends Model
         'payment_signature_mode',
         'payment_signature_path',
         'receipt_width',
+        'bank_name',
+        'bank_code',
+        'bank_account_number',
+        'bank_account_holder',
+        'bank_sub_name',
     ];
 }

@@ -42,6 +42,11 @@ class DocumentSettingController extends Controller
                     'payment_admin_title' => 'required|string|max:255',
                     'payment_signature_mode' => 'required|in:kosong,uploaded',
                     'receipt_width' => 'nullable|string|max:20',
+                    'bank_name' => 'nullable|string|max:100',
+                    'bank_code' => 'nullable|string|max:20',
+                    'bank_account_number' => 'nullable|string|max:50',
+                    'bank_account_holder' => 'nullable|string|max:150',
+                    'bank_sub_name' => 'nullable|string|max:50',
                 ]
                 : [
                     'user_id' => 'nullable|exists:users,id',
@@ -161,6 +166,11 @@ class DocumentSettingController extends Controller
                 'payment_admin_title' => 'Petugas Administrasi',
                 'payment_signature_mode' => 'kosong',
                 'receipt_width' => '58mm',
+                'bank_name' => 'Bank Syariah Indonesia (BSI)',
+                'bank_code' => '451',
+                'bank_account_number' => '7171 2026 88',
+                'bank_account_holder' => 'Yayasan Pondok Pesantren Qomaruddin',
+                'bank_sub_name' => 'BSI SYARIAH',
             ]
         );
     }
@@ -216,6 +226,11 @@ class DocumentSettingController extends Controller
             'payment_signature_path' => $pembayaran['signature_path'],
             'payment_signature_url' => $pembayaran['signature_url'],
             'receipt_width' => $settings->receipt_width ?? '58mm',
+            'bank_name' => $settings->bank_name ?? 'Bank Syariah Indonesia (BSI)',
+            'bank_code' => $settings->bank_code ?? '451',
+            'bank_account_number' => $settings->bank_account_number ?? '7171 2026 88',
+            'bank_account_holder' => $settings->bank_account_holder ?? 'Yayasan Pondok Pesantren Qomaruddin',
+            'bank_sub_name' => $settings->bank_sub_name ?? 'BSI SYARIAH',
             'nilai' => $nilai,
             'pembayaran' => $pembayaran,
             'updated_at' => optional($settings->updated_at)->format('Y-m-d H:i'),

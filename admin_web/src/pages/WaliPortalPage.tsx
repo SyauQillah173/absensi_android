@@ -879,8 +879,19 @@ export function WaliPortalPage() {
     { value: 12, label: 'Desember' },
   ];
 
+  const rekeningResmi = useMemo(() => {
+    const rek = keuanganData?.rekening_resmi as Record<string, string> | undefined;
+    return {
+      bank_name: String(rek?.bank_name || 'Bank Syariah Indonesia (BSI)'),
+      bank_sub_name: String(rek?.bank_sub_name || 'BSI Syariah'),
+      bank_code: String(rek?.bank_code || '451'),
+      bank_account_number: String(rek?.bank_account_number || '7171 2026 88'),
+      bank_account_holder: String(rek?.bank_account_holder || 'Yayasan Pondok Pesantren Qomaruddin'),
+    };
+  }, [keuanganData]);
+
   const handleCopyRekening = () => {
-    navigator.clipboard.writeText('7171202688');
+    navigator.clipboard.writeText(rekeningResmi.bank_account_number.replace(/\s+/g, ''));
     setCopiedRekening(true);
     setTimeout(() => setCopiedRekening(false), 2500);
   };
@@ -1226,8 +1237,8 @@ export function WaliPortalPage() {
             {/* ========================================================================= */}
             {activeTab === 'keuangan' && (
               <div className="space-y-4 sm:space-y-6">
-                {/* 3 BANKING CARDS: TOTAL TAGIHAN, TOTAL LUNAS, BSI OFFICIAL ACCOUNT */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                {/* 2 BANKING CARDS: TOTAL TAGIHAN & TOTAL LUNAS */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   {/* CARD 1: TAGIHAN MENUNGGU (THEME ORANGE BANKING CARD) */}
                   <div className="relative overflow-hidden rounded-[26px] bg-gradient-to-br from-[#E65100] via-[#EF6C00] to-[#F57C00] p-6 text-white shadow-xl shadow-orange-950/15 border-2 border-orange-300/30">
                     <div className="flex items-center justify-between">
@@ -1287,41 +1298,6 @@ export function WaliPortalPage() {
                       <span>Kas Tunai & Rekening Yayasan</span>
                       <span className="font-black text-[#FFDC80]">Tersinkron Realtime</span>
                     </div>
-                  </div>
-
-                  {/* CARD 3: REKENING RESMI & KONFIRMASI BENDAHARA */}
-                  <div className="q-card rounded-[26px] bg-white border-2 border-[#138F81]/25 p-6 shadow-xl shadow-black/5 space-y-3 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-black text-[#2D3436] uppercase tracking-wide flex items-center gap-1.5">
-                          <Building2 size={16} className="text-[#138F81]" />
-                          Rekening Resmi Pesantren
-                        </span>
-                        <span className="text-[10px] font-black px-2.5 py-0.5 rounded-md bg-[#E8F7F3] text-[#138F81] border border-[#138F81]/20">
-                          BSI Syariah
-                        </span>
-                      </div>
-                      <p className="text-xs font-semibold text-[#636E72] mt-1">
-                        Bank Syariah Indonesia (BSI)
-                      </p>
-                      <div className="flex items-center justify-between bg-[#E1EFF7] p-3 rounded-2xl border border-[#138F81]/20 mt-2.5">
-                        <span className="font-mono font-black text-base sm:text-lg text-[#0D7A6F] tracking-wider">
-                          7171 2026 88
-                        </span>
-                        <button
-                          type="button"
-                          onClick={handleCopyRekening}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-black rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white transition shadow-sm cursor-pointer"
-                        >
-                          {copiedRekening ? <Check size={13} /> : <Copy size={13} />}
-                          {copiedRekening ? 'Tersalin' : 'Salin'}
-                        </button>
-                      </div>
-                    </div>
-
-                    <p className="text-[11px] font-medium text-[#636E72] leading-tight">
-                      a.n. <strong className="text-[#2D3436]">Yayasan Pondok Pesantren Qomaruddin</strong>. Pembayaran juga dapat dilakukan tunai di loket bendahara pondok.
-                    </p>
                   </div>
                 </div>
 
@@ -2110,8 +2086,8 @@ export function WaliPortalPage() {
                                     <Building2 size={16} className="text-[#FFDC80]" />
                                   </div>
                                   <div>
-                                    <span className="text-xs font-black tracking-wide block">Bank Syariah Indonesia</span>
-                                    <span className="text-[9px] font-bold text-teal-200 block uppercase tracking-wider">BSI Syariah</span>
+                                    <span className="text-xs font-black tracking-wide block">{rekeningResmi.bank_name}</span>
+                                    <span className="text-[9px] font-bold text-teal-200 block uppercase tracking-wider">{rekeningResmi.bank_sub_name}</span>
                                   </div>
                                 </div>
                                 <span className="px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-md text-[10px] font-black border border-white/20 text-[#FFDC80]">
@@ -2128,21 +2104,17 @@ export function WaliPortalPage() {
                                       <div className="bg-amber-400/50 rounded-xs" />
                                     </div>
                                   </div>
-                                  <span className="text-[10px] font-mono text-teal-200">KODE BANK: 451</span>
+                                  <span className="text-[10px] font-mono text-teal-200 font-bold">KODE BANK: {rekeningResmi.bank_code}</span>
                                 </div>
 
                                 <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                   <div className="font-mono text-xl sm:text-2xl font-black tracking-widest text-white drop-shadow-sm select-all">
-                                    7171 2026 88
+                                    {rekeningResmi.bank_account_number}
                                   </div>
 
                                   <button
                                     type="button"
-                                    onClick={() => {
-                                      navigator.clipboard.writeText('7171202688');
-                                      setCopiedRekening(true);
-                                      setTimeout(() => setCopiedRekening(false), 2500);
-                                    }}
+                                    onClick={handleCopyRekening}
                                     className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-xs font-black transition cursor-pointer border border-white/30 shadow-xs"
                                   >
                                     {copiedRekening ? <Check size={14} className="text-emerald-300" /> : <Copy size={14} />}
@@ -2156,7 +2128,7 @@ export function WaliPortalPage() {
                                 <div>
                                   <span className="text-[10px] opacity-75 block">Atas Nama Rekening:</span>
                                   <strong className="text-white font-black text-xs sm:text-sm">
-                                    Yayasan Pondok Pesantren Qomaruddin
+                                    {rekeningResmi.bank_account_holder}
                                   </strong>
                                 </div>
                                 <span className="text-[10px] text-[#FFDC80] font-bold">
@@ -2249,11 +2221,11 @@ export function WaliPortalPage() {
                                   <div className="text-xs text-slate-600 dark:text-slate-300 space-y-1.5 leading-relaxed bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
                                     {transferGuideTab === 'bsi' && (
                                       <ol className="list-decimal pl-4 space-y-1">
-                                        <li>Buka aplikasi <strong>BSI Mobile</strong> di HP Anda.</li>
-                                        <li>Pilih menu <strong>Transfer</strong> ➔ <strong>Rekening BSI</strong>.</li>
-                                        <li>Masukkan nomor rekening: <strong>7171 2026 88</strong>.</li>
+                                        <li>Buka aplikasi M-Banking <strong>{rekeningResmi.bank_sub_name}</strong> di HP Anda.</li>
+                                        <li>Pilih menu <strong>Transfer</strong> ➔ <strong>Rekening {rekeningResmi.bank_sub_name}</strong>.</li>
+                                        <li>Masukkan nomor rekening: <strong>{rekeningResmi.bank_account_number}</strong>.</li>
                                         <li>Masukkan nominal tepat: <strong>Rp {totalSelectedTransferAmount > 0 ? totalSelectedTransferAmount.toLocaleString('id-ID') : '...'}</strong>.</li>
-                                        <li>Konfirmasi nama penerima: <strong>Yayasan Pondok Pesantren Qomaruddin</strong>.</li>
+                                        <li>Konfirmasi nama penerima: <strong>{rekeningResmi.bank_account_holder}</strong>.</li>
                                         <li>Simpan / screenshot struk bukti transfer dan unggah di Langkah 3 di bawah.</li>
                                       </ol>
                                     )}
@@ -2262,9 +2234,9 @@ export function WaliPortalPage() {
                                       <ol className="list-decimal pl-4 space-y-1">
                                         <li>Buka M-Banking Anda (BCA, Mandiri Livin, BRImo, BNI, dll).</li>
                                         <li>Pilih menu <strong>Transfer Antar Bank</strong>.</li>
-                                        <li>Pilih bank tujuan: <strong>Bank Syariah Indonesia (BSI)</strong> (Kode Bank: <strong>451</strong>).</li>
+                                        <li>Pilih bank tujuan: <strong>{rekeningResmi.bank_name}</strong> (Kode Bank: <strong>{rekeningResmi.bank_code}</strong>).</li>
                                         <li>Gunakan layanan <strong>BI-FAST</strong> (biaya transfer hemat hanya Rp 2.500).</li>
-                                        <li>Masukkan rekening <strong>7171 2026 88</strong> a.n <strong>Yayasan Pondok Pesantren Qomaruddin</strong>.</li>
+                                        <li>Masukkan rekening <strong>{rekeningResmi.bank_account_number}</strong> a.n <strong>{rekeningResmi.bank_account_holder}</strong>.</li>
                                         <li>Simpan struk transaksi dan unggah fotonya di formulir Langkah 3 di bawah.</li>
                                       </ol>
                                     )}
@@ -2273,9 +2245,9 @@ export function WaliPortalPage() {
                                       <ol className="list-decimal pl-4 space-y-1">
                                         <li>Buka aplikasi <strong>DANA / GoPay / OVO</strong> Anda.</li>
                                         <li>Pilih menu <strong>Kirim / Transfer ke Bank</strong>.</li>
-                                        <li>Cari dan pilih bank: <strong>Bank Syariah Indonesia (BSI)</strong>.</li>
-                                        <li>Masukkan nomor rekening: <strong>7171 2026 88</strong>.</li>
-                                        <li>Pastikan muncul nama <strong>Yayasan Pondok Pesantren Qomaruddin</strong>.</li>
+                                        <li>Cari dan pilih bank: <strong>{rekeningResmi.bank_name}</strong>.</li>
+                                        <li>Masukkan nomor rekening: <strong>{rekeningResmi.bank_account_number}</strong>.</li>
+                                        <li>Pastikan muncul nama <strong>{rekeningResmi.bank_account_holder}</strong>.</li>
                                         <li>Selesaikan pembayaran dan screenshot struk bukti transfer untuk diunggah di bawah.</li>
                                       </ol>
                                     )}
