@@ -20,6 +20,7 @@ const WhatsAppBotPage = lazy(() => import('./pages/WhatsAppBotPage').then((m) =>
 const AccountPage = lazy(() => import('./pages/AccountPage').then((m) => ({ default: m.AccountPage })));
 const ReceiptPrintPage = lazy(() => import('./pages/ReceiptPrintPage').then((m) => ({ default: m.ReceiptPrintPage })));
 const ExpensePrintPage = lazy(() => import('./pages/ExpensePrintPage').then((m) => ({ default: m.ExpensePrintPage })));
+const KartuSantriPrintPage = lazy(() => import('./pages/KartuSantriPrintPage').then((m) => ({ default: m.KartuSantriPrintPage })));
 const WaliPortalPage = lazy(() => import('./pages/WaliPortalPage').then((m) => ({ default: m.WaliPortalPage })));
 const PmbAdminPage = lazy(() => import('./pages/PmbAdminPage').then((m) => ({ default: m.PmbAdminPage })));
 const PublicPmbLandingPage = lazy(() => import('./pages/PublicPmbLandingPage').then((m) => ({ default: m.PublicPmbLandingPage })));
@@ -253,6 +254,17 @@ export function App() {
         </Suspense>
       );
     }
+  }
+
+  if (path.startsWith('/cetak-kts') || path.startsWith('/kartu-santri')) {
+    const segments = path.split('/');
+    const last = segments[segments.length - 1];
+    const siswaId = Number(last) ? Number(last) : undefined;
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <KartuSantriPrintPage onBack={() => window.history.back()} initialSiswaId={siswaId} />
+      </Suspense>
+    );
   }
 
   return (

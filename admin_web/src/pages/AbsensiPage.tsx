@@ -14,12 +14,14 @@ import {
   Plus,
   Power,
   Printer,
+  QrCode,
   RefreshCw,
   Save,
   Settings,
   Trash2,
   TrendingUp,
-  X
+  X,
+  Camera
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ComplexSholatForm } from '../components/ComplexSholatForm';
@@ -30,6 +32,7 @@ import { ModalForm } from '../components/ModalForm';
 import { SearchInput } from '../components/SearchInput';
 import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
+import { PrayerKioskScannerModal } from '../components/PrayerKioskScannerModal';
 import { api, type ApiRecord } from '../services/api';
 import { exportMadinRekapExcel, exportPrayerRekapExcel } from '../utils/excel';
 import { NgajiKitabSection } from './NgajiKitabSection';
@@ -957,6 +960,7 @@ function PrayerInput() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [showKioskScanner, setShowKioskScanner] = useState(false);
 
   const selectedComplex = complexes.find((item) => num(item.id) === complexId) ?? complexes[0];
   const roomOptions = roomsOf(selectedComplex ?? {});
@@ -1101,6 +1105,48 @@ function PrayerInput() {
   return (
     <div className="space-y-5">
       <Message error={error} notice={notice} />
+
+      {/* BANNER POS SCANNER MANDIRI SHOLAT (KIOSK MODE) */}
+      <div className="rounded-3xl bg-gradient-to-r from-[#0C6B61] via-[#138F81] to-[#0D7A6F] p-5 text-white shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-md text-white shrink-0 border border-white/20">
+            <QrCode size={26} className="text-amber-300" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-black tracking-tight text-white">
+                Pos Scanner Mandiri Sholat (Scan Barcode KTS)
+              </h3>
+              <span className="rounded-full bg-amber-400 text-slate-950 text-[10px] font-black px-2 py-0.5">
+                Kiosk Mode
+              </span>
+            </div>
+            <p className="text-xs text-teal-100 font-medium mt-0.5">
+              Taruh laptop/HP di pos pintu masjid. Santri scan Barcode KTS mandiri, layar menampilkan profil santri lengkap, dan notifikasi otomatis masuk ke Aplikasi PWA Wali.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowKioskScanner(true)}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white text-[#0C6B61] hover:bg-teal-50 px-5 py-3 text-xs sm:text-sm font-black shadow-md transition-all cursor-pointer shrink-0"
+        >
+          <Camera size={18} />
+          <span>Buka Pos Scanner</span>
+        </button>
+      </div>
+
+      {showKioskScanner && (
+        <PrayerKioskScannerModal
+          isOpen={showKioskScanner}
+          onClose={() => setShowKioskScanner(false)}
+          types={types}
+          activeTypeId={typeId || Number(types[0]?.id || 1)}
+          onAttendanceSuccess={() => void loadContext(roomId, typeId)}
+        />
+      )}
+
       <section className="q-panel grid gap-3 p-4 sm:p-6 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
         <select className="q-input" value={typeId} onChange={(event) => setTypeId(Number(event.target.value))}>
           <option value={0}>Waktu jama'ah</option>

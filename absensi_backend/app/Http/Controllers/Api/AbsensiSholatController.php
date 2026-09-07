@@ -366,6 +366,112 @@ class AbsensiSholatController extends Controller
         ], $status);
     }
 
+    /**
+     * Presensi Mandiri Scan QR Cepat (Pos Pintu Masjid / Kiosk)
+     * Sangat ringan, anti-lag, langsung simpan Hadir & kirim notif ke aplikasi PWA wali santri
+     */
+    public function quickScan(Request $request)
+    {
+        $validated = $request->validate([
+            'qr_code' => 'nullable|string|max:120',
+            'siswa_id' => 'nullable|integer|exists:siswa,id',
+            'prayer_attendance_type_id' => 'required|integer|exists:prayer_attendance_types,id',
+            'tanggal' => 'nullable|date',
+            'device_id' => 'nullable|string|max:100',
+        ]);
+
+        $tanggal = $validated['tanggal'] ?? today()->toDateString();
+        $prayerTypeId = (int) $validated['prayer_attendance_type_id'];
+        $prayerType = PrayerAttendanceType::query()->findOrFail($prayerTypeId);
+        $actor = $request->user();
+
+        // Resolve santri
+        $siswa = null;
+        if (!empty($validated['siswa_id'])) {
+            $siswa = Siswa::with(['santriPondok.room.complex', 'santriPondok.complex', 'boardingRoom.complex', 'kelasRef'])->find($validated['siswa_id']);
+        } elseif (!empty($validated['qr_code'])) {
+            $code = trim($validated['qr_code']);
+            
+            // Format 1: QOMAR-{id}-{nis}
+            if (preg_match('/^QOMAR-(\d+)-/i', $code, $matches)) {
+                $siswa = Siswa::with(['santriPondok.room.complex', 'santriPondok.complex', 'boardingRoom.complex', 'kelasRef'])->find((int)$matches[1]);
+            }
+            // Format 2: ID langsung angka
+            if (!$siswa && ctype_digit($code)) {
+                $siswa = Siswa::with(['santriPondok.room.complex', 'santriPondok.complex', 'boardingRoom.complex', 'kelasRef'])
+                    ->where('id', (int)$code)
+                    ->orWhere('nis', $code)
+                    ->first();
+            }
+            // Format 3: NIS string
+            if (!$siswa) {
+                $siswa = Siswa::with(['santriPondok.room.complex', 'santriPondok.complex', 'boardingRoom.complex', 'kelasRef'])
+                    ->where('nis', $code)
+                    ->orWhere('nisn', $code)
+                    ->first();
+            }
+        }
+
+        if (!$siswa) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kartu atau kode QR santri tidak terdaftar di sistem.',
+            ], 404);
+        }
+
+        $boardingRoomId = $siswa->santriPondok?->boarding_room_id ?? $siswa->boarding_room_id;
+        $santriPondokId = $siswa->santriPondok?->id;
+        $key = AbsensiSholat::buildAttendanceKey($tanggal, $siswa->id, $boardingRoomId, $prayerTypeId);
+
+        $attendance = AbsensiSholat::updateOrCreate(
+            ['attendance_key' => $key],
+            [
+                'siswa_id' => $siswa->id,
+                'santri_pondok_id' => $santriPondokId,
+                'boarding_room_id' => $boardingRoomId,
+                'prayer_attendance_type_id' => $prayerTypeId,
+                'tanggal' => $tanggal,
+                'status_code' => 'H',
+                'status_label' => 'Hadir',
+                'keterangan' => 'Presensi Mandiri Scan Kartu QR Sholat',
+                'diinput_oleh' => $actor ? $actor->name : 'Pos Scanner Sholat',
+                'actor_user_id' => $actor?->id,
+                'diinput_via' => 'kiosk_qr',
+                'device_id' => $validated['device_id'] ?? 'Pos Pintu Masjid',
+                'synced_at' => now(),
+                'is_cancelled' => false,
+            ]
+        );
+
+        // Kirim notifikasi ke aplikasi wali (PWA App Notification, bukan WA)
+        $payload = $this->attendancePayload($attendance->fresh(['siswa', 'boardingRoom.complex', 'prayerType']));
+        $this->notifyGuardiansForPrayerAttendance([$payload]);
+
+        $kamar = $siswa->santriPondok?->room?->name ?? $siswa->boardingRoom?->name ?? $siswa->kamar ?? 'Pondok';
+        $komplek = $siswa->santriPondok?->complex?->name ?? $siswa->boardingRoom?->complex?->name ?? $siswa->komplek ?? 'Pusat';
+        $kelas = $siswa->kelasRef?->name ?? $siswa->kelas ?? '-';
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Alhamdulillah, Hadir Sholat ' . ($prayerType->name ?? 'Jamaah') . '!',
+            'data' => [
+                'siswa' => [
+                    'id' => $siswa->id,
+                    'nis' => $siswa->nis,
+                    'nama' => $siswa->nama,
+                    'kamar' => $kamar,
+                    'komplek' => $komplek,
+                    'kelas' => $kelas,
+                    'foto_santri' => $siswa->foto_santri,
+                    'jenis_kelamin' => $siswa->jenis_kelamin,
+                ],
+                'attendance' => $payload,
+                'scanned_at' => now()->format('H:i:s') . ' WIB',
+                'jenis_sholat' => $prayerType->name ?? 'Jamaah Sholat',
+            ],
+        ]);
+    }
+
     public function cancel(Request $request)
     {
         $validated = $request->validate([

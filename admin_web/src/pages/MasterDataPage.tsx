@@ -15,13 +15,15 @@ import {
   Trash2,
   Upload,
   UsersRound,
-  XCircle
+  XCircle,
+  QrCode
 } from 'lucide-react';
 import { FormEvent, type ComponentType, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { ComplexPondokForm } from '../components/ComplexPondokForm';
 import { ComplexSiswaForm } from '../components/ComplexSiswaForm';
 import { ComplexUserForm } from '../components/ComplexUserForm';
+import { KartuSantriPrintPage } from './KartuSantriPrintPage';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
 import { ModalForm } from '../components/ModalForm';
@@ -154,6 +156,8 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
   const [isImporting, setIsImporting] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [showKtsPrint, setShowKtsPrint] = useState(false);
+  const [printKtsSiswaId, setPrintKtsSiswaId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const current = config[variant];
   const Icon = current.icon;
@@ -318,6 +322,10 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
     onStatus: (row, status) => {
       if (siswaMode || alumniMode) void updateOneSiswaStatus(row, status as SiswaStatus);
       else if (userMode) void updateOneUserStatus(row, status as UserStatus);
+    },
+    onPrintKts: (row) => {
+      setPrintKtsSiswaId(num(row.id));
+      setShowKtsPrint(true);
     },
     isSelected: (id) => selectedIds.has(id),
     onToggleSelect: (id) => toggleSelected(id),
@@ -544,6 +552,18 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
     }
   }
 
+  if (showKtsPrint) {
+    return (
+      <KartuSantriPrintPage
+        onBack={() => {
+          setShowKtsPrint(false);
+          setPrintKtsSiswaId(null);
+        }}
+        initialSiswaId={printKtsSiswaId ?? undefined}
+      />
+    );
+  }
+
   const HeaderIcon = current.icon;
 
   return (
@@ -699,6 +719,19 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
             <button className="q-soft-action inline-flex min-h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-extrabold text-[#138F81]" onClick={handleExportRows} type="button">
               <FileSpreadsheet size={17} /> Export
             </button>
+            {siswaMode ? (
+              <button
+                className="q-soft-action inline-flex min-h-11 items-center gap-2 rounded-2xl bg-teal-50 border border-teal-200 px-4 text-sm font-extrabold text-[#138F81] hover:bg-teal-100 transition-colors cursor-pointer"
+                onClick={() => {
+                  setPrintKtsSiswaId(null);
+                  setShowKtsPrint(true);
+                }}
+                type="button"
+                title="Cetak Kartu Tanda Santri (KTS) Massal atau Satuan"
+              >
+                <QrCode size={17} /> Cetak KTS Resmi
+              </button>
+            ) : null}
           </div>
         </div>
         {isLoading ? (
@@ -717,6 +750,10 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
             onStatus: (status) => {
               if (siswaMode) void updateOneSiswaStatus(row, status as SiswaStatus);
               else if (userMode) void updateOneUserStatus(row, status as UserStatus);
+            },
+            onPrintKts: () => {
+              setPrintKtsSiswaId(num(row.id));
+              setShowKtsPrint(true);
             }
           })} />
         )}
@@ -958,6 +995,7 @@ function renderMobileCard(variant: MasterVariant, row: ApiRecord, actions: {
   onReset: () => void;
   onDelete: () => void;
   onStatus: (status: string) => void;
+  onPrintKts?: () => void;
 }) {
   const isSiswa = variant === 'siswa';
   const isUser = isUserVariant(variant);
@@ -1006,6 +1044,7 @@ function renderMobileCard(variant: MasterVariant, row: ApiRecord, actions: {
       ) : null}
       <div className="mt-3 flex flex-wrap items-center gap-1.5 pt-2 border-t border-gray-50">
         <ActionButton icon={Eye} label="Detail" onClick={actions.onDetail} />
+        {isSiswa ? <ActionButton icon={QrCode} label="KTS" onClick={() => actions.onPrintKts?.()} tone="success" /> : null}
         {(isSiswa || isUser) ? <ActionButton icon={Pencil} label="Edit" onClick={actions.onEdit} tone="info" /> : null}
         {isUser ? <ActionButton icon={KeyRound} label="Reset" onClick={actions.onReset} tone="warning" /> : null}
         {(isSiswa || isUser) ? <ActionButton icon={Trash2} label="Hapus" onClick={actions.onDelete} tone="danger" /> : null}
@@ -1038,6 +1077,7 @@ interface ColumnCallbacks {
   onDelete: (row: ApiRecord) => void;
   onRestore?: (row: ApiRecord) => void;
   onStatus: (row: ApiRecord, status: string) => void;
+  onPrintKts?: (row: ApiRecord) => void;
   isSelected: (id: number) => boolean;
   onToggleSelect: (id: number) => void;
   isItAdmin?: boolean;
@@ -1047,7 +1087,7 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
   const actionColumn: DataColumn<ApiRecord> = {
     key: 'aksi',
     header: 'Aksi',
-    className: 'text-right w-[140px]',
+    className: 'text-right w-[150px]',
     render: (row) => {
       const isRowItAdmin = row.role === 'admin' && String(row.admin_type || '').toLowerCase() === 'it';
       const isProtectedFromPengurus = isRowItAdmin && !callbacks.isItAdmin;
@@ -1062,6 +1102,16 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
           >
             <Eye size={13} /> Detail
           </button>
+          {variant === 'siswa' ? (
+            <button
+              className="inline-flex h-8 items-center gap-1 rounded-xl bg-teal-50 px-2 text-xs font-extrabold text-[#138F81] hover:bg-teal-100 transition-colors border border-teal-200"
+              onClick={() => callbacks.onPrintKts?.(row)}
+              type="button"
+              title="Cetak Kartu Tanda Santri (KTS)"
+            >
+              <QrCode size={13} /> KTS
+            </button>
+          ) : null}
           {isProtectedFromPengurus ? (
             <span
               className="inline-flex h-8 items-center gap-1 rounded-xl bg-amber-50 px-2.5 text-[10px] font-black text-amber-700 border border-amber-200"
