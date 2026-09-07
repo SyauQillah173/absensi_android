@@ -156,7 +156,7 @@ class PemasukanLainController extends Controller
             return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
         }
 
-        $activePeriod = app(AcademicPeriodService::class)->getActiveAcademicPeriod();
+        $activePeriod = app(AcademicPeriodService::class)->active();
 
         $noTransaksi = $this->generateIncomeCode();
 
@@ -173,8 +173,8 @@ class PemasukanLainController extends Controller
             'keterangan' => $request->keterangan,
             'bukti_foto' => $request->bukti_foto,
             'user_id' => $userId,
-            'academic_year_id' => $activePeriod['academic_year_id'] ?? null,
-            'semester_id' => $activePeriod['semester_id'] ?? null,
+            'academic_year_id' => $request->academic_year_id ?: ($activePeriod['academic_year_id'] ?? null),
+            'semester_id' => $request->semester_id ?: ($activePeriod['semester_id'] ?? null),
         ]);
 
         return response()->json([

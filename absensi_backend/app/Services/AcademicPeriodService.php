@@ -17,6 +17,11 @@ class AcademicPeriodService
     public const SEMESTER_GANJIL = 'ganjil';
     public const SEMESTER_GENAP = 'genap';
 
+    public function getActiveAcademicPeriod(): array
+    {
+        return $this->active();
+    }
+
     public function active(): array
     {
         $academicYear = AcademicYear::query()
