@@ -286,22 +286,22 @@ export function ComplexNgajiForm({ initialData, onClose, onSave }: ComplexNgajiF
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="flex flex-col w-full max-w-4xl max-h-[92vh] bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2.5 sm:p-4 md:p-6 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="flex flex-col w-full max-w-5xl xl:max-w-6xl max-h-[94vh] bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200 relative z-10 animate-in zoom-in-95 duration-200">
         {/* MODAL HEADER */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 sm:px-7 py-4 bg-gradient-to-r from-teal-50/60 via-white to-white">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 sm:px-7 py-3.5 bg-gradient-to-r from-teal-50/70 via-white to-white shrink-0">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#138F81] text-white shadow-md shadow-[#138F81]/25">
-              <BookOpen size={22} />
+            <div className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl bg-[#138F81] text-white shadow-md shadow-[#138F81]/25">
+              <BookOpen size={20} />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-teal-700 bg-teal-100/70 px-2 py-0.5 rounded-md">
                   Pondok Pesantren
                 </span>
-                <span className="text-[10px] font-bold text-slate-400">Absensi Ngaji Santri</span>
+                <span className="text-[10px] font-bold text-slate-400">Absensi Pengajian Santri</span>
               </div>
-              <h2 className="text-base sm:text-lg font-black text-slate-800">
+              <h2 className="text-sm sm:text-base md:text-lg font-black text-slate-800">
                 {isEditing ? 'Edit Jadwal & Anggota Pengajian' : 'Atur Jadwal Pengajian Baru'}
               </h2>
             </div>
@@ -315,16 +315,16 @@ export function ComplexNgajiForm({ initialData, onClose, onSave }: ComplexNgajiF
           </button>
         </div>
 
-        {/* MODAL BODY (SCROLLABLE) */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-7 space-y-6">
+        {/* MODAL BODY (RESPONSIF 2 KOLOM DI DESKTOP) */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
           {error && (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50/90 p-3.5 text-xs sm:text-sm font-bold text-rose-700">
+            <div className="rounded-2xl border border-rose-200 bg-rose-50/90 p-3 text-xs sm:text-sm font-bold text-rose-700">
               ⚠️ {error}
             </div>
           )}
 
           {autoGenderNotice && (
-            <div className="rounded-2xl border border-teal-200 bg-teal-50/90 p-3 text-xs font-bold text-teal-900 flex items-center justify-between gap-2 animate-in fade-in duration-200">
+            <div className="rounded-2xl border border-teal-200 bg-teal-50/90 p-2.5 px-3.5 text-xs font-bold text-teal-900 flex items-center justify-between gap-2 animate-in fade-in duration-200">
               <span>{autoGenderNotice}</span>
               <button
                 type="button"
@@ -336,284 +336,289 @@ export function ComplexNgajiForm({ initialData, onClose, onSave }: ComplexNgajiF
             </div>
           )}
 
-          {/* 1. SESI NGAJI: NGAJI SUBUH vs NGAJI SORE */}
-          <div>
-            <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
-              1. Pilih Sesi Pengajian <span className="text-rose-500">*</span>
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {sessions.map((s) => {
-                const sName = text(s.name).toLowerCase();
-                const isSubuh = s.code === 'ngaji_subuh' || sName.includes('subuh');
-                const isSelected = sessionId === num(s.id);
-
-                return (
-                  <div
-                    key={text(s.id)}
-                    onClick={() => handleSelectSession(num(s.id))}
-                    className={`cursor-pointer rounded-2xl p-4 border-2 transition-all flex items-center gap-3.5 ${
-                      isSelected
-                        ? 'border-[#138F81] bg-[#138F81]/5 shadow-sm shadow-[#138F81]/15 ring-2 ring-[#138F81]/20'
-                        : 'border-slate-200 hover:border-teal-300 bg-white hover:bg-slate-50/50'
-                    }`}
-                  >
-                    <div
-                      className={`h-12 w-12 rounded-2xl flex items-center justify-center text-2xl shrink-0 shadow-2xs ${
-                        isSubuh ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'
-                      }`}
-                    >
-                      {isSubuh ? '🌅' : '🌇'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-black text-slate-800 truncate">{text(s.name)}</p>
-                        {isSelected && (
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#138F81] text-white">
-                            <Check size={13} />
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs font-bold text-[#138F81]">
-                        {isSubuh ? 'Pagi (05:30 - 06:30 WIB)' : 'Sore (16:00 - 17:15 WIB)'}
-                      </p>
-                      <p className="text-[11px] text-slate-400 font-medium truncate mt-0.5">
-                        {text(s.description, isSubuh ? 'Pengajian ba\'da shubuh' : 'Pengajian ba\'da ashar')}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 2. GENDER TARGET & GURU PENGAJAR */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Target Gender */}
-            <div>
-              <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
-                2. Target Kelompok Santri <span className="text-rose-500">*</span>
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleSelectGender('PA')}
-                  className={`flex items-center justify-center gap-2 rounded-2xl py-3 px-3 text-xs sm:text-sm font-black border-2 transition-all cursor-pointer ${
-                    gender === 'PA'
-                      ? 'border-blue-500 bg-blue-50 text-blue-900 shadow-sm ring-2 ring-blue-300/40'
-                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  <span className="text-base">👦</span>
-                  <span>Santri Putra (PA)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleSelectGender('PI')}
-                  className={`flex items-center justify-center gap-2 rounded-2xl py-3 px-3 text-xs sm:text-sm font-black border-2 transition-all cursor-pointer ${
-                    gender === 'PI'
-                      ? 'border-pink-500 bg-pink-50 text-pink-900 shadow-sm ring-2 ring-pink-300/40'
-                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  <span className="text-base">👧</span>
-                  <span>Santri Putri (PI)</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Guru Pengajar */}
-            <div>
-              <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
-                3. Ustadz / Ustadzah Pengajar
-              </label>
-              <SearchableSelect
-                options={teacherOptions}
-                value={teacherId}
-                onChange={(val) => setTeacherId(String(val))}
-                placeholder="Pilih atau cari nama guru..."
-                searchPlaceholder="Ketik nama ustadz / ustadzah..."
-                filterChips={teacherFilterChips}
-                dropdownWidth="w-full sm:w-[380px]"
-                recommendationNotice={
-                  gender === 'PI'
-                    ? '✨ Direkomendasikan Ustadzah untuk santri Putri (PI)'
-                    : '✨ Direkomendasikan Ustadz untuk santri Putra (PA)'
-                }
-              />
-            </div>
-          </div>
-
-          {/* 3. NAMA KITAB (OPSIONAL) & WAKTU / HARI */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
-            <div className="sm:col-span-1">
-              <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
-                Nama Kitab <span className="text-slate-400 font-normal">(Opsional)</span>
-              </label>
-              <input
-                type="text"
-                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs sm:text-sm font-bold text-slate-800 placeholder-slate-400 focus:border-[#138F81] outline-none min-h-[42px]"
-                placeholder="Misal: Fathul Qorib, Safinah..."
-                value={kitabNama}
-                onChange={(e) => setKitabNama(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
-                Hari KBM
-              </label>
-              <select
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none min-h-[42px]"
-                value={hari}
-                onChange={(e) => setHari(e.target.value)}
-              >
-                {HARI_LIST.map((h) => (
-                  <option key={h} value={h}>
-                    {h}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
-                    <span>Mulai</span>
-                    <span className="text-[10px] font-bold text-teal-600 lowercase bg-teal-50 px-1.5 py-0.5 rounded">bebas atur</span>
-                  </label>
-                  <input
-                    type="time"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none min-h-[42px]"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
-                    <span>Selesai</span>
-                    <span className="text-[10px] font-bold text-teal-600 lowercase bg-teal-50 px-1.5 py-0.5 rounded">bebas atur</span>
-                  </label>
-                  <input
-                    type="time"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none min-h-[42px]"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                  />
-                </div>
-              </div>
-              <p className="text-[10px] font-bold text-slate-500 pt-0.5 flex items-center gap-1">
-                <span>💡</span> Admin bebas menentukan jam mulai & selesai sesuai kebutuhan pondok.
-              </p>
-            </div>
-          </div>
-
-          {/* 4. PILIHAN SANTRI ANGGOTA (BUKAN PER KAMAR, MELAINKAN PILIHAN SANTRI LANGSUNG) */}
-          <div className="rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4 sm:p-5 space-y-3.5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-200/70 pb-3">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+            {/* ========================================================= */}
+            {/* KOLOM KIRI (5 COLS): PENGATURAN SESI, GENDER, GURU, WAKTU */}
+            {/* ========================================================= */}
+            <div className="lg:col-span-5 space-y-4">
+              {/* 1. Sesi Ngaji */}
               <div>
-                <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                  <UsersRound className="text-[#138F81]" size={18} />
-                  Pilih Santri Anggota Pengajian
-                  <span className="rounded-full bg-teal-100 text-teal-800 px-2.5 py-0.5 text-xs font-extrabold">
-                    {selectedStudentIds.length} Terpilih
-                  </span>
-                </h3>
-                <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
-                  Centang santri yang masuk ke dalam jadwal ini. Menampilkan santri khusus {gender === 'PI' ? 'Putri (PI)' : 'Putra (PA)'}.
-                </p>
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
+                  1. Pilih Sesi Pengajian <span className="text-rose-500">*</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2.5">
+                  {sessions.map((s) => {
+                    const sName = text(s.name).toLowerCase();
+                    const isSubuh = s.code === 'ngaji_subuh' || sName.includes('subuh');
+                    const isSelected = sessionId === num(s.id);
+
+                    return (
+                      <div
+                        key={text(s.id)}
+                        onClick={() => handleSelectSession(num(s.id))}
+                        className={`cursor-pointer rounded-2xl p-3 border-2 transition-all flex items-center gap-3 ${
+                          isSelected
+                            ? 'border-[#138F81] bg-[#138F81]/5 shadow-sm shadow-[#138F81]/15 ring-2 ring-[#138F81]/20'
+                            : 'border-slate-200 hover:border-teal-300 bg-white hover:bg-slate-50/60'
+                        }`}
+                      >
+                        <div
+                          className={`h-10 w-10 rounded-xl flex items-center justify-center text-xl shrink-0 shadow-2xs ${
+                            isSubuh ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'
+                          }`}
+                        >
+                          {isSubuh ? '🌅' : '🌇'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-black text-slate-800 truncate">{text(s.name)}</p>
+                            {isSelected && (
+                              <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-[#138F81] text-white">
+                                <Check size={11} />
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] font-bold text-[#138F81]">
+                            {isSubuh ? 'Pagi (05:30 - 06:30)' : 'Sore (16:00 - 17:15)'}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={handleSelectAllFiltered}
-                  className="rounded-xl bg-teal-50 border border-teal-200 px-3 py-1.5 text-xs font-black text-[#138F81] hover:bg-teal-100 transition-colors cursor-pointer"
-                >
-                  ✓ Pilih Semua ({filteredStudents.length})
-                </button>
-                {selectedStudentIds.length > 0 && (
+              {/* 2. Target Kelompok Santri (PA vs PI) */}
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                  2. Target Kelompok Santri <span className="text-rose-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={handleClearAllSelected}
-                    className="rounded-xl bg-rose-50 border border-rose-200 px-3 py-1.5 text-xs font-black text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer"
+                    onClick={() => handleSelectGender('PA')}
+                    className={`flex items-center justify-center gap-2 rounded-2xl py-2.5 px-3 text-xs font-black border-2 transition-all cursor-pointer ${
+                      gender === 'PA'
+                        ? 'border-blue-500 bg-blue-50 text-blue-900 shadow-sm ring-2 ring-blue-300/40'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
                   >
-                    ✕ Kosongkan
+                    <span className="text-sm">👦</span>
+                    <span>Santri Putra (PA)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSelectGender('PI')}
+                    className={`flex items-center justify-center gap-2 rounded-2xl py-2.5 px-3 text-xs font-black border-2 transition-all cursor-pointer ${
+                      gender === 'PI'
+                        ? 'border-pink-500 bg-pink-50 text-pink-900 shadow-sm ring-2 ring-pink-300/40'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-sm">👧</span>
+                    <span>Santri Putri (PI)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 3. Ustadz / Ustadzah Pengajar */}
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                  3. Ustadz / Ustadzah Pengajar
+                </label>
+                <SearchableSelect
+                  options={teacherOptions}
+                  value={teacherId}
+                  onChange={(val) => setTeacherId(String(val))}
+                  placeholder="Pilih atau cari nama guru..."
+                  searchPlaceholder="Ketik nama ustadz / ustadzah..."
+                  filterChips={teacherFilterChips}
+                  dropdownWidth="w-full"
+                  recommendationNotice={
+                    gender === 'PI'
+                      ? '✨ Direkomendasikan Ustadzah untuk santri Putri (PI)'
+                      : '✨ Direkomendasikan Ustadz untuk santri Putra (PA)'
+                  }
+                />
+              </div>
+
+              {/* 4. Nama Kitab (Opsional) */}
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
+                  4. Nama Kitab <span className="text-slate-400 font-normal lowercase">(opsional)</span>
+                </label>
+                <input
+                  type="text"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs sm:text-sm font-bold text-slate-800 placeholder-slate-400 focus:border-[#138F81] outline-none min-h-[40px]"
+                  placeholder="Misal: Fathul Qorib, Safinah (boleh kosong)"
+                  value={kitabNama}
+                  onChange={(e) => setKitabNama(e.target.value)}
+                />
+              </div>
+
+              {/* 5. Hari & Jam KBM (Bebas Atur) */}
+              <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5 space-y-2.5">
+                <div>
+                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
+                    Hari KBM
+                  </label>
+                  <select
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs sm:text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none min-h-[38px]"
+                    value={hari}
+                    onChange={(e) => setHari(e.target.value)}
+                  >
+                    {HARI_LIST.map((h) => (
+                      <option key={h} value={h}>
+                        {h}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+                        <span>Mulai</span>
+                        <span className="text-[9px] font-extrabold text-teal-600 lowercase bg-teal-50 px-1 py-0.5 rounded">bebas atur</span>
+                      </label>
+                      <input
+                        type="time"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs sm:text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none min-h-[38px]"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+                        <span>Selesai</span>
+                        <span className="text-[9px] font-extrabold text-teal-600 lowercase bg-teal-50 px-1 py-0.5 rounded">bebas atur</span>
+                      </label>
+                      <input
+                        type="time"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs sm:text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none min-h-[38px]"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] font-semibold text-slate-500 pt-0.5">
+                    💡 Jam bebas diketik mandiri sesuai waktu kegiatan pondok.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* ========================================================= */}
+            {/* KOLOM KANAN (7 COLS): DAFTAR & CHECKLIST SANTRI ANGGOTA   */}
+            {/* ========================================================= */}
+            <div className="lg:col-span-7 flex flex-col rounded-2xl border border-slate-200 bg-slate-50/50 p-4 sm:p-5 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
+                <div>
+                  <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                    <UsersRound className="text-[#138F81]" size={17} />
+                    Pilih Santri Anggota Pengajian
+                    <span className="rounded-full bg-teal-100 text-teal-800 px-2.5 py-0.5 text-xs font-black">
+                      {selectedStudentIds.length} Terpilih
+                    </span>
+                  </h3>
+                  <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
+                    Menampilkan santri khusus <strong className="text-slate-700">{gender === 'PI' ? 'Putri (PI)' : 'Putra (PA)'}</strong> ({availableStudents.length} santri tersedia).
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleSelectAllFiltered}
+                    className="rounded-xl bg-teal-50 border border-teal-200 px-2.5 py-1.5 text-xs font-black text-[#138F81] hover:bg-teal-100 transition-colors cursor-pointer"
+                  >
+                    ✓ Pilih Semua ({filteredStudents.length})
+                  </button>
+                  {selectedStudentIds.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearAllSelected}
+                      className="rounded-xl bg-rose-50 border border-rose-200 px-2.5 py-1.5 text-xs font-black text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer"
+                    >
+                      ✕ Kosongkan
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Toolbar Pencarian Santri */}
+              <div className="relative flex items-center">
+                <Search size={15} className="absolute left-3 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-8 text-xs sm:text-sm font-semibold text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81]/30 transition-all"
+                  placeholder={`Cari nama santri ${gender === 'PI' ? 'putri' : 'putra'}, NIS, kamar...`}
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                />
+                {studentSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setStudentSearch('')}
+                    className="absolute right-2.5 text-slate-400 hover:text-slate-600 p-0.5"
+                  >
+                    <X size={14} />
                   </button>
                 )}
               </div>
-            </div>
 
-            {/* Toolbar Pencarian Santri */}
-            <div className="relative flex items-center">
-              <Search size={15} className="absolute left-3 text-slate-400 pointer-events-none" />
-              <input
-                type="text"
-                className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-8 text-xs sm:text-sm font-semibold text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81]/30 transition-all"
-                placeholder={`Cari nama santri ${gender === 'PI' ? 'putri' : 'putra'}, NIS, kamar...`}
-                value={studentSearch}
-                onChange={(e) => setStudentSearch(e.target.value)}
-              />
-              {studentSearch && (
-                <button
-                  type="button"
-                  onClick={() => setStudentSearch('')}
-                  className="absolute right-2.5 text-slate-400 hover:text-slate-600 p-0.5"
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </div>
+              {/* List Kartu Santri (Scrollable Tinggi Lega) */}
+              <div className="h-[360px] sm:h-[400px] lg:h-[450px] overflow-y-auto q-scrollbar pr-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {filteredStudents.length === 0 ? (
+                  <div className="col-span-full p-8 text-center text-xs font-bold text-slate-400 bg-white rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center gap-2">
+                    <UsersRound size={28} className="text-slate-300" />
+                    <span>Tidak ada santri yang cocok dengan pencarian "{studentSearch}".</span>
+                  </div>
+                ) : (
+                  filteredStudents.map((student) => {
+                    const sId = num(student.id);
+                    const isChecked = selectedStudentIds.includes(sId);
 
-            {/* List Kartu Santri (Scrollable) */}
-            <div className="max-h-64 overflow-y-auto q-scrollbar pr-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-              {filteredStudents.length === 0 ? (
-                <div className="col-span-full p-6 text-center text-xs font-bold text-slate-400 bg-white rounded-xl border border-dashed border-slate-200">
-                  Tidak ada santri yang cocok dengan pencarian "{studentSearch}".
-                </div>
-              ) : (
-                filteredStudents.map((student) => {
-                  const sId = num(student.id);
-                  const isChecked = selectedStudentIds.includes(sId);
+                    return (
+                      <div
+                        key={sId}
+                        onClick={() => handleToggleStudent(sId)}
+                        className={`flex items-center gap-2.5 rounded-xl p-2.5 border transition-all cursor-pointer select-none ${
+                          isChecked
+                            ? 'border-[#138F81] bg-teal-50/90 shadow-2xs ring-1 ring-[#138F81]/30'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}} // handled by card click
+                          className="h-4 w-4 rounded text-[#138F81] focus:ring-[#138F81] cursor-pointer"
+                        />
 
-                  return (
-                    <div
-                      key={sId}
-                      onClick={() => handleToggleStudent(sId)}
-                      className={`flex items-center gap-2.5 rounded-xl p-2.5 border transition-all cursor-pointer select-none ${
-                        isChecked
-                          ? 'border-[#138F81] bg-teal-50/80 shadow-2xs ring-1 ring-[#138F81]/30'
-                          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => {}} // handled by card click
-                        className="h-4 w-4 rounded text-[#138F81] focus:ring-[#138F81] cursor-pointer"
-                      />
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs">
+                          {gender === 'PI' ? '👧' : '👦'}
+                        </div>
 
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs">
-                        {gender === 'PI' ? '👧' : '👦'}
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className={`text-xs font-black truncate ${
+                              isChecked ? 'text-teal-950' : 'text-slate-800'
+                            }`}
+                          >
+                            {text(student.nama)}
+                          </p>
+                          <p className="text-[10px] text-slate-500 font-semibold truncate">
+                            {student.kamar ? `Kamar: ${student.kamar}` : (student.kelas ? `Kelas: ${student.kelas}` : `NIS: ${text(student.nis, '-')}`)}
+                          </p>
+                        </div>
                       </div>
-
-                      <div className="min-w-0 flex-1">
-                        <p
-                          className={`text-xs font-extrabold truncate ${
-                            isChecked ? 'text-teal-900' : 'text-slate-800'
-                          }`}
-                        >
-                          {text(student.nama)}
-                        </p>
-                        <p className="text-[10px] text-slate-500 font-semibold truncate">
-                          {student.kamar ? `Kamar: ${student.kamar}` : (student.kelas ? `Kelas: ${student.kelas}` : `NIS: ${text(student.nis, '-')}`)}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+                    );
+                  })
+                )}
+              </div>
             </div>
           </div>
         </div>
