@@ -1,44 +1,21 @@
 import {
   BookOpen,
   Calendar,
-  Camera,
+  Check,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Clock3,
   GraduationCap,
-  Image as ImageIcon,
-  Landmark,
   Pencil,
   Plus,
   Save,
-  Trash2,
+  Search,
+  Sparkles,
   UsersRound,
   X
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, type ApiRecord } from '../services/api';
-
-export interface NgajiScheduleItem {
-  id?: number;
-  ngaji_session_id?: number;
-  sesi?: string;
-  ngaji_book_id?: number;
-  kitab?: string;
-  teacher_id?: number | null;
-  pengajar?: string;
-  boarding_complex_id?: number | null;
-  komplek?: string;
-  boarding_room_id?: number | null;
-  kamar?: string;
-  class_id?: number | null;
-  kelas?: string;
-  hari?: string;
-  start_time: string;
-  end_time: string;
-  description?: string;
-  status: 'Aktif' | 'Nonaktif';
-}
+import SearchableSelect, { type FilterChip, type SearchSelectOption } from './SearchableSelect';
 
 interface ComplexNgajiFormProps {
   initialData?: ApiRecord | null;
@@ -46,7 +23,7 @@ interface ComplexNgajiFormProps {
   onSave: () => void;
 }
 
-const HARI_LIST = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
+const HARI_LIST = ['Setiap Hari', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
 
 function text(value: unknown, fallback = ''): string {
   const clean = String(value ?? '').trim();
@@ -58,921 +35,614 @@ function num(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function formatTeacherOption(name: string, jenisKelamin?: string): string {
-  const clean = text(name);
-  if (!clean) return '-';
-
-  // Tentukan icon khas: 🧕 untuk Ustadzah/Bu Nyai, 👳‍♂️ untuk Ustadz/Kiai
-  const icon = (jenisKelamin === 'P' || /^(bu\s*nyai|nyai|ning|hj\.|ustadzah)/i.test(clean)) ? '🧕 ' : '👳‍♂️ ';
-
-  // Cek apakah nama sudah memiliki gelar penghormatan (misal: UST., USTADZ, KH., BU NYAI, NYAI, MAS, dll.)
-  const alreadyHasTitle = /^(ust|ustadz|ustadzah|kh|k\.h|k\s*h|kyai|kiai|bu\s*nyai|nyai|ning|gus|habib|mas|pak|bapak|ibu|drs|dra|prof|dr)\b/i.test(clean);
-
-  // Jika sudah ada gelar, pertahankan icon + nama asli agar tidak double!
-  if (alreadyHasTitle) {
-    return `${icon}${clean}`;
-  }
-
-  // Jika nama polos tanpa gelar, tambahkan gelar sesuai jenis kelamin
-  const prefix = jenisKelamin === 'P' ? 'Ustadzah ' : 'Ustadz ';
-  return `${icon}${prefix}${clean}`;
-}
-
-
-
-function getBookCover(key: string): string | null {
-  try {
-    return localStorage.getItem(`kitab_img_${key}`);
-  } catch {
-    return null;
-  }
-}
-
-function saveBookCover(key: string, base64: string): void {
-  try {
-    localStorage.setItem(`kitab_img_${key}`, base64);
-  } catch {}
-}
-
-function removeBookCover(key: string): void {
-  try {
-    localStorage.removeItem(`kitab_img_${key}`);
-  } catch {}
+function getGenderOfTeacher(t?: ApiRecord | null): 'L' | 'P' | 'unknown' {
+  if (!t) return 'unknown';
+  const jk = String(t.jenis_kelamin || '').toUpperCase();
+  if (jk === 'L' || jk === 'LAKI-LAKI') return 'L';
+  if (jk === 'P' || jk === 'PEREMPUAN') return 'P';
+  const name = String(t.name || '').toUpperCase();
+  if (name.includes('USTADZAH') || name.includes('IBU') || name.includes('HJ.') || name.includes('NENG') || name.includes('NING') || name.includes('SITI')) return 'P';
+  if (name.includes('USTADZ') || name.includes('BAPAK') || name.includes('KH.') || name.includes('GUS') || name.includes('KYAI')) return 'L';
+  return 'unknown';
 }
 
 export function ComplexNgajiForm({ initialData, onClose, onSave }: ComplexNgajiFormProps) {
-  // Main Book Form State
-  const [form, setForm] = useState<{
-    id?: number;
-    name: string;
-    code: string;
-    method: string;
-    description: string;
-    is_active: boolean;
-    photo_preview: string | null;
-    photo_base64: string | null;
-    photo_removed: boolean;
-    jadwals: NgajiScheduleItem[];
-  }>({
-    id: initialData?.id ? num(initialData.id) : undefined,
-    name: text(initialData?.name),
-    code: text(initialData?.code),
-    method: text(initialData?.method, 'Maknani'),
-    description: text(initialData?.description),
-    is_active: initialData?.is_active !== false,
-    photo_preview: initialData?.id ? getBookCover(String(initialData.code || initialData.id)) : null,
-    photo_base64: null,
-    photo_removed: false,
-    jadwals: []
-  });
+  const isEditing = Boolean(initialData?.id);
+  const editingId = initialData?.id ? num(initialData.id) : undefined;
 
-  // Supporting master data
+  // Master data
   const [sessions, setSessions] = useState<ApiRecord[]>([]);
   const [teachers, setTeachers] = useState<ApiRecord[]>([]);
-  const [complexes, setComplexes] = useState<ApiRecord[]>([]);
-  const [classes, setClasses] = useState<ApiRecord[]>([]);
-  const [activeTab, setActiveTab] = useState<'kitab' | 'jadwal'>('kitab');
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [deletedScheduleIds, setDeletedScheduleIds] = useState<number[]>([]);
+  const [allStudents, setAllStudents] = useState<ApiRecord[]>([]);
+  const [isLoadingMaster, setIsLoadingMaster] = useState(true);
 
-  // Draft Schedule Slot State
-  const [newSchedule, setNewSchedule] = useState<{
-    ngaji_session_id: string;
-    teacher_id: string;
-    hari: string;
-    start_time: string;
-    end_time: string;
-    boarding_complex_id: string;
-    boarding_room_id: string;
-    class_id: string;
-    description: string;
-    status: 'Aktif' | 'Nonaktif';
-  }>({
-    ngaji_session_id: '',
-    teacher_id: '',
-    hari: 'Senin',
-    start_time: '05:30',
-    end_time: '06:30',
-    boarding_complex_id: '',
-    boarding_room_id: '',
-    class_id: '',
-    description: '',
-    status: 'Aktif',
-  });
+  // Form states
+  const [sessionId, setSessionId] = useState<number>(0);
+  const [gender, setGender] = useState<'PA' | 'PI'>('PA');
+  const [teacherId, setTeacherId] = useState<string>('');
+  const [kitabNama, setKitabNama] = useState<string>('');
+  const [hari, setHari] = useState<string>('Setiap Hari');
+  const [startTime, setStartTime] = useState<string>('05:30');
+  const [endTime, setEndTime] = useState<string>('06:30');
+  const [status, setStatus] = useState<'Aktif' | 'Nonaktif'>('Aktif');
+  const [description, setDescription] = useState<string>('');
 
-  const [isSaving, setIsSaving] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [error, setError] = useState('');
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  // Selected students (student_ids)
+  const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
+  const [studentSearch, setStudentSearch] = useState<string>('');
 
-  // Load masters & existing schedules for this book
+  // UI state
+  const [autoGenderNotice, setAutoGenderNotice] = useState<string>('');
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
+
+  // Load masters & init data
   useEffect(() => {
-    async function loadMaster() {
+    async function load() {
+      setIsLoadingMaster(true);
+      setError('');
       try {
-        const [sessionRes, teacherRes, complexRes, classRes, scheduleRes] = await Promise.all([
-          api.ngajiSessions(),
+        const [sessionRes, teacherRes, studentRes] = await Promise.all([
+          api.ngajiSessions({ active_only: 1 }),
           api.users({ role: 'guru', status: 'Aktif' }),
-          api.boardingComplexes(),
-          api.classes(),
-          initialData?.id ? api.ngajiSchedules({ ngaji_book_id: Number(initialData.id) }) : Promise.resolve({ data: [] })
+          api.siswa({ status: 'Aktif' }),
         ]);
 
         const sessionList = Array.isArray(sessionRes.data) ? sessionRes.data : [];
         const teacherList = Array.isArray(teacherRes.data) ? teacherRes.data : [];
-        const complexList = Array.isArray(complexRes.data) ? complexRes.data : [];
-        const classList = Array.isArray(classRes.data) ? classRes.data : [];
-        const scheduleList = Array.isArray(scheduleRes.data) ? (scheduleRes.data as ApiRecord[]) : [];
+        const studentList = Array.isArray(studentRes.data) ? studentRes.data : [];
 
         setSessions(sessionList);
         setTeachers(teacherList);
-        setComplexes(complexList);
-        setClasses(classList);
+        setAllStudents(studentList);
 
-        if (sessionList.length > 0) {
-          setNewSchedule((prev) => ({
-            ...prev,
-            ngaji_session_id: String(sessionList[0].id),
-            start_time: String(sessionList[0].start_time || '05:30'),
-            end_time: String(sessionList[0].end_time || '06:30'),
-          }));
-        }
+        // Jika initialData ada (mode edit), populate data
+        if (initialData) {
+          const initSessionId = num(initialData.ngaji_session_id || initialData.session_id);
+          setSessionId(initSessionId || (sessionList[0]?.id ? num(sessionList[0].id) : 0));
 
-        if (scheduleList.length > 0) {
-          setForm((prev) => ({
-            ...prev,
-            jadwals: scheduleList.map((s) => ({
-              id: s.id ? num(s.id) : undefined,
-              ngaji_session_id: s.ngaji_session_id ? num(s.ngaji_session_id) : undefined,
-              sesi: text(s.sesi ?? (s.session as ApiRecord)?.name, 'Sesi Ngaji'),
-              ngaji_book_id: s.ngaji_book_id ? num(s.ngaji_book_id) : undefined,
-              kitab: text(s.kitab ?? (s.book as ApiRecord)?.name),
-              teacher_id: s.teacher_id ? num(s.teacher_id) : null,
-              pengajar: text(s.pengajar ?? (s.teacher as ApiRecord)?.name, 'Ustadz Pengajar'),
-              boarding_complex_id: s.boarding_complex_id ? num(s.boarding_complex_id) : null,
-              komplek: text(s.komplek ?? (s.complex as ApiRecord)?.name),
-              boarding_room_id: s.boarding_room_id ? num(s.boarding_room_id) : null,
-              kamar: text(s.kamar ?? (s.room as ApiRecord)?.name),
-              class_id: s.class_id ? num(s.class_id) : null,
-              kelas: text(s.kelas ?? (s.class as ApiRecord)?.name),
-              hari: text(s.hari, 'Senin'),
-              start_time: text(s.start_time, '05:30'),
-              end_time: text(s.end_time, '06:30'),
-              description: text(s.description),
-              status: text(s.status, 'Aktif') === 'Nonaktif' ? 'Nonaktif' : 'Aktif',
-            }))
-          }));
+          const initGender = String(initialData.gender || '').toUpperCase() === 'PI' ? 'PI' : 'PA';
+          setGender(initGender);
+
+          setTeacherId(initialData.teacher_id ? String(initialData.teacher_id) : '');
+          setKitabNama(text(initialData.kitab_nama || (initialData.kitab !== '-' ? initialData.kitab : '')));
+          setHari(text(initialData.hari, 'Setiap Hari'));
+          setStartTime(text(initialData.start_time, '05:30').slice(0, 5));
+          setEndTime(text(initialData.end_time, '06:30').slice(0, 5));
+          setStatus(initialData.status === 'Nonaktif' ? 'Nonaktif' : 'Aktif');
+          setDescription(text(initialData.description));
+
+          // Populate student_ids
+          if (Array.isArray(initialData.student_ids)) {
+            setSelectedStudentIds(initialData.student_ids.map((id: unknown) => Number(id)));
+          }
+        } else {
+          // Default: sesi pertama (Ngaji Subuh)
+          const firstSession = sessionList[0];
+          if (firstSession) {
+            setSessionId(num(firstSession.id));
+            if (firstSession.start_time) setStartTime(String(firstSession.start_time).slice(0, 5));
+            if (firstSession.end_time) setEndTime(String(firstSession.end_time).slice(0, 5));
+          }
         }
-      } catch {}
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Gagal memuat master data pengajian.');
+      } finally {
+        setIsLoadingMaster(false);
+      }
     }
-    void loadMaster();
+
+    void load();
   }, [initialData]);
 
-  const scrollToTop = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-      scrollContainerRef.current.scrollTop = 0;
+  // Handler ganti sesi: update default jam
+  const handleSelectSession = (id: number) => {
+    setSessionId(id);
+    const chosen = sessions.find((s) => num(s.id) === id);
+    if (chosen) {
+      const sName = text(chosen.name).toLowerCase();
+      if (chosen.code === 'ngaji_subuh' || sName.includes('subuh')) {
+        setStartTime('05:30');
+        setEndTime('06:30');
+      } else if (chosen.code === 'ngaji_sore' || sName.includes('sore')) {
+        setStartTime('16:00');
+        setEndTime('17:15');
+      }
     }
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = String(reader.result);
-      setForm((prev) => ({
-        ...prev,
-        photo_base64: base64,
-        photo_preview: base64,
-        photo_removed: false,
-      }));
-    };
-    reader.readAsDataURL(file);
+  // Handler ganti gender target (PA / PI)
+  const handleSelectGender = (target: 'PA' | 'PI') => {
+    setGender(target);
+    // Sesuaikan guru rekomendasi
+    if (target === 'PI') {
+      const femaleTeacher = teachers.find((t) => getGenderOfTeacher(t) === 'P');
+      if (femaleTeacher) {
+        setTeacherId(String(femaleTeacher.id));
+        setAutoGenderNotice('💡 Target Santri Putri (PI) dipilih ➔ Guru otomatis diarahkan ke Ustadzah.');
+      }
+    } else {
+      const maleTeacher = teachers.find((t) => getGenderOfTeacher(t) === 'L');
+      if (maleTeacher) {
+        setTeacherId(String(maleTeacher.id));
+        setAutoGenderNotice('💡 Target Santri Putra (PA) dipilih ➔ Guru otomatis diarahkan ke Ustadz.');
+      }
+    }
   };
 
-  const handleRemovePhoto = () => {
-    setForm((prev) => ({
-      ...prev,
-      photo_base64: null,
-      photo_preview: null,
-      photo_removed: true,
-    }));
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
+  // Options guru untuk SearchableSelect
+  const teacherOptions: SearchSelectOption[] = useMemo(() => {
+    return teachers.map((t) => {
+      const g = getGenderOfTeacher(t);
+      const isRec = (gender === 'PI' && g === 'P') || (gender === 'PA' && g === 'L');
 
-  const handleEditSchedule = (index: number) => {
-    const item = form.jadwals[index];
-    if (!item) return;
-
-    setEditingIndex(index);
-    setNewSchedule({
-      ngaji_session_id: item.ngaji_session_id ? String(item.ngaji_session_id) : '',
-      teacher_id: item.teacher_id ? String(item.teacher_id) : '',
-      hari: item.hari || 'Senin',
-      start_time: item.start_time || '05:30',
-      end_time: item.end_time || '06:30',
-      boarding_complex_id: item.boarding_complex_id ? String(item.boarding_complex_id) : '',
-      boarding_room_id: item.boarding_room_id ? String(item.boarding_room_id) : '',
-      class_id: item.class_id ? String(item.class_id) : '',
-      description: item.description || '',
-      status: item.status || 'Aktif',
+      return {
+        value: String(t.id),
+        label: text(t.name),
+        subLabel: t.kode_guru ? `Kode: ${t.kode_guru}` : (t.email ? text(t.email) : undefined),
+        gender: g === 'unknown' ? undefined : g,
+        badge: g === 'L' ? '👦 Ustadz' : g === 'P' ? '👧 Ustadzah' : undefined,
+        badgeColor: g === 'L' ? ('blue' as const) : g === 'P' ? ('pink' as const) : ('teal' as const),
+        isRecommended: isRec,
+      };
     });
+  }, [teachers, gender]);
 
-    scrollToTop();
+  const teacherFilterChips: FilterChip[] = useMemo(
+    () => [
+      { id: 'all', label: 'Semua', filter: () => true },
+      { id: 'male', label: '👦 Ustadz', filter: (opt: SearchSelectOption) => opt.gender === 'L' },
+      { id: 'female', label: '👧 Ustadzah', filter: (opt: SearchSelectOption) => opt.gender === 'P' },
+    ],
+    []
+  );
+
+  // Filter santri sesuai gender target (PA atau PI)
+  const availableStudents = useMemo(() => {
+    return allStudents.filter((s) => {
+      const jk = String(s.jenis_kelamin || '').toUpperCase();
+      if (gender === 'PI') {
+        return jk === 'P' || jk === 'PEREMPUAN' || String(s.komplek || '').toUpperCase().includes('PUTRI');
+      }
+      // PA: Putra
+      return jk === 'L' || jk === 'LAKI-LAKI' || jk === 'LAKI' || String(s.komplek || '').toUpperCase().includes('PUTRA') || (!jk.includes('P') && !jk.includes('PEREMPUAN'));
+    });
+  }, [allStudents, gender]);
+
+  // Santri terfilter berdasarkan pencarian
+  const filteredStudents = useMemo(() => {
+    const kw = studentSearch.trim().toLowerCase();
+    if (!kw) return availableStudents;
+    return availableStudents.filter((s) => {
+      const name = String(s.nama ?? '').toLowerCase();
+      const nis = String(s.nis ?? '').toLowerCase();
+      const kamar = String(s.kamar ?? '').toLowerCase();
+      const kelas = String(s.kelas ?? '').toLowerCase();
+      return name.includes(kw) || nis.includes(kw) || kamar.includes(kw) || kelas.includes(kw);
+    });
+  }, [availableStudents, studentSearch]);
+
+  // Toggle checklist santri
+  const handleToggleStudent = (id: number) => {
+    setSelectedStudentIds((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((item) => item !== id);
+      }
+      return [...prev, id];
+    });
   };
 
-  const handleCancelEditSchedule = () => {
-    setEditingIndex(null);
-    setNewSchedule((prev) => ({
-      ...prev,
-      description: '',
-    }));
+  // Pilih semua yang tampil di filter
+  const handleSelectAllFiltered = () => {
+    const idsToAdd = filteredStudents.map((s) => num(s.id));
+    setSelectedStudentIds((prev) => Array.from(new Set([...prev, ...idsToAdd])));
   };
 
-  const handleSaveScheduleSlot = () => {
+  // Kosongkan santri yang terpilih
+  const handleClearAllSelected = () => {
+    setSelectedStudentIds([]);
+  };
+
+  // Simpan Jadwal & Santri
+  const handleSave = async () => {
     setError('');
-    if (!newSchedule.start_time || !newSchedule.end_time) {
+    if (!sessionId) {
+      setError('Silakan pilih sesi pengajian (Ngaji Subuh atau Ngaji Sore).');
+      return;
+    }
+    if (!startTime || !endTime) {
       setError('Jam mulai dan jam selesai pengajian wajib diisi.');
       return;
     }
 
-    const selSession = sessions.find((s) => String(s.id) === String(newSchedule.ngaji_session_id));
-    const selTeacher = teachers.find((t) => String(t.id) === String(newSchedule.teacher_id));
-    const selComplex = complexes.find((c) => String(c.id) === String(newSchedule.boarding_complex_id));
-    const selClass = classes.find((c) => String(c.id) === String(newSchedule.class_id));
-
-    const item: NgajiScheduleItem = {
-      ...(editingIndex !== null && form.jadwals[editingIndex]?.id ? { id: form.jadwals[editingIndex].id } : {}),
-      ngaji_session_id: newSchedule.ngaji_session_id ? Number(newSchedule.ngaji_session_id) : undefined,
-      sesi: selSession ? String(selSession.name) : 'Sesi Pengajian',
-      ngaji_book_id: form.id,
-      kitab: form.name,
-      teacher_id: newSchedule.teacher_id ? Number(newSchedule.teacher_id) : null,
-      pengajar: selTeacher ? String(selTeacher.name) : 'Ustadz Pengajar',
-      boarding_complex_id: newSchedule.boarding_complex_id ? Number(newSchedule.boarding_complex_id) : null,
-      komplek: selComplex ? String(selComplex.name) : undefined,
-      boarding_room_id: newSchedule.boarding_room_id ? Number(newSchedule.boarding_room_id) : null,
-      class_id: newSchedule.class_id ? Number(newSchedule.class_id) : null,
-      kelas: selClass ? String(selClass.name) : undefined,
-      hari: newSchedule.hari,
-      start_time: newSchedule.start_time,
-      end_time: newSchedule.end_time,
-      description: newSchedule.description.trim() || undefined,
-      status: newSchedule.status,
-    };
-
-    setForm((prev) => {
-      if (editingIndex !== null) {
-        const nextList = [...prev.jadwals];
-        nextList[editingIndex] = item;
-        return { ...prev, jadwals: nextList };
-      } else {
-        return { ...prev, jadwals: [...prev.jadwals, item] };
-      }
-    });
-
-    setEditingIndex(null);
-    setNewSchedule((prev) => ({
-      ...prev,
-      description: '',
-    }));
-  };
-
-  const handleRemoveSchedule = (index: number) => {
-    const item = form.jadwals[index];
-    if (item?.id) {
-      setDeletedScheduleIds((prev) => [...prev, item.id!]);
-    }
-    if (editingIndex === index) {
-      setEditingIndex(null);
-    }
-    setForm((prev) => ({
-      ...prev,
-      jadwals: prev.jadwals.filter((_, i) => i !== index),
-    }));
-  };
-
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (isSaving) return;
-
-    if (!form.name.trim()) {
-      setError('Nama kitab kajian wajib diisi.');
-      setActiveTab('kitab');
-      return;
-    }
-
     setIsSaving(true);
-    setError('');
-
     try {
-      const bookCode = form.code.trim() || form.name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-      const bookPayload = {
-        name: form.name.trim(),
-        code: bookCode,
-        method: form.method,
-        description: form.description.trim() || null,
-        is_active: form.is_active,
-        sort_order: 0,
+      const payload: ApiRecord = {
+        ngaji_session_id: sessionId,
+        gender: gender,
+        teacher_id: teacherId ? Number(teacherId) : null,
+        kitab_nama: kitabNama.trim() || null,
+        hari: hari,
+        start_time: startTime,
+        end_time: endTime,
+        status: status,
+        description: description.trim() || null,
+        student_ids: selectedStudentIds,
       };
 
-      let bookId = form.id;
-      if (bookId) {
-        await api.updateNgajiBook(bookId, bookPayload);
+      if (isEditing && editingId) {
+        await api.updateNgajiSchedule(editingId, payload);
       } else {
-        const createRes = await api.createNgajiBook(bookPayload);
-        bookId = num((createRes.data as ApiRecord)?.id);
+        await api.createNgajiSchedule(payload);
       }
 
-      // Save/remove local image cover
-      if (form.photo_base64) {
-        saveBookCover(bookCode, form.photo_base64);
-        if (bookId) saveBookCover(String(bookId), form.photo_base64);
-      } else if (form.photo_removed) {
-        removeBookCover(bookCode);
-        if (bookId) removeBookCover(String(bookId));
-      }
-
-      // Process deleted schedules
-      for (const delId of deletedScheduleIds) {
-        try {
-          await api.deleteNgajiSchedule(delId);
-        } catch {}
-      }
-
-      // Process schedule slots
-      for (const j of form.jadwals) {
-        const schedulePayload = {
-          ngaji_session_id: j.ngaji_session_id || (sessions[0]?.id ? Number(sessions[0].id) : 1),
-          ngaji_book_id: bookId,
-          teacher_id: j.teacher_id || null,
-          boarding_complex_id: j.boarding_complex_id || null,
-          boarding_room_id: j.boarding_room_id || null,
-          class_id: j.class_id || null,
-          hari: j.hari || 'Senin',
-          start_time: j.start_time,
-          end_time: j.end_time,
-          description: j.description || null,
-          status: j.status,
-        };
-
-        if (j.id) {
-          await api.updateNgajiSchedule(j.id, schedulePayload);
-        } else {
-          await api.createNgajiSchedule(schedulePayload);
-        }
-      }
-
-      window.dispatchEvent(new CustomEvent('app:data-updated', { detail: { type: 'ngaji' } }));
-      setIsSuccess(true);
-      setTimeout(() => {
-        setIsSuccess(false);
-        onSave();
-      }, 500);
+      onSave();
+      onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Gagal menyimpan kitab dan jadwal pengajian.');
+      setError(err instanceof Error ? err.message : 'Gagal menyimpan jadwal pengajian.');
+    } finally {
       setIsSaving(false);
     }
-
   };
 
-  const selectedComplex = complexes.find((c) => String(c.id) === String(newSchedule.boarding_complex_id));
-  const availableRooms = Array.isArray(selectedComplex?.rooms) ? (selectedComplex?.rooms as ApiRecord[]) : [];
-
   return (
-    <div className="w-full flex-1 animate-in fade-in duration-200">
-      {/* Toast Notification */}
-      {isSuccess && (
-        <div className="fixed top-5 right-5 z-[99999] flex items-center gap-3.5 rounded-2xl bg-white p-4 shadow-2xl border border-emerald-200 shadow-emerald-900/15 transition-all animate-in fade-in slide-in-from-top-4 duration-300 max-w-sm">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-500 text-white shadow-md shadow-emerald-500/30">
-            <CheckCircle2 size={24} strokeWidth={2.5} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-black text-slate-800">Berhasil Disimpan!</p>
-            <p className="text-xs font-semibold text-slate-500 mt-0.5">
-              Kitab kajian dan susunan jadwal pengajian berhasil diperbarui.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Main In-Page Card Form Container */}
-      <div className="flex min-h-[calc(100vh-10rem)] w-full flex-col overflow-hidden bg-white shadow-sm ring-1 ring-slate-200 sm:rounded-3xl">
-        {/* HEADER SECTION */}
-        <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-teal-50/60 via-emerald-50/40 to-white px-6 py-5">
-          <div className="flex items-center gap-3.5">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#138F81] text-white shadow-md shadow-[#138F81]/25">
-              <BookOpen size={24} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="flex flex-col w-full max-w-4xl max-h-[92vh] bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200">
+        {/* MODAL HEADER */}
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 sm:px-7 py-4 bg-gradient-to-r from-teal-50/60 via-white to-white">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#138F81] text-white shadow-md shadow-[#138F81]/25">
+              <BookOpen size={22} />
             </div>
             <div>
-              <h2 className="text-xl font-extrabold text-[#2D3436]">
-                {form.id ? 'Edit Kitab & Jadwal Pengajian' : 'Tambah Kitab & Jadwal Pengajian Baru'}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-teal-700 bg-teal-100/70 px-2 py-0.5 rounded-md">
+                  Pondok Pesantren
+                </span>
+                <span className="text-[10px] font-bold text-slate-400">Absensi Ngaji Santri</span>
+              </div>
+              <h2 className="text-base sm:text-lg font-black text-slate-800">
+                {isEditing ? 'Edit Jadwal & Anggota Pengajian' : 'Atur Jadwal Pengajian Baru'}
               </h2>
-              <p className="text-xs font-semibold text-[#636E72] mt-0.5">
-                Atur nama kitab kajian, metode pengajian, ustadz pengajar, dan susun slot jadwal ngaji dalam satu form terpadu.
-              </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-2xl p-2.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors cursor-pointer"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        {/* STEPPER TABS HEADER */}
-        <div className="flex items-center border-b border-slate-200 bg-slate-50/80 px-6">
-          <button
-            type="button"
-            onClick={() => setActiveTab('kitab')}
-            className={`flex items-center gap-2 border-b-2 py-4 px-3 text-sm font-extrabold transition-all ${
-              activeTab === 'kitab'
-                ? 'border-[#138F81] text-[#138F81]'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <BookOpen size={16} /> I. Informasi Kitab Kajian
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('jadwal')}
-            className={`flex items-center gap-2 border-b-2 py-4 px-3 text-sm font-extrabold transition-all ${
-              activeTab === 'jadwal'
-                ? 'border-[#138F81] text-[#138F81]'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Calendar size={16} /> II. Jadwal & Pengajar Ngaji ({form.jadwals.length} Slot)
-          </button>
-        </div>
+        {/* MODAL BODY (SCROLLABLE) */}
+        <div className="flex-1 overflow-y-auto p-5 sm:p-7 space-y-6">
+          {error && (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50/90 p-3.5 text-xs sm:text-sm font-bold text-rose-700">
+              ⚠️ {error}
+            </div>
+          )}
 
-        {/* ERROR MESSAGE */}
-        {error && (
-          <div className="mx-6 mt-4 rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-800 border border-rose-100 flex items-center gap-2">
-            <span>⚠️</span> {error}
-          </div>
-        )}
+          {autoGenderNotice && (
+            <div className="rounded-2xl border border-teal-200 bg-teal-50/90 p-3 text-xs font-bold text-teal-900 flex items-center justify-between gap-2 animate-in fade-in duration-200">
+              <span>{autoGenderNotice}</span>
+              <button
+                type="button"
+                onClick={() => setAutoGenderNotice('')}
+                className="text-teal-700 hover:text-teal-900 text-xs font-black cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+          )}
 
-        {/* TAB BODY CONTENT */}
-        <div ref={scrollContainerRef} className="flex-1 p-6 space-y-6 overflow-y-auto">
-          {activeTab === 'kitab' ? (
-            /* TAB I: INFORMASI KITAB KAJIAN */
-            <div className="space-y-6 max-w-3xl">
-              {/* Card 1: Detail Kitab */}
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs space-y-5">
-                <div className="flex items-center gap-2 text-slate-800 font-extrabold text-base border-b border-slate-100 pb-3">
-                  <BookOpen className="text-[#138F81]" size={19} /> Detail Kitab Kajian
-                </div>
+          {/* 1. SESI NGAJI: NGAJI SUBUH vs NGAJI SORE */}
+          <div>
+            <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
+              1. Pilih Sesi Pengajian <span className="text-rose-500">*</span>
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {sessions.map((s) => {
+                const sName = text(s.name).toLowerCase();
+                const isSubuh = s.code === 'ngaji_subuh' || sName.includes('subuh');
+                const isSelected = sessionId === num(s.id);
 
-                {/* Upload Foto Cover Kitab (Offline Client Storage) */}
-                <div className="rounded-2xl bg-teal-50/50 p-4 border border-teal-100 flex items-center gap-4">
-                  <div className="relative shrink-0">
-                    {form.photo_preview ? (
-                      <div className="relative group">
-                        <img src={form.photo_preview} alt="Cover" className="h-24 w-18 rounded-2xl object-cover border-2 border-[#138F81] shadow-md" />
-                        <button
-                          type="button"
-                          onClick={handleRemovePhoto}
-                          className="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-1 shadow-sm hover:bg-rose-600 transition-colors"
-                          title="Hapus foto cover"
-                        >
-                          <X size={13} />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="h-24 w-18 rounded-2xl bg-teal-100/70 border-2 border-dashed border-[#138F81]/40 flex flex-col items-center justify-center text-[#138F81]">
-                        <ImageIcon size={24} />
-                        <span className="text-[10px] font-bold mt-1">Cover Kitab</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex-1">
-                    <p className="text-sm font-extrabold text-slate-800">Foto Cover Kitab (Opsional)</p>
-                    <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                      Foto cover tersimpan langsung di penyimpanan HP/browser Anda agar cepat, aman, dan hemat server.
-                    </p>
-                    <div className="mt-2.5 flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="rounded-xl bg-white px-3.5 py-2 text-xs font-extrabold text-[#138F81] border border-teal-200/80 shadow-2xs hover:bg-teal-50 transition-colors inline-flex items-center gap-1.5"
-                      >
-                        <Camera size={14} /> {form.photo_preview ? 'Ganti Foto' : 'Pilih Foto Kitab'}
-                      </button>
-                      {form.photo_preview && (
-                        <button
-                          type="button"
-                          onClick={handleRemovePhoto}
-                          className="rounded-xl bg-rose-50 px-3.5 py-2 text-xs font-extrabold text-rose-600 hover:bg-rose-100 transition-colors"
-                        >
-                          Hapus
-                        </button>
-                      )}
+                return (
+                  <div
+                    key={text(s.id)}
+                    onClick={() => handleSelectSession(num(s.id))}
+                    className={`cursor-pointer rounded-2xl p-4 border-2 transition-all flex items-center gap-3.5 ${
+                      isSelected
+                        ? 'border-[#138F81] bg-[#138F81]/5 shadow-sm shadow-[#138F81]/15 ring-2 ring-[#138F81]/20'
+                        : 'border-slate-200 hover:border-teal-300 bg-white hover:bg-slate-50/50'
+                    }`}
+                  >
+                    <div
+                      className={`h-12 w-12 rounded-2xl flex items-center justify-center text-2xl shrink-0 shadow-2xs ${
+                        isSubuh ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'
+                      }`}
+                    >
+                      {isSubuh ? '🌅' : '🌇'}
                     </div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handlePhotoUpload}
-                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-black text-slate-800 truncate">{text(s.name)}</p>
+                        {isSelected && (
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#138F81] text-white">
+                            <Check size={13} />
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs font-bold text-[#138F81]">
+                        {isSubuh ? 'Pagi (05:30 - 06:30 WIB)' : 'Sore (16:00 - 17:15 WIB)'}
+                      </p>
+                      <p className="text-[11px] text-slate-400 font-medium truncate mt-0.5">
+                        {text(s.description, isSubuh ? 'Pengajian ba\'da shubuh' : 'Pengajian ba\'da ashar')}
+                      </p>
+                    </div>
                   </div>
-                </div>
+                );
+              })}
+            </div>
+          </div>
 
-                {/* Nama Kitab & Kode */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
-                      Nama Kitab <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all"
-                      value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      placeholder="Contoh: Fathul Qorib, Safinatun Najah..."
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
-                      Kode Kitab (Opsional)
-                    </label>
-                    <input
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-mono font-bold text-slate-800 placeholder:text-slate-400 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all"
-                      value={form.code}
-                      onChange={(e) => setForm({ ...form, code: e.target.value })}
-                      placeholder="Contoh: fathul_qorib (otomatis terisi)"
-                    />
-                  </div>
-                </div>
-
-                {/* Metode Pengajian */}
-                <div>
-                  <label className="mb-2 block text-xs font-extrabold text-slate-700">
-                    Metode Pengajian <span className="text-rose-500">*</span>
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                    {['Maknani', 'Sorogan', 'Lalaran', 'Mudzakarah'].map((m) => {
-                      const isSelected = form.method === m;
-                      return (
-                        <button
-                          key={m}
-                          type="button"
-                          onClick={() => setForm({ ...form, method: m })}
-                          className={`rounded-2xl p-3 text-center border transition-all text-xs ${
-                            isSelected
-                              ? 'bg-[#138F81]/10 border-[#138F81] text-[#138F81] font-black ring-2 ring-[#138F81]/20 shadow-xs'
-                              : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 font-bold'
-                          }`}
-                        >
-                          {m === 'Maknani' ? '📖 Maknani (Bandongan)' : m === 'Sorogan' ? '🗣️ Sorogan' : m === 'Lalaran' ? '✍️ Lalaran / Hafalan' : '💡 Mudzakarah'}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Keterangan */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
-                    Keterangan Kitab (Opsional)
-                  </label>
-                  <textarea
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-[#138F81] focus:bg-white focus:outline-hidden focus:ring-4 focus:ring-[#138F81]/10 transition-all min-h-24 resize-none"
-                    value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    placeholder="Pengarang kitab, bahasan pokok fiqih / nahwu / akhlaq..."
-                  />
-                </div>
-
-                {/* Status Aktif */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
-                    Status Kitab
-                  </label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, is_active: true })}
-                      className={`flex-1 rounded-2xl py-2.5 text-xs font-extrabold border transition-all ${
-                        form.is_active
-                          ? 'bg-[#138F81] text-white border-[#138F81] shadow-xs'
-                          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      🟢 Aktif Digunakan
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, is_active: false })}
-                      className={`flex-1 rounded-2xl py-2.5 text-xs font-extrabold border transition-all ${
-                        !form.is_active
-                          ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
-                          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      ⚪ Nonaktifkan
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Next Step Card */}
-              <div className="rounded-3xl border border-teal-200/80 bg-gradient-to-r from-teal-50/80 via-emerald-50/50 to-white p-5 flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#138F81] text-white">
-                    <Calendar size={20} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-extrabold text-[#2D3436]">Tahap Selanjutnya: Atur Jadwal & Pengajar</p>
-                    <p className="text-xs font-semibold text-[#636E72]">
-                      Hubungkan ustadz pengajar dan susun slot waktu pengajian di Tab II.
-                    </p>
-                  </div>
-                </div>
+          {/* 2. GENDER TARGET & GURU PENGAJAR */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Target Gender */}
+            <div>
+              <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
+                2. Target Kelompok Santri <span className="text-rose-500">*</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => setActiveTab('jadwal')}
-                  className="rounded-2xl bg-[#138F81] px-5 py-2.5 text-xs font-extrabold text-white shadow-md shadow-[#138F81]/20 hover:brightness-105 transition-all inline-flex items-center gap-1.5"
+                  onClick={() => handleSelectGender('PA')}
+                  className={`flex items-center justify-center gap-2 rounded-2xl py-3 px-3 text-xs sm:text-sm font-black border-2 transition-all cursor-pointer ${
+                    gender === 'PA'
+                      ? 'border-blue-500 bg-blue-50 text-blue-900 shadow-sm ring-2 ring-blue-300/40'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
                 >
-                  Buka Jadwal Pengajian <ChevronRight size={15} />
+                  <span className="text-base">👦</span>
+                  <span>Santri Putra (PA)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSelectGender('PI')}
+                  className={`flex items-center justify-center gap-2 rounded-2xl py-3 px-3 text-xs sm:text-sm font-black border-2 transition-all cursor-pointer ${
+                    gender === 'PI'
+                      ? 'border-pink-500 bg-pink-50 text-pink-900 shadow-sm ring-2 ring-pink-300/40'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="text-base">👧</span>
+                  <span>Santri Putri (PI)</span>
                 </button>
               </div>
             </div>
-          ) : (
-            /* TAB II: JADWAL & PENGAJAR NGAJI */
-            <div className="space-y-6">
-              {/* Draft Box: Tambah / Edit Slot Jadwal */}
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <div className="flex items-center gap-2 text-slate-800 font-extrabold text-base">
-                    <Clock3 className="text-[#138F81]" size={19} />
-                    {editingIndex !== null ? 'Edit Slot Jadwal Pengajian' : 'Tambah Slot Jadwal Pengajian Baru'}
-                  </div>
-                  {editingIndex !== null && (
-                    <button
-                      type="button"
-                      onClick={handleCancelEditSchedule}
-                      className="text-xs font-bold text-slate-500 hover:text-slate-800 underline"
-                    >
-                      Batal Edit Slot
-                    </button>
-                  )}
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {/* Sesi Waktu */}
-                  <div>
-                    <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
-                      Sesi Waktu Ngaji <span className="text-rose-500">*</span>
-                    </label>
-                    <select
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 focus:border-[#138F81] focus:bg-white focus:outline-hidden"
-                      value={newSchedule.ngaji_session_id}
-                      onChange={(e) => {
-                        const sid = e.target.value;
-                        const ses = sessions.find((s) => String(s.id) === sid);
-                        setNewSchedule({
-                          ...newSchedule,
-                          ngaji_session_id: sid,
-                          start_time: ses?.start_time ? String(ses.start_time) : newSchedule.start_time,
-                          end_time: ses?.end_time ? String(ses.end_time) : newSchedule.end_time,
-                        });
-                      }}
-                    >
-                      {sessions.map((s) => (
-                        <option key={text(s.id)} value={text(s.id)}>
-                          {text(s.name)} ({text(s.start_time, '--:--')} - {text(s.end_time, '--:--')})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+            {/* Guru Pengajar */}
+            <div>
+              <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
+                3. Ustadz / Ustadzah Pengajar
+              </label>
+              <SearchableSelect
+                options={teacherOptions}
+                value={teacherId}
+                onChange={(val) => setTeacherId(String(val))}
+                placeholder="Pilih atau cari nama guru..."
+                searchPlaceholder="Ketik nama ustadz / ustadzah..."
+                filterChips={teacherFilterChips}
+                dropdownWidth="w-full sm:w-[380px]"
+                recommendationNotice={
+                  gender === 'PI'
+                    ? '✨ Direkomendasikan Ustadzah untuk santri Putri (PI)'
+                    : '✨ Direkomendasikan Ustadz untuk santri Putra (PA)'
+                }
+              />
+            </div>
+          </div>
 
-                  {/* Ustadz Pengajar */}
-                  <div>
-                    <label className="mb-1.5 block text-xs font-extrabold text-slate-700">
-                      Ustadz / Ustadzah Pengajar
-                    </label>
-                    <select
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 focus:border-[#138F81] focus:bg-white focus:outline-hidden"
-                      value={newSchedule.teacher_id}
-                      onChange={(e) => setNewSchedule({ ...newSchedule, teacher_id: e.target.value })}
-                    >
-                      <option value="">-- Pilih Ustadz Pengajar --</option>
-                      {teachers.map((t) => (
-                        <option key={text(t.id)} value={text(t.id)}>
-                          {formatTeacherOption(text(t.name), text(t.jenis_kelamin))}
-                        </option>
-                      ))}
-                    </select>
+          {/* 3. NAMA KITAB (OPSIONAL) & WAKTU / HARI */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
+            <div className="sm:col-span-1">
+              <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
+                Nama Kitab <span className="text-slate-400 font-normal">(Opsional)</span>
+              </label>
+              <input
+                type="text"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs sm:text-sm font-bold text-slate-800 placeholder-slate-400 focus:border-[#138F81] outline-none min-h-[42px]"
+                placeholder="Misal: Fathul Qorib, Safinah..."
+                value={kitabNama}
+                onChange={(e) => setKitabNama(e.target.value)}
+              />
+            </div>
 
-                  </div>
+            <div>
+              <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
+                Hari KBM
+              </label>
+              <select
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none min-h-[42px]"
+                value={hari}
+                onChange={(e) => setHari(e.target.value)}
+              >
+                {HARI_LIST.map((h) => (
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-                  {/* Hari */}
-                  <div>
-                    <label className="mb-1.5 block text-xs font-extrabold text-slate-700">Hari Pengajian</label>
-                    <select
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 focus:border-[#138F81] focus:bg-white focus:outline-hidden"
-                      value={newSchedule.hari}
-                      onChange={(e) => setNewSchedule({ ...newSchedule, hari: e.target.value })}
-                    >
-                      {HARI_LIST.map((h) => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                  </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
+                  Mulai
+                </label>
+                <input
+                  type="time"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none min-h-[42px]"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
+                  Selesai
+                </label>
+                <input
+                  type="time"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none min-h-[42px]"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
 
-                  {/* Jam Mulai & Selesai */}
-                  <div>
-                    <label className="mb-1.5 block text-xs font-extrabold text-slate-700">Jam Mulai</label>
-                    <input
-                      type="time"
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 focus:border-[#138F81] focus:bg-white focus:outline-hidden"
-                      value={newSchedule.start_time}
-                      onChange={(e) => setNewSchedule({ ...newSchedule, start_time: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-xs font-extrabold text-slate-700">Jam Selesai</label>
-                    <input
-                      type="time"
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 focus:border-[#138F81] focus:bg-white focus:outline-hidden"
-                      value={newSchedule.end_time}
-                      onChange={(e) => setNewSchedule({ ...newSchedule, end_time: e.target.value })}
-                    />
-                  </div>
-
-                  {/* Status */}
-                  <div>
-                    <label className="mb-1.5 block text-xs font-extrabold text-slate-700">Status Slot</label>
-                    <select
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm font-bold text-slate-800 focus:border-[#138F81] focus:bg-white focus:outline-hidden"
-                      value={newSchedule.status}
-                      onChange={(e) => setNewSchedule({ ...newSchedule, status: e.target.value as 'Aktif' | 'Nonaktif' })}
-                    >
-                      <option value="Aktif">🟢 Aktif</option>
-                      <option value="Nonaktif">⚪ Nonaktif</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Target Santri Filter (Komplek / Kamar / Kelas) */}
-                <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100 space-y-2.5">
-                  <p className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-                    <UsersRound size={15} className="text-[#138F81]" /> Target Santri Pengajian (Opsional)
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <select
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 focus:border-[#138F81] focus:outline-hidden"
-                      value={newSchedule.boarding_complex_id}
-                      onChange={(e) => setNewSchedule({ ...newSchedule, boarding_complex_id: e.target.value, boarding_room_id: '' })}
-                    >
-                      <option value="">Semua Komplek</option>
-                      {complexes.map((c) => (
-                        <option key={text(c.id)} value={text(c.id)}>{text(c.name)}</option>
-                      ))}
-                    </select>
-
-                    <select
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 focus:border-[#138F81] focus:outline-hidden"
-                      value={newSchedule.boarding_room_id}
-                      onChange={(e) => setNewSchedule({ ...newSchedule, boarding_room_id: e.target.value })}
-                    >
-                      <option value="">Semua Kamar</option>
-                      {availableRooms.map((r) => (
-                        <option key={text(r.id)} value={text(r.id)}>{text(r.name)}</option>
-                      ))}
-                    </select>
-
-                    <select
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 focus:border-[#138F81] focus:outline-hidden"
-                      value={newSchedule.class_id}
-                      onChange={(e) => setNewSchedule({ ...newSchedule, class_id: e.target.value })}
-                    >
-                      <option value="">Semua Kelas Madin</option>
-                      {classes.map((c) => (
-                        <option key={text(c.id)} value={text(c.id)}>{text(c.name)}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex justify-end pt-2">
-                  <button
-                    type="button"
-                    onClick={handleSaveScheduleSlot}
-                    className="rounded-2xl bg-[#138F81] px-5 py-3 text-xs font-extrabold text-white shadow-md shadow-[#138F81]/20 hover:brightness-105 transition-all inline-flex items-center gap-1.5"
-                  >
-                    <Plus size={16} /> {editingIndex !== null ? 'Perbarui Slot Jadwal' : 'Tambahkan ke Daftar Slot'}
-                  </button>
-                </div>
+          {/* 4. PILIHAN SANTRI ANGGOTA (BUKAN PER KAMAR, MELAINKAN PILIHAN SANTRI LANGSUNG) */}
+          <div className="rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4 sm:p-5 space-y-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-200/70 pb-3">
+              <div>
+                <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                  <UsersRound className="text-[#138F81]" size={18} />
+                  Pilih Santri Anggota Pengajian
+                  <span className="rounded-full bg-teal-100 text-teal-800 px-2.5 py-0.5 text-xs font-extrabold">
+                    {selectedStudentIds.length} Terpilih
+                  </span>
+                </h3>
+                <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
+                  Centang santri yang masuk ke dalam jadwal ini. Menampilkan santri khusus {gender === 'PI' ? 'Putri (PI)' : 'Putra (PA)'}.
+                </p>
               </div>
 
-              {/* Daftar Slot Jadwal Terpasang */}
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
-                    <Calendar className="text-[#138F81]" size={18} />
-                    Daftar Slot Jadwal Terpasang ({form.jadwals.length})
-                  </h3>
-                </div>
-
-                {form.jadwals.length === 0 ? (
-                  <div className="rounded-2xl border-2 border-dashed border-slate-200 p-8 text-center">
-                    <Calendar size={32} className="mx-auto text-slate-300 mb-2" />
-                    <p className="text-sm font-bold text-slate-600">Belum ada slot jadwal pengajian.</p>
-                    <p className="text-xs font-semibold text-slate-400 mt-0.5">
-                      Gunakan form di atas untuk menambahkan sesi, hari, dan ustadz pengajar.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                    {form.jadwals.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 flex flex-col justify-between gap-3 hover:bg-white hover:shadow-xs transition-all"
-                      >
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="rounded-lg bg-[#138F81]/10 px-2.5 py-1 text-xs font-black text-[#138F81]">
-                              {item.hari || 'Senin'} • {item.sesi}
-                            </span>
-                            <span className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${item.status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
-                              {item.status}
-                            </span>
-                          </div>
-                          <p className="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
-                            <Clock3 size={14} className="text-slate-400" /> {item.start_time} - {item.end_time} WIB
-                          </p>
-                          <p className="text-xs font-bold text-slate-700">
-                            👤 {item.pengajar || 'Ustadz / Pengajar'}
-                          </p>
-
-                          <p className="text-xs font-semibold text-slate-500">
-                            🎯 Target: {item.kamar ? `Kamar ${item.kamar}` : item.komplek ? `Komplek ${item.komplek}` : item.kelas ? `Kelas ${item.kelas}` : 'Semua Santri'}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center justify-end gap-2 border-t border-slate-200/60 pt-2.5">
-                          <button
-                            type="button"
-                            onClick={() => handleEditSchedule(idx)}
-                            className="rounded-xl bg-white px-3 py-1.5 text-xs font-extrabold text-blue-600 border border-slate-200 shadow-2xs hover:bg-blue-50 transition-colors inline-flex items-center gap-1"
-                          >
-                            <Pencil size={13} /> Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSchedule(idx)}
-                            className="rounded-xl bg-rose-50 px-3 py-1.5 text-xs font-extrabold text-rose-600 hover:bg-rose-100 transition-colors inline-flex items-center gap-1"
-                          >
-                            <Trash2 size={13} /> Hapus
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleSelectAllFiltered}
+                  className="rounded-xl bg-teal-50 border border-teal-200 px-3 py-1.5 text-xs font-black text-[#138F81] hover:bg-teal-100 transition-colors cursor-pointer"
+                >
+                  ✓ Pilih Semua ({filteredStudents.length})
+                </button>
+                {selectedStudentIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearAllSelected}
+                    className="rounded-xl bg-rose-50 border border-rose-200 px-3 py-1.5 text-xs font-black text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer"
+                  >
+                    ✕ Kosongkan
+                  </button>
                 )}
               </div>
             </div>
-          )}
+
+            {/* Toolbar Pencarian Santri */}
+            <div className="relative flex items-center">
+              <Search size={15} className="absolute left-3 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-8 text-xs sm:text-sm font-semibold text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81]/30 transition-all"
+                placeholder={`Cari nama santri ${gender === 'PI' ? 'putri' : 'putra'}, NIS, kamar...`}
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+              />
+              {studentSearch && (
+                <button
+                  type="button"
+                  onClick={() => setStudentSearch('')}
+                  className="absolute right-2.5 text-slate-400 hover:text-slate-600 p-0.5"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* List Kartu Santri (Scrollable) */}
+            <div className="max-h-64 overflow-y-auto q-scrollbar pr-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+              {filteredStudents.length === 0 ? (
+                <div className="col-span-full p-6 text-center text-xs font-bold text-slate-400 bg-white rounded-xl border border-dashed border-slate-200">
+                  Tidak ada santri yang cocok dengan pencarian "{studentSearch}".
+                </div>
+              ) : (
+                filteredStudents.map((student) => {
+                  const sId = num(student.id);
+                  const isChecked = selectedStudentIds.includes(sId);
+
+                  return (
+                    <div
+                      key={sId}
+                      onClick={() => handleToggleStudent(sId)}
+                      className={`flex items-center gap-2.5 rounded-xl p-2.5 border transition-all cursor-pointer select-none ${
+                        isChecked
+                          ? 'border-[#138F81] bg-teal-50/80 shadow-2xs ring-1 ring-[#138F81]/30'
+                          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {}} // handled by card click
+                        className="h-4 w-4 rounded text-[#138F81] focus:ring-[#138F81] cursor-pointer"
+                      />
+
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs">
+                        {gender === 'PI' ? '👧' : '👦'}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={`text-xs font-extrabold truncate ${
+                            isChecked ? 'text-teal-900' : 'text-slate-800'
+                          }`}
+                        >
+                          {text(student.nama)}
+                        </p>
+                        <p className="text-[10px] text-slate-500 font-semibold truncate">
+                          {student.kamar ? `Kamar: ${student.kamar}` : (student.kelas ? `Kelas: ${student.kelas}` : `NIS: ${text(student.nis, '-')}`)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* BOTTOM ACTION BAR */}
-        <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-100 transition-colors"
-          >
-            Batal
-          </button>
-          <div className="flex items-center gap-3">
-            {activeTab === 'kitab' ? (
-              <button
-                type="button"
-                onClick={() => setActiveTab('jadwal')}
-                className="rounded-2xl bg-[#138F81] px-6 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/25 hover:brightness-105 transition-all inline-flex items-center gap-2"
-              >
-                Lanjut ke II. Jadwal & Pengajar <ChevronRight size={18} />
-              </button>
+        {/* MODAL FOOTER */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/80 px-5 sm:px-7 py-3.5">
+          <div className="text-xs font-bold text-slate-500">
+            {selectedStudentIds.length > 0 ? (
+              <span className="text-[#138F81] font-black">
+                ✓ {selectedStudentIds.length} santri akan dimasukkan ke jadwal ini
+              </span>
             ) : (
-              <button
-                type="button"
-                onClick={() => void handleSubmit()}
-                disabled={isSaving}
-                className="rounded-2xl bg-[#138F81] px-7 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/25 hover:brightness-105 transition-all disabled:opacity-60 inline-flex items-center gap-2"
-              >
-                <Save size={18} /> {isSaving ? 'Menyimpan...' : 'Simpan Seluruh Data Kitab & Jadwal'}
-              </button>
+              <span className="text-amber-600 font-semibold">
+                ⚠️ Belum ada santri yang dipilih
+              </span>
             )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              disabled={isSaving}
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaving}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] px-5 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-[#138F81]/25 transition-all cursor-pointer disabled:opacity-60"
+            >
+              <Save size={16} />
+              <span>{isSaving ? 'Menyimpan...' : isEditing ? 'Simpan Perubahan' : 'Terbitkan Jadwal Ngaji'}</span>
+            </button>
           </div>
         </div>
       </div>

@@ -8,7 +8,9 @@ class NgajiSchedule extends Model
 {
     protected $fillable = [
         'ngaji_session_id',
+        'gender',
         'ngaji_book_id',
+        'kitab_nama',
         'teacher_id',
         'boarding_complex_id',
         'boarding_room_id',
@@ -19,6 +21,11 @@ class NgajiSchedule extends Model
         'status',
         'description',
     ];
+
+    public function siswa()
+    {
+        return $this->belongsToMany(Siswa::class, 'ngaji_schedule_siswa', 'ngaji_schedule_id', 'siswa_id');
+    }
 
     public function session()
     {

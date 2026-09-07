@@ -2,14 +2,9 @@ import {
   BookOpen,
   BookOpenCheck,
   CalendarDays,
-  Camera,
   CheckCircle2,
   Clock3,
   Download,
-  Edit3,
-  GraduationCap,
-  Image as ImageIcon,
-  Landmark,
   Pencil,
   Plus,
   RefreshCw,
@@ -18,8 +13,9 @@ import {
   UsersRound,
   X
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { ComplexNgajiForm } from '../components/ComplexNgajiForm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
 import { SearchInput } from '../components/SearchInput';
@@ -28,7 +24,6 @@ import { StatusBadge } from '../components/StatusBadge';
 import { api, type ApiRecord } from '../services/api';
 import { exportNgajiRekapExcel } from '../utils/excel';
 import { getTodayDateString } from '../utils/formatters';
-import { ComplexNgajiForm } from '../components/ComplexNgajiForm';
 
 type NgajiTab = 'input' | 'rekap' | 'master';
 type NgajiStatus = '' | 'H' | 'I' | 'S' | 'A';
@@ -74,32 +69,9 @@ function statusTone(status: string): 'success' | 'warning' | 'danger' | 'neutral
 function ngajiError(err: unknown, fallback: string): string {
   const message = err instanceof Error ? err.message : fallback;
   if (message.toLowerCase().includes('absensi-ngaji') && message.toLowerCase().includes('could not be found')) {
-    return 'Fitur Absensi Ngaji menunggu backend terbaru. Deploy backend terbaru lalu jalankan migrasi database agar master ngaji aktif.';
+    return 'Fitur Absensi Ngaji menunggu backend terbaru. Silakan deploy backend dan jalankan migrasi.';
   }
   return message || fallback;
-}
-
-// Local storage helper for book covers (stored locally on device without burdening server)
-function getBookCover(key: string): string | null {
-  try {
-    return localStorage.getItem(`kitab_img_${key}`);
-  } catch {
-    return null;
-  }
-}
-
-function saveBookCover(key: string, base64: string): void {
-  try {
-    localStorage.setItem(`kitab_img_${key}`, base64);
-  } catch {
-    // ignore quota errors
-  }
-}
-
-function removeBookCover(key: string): void {
-  try {
-    localStorage.removeItem(`kitab_img_${key}`);
-  } catch {}
 }
 
 export function NgajiKitabSection({ initialSection = 'input' }: { initialSection?: NgajiTab }) {
@@ -118,6 +90,9 @@ export function NgajiKitabSection({ initialSection = 'input' }: { initialSection
   );
 }
 
+// ==========================================
+// 1. INPUT PRESENSI NGAJI (HARIAN)
+// ==========================================
 function NgajiInput() {
   const { session } = useAuth();
   const [date, setDate] = useState(today());
@@ -172,7 +147,7 @@ function NgajiInput() {
       setStatuses(nextStatuses);
       setSummary(record(data.summary) as Record<string, number>);
     } catch (err) {
-      setError(ngajiError(err, 'Data absensi ngaji gagal dimuat.'));
+      setError(ngajiError(err, 'Data absensi ngaji santri gagal dimuat.'));
     } finally {
       setIsLoading(false);
     }
@@ -186,15 +161,26 @@ function NgajiInput() {
     void loadContext();
   }, [date, scheduleId]);
 
+  // Tandai semua santri hadir
+  const handleMarkAllHadir = () => {
+    const next: Record<number, NgajiStatus> = {};
+    studentRows.forEach((s) => {
+      next[num(s.id)] = 'H';
+    });
+    setStatuses(next);
+  };
+
   async function save() {
     if (!session || !scheduleId) return;
     const items = Object.entries(statuses)
       .filter(([, status]) => Boolean(status))
       .map(([siswaId, status]) => ({ siswa_id: Number(siswaId), status_code: status as 'H' | 'I' | 'S' | 'A' }));
+
     if (items.length === 0) {
-      setError('Pilih minimal satu status santri dulu.');
+      setError('Pilih minimal satu status santri terlebih dahulu.');
       return;
     }
+
     setIsSaving(true);
     setError('');
     setNotice('');
@@ -207,7 +193,7 @@ function NgajiInput() {
         items
       });
       await loadContext();
-      setNotice(text(result.message, 'Absensi ngaji berhasil disimpan.'));
+      setNotice(text(result.message, 'Absensi ngaji santri berhasil disimpan.'));
     } catch (err) {
       setError(ngajiError(err, 'Absensi ngaji gagal disimpan.'));
     } finally {
@@ -215,43 +201,121 @@ function NgajiInput() {
     }
   }
 
+  const selectedSchedule = schedules.find((s) => num(s.id) === scheduleId);
+
   return (
     <div className="space-y-5">
       <Message error={error} notice={notice} />
-      <section className="q-panel grid gap-3 p-4 md:grid-cols-[220px_minmax(0,1fr)_150px]">
-        <input className="q-input font-bold" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-        <select className="q-input font-bold" value={scheduleId} onChange={(event) => setScheduleId(Number(event.target.value))}>
-          <option value={0}>Pilih jadwal ngaji kitab</option>
-          {schedules.map((schedule) => (
-            <option key={text(schedule.id)} value={text(schedule.id)}>
-              {text(schedule.sesi)} - {text(schedule.kitab)} - {text(schedule.kamar ?? schedule.kelas ?? schedule.komplek, 'Semua santri')}
-            </option>
-          ))}
-        </select>
-        <RefreshButton isLoading={isLoading} onClick={() => void loadContext()} />
+
+      {/* FILTER PANEL */}
+      <section className="q-panel grid gap-3 p-4 md:grid-cols-[200px_minmax(0,1fr)_auto]">
+        <div>
+          <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1">Tanggal</label>
+          <input className="q-input font-bold w-full" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </div>
+
+        <div>
+          <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1">Jadwal Pengajian (Subuh / Sore)</label>
+          <select className="q-input font-bold w-full" value={scheduleId} onChange={(e) => setScheduleId(Number(e.target.value))}>
+            <option value={0}>-- Pilih Jadwal Pengajian --</option>
+            {schedules.map((schedule) => {
+              const isSubuh = String(schedule.sesi || '').toLowerCase().includes('subuh');
+              const icon = isSubuh ? '🌅' : '🌇';
+              const isPI = String(schedule.gender || '').toUpperCase() === 'PI';
+              const genLabel = isPI ? '👧 Putri (PI)' : '👦 Putra (PA)';
+              const kitab = text(schedule.kitab_nama || (schedule.kitab !== '-' && schedule.kitab !== 'Kajian Pondok' ? schedule.kitab : ''));
+              const guru = text(schedule.pengajar);
+              const count = num(schedule.student_count);
+
+              return (
+                <option key={text(schedule.id)} value={text(schedule.id)}>
+                  {icon} {text(schedule.sesi, 'Ngaji')} • {genLabel} {kitab ? `• Kitab: ${kitab}` : ''} {guru && guru !== '-' ? `• ${guru}` : ''} ({count} Santri)
+                </option>
+              );
+            })}
+          </select>
+        </div>
+
+        <div className="flex items-end">
+          <RefreshButton isLoading={isLoading} onClick={() => void loadContext()} />
+        </div>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <StatCard title="Hadir" value={num(summary.H)} subtitle="Status Hadir" icon={BookOpenCheck} tone="teal" />
-        <StatCard title="Izin" value={num(summary.I)} subtitle="Status Izin" icon={CalendarDays} tone="orange" />
-        <StatCard title="Sakit" value={num(summary.S)} subtitle="Status Sakit" icon={CalendarDays} tone="red" />
-        <StatCard title="Belum" value={num(summary.kosong)} subtitle="Belum dipilih" icon={CalendarDays} tone="blue" />
+      {/* STAT CARDS */}
+      <div className="grid gap-3 sm:grid-cols-4">
+        <StatCard title="Hadir" value={num(summary.H)} subtitle="Santri Hadir" icon={BookOpenCheck} tone="teal" />
+        <StatCard title="Izin" value={num(summary.I)} subtitle="Santri Izin" icon={CalendarDays} tone="orange" />
+        <StatCard title="Sakit" value={num(summary.S)} subtitle="Santri Sakit" icon={CalendarDays} tone="red" />
+        <StatCard title="Belum Dipilih" value={num(summary.kosong)} subtitle="Menunggu Input" icon={Clock3} tone="blue" />
       </div>
 
-      <AttendanceRows rows={studentRows} isLoading={isLoading} statuses={statuses} onChange={(id, status) => setStatuses((current) => ({ ...current, [id]: status }))} />
+      {/* QUICK ACTIONS TOOLBAR */}
+      {studentRows.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black text-slate-700">
+              Total {studentRows.length} Santri Terdaftar
+            </span>
+            {selectedSchedule && (
+              <span className={`px-2 py-0.5 rounded-md text-[11px] font-black ${
+                String(selectedSchedule.gender || '').toUpperCase() === 'PI' ? 'bg-pink-100 text-pink-800' : 'bg-blue-100 text-blue-800'
+              }`}>
+                {String(selectedSchedule.gender || '').toUpperCase() === 'PI' ? '👧 Putri (PI)' : '👦 Putra (PA)'}
+              </span>
+            )}
+          </div>
 
-      <div className="q-panel q-save-bar flex flex-wrap items-center justify-end gap-3 p-4">
-        <button className="q-soft-action q-save-secondary min-h-12 rounded-2xl bg-white px-5 text-sm font-extrabold text-[#636E72] border border-slate-200" type="button" onClick={() => setStatuses({})} disabled={isSaving}>
-          Reset Pilihan
-        </button>
-        <button className="q-soft-action q-save-primary flex min-h-12 items-center gap-2 rounded-2xl bg-[#138F81] px-6 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/25 disabled:opacity-60" type="button" onClick={() => void save()} disabled={isSaving || studentRows.length === 0}>
-          <Save size={18} /> {isSaving ? 'Menyimpan...' : 'Simpan Absensi Ngaji'}
-        </button>
-      </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleMarkAllHadir}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-teal-50 border border-teal-200 px-3 py-1.5 text-xs font-black text-[#138F81] hover:bg-teal-100 transition-colors cursor-pointer"
+            >
+              ✓ Tandai Semua Hadir
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatuses({})}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ATTENDANCE ROWS */}
+      <AttendanceRows
+        rows={studentRows}
+        isLoading={isLoading}
+        statuses={statuses}
+        isPI={String(selectedSchedule?.gender || '').toUpperCase() === 'PI'}
+        onChange={(id, status) => setStatuses((current) => ({ ...current, [id]: status }))}
+      />
+
+      {/* SAVE BAR */}
+      {studentRows.length > 0 && (
+        <div className="q-panel flex flex-wrap items-center justify-between gap-3 p-4 sticky bottom-4 shadow-xl border border-teal-200/70 bg-white/95 backdrop-blur-xs rounded-2xl">
+          <div className="text-xs font-bold text-slate-600">
+            {Object.keys(statuses).filter((k) => Boolean(statuses[Number(k)])).length} dari {studentRows.length} santri telah diabsen
+          </div>
+          <button
+            className="flex min-h-11 items-center gap-2 rounded-2xl bg-[#138F81] hover:bg-[#0f766a] px-6 text-sm font-black text-white shadow-md shadow-[#138F81]/25 disabled:opacity-60 transition-all cursor-pointer"
+            type="button"
+            onClick={() => void save()}
+            disabled={isSaving || studentRows.length === 0}
+          >
+            <Save size={18} /> {isSaving ? 'Menyimpan...' : 'Simpan Absensi Pengajian'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
+// ==========================================
+// 2. REKAP PRESENSI NGAJI
+// ==========================================
 function NgajiRekap() {
   const [month, setMonth] = useState(String(new Date().getMonth() + 1));
   const [year, setYear] = useState(String(new Date().getFullYear()));
@@ -297,21 +361,20 @@ function NgajiRekap() {
 
   const columns: DataColumn<ApiRecord>[] = [
     { key: 'siswa', header: 'Santri', render: (row) => <span className="font-extrabold text-slate-800">{text(row.nama)}</span> },
-    { key: 'kelas', header: 'Kelas', render: (row) => text(row.kelas) },
-    { key: 'sesi', header: 'Sesi', render: (row) => text(row.sesi) },
-    { key: 'kitab', header: 'Kitab', render: (row) => text(row.kitab) },
+    { key: 'sesi', header: 'Sesi Pengajian', render: (row) => <span className="font-bold">{text(row.sesi)}</span> },
+    { key: 'kitab', header: 'Kitab', render: (row) => text(row.kitab, 'Rutin') },
     { key: 'pengajar', header: 'Pengajar', render: (row) => text(row.pengajar) },
-    { key: 'H', header: 'Hadir', render: (row) => num(row.H) },
+    { key: 'H', header: 'Hadir', render: (row) => <span className="text-emerald-700 font-extrabold">{num(row.H)}</span> },
     { key: 'I', header: 'Izin', render: (row) => num(row.I) },
     { key: 'S', header: 'Sakit', render: (row) => num(row.S) },
-    { key: 'A', header: 'Alfa', render: (row) => num(row.A) },
+    { key: 'A', header: 'Alfa', render: (row) => <span className="text-rose-600 font-extrabold">{num(row.A)}</span> },
     { key: 'kosong', header: 'Kosong', render: (row) => num(row.Kosong) }
   ];
 
   return (
     <div className="space-y-5">
-      {error ? <div className="rounded-2xl border border-[#FFE6A6] bg-[#FFF7D6] px-4 py-3 text-sm font-bold text-[#8A5A00]">{error}</div> : null}
-      <div className="grid gap-4 md:grid-cols-5">
+      {error ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">{error}</div> : null}
+      <div className="grid gap-3 sm:grid-cols-5">
         <StatCard title="Hadir" value={num(summary.H)} icon={BookOpenCheck} tone="teal" />
         <StatCard title="Izin" value={num(summary.I)} icon={CalendarDays} tone="orange" />
         <StatCard title="Sakit" value={num(summary.S)} icon={CalendarDays} tone="red" />
@@ -319,12 +382,17 @@ function NgajiRekap() {
         <StatCard title="Kosong" value={num(summary.Kosong)} icon={CalendarDays} tone="blue" />
       </div>
 
-      <section className="q-panel q-rekap-action-panel grid gap-3 p-4 md:grid-cols-[140px_140px_minmax(0,1fr)_130px_130px]">
-        <input className="q-input font-bold" value={month} onChange={(event) => setMonth(event.target.value)} placeholder="Bulan" />
-        <input className="q-input font-bold" value={year} onChange={(event) => setYear(event.target.value)} placeholder="Tahun" />
-        <SearchInput value={search} onChange={setSearch} placeholder="Cari santri / kelas / kitab / pengajar" />
-        <button className="q-soft-action q-rekap-button inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-extrabold text-[#138F81] border border-slate-200 shadow-xs" type="button" onClick={() => exportNgajiRekapExcel(records, summary, 'rekap_ngaji_qomaruddin.xlsx')} disabled={records.length === 0}>
-          <Download size={17} /> Excel
+      <section className="q-panel grid gap-3 p-4 md:grid-cols-[140px_140px_minmax(0,1fr)_130px_130px]">
+        <input className="q-input font-bold" value={month} onChange={(e) => setMonth(e.target.value)} placeholder="Bulan" />
+        <input className="q-input font-bold" value={year} onChange={(e) => setYear(e.target.value)} placeholder="Tahun" />
+        <SearchInput value={search} onChange={setSearch} placeholder="Cari santri / sesi / kitab / ustadz..." />
+        <button
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-extrabold text-[#138F81] border border-slate-200 shadow-xs hover:bg-slate-50 transition-all cursor-pointer"
+          type="button"
+          onClick={() => exportNgajiRekapExcel(records, summary, 'rekap_ngaji_qomaruddin.xlsx')}
+          disabled={records.length === 0}
+        >
+          <Download size={16} /> Excel
         </button>
         <RefreshButton isLoading={isLoading} onClick={() => void load()} />
       </section>
@@ -336,34 +404,31 @@ function NgajiRekap() {
   );
 }
 
+// ==========================================
+// 3. MASTER JADWAL NGAJI (SUBUH & SORE)
+// ==========================================
 function NgajiMaster() {
-  const [sessions, setSessions] = useState<ApiRecord[]>([]);
-  const [books, setBooks] = useState<ApiRecord[]>([]);
   const [schedules, setSchedules] = useState<ApiRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [activeFormData, setActiveFormData] = useState<ApiRecord | null | undefined>(undefined);
-  const [deleteTarget, setDeleteTarget] = useState<{ type: 'book' | 'schedule'; row: ApiRecord } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ApiRecord | null>(null);
 
   const [searchSchedule, setSearchSchedule] = useState('');
+  const [sessionFilter, setSessionFilter] = useState<'all' | 'subuh' | 'sore'>('all');
+  const [genderFilter, setGenderFilter] = useState<'all' | 'PA' | 'PI'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'Aktif' | 'Nonaktif'>('all');
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     setError('');
     try {
-      const [sessionResult, bookResult, scheduleResult] = await Promise.all([
-        api.ngajiSessions(),
-        api.ngajiBooks(),
-        api.ngajiSchedules()
-      ]);
-      setSessions(rows(sessionResult.data));
-      setBooks(rows(bookResult.data));
+      const scheduleResult = await api.ngajiSchedules();
       setSchedules(rows(scheduleResult.data));
     } catch (err) {
-      if (!silent) setError(ngajiError(err, 'Master ngaji gagal dimuat.'));
+      if (!silent) setError(ngajiError(err, 'Master jadwal ngaji gagal dimuat.'));
     } finally {
       if (!silent) setIsLoading(false);
     }
@@ -371,79 +436,65 @@ function NgajiMaster() {
 
   useEffect(() => {
     void load();
+  }, [load]);
 
-    // 1. Auto-refresh saat event app:data-updated dipicu
-    const handleDataUpdate = (e: Event) => {
-      const customEvt = e as CustomEvent;
-      if (!customEvt.detail || customEvt.detail.type === 'ngaji' || customEvt.detail.type === 'all') {
-        void load(true);
-      }
-    };
-    window.addEventListener('app:data-updated', handleDataUpdate);
+  const subuhCount = useMemo(() => {
+    return schedules.filter((s) => String(s.sesi || '').toLowerCase().includes('subuh')).length;
+  }, [schedules]);
 
-    // 2. Auto-refresh saat window fokus atau tab kembali aktif
-    const handleFocus = () => void load(true);
-    window.addEventListener('focus', handleFocus);
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') void load(true);
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-
-    // 3. Periodic Background Auto-Refresh (setiap 60 detik)
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible' && activeFormData === undefined) {
-        void load(true);
-      }
-    }, 60000);
-
-    return () => {
-      window.removeEventListener('app:data-updated', handleDataUpdate);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibility);
-      clearInterval(interval);
-    };
-  }, [load, activeFormData]);
-
-  const activeCount = useMemo(() => schedules.filter((s) => text(s.status, 'Aktif') === 'Aktif').length, [schedules]);
-  const inactiveCount = useMemo(() => schedules.filter((s) => text(s.status) === 'Nonaktif').length, [schedules]);
+  const soreCount = useMemo(() => {
+    return schedules.filter((s) => String(s.sesi || '').toLowerCase().includes('sore')).length;
+  }, [schedules]);
 
   const filteredSchedules = useMemo(() => {
     let list = schedules;
+
+    // Filter Sesi
+    if (sessionFilter === 'subuh') {
+      list = list.filter((s) => String(s.sesi || '').toLowerCase().includes('subuh'));
+    } else if (sessionFilter === 'sore') {
+      list = list.filter((s) => String(s.sesi || '').toLowerCase().includes('sore'));
+    }
+
+    // Filter Gender
+    if (genderFilter !== 'all') {
+      list = list.filter((s) => String(s.gender || '').toUpperCase() === genderFilter);
+    }
+
+    // Filter Status
     if (statusFilter !== 'all') {
       list = list.filter((s) => text(s.status, 'Aktif') === statusFilter);
     }
+
+    // Filter Search
     const kw = searchSchedule.trim().toLowerCase();
     if (!kw) return list;
+
     return list.filter((s) => {
-      const match = `${s.kitab ?? ''} ${s.pengajar ?? ''} ${s.sesi ?? ''} ${s.kamar ?? ''} ${s.komplek ?? ''} ${s.hari ?? ''}`.toLowerCase();
+      const match = `${s.sesi ?? ''} ${s.kitab ?? ''} ${s.kitab_nama ?? ''} ${s.pengajar ?? ''} ${s.hari ?? ''} ${s.gender ?? ''}`.toLowerCase();
       return match.includes(kw);
     });
-  }, [schedules, searchSchedule, statusFilter]);
+  }, [schedules, sessionFilter, genderFilter, statusFilter, searchSchedule]);
 
-
-  async function deactivate() {
+  async function handleDelete() {
     if (!deleteTarget) return;
     setIsSaving(true);
     setError('');
     setNotice('');
     try {
-      const id = num(deleteTarget.row.id);
-      if (deleteTarget.type === 'book') {
-        await api.deleteNgajiBook(id);
-        removeBookCover(String(deleteTarget.row.code || id));
-      }
-      if (deleteTarget.type === 'schedule') await api.deleteNgajiSchedule(id);
+      const id = num(deleteTarget.id);
+      await api.deleteNgajiSchedule(id);
       setDeleteTarget(null);
       await load();
-      setNotice('Data berhasil dihapus / dinonaktifkan.');
+      setNotice('Jadwal pengajian berhasil dinonaktifkan.');
     } catch (err) {
-      setError(ngajiError(err, 'Gagal memproses data.'));
+      setError(ngajiError(err, 'Gagal menghapus jadwal ngaji.'));
     } finally {
       setIsSaving(false);
     }
   }
 
-  // JIKA FORM AKTIF TERBUKA, TAMPILKAN COMPLEX NGAJI FORM (IN-PAGE MULTI-STEP FORM)
+  // Buka form tambah / edit
   if (activeFormData !== undefined) {
     return (
       <ComplexNgajiForm
@@ -460,54 +511,104 @@ function NgajiMaster() {
     );
   }
 
-
   const scheduleColumns: DataColumn<ApiRecord>[] = [
     {
-      key: 'kitab',
-      header: 'Kitab & Pengajar',
+      key: 'sesi',
+      header: 'Sesi Pengajian',
       sortable: true,
-      sortValue: (row) => String(row.kitab ?? ''),
+      sortValue: (row) => String(row.sesi ?? ''),
       render: (row) => {
-        const cover = getBookCover(String(row.kitab_code || row.ngaji_book_id || row.kitab));
+        const isSubuh = String(row.sesi || '').toLowerCase().includes('subuh');
         return (
           <div className="flex items-center gap-3">
-            {cover ? (
-              <img src={cover} alt="Cover" className="h-10 w-8 rounded-lg object-cover shadow-xs border border-slate-200" />
-            ) : (
-              <div className="flex h-10 w-9 items-center justify-center rounded-xl bg-teal-50 text-[#138F81] font-bold border border-teal-100">
-                <BookOpen size={16} />
-              </div>
-            )}
+            <div
+              className={`flex h-10 w-10 items-center justify-center rounded-2xl text-xl font-bold shrink-0 shadow-2xs ${
+                isSubuh ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'
+              }`}
+            >
+              {isSubuh ? '🌅' : '🌇'}
+            </div>
             <div>
-              <p className="font-extrabold text-slate-800 text-sm">{text(row.kitab)}</p>
-              <p className="text-xs font-semibold text-[#138F81]">{text(row.pengajar, 'Ustadz Pengajar')}</p>
+              <p className="font-extrabold text-slate-800 text-sm">{text(row.sesi, 'Ngaji')}</p>
+              <p className="text-[11px] font-mono text-slate-500">
+                {text(row.start_time, '--:--')} - {text(row.end_time, '--:--')} WIB
+              </p>
             </div>
           </div>
         );
       }
     },
     {
-      key: 'sesi',
-      header: 'Sesi & Waktu',
+      key: 'gender',
+      header: 'Kelompok Santri',
       sortable: true,
-      sortValue: (row) => String(row.start_time ?? row.sesi ?? ''),
+      sortValue: (row) => String(row.gender ?? ''),
+      render: (row) => {
+        const isPI = String(row.gender || '').toUpperCase() === 'PI';
+        return (
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1 text-xs font-black shadow-2xs ${
+              isPI ? 'bg-pink-50 text-pink-800 border-pink-200' : 'bg-blue-50 text-blue-800 border-blue-200'
+            }`}
+          >
+            <span>{isPI ? '👧' : '👦'}</span>
+            <span>{isPI ? 'Putri (PI)' : 'Putra (PA)'}</span>
+          </span>
+        );
+      }
+    },
+    {
+      key: 'pengajar',
+      header: 'Ustadz / Pengajar',
+      sortable: true,
+      sortValue: (row) => String(row.pengajar ?? ''),
+      render: (row) => {
+        const isPI = String(row.gender || '').toUpperCase() === 'PI';
+        return (
+          <div className="flex items-center gap-2">
+            <span>{isPI ? '🧕' : '👳‍♂️'}</span>
+            <span className="font-extrabold text-slate-800 text-xs sm:text-sm">
+              {text(row.pengajar, 'Belum Ditentukan')}
+            </span>
+          </div>
+        );
+      }
+    },
+    {
+      key: 'kitab',
+      header: 'Kitab Kajian (Opsional)',
+      sortable: true,
+      sortValue: (row) => String(row.kitab_nama || row.kitab || ''),
+      render: (row) => {
+        const kitabName = text(row.kitab_nama || (row.kitab !== '-' && row.kitab !== 'Kajian Pondok' ? row.kitab : ''));
+        if (kitabName) {
+          return (
+            <span className="font-extrabold text-slate-800 text-xs sm:text-sm bg-teal-50 border border-teal-100 px-2.5 py-1 rounded-xl">
+              📖 {kitabName}
+            </span>
+          );
+        }
+        return <span className="text-xs font-semibold text-slate-400 italic">Pengajian Rutin</span>;
+      }
+    },
+    {
+      key: 'santri',
+      header: 'Santri Terdaftar',
+      sortable: true,
+      sortValue: (row) => num(row.student_count),
       render: (row) => (
-        <div>
-          <p className="font-extrabold text-slate-800 text-xs">{text(row.sesi)}</p>
-          <p className="text-[11px] font-mono text-slate-500">{text(row.start_time, '--:--')} - {text(row.end_time, '--:--')} WIB</p>
-        </div>
+        <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 border border-slate-200/80 px-2.5 py-1 text-xs font-black text-slate-700">
+          <UsersRound size={13} className="text-[#138F81]" />
+          <span>{num(row.student_count)} Santri</span>
+        </span>
       )
     },
     {
-      key: 'target',
-      header: 'Target Santri',
+      key: 'hari',
+      header: 'Hari',
       sortable: true,
-      sortValue: (row) => String(row.kamar ?? row.komplek ?? row.kelas ?? ''),
-      render: (row) => (
-        <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-extrabold text-slate-700">
-          <UsersRound size={12} /> {text(row.kamar ?? row.komplek ?? row.kelas, 'Semua Santri')}
-        </span>
-      )
+      sortValue: (row) => String(row.hari ?? ''),
+      render: (row) => <span className="text-xs font-bold text-slate-600">{text(row.hari, 'Setiap Hari')}</span>
     },
     {
       key: 'status',
@@ -516,34 +617,27 @@ function NgajiMaster() {
       sortValue: (row) => String(row.status ?? ''),
       render: (row) => <StatusBadge label={text(row.status)} tone={statusTone(text(row.status))} />
     },
-
     {
       key: 'aksi',
       header: 'Aksi',
-      render: (row) => {
-        const bookData = books.find((b) => num(b.id) === num(row.ngaji_book_id)) || {
-          id: row.ngaji_book_id,
-          name: row.kitab,
-        };
-        return (
-          <div className="flex gap-2 justify-end">
-            <button
-              className="rounded-xl bg-[#EAF4FF] px-3.5 py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors inline-flex items-center gap-1.5"
-              type="button"
-              onClick={() => setActiveFormData(bookData)}
-            >
-              <Pencil size={13} /> Edit & Atur Jadwal
-            </button>
-            <button
-              className="rounded-xl bg-[#FDECEC] px-3.5 py-2 text-xs font-extrabold text-[#D63031] hover:bg-[#fad4d4] transition-colors inline-flex items-center gap-1.5"
-              type="button"
-              onClick={() => setDeleteTarget({ type: 'schedule', row })}
-            >
-              <Trash2 size={13} /> Hapus
-            </button>
-          </div>
-        );
-      }
+      render: (row) => (
+        <div className="flex gap-2 justify-end">
+          <button
+            className="rounded-xl bg-[#EAF4FF] px-3.5 py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+            type="button"
+            onClick={() => setActiveFormData(row)}
+          >
+            <Pencil size={13} /> Edit Jadwal & Santri
+          </button>
+          <button
+            className="rounded-xl bg-[#FDECEC] px-3.5 py-2 text-xs font-extrabold text-[#D63031] hover:bg-[#fad4d4] transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+            type="button"
+            onClick={() => setDeleteTarget(row)}
+          >
+            <Trash2 size={13} /> Hapus
+          </button>
+        </div>
+      )
     }
   ];
 
@@ -553,294 +647,221 @@ function NgajiMaster() {
 
       {/* STAT CARDS */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-3xl bg-white p-4.5 border border-slate-100 shadow-xs flex items-center gap-3.5">
+        <div className="rounded-3xl bg-white p-5 border border-slate-100 shadow-xs flex items-center gap-4">
           <div className="h-12 w-12 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-[#138F81] font-black">
             <BookOpen size={24} />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400">Master Kitab Kajian</p>
-            <p className="text-xl font-black text-slate-800">{books.length} Kitab</p>
+            <p className="text-xs font-bold text-slate-400">Total Jadwal Pengajian</p>
+            <p className="text-xl font-black text-slate-800">{schedules.length} Jadwal</p>
           </div>
         </div>
 
-        <div className="rounded-3xl bg-white p-4.5 border border-slate-100 shadow-xs flex items-center gap-3.5">
-          <div className="h-12 w-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-700 font-black">
-            <CalendarDays size={24} />
+        <div className="rounded-3xl bg-white p-5 border border-slate-100 shadow-xs flex items-center gap-4">
+          <div className="h-12 w-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-700 text-2xl font-black">
+            🌅
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400">Jadwal Pengajian Aktif</p>
-            <p className="text-xl font-black text-amber-800">{schedules.length} Jadwal</p>
+            <p className="text-xs font-bold text-slate-400">Jadwal Ngaji Subuh</p>
+            <p className="text-xl font-black text-amber-800">{subuhCount} Jadwal</p>
           </div>
         </div>
 
-        <div className="rounded-3xl bg-white p-4.5 border border-slate-100 shadow-xs flex items-center gap-3.5">
-          <div className="h-12 w-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 font-black">
-            <Clock3 size={24} />
+        <div className="rounded-3xl bg-white p-5 border border-slate-100 shadow-xs flex items-center gap-4">
+          <div className="h-12 w-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 text-2xl font-black">
+            🌇
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400">Sesi Waktu Ngaji</p>
-            <p className="text-xl font-black text-blue-800">{sessions.length} Sesi</p>
+            <p className="text-xs font-bold text-slate-400">Jadwal Ngaji Sore</p>
+            <p className="text-xl font-black text-indigo-800">{soreCount} Jadwal</p>
           </div>
         </div>
       </div>
 
       {/* ACTION BAR */}
-      <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-3xl border border-slate-100 shadow-xs">
+      <section className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-3xl border border-slate-100 shadow-xs">
         <div className="flex flex-1 flex-wrap items-center gap-2.5">
-          <div className="flex-1 min-w-[240px]">
+          <div className="flex-1 min-w-[220px]">
             <SearchInput
               value={searchSchedule}
               onChange={setSearchSchedule}
-              placeholder="Cari nama kitab / ustadz / sesi / kamar / hari..."
+              placeholder="Cari sesi / ustadz / kitab / hari..."
             />
           </div>
 
+          {/* Sesi Filter */}
           <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 shrink-0">
-            <button
-              type="button"
-              onClick={() => setStatusFilter('all')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
-                statusFilter === 'all'
-                  ? 'bg-white text-slate-800 shadow-xs ring-1 ring-black/5'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Semua ({schedules.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('Aktif')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
-                statusFilter === 'Aktif'
-                  ? 'bg-[#138F81] text-white shadow-xs'
-                  : 'text-slate-600 hover:text-[#138F81]'
-              }`}
-            >
-              <span className={`h-2 w-2 rounded-full ${statusFilter === 'Aktif' ? 'bg-white' : 'bg-emerald-500'}`} />
-              Aktif ({activeCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter('Nonaktif')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
-                statusFilter === 'Nonaktif'
-                  ? 'bg-slate-700 text-white shadow-xs'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              <span className={`h-2 w-2 rounded-full ${statusFilter === 'Nonaktif' ? 'bg-white' : 'bg-slate-400'}`} />
-              Nonaktif ({inactiveCount})
-            </button>
+            {(['all', 'subuh', 'sore'] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSessionFilter(s)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  sessionFilter === s ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                {s === 'all' ? 'Semua Sesi' : s === 'subuh' ? '🌅 Subuh' : '🌇 Sore'}
+              </button>
+            ))}
+          </div>
+
+          {/* Gender Filter */}
+          <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 shrink-0">
+            {(['all', 'PA', 'PI'] as const).map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => setGenderFilter(g)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  genderFilter === g ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                {g === 'all' ? 'Semua Gender' : g === 'PA' ? '👦 Putra' : '👧 Putri'}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 shrink-0">
           <button
-            className="w-full sm:w-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[#138F81] px-4.5 text-sm font-extrabold text-white shadow-md shadow-[#138F81]/20 hover:brightness-105 transition-all"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[#138F81] hover:bg-[#0f766a] px-5 text-sm font-extrabold text-white shadow-md shadow-[#138F81]/20 transition-all cursor-pointer"
             type="button"
             onClick={() => setActiveFormData(null)}
           >
-            <Plus size={17} /> Tambah Kitab & Jadwal Ngaji
+            <Plus size={17} /> Tambah Jadwal Ngaji Baru
           </button>
           <RefreshButton isLoading={isLoading} onClick={() => void load(true)} />
         </div>
       </section>
 
-      {/* TABLE JADWAL NGAJI */}
+      {/* SCHEDULE DATA TABLE */}
       <section className="q-table-container rounded-3xl bg-white p-4 shadow-sm md:p-6 lg:p-8">
         <div className="mb-4">
-          <h2 className="text-lg font-extrabold text-slate-800">Daftar Jadwal Pengajian Santri</h2>
-          <p className="text-xs font-semibold text-slate-500">Susunan kitab, waktu sesi, ustadz pengajar, dan target kamar/komplek.</p>
+          <h2 className="text-lg font-black text-slate-800">Daftar Jadwal Pengajian Santri (Ngaji Subuh & Sore)</h2>
+          <p className="text-xs font-semibold text-slate-500">
+            Penjadwalan KBM pesantren berdasarkan gender santri (Putra / Putri) dan penugasan pengajar.
+          </p>
         </div>
+
         {isLoading ? (
-          <LoadingText text="Memuat susunan jadwal ngaji..." />
+          <LoadingText text="Memuat jadwal pengajian santri..." />
         ) : (
           <DataTable
             rows={filteredSchedules}
             columns={scheduleColumns}
-            defaultSortKey="kitab"
+            defaultSortKey="sesi"
             defaultSortDirection="asc"
-            emptyText={
-              statusFilter === 'Aktif'
-                ? 'Tidak ada jadwal pengajian yang aktif.'
-                : statusFilter === 'Nonaktif'
-                ? 'Tidak ada jadwal pengajian yang nonaktif.'
-                : 'Belum ada jadwal ngaji santri yang dibuat.'
-            }
-            minWidth="860px"
-            mobileRender={(row) => {
-              const bookData = books.find((b) => num(b.id) === num(row.ngaji_book_id)) || {
-                id: row.ngaji_book_id,
-                name: row.kitab,
-              };
-              const cover = getBookCover(String(row.kitab_code || row.ngaji_book_id || row.kitab));
-              return (
-                <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      {cover ? (
-                        <img src={cover} alt="Cover" className="h-12 w-10 rounded-xl object-cover shadow-xs border border-slate-200 shrink-0" />
-                      ) : (
-                        <div className="flex h-12 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-[#138F81] font-bold border border-teal-100">
-                          <BookOpen size={18} />
-                        </div>
-                      )}
-                      <div className="min-w-0">
-                        <p className="font-extrabold text-slate-800 text-sm truncate">{text(row.kitab)}</p>
-                        <p className="text-xs font-semibold text-[#138F81] truncate">{text(row.pengajar, 'Ustadz Pengajar')}</p>
-                        <p className="text-[11px] font-mono text-slate-400 mt-0.5">Sesi: {text(row.sesi)} ({text(row.start_time, '--:--')} - {text(row.end_time, '--:--')} WIB)</p>
-                      </div>
-                    </div>
-                    <StatusBadge label={text(row.status)} tone={statusTone(text(row.status))} />
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100 text-xs font-bold text-slate-600">
-                    <div className="rounded-xl bg-slate-50 px-2.5 py-1.5 border border-slate-100 flex items-center gap-1.5 flex-1">
-                      <UsersRound size={13} className="text-slate-500" />
-                      <span className="truncate">{text(row.kamar ?? row.komplek ?? row.kelas, 'Semua Santri')}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
-                    <button
-                      className="flex-1 rounded-xl bg-[#EAF4FF] py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors inline-flex items-center justify-center gap-1.5"
-                      type="button"
-                      onClick={() => setActiveFormData(bookData)}
-                    >
-                      <Pencil size={13} /> Edit Jadwal
-                    </button>
-                    <button
-                      className="rounded-xl bg-[#FDECEC] p-2 text-xs font-extrabold text-[#D63031] hover:bg-[#fad4d4] transition-colors inline-flex items-center justify-center"
-                      type="button"
-                      onClick={() => setDeleteTarget({ type: 'schedule', row })}
-                      title="Hapus Jadwal"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                </article>
-              );
-            }}
+            emptyText="Belum ada jadwal pengajian santri yang dibuat."
+            minWidth="980px"
           />
         )}
-      </section>
-
-
-      {/* MASTER LIST KITAB DENGAN FOTO */}
-      <section className="rounded-3xl bg-white p-6 border border-slate-100 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-          <div>
-            <h3 className="text-lg font-extrabold text-[#2D3436] flex items-center gap-2">
-              <BookOpen className="text-[#138F81]" size={20} />
-              Daftar Master Kitab Pengajian ({books.length})
-            </h3>
-            <p className="text-xs font-semibold text-[#636E72]">
-              Kitab yang diajarkan dalam pengajian wetonan, sorogan, dan maknani.
-            </p>
-          </div>
-          <button
-            className="w-full sm:w-auto rounded-2xl bg-teal-50 px-3.5 py-2 text-xs font-extrabold text-[#138F81] hover:bg-teal-100 transition-colors inline-flex items-center justify-center gap-1.5"
-            onClick={() => setActiveFormData(null)}
-            type="button"
-          >
-            <Plus size={15} /> Tambah Kitab Baru
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {books.map((b) => {
-            const cover = getBookCover(String(b.code || b.id || b.name));
-            return (
-              <div key={text(b.id)} className="rounded-2xl bg-slate-50/70 p-3.5 border border-slate-100 flex items-center justify-between gap-3 hover:bg-white hover:shadow-xs transition-all">
-                <div className="flex items-center gap-3 overflow-hidden">
-                  {cover ? (
-                    <img src={cover} alt="Kitab" className="h-12 w-10 rounded-xl object-cover border border-slate-200 shrink-0 shadow-xs" />
-                  ) : (
-                    <div className="h-12 w-10 rounded-xl bg-teal-100/70 border border-teal-200 flex items-center justify-center text-[#138F81] shrink-0 font-black">
-                      <BookOpen size={18} />
-                    </div>
-                  )}
-                  <div className="truncate">
-                    <p className="font-extrabold text-slate-800 text-sm truncate">{text(b.name)}</p>
-                    <p className="text-xs font-semibold text-[#138F81]">{text(b.method, 'Maknani')}</p>
-                    <p className="text-[11px] font-mono text-slate-400">Kode: {text(b.code)}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    className="rounded-xl bg-white px-3 py-1.5 text-xs font-extrabold text-blue-600 hover:bg-blue-50 shadow-2xs border border-slate-200 transition-colors inline-flex items-center gap-1"
-                    onClick={() => setActiveFormData(b)}
-                    type="button"
-                    title="Edit & Atur Jadwal Kitab"
-                  >
-                    <Pencil size={13} /> Edit
-                  </button>
-                  <button
-                    className="rounded-xl bg-rose-50 p-2 text-rose-600 hover:bg-rose-100 transition-colors"
-                    onClick={() => setDeleteTarget({ type: 'book', row: b })}
-                    type="button"
-                    title="Hapus Kitab"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       </section>
 
       {/* CONFIRM DELETE DIALOG */}
       {deleteTarget ? (
         <ConfirmDialog
-          title={deleteTarget.type === 'book' ? 'Hapus Kitab Ngaji' : 'Hapus Jadwal Ngaji'}
-          message="Data lama tetap aman. Riwayat absensi santri yang sudah tersimpan tidak akan terganggu."
+          title="Nonaktifkan Jadwal Pengajian"
+          message="Riwayat absensi santri yang sudah tersimpan sebelumnya tetap aman dan tidak akan terhapus."
           tone="danger"
           isBusy={isSaving}
           onCancel={() => setDeleteTarget(null)}
-          onConfirm={() => void deactivate()}
+          onConfirm={() => void handleDelete()}
         />
       ) : null}
     </div>
   );
 }
 
-/**
- * Form Fields untuk Tambah / Edit Kitab Ngaji + Foto Cover Kitab (Offline Client Storage)
- */
+// ==========================================
+// 4. ATTENDANCE ROWS COMPONENT
+// ==========================================
 function AttendanceRows({
   rows: studentRows,
   isLoading,
   statuses,
+  isPI,
   onChange
 }: {
   rows: ApiRecord[];
   isLoading: boolean;
   statuses: Record<number, NgajiStatus>;
+  isPI?: boolean;
   onChange: (id: number, status: NgajiStatus) => void;
 }) {
   if (isLoading) return <LoadingText text="Memuat daftar santri ngaji..." />;
-  if (studentRows.length === 0) return <div className="q-card px-4 py-8 text-center text-sm font-bold text-[#636E72]">Belum ada santri pada jadwal ngaji ini.</div>;
+  if (studentRows.length === 0) {
+    return (
+      <div className="q-card p-8 text-center text-sm font-bold text-[#636E72] bg-white rounded-3xl border border-slate-200">
+        Belum ada santri yang terdaftar pada jadwal pengajian ini. Silakan atur anggota santri di tab Jadwal.
+      </div>
+    );
+  }
 
   return (
     <section className="space-y-3">
       {studentRows.map((student, index) => {
         const id = num(student.id);
         const status = statuses[id] ?? '';
+
         return (
-          <div key={id} className="q-card flex flex-wrap items-center gap-4 p-4">
-            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#E8F7F3] text-sm font-extrabold text-[#138F81]">{index + 1}</span>
-            <div className="min-w-[220px] flex-1">
-              <p className="text-base font-extrabold text-[#2D3436]">{text(student.nama)}</p>
-              <p className="text-sm font-semibold text-[#636E72]">{text(student.kelas)} - {text(student.komplek)} / {text(student.kamar)}</p>
-              <div className="mt-2"><StatusBadge label={statusLabels[status]} tone={statusTone(status)} /></div>
+          <div
+            key={id}
+            className={`flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl border transition-all ${
+              status === 'H'
+                ? 'bg-teal-50/50 border-teal-200/80 shadow-2xs'
+                : status === 'I'
+                ? 'bg-amber-50/50 border-amber-200/80'
+                : status === 'S'
+                ? 'bg-rose-50/50 border-rose-200/80'
+                : status === 'A'
+                ? 'bg-purple-50/50 border-purple-200/80'
+                : 'bg-white border-slate-200/90 shadow-2xs'
+            }`}
+          >
+            <div className="flex items-center gap-3.5 min-w-[240px] flex-1">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-xs font-black text-slate-600 shrink-0">
+                {index + 1}
+              </span>
+
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-teal-100/70 text-base shadow-2xs">
+                {isPI ? '👧' : '👦'}
+              </div>
+
+              <div className="min-w-0">
+                <p className="text-sm font-black text-slate-800 truncate">{text(student.nama)}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[11px] font-semibold text-slate-500">
+                    {student.kamar ? `Kamar: ${student.kamar}` : (student.kelas ? `Kelas: ${student.kelas}` : `NIS: ${text(student.nis, '-')}`)}
+                  </span>
+                  {status ? <StatusBadge label={statusLabels[status]} tone={statusTone(status)} /> : null}
+                </div>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {(['H', 'I', 'S', 'A'] as NgajiStatus[]).map((option) => (
-                <button key={option} className={`grid h-12 min-w-12 place-items-center rounded-2xl px-3 text-sm font-extrabold transition ${status === option ? 'bg-[#138F81] text-white' : 'bg-[#F7FBFC] text-[#138F81] hover:bg-[#E1EFF7]'}`} onClick={() => onChange(id, option)} type="button">
-                  {option}
-                </button>
-              ))}
+
+            <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+              {(['H', 'I', 'S', 'A'] as const).map((option) => {
+                const isActive = status === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => onChange(id, option)}
+                    className={`h-10 min-w-10 px-3.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                      isActive
+                        ? option === 'H'
+                          ? 'bg-[#138F81] text-white shadow-xs'
+                          : option === 'I'
+                          ? 'bg-amber-500 text-white shadow-xs'
+                          : option === 'S'
+                          ? 'bg-rose-500 text-white shadow-xs'
+                          : 'bg-purple-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    {option === 'H' ? 'Hadir' : option === 'I' ? 'Izin' : option === 'S' ? 'Sakit' : 'Alfa'}
+                  </button>
+                );
+              })}
             </div>
           </div>
         );
@@ -851,8 +872,15 @@ function AttendanceRows({
 
 function RefreshButton({ isLoading, onClick }: { isLoading: boolean; onClick: () => void }) {
   return (
-    <button className={`q-refresh-button flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#138F81] border border-slate-200/70 shadow-2xs ${isLoading ? 'is-loading' : ''}`} onClick={onClick} type="button" disabled={isLoading}>
-      <RefreshCw className="q-refresh-icon" size={17} />
+    <button
+      className={`flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#138F81] border border-slate-200/70 shadow-2xs hover:bg-slate-50 transition-colors cursor-pointer ${
+        isLoading ? 'is-loading' : ''
+      }`}
+      onClick={onClick}
+      type="button"
+      disabled={isLoading}
+    >
+      <RefreshCw className={`q-refresh-icon ${isLoading ? 'animate-spin' : ''}`} size={16} />
       {isLoading ? 'Menyegarkan...' : 'Refresh'}
     </button>
   );
@@ -861,12 +889,25 @@ function RefreshButton({ isLoading, onClick }: { isLoading: boolean; onClick: ()
 function Message({ error, notice }: { error?: string; notice?: string }) {
   return (
     <>
-      {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031] border border-rose-100 flex items-center gap-2"><span>⚠️</span> {error}</div> : null}
-      {notice ? <div className="rounded-2xl bg-[#E8F7F3] px-4 py-3 text-sm font-bold text-[#138F81] border border-teal-100 flex items-center gap-2"><span>✅</span> {notice}</div> : null}
+      {error ? (
+        <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031] border border-rose-100 flex items-center gap-2 animate-in fade-in duration-200">
+          <span>⚠️</span> {error}
+        </div>
+      ) : null}
+      {notice ? (
+        <div className="rounded-2xl bg-[#E8F7F3] px-4 py-3 text-sm font-bold text-[#138F81] border border-teal-100 flex items-center gap-2 animate-in fade-in duration-200">
+          <span>✅</span> {notice}
+        </div>
+      ) : null}
     </>
   );
 }
 
 function LoadingText({ text: label }: { text: string }) {
-  return <div className="q-card px-4 py-8 text-center text-sm font-bold text-[#636E72]">{label}</div>;
+  return (
+    <div className="p-8 text-center text-sm font-bold text-slate-400 flex items-center justify-center gap-2">
+      <RefreshCw size={16} className="animate-spin text-[#138F81]" />
+      <span>{label}</span>
+    </div>
+  );
 }

@@ -135,7 +135,7 @@ class AbsensiNgajiController extends Controller
     public function schedules(Request $request)
     {
         $query = NgajiSchedule::query()
-            ->with(['session', 'book', 'teacher:id,name,role', 'complex', 'room', 'classRef', 'day'])
+            ->with(['session', 'book', 'teacher:id,name,role,jenis_kelamin', 'complex', 'room', 'classRef', 'day', 'siswa:id,nama'])
             ->orderByDesc('created_at');
 
         if ($request->boolean('active_only')) {
@@ -157,20 +157,56 @@ class AbsensiNgajiController extends Controller
     public function storeSchedule(Request $request)
     {
         $validated = $this->validateSchedule($request);
+        $studentIds = $validated['student_ids'] ?? [];
+        unset($validated['student_ids']);
+
+        // Default book jika ngaji_book_id kosong
+        if (empty($validated['ngaji_book_id'])) {
+            $bookName = !empty($validated['kitab_nama']) ? $validated['kitab_nama'] : 'Kajian Pondok';
+            $defaultBook = NgajiBook::firstOrCreate(
+                ['code' => 'ngaji_umum'],
+                ['name' => $bookName, 'method' => 'Umum', 'is_active' => true]
+            );
+            $validated['ngaji_book_id'] = $defaultBook->id;
+        }
+
+        // Sinkronisasi nama hari ke day_id jika ada
+        if (empty($validated['day_id']) && !empty($validated['hari'])) {
+            $day = \App\Models\Day::firstOrCreate(['name' => $validated['hari']], ['is_active' => true]);
+            $validated['day_id'] = $day->id;
+        }
+
         $schedule = NgajiSchedule::query()->create($validated);
+        if (!empty($studentIds)) {
+            $schedule->siswa()->sync($studentIds);
+        }
+
         app(AuditLogService::class)->record($request, 'ngaji_schedule', 'create', $schedule);
 
-        return response()->json(['success' => true, 'message' => 'Jadwal ngaji berhasil ditambahkan', 'data' => $this->schedulePayload($schedule->fresh(['session', 'book', 'teacher', 'complex', 'room', 'classRef', 'day']))], 201);
+        return response()->json(['success' => true, 'message' => 'Jadwal ngaji berhasil ditambahkan', 'data' => $this->schedulePayload($schedule->fresh(['session', 'book', 'teacher', 'complex', 'room', 'classRef', 'day', 'siswa']))], 201);
     }
 
     public function updateSchedule(Request $request, NgajiSchedule $schedule)
     {
         $validated = $this->validateSchedule($request, true);
+        $hasStudentIds = array_key_exists('student_ids', $validated);
+        $studentIds = $validated['student_ids'] ?? [];
+        unset($validated['student_ids']);
+
+        if (empty($validated['day_id']) && !empty($validated['hari'])) {
+            $day = \App\Models\Day::firstOrCreate(['name' => $validated['hari']], ['is_active' => true]);
+            $validated['day_id'] = $day->id;
+        }
+
         $before = $schedule->toArray();
         $schedule->update($validated);
+        if ($hasStudentIds) {
+            $schedule->siswa()->sync($studentIds);
+        }
+
         app(AuditLogService::class)->record($request, 'ngaji_schedule', 'update', $schedule, $before, $schedule->fresh()->toArray());
 
-        return response()->json(['success' => true, 'message' => 'Jadwal ngaji berhasil diperbarui', 'data' => $this->schedulePayload($schedule->fresh(['session', 'book', 'teacher', 'complex', 'room', 'classRef', 'day']))]);
+        return response()->json(['success' => true, 'message' => 'Jadwal ngaji berhasil diperbarui', 'data' => $this->schedulePayload($schedule->fresh(['session', 'book', 'teacher', 'complex', 'room', 'classRef', 'day', 'siswa']))]);
     }
 
     public function destroySchedule(Request $request, NgajiSchedule $schedule)
@@ -193,8 +229,8 @@ class AbsensiNgajiController extends Controller
             ->with(['session', 'book', 'teacher:id,name,role', 'complex', 'room', 'classRef', 'day'])
             ->findOrFail($validated['ngaji_schedule_id']);
 
-        if ($schedule->status !== 'Aktif' || !$schedule->session?->is_active || !$schedule->book?->is_active) {
-            throw ValidationException::withMessages(['ngaji_schedule_id' => ['Jadwal, sesi, atau kitab sedang nonaktif.']]);
+        if ($schedule->status !== 'Aktif' || ($schedule->session && !$schedule->session->is_active)) {
+            throw ValidationException::withMessages(['ngaji_schedule_id' => ['Jadwal atau sesi ngaji sedang nonaktif.']]);
         }
 
         $students = $this->studentsForSchedule($schedule);
@@ -525,21 +561,35 @@ class AbsensiNgajiController extends Controller
         $required = $partial ? 'sometimes' : 'required';
         return $request->validate([
             'ngaji_session_id' => $required . '|integer|exists:ngaji_sessions,id',
-            'ngaji_book_id' => $required . '|integer|exists:ngaji_books,id',
+            'ngaji_book_id' => 'nullable|integer|exists:ngaji_books,id',
+            'kitab_nama' => 'nullable|string|max:160',
+            'gender' => 'nullable|in:PA,PI,Semua',
             'teacher_id' => 'nullable|integer|exists:users,id',
             'boarding_complex_id' => 'nullable|integer|exists:boarding_complexes,id',
             'boarding_room_id' => 'nullable|integer|exists:boarding_rooms,id',
             'class_id' => 'nullable|integer|exists:classes,id',
             'day_id' => 'nullable|integer|exists:days,id',
+            'hari' => 'nullable|string|max:20',
             'start_time' => 'nullable|date_format:H:i',
             'end_time' => 'nullable|date_format:H:i',
             'status' => 'nullable|in:Aktif,Nonaktif',
             'description' => 'nullable|string|max:500',
+            'student_ids' => 'nullable|array',
+            'student_ids.*' => 'integer|exists:siswa,id',
         ]);
     }
 
     private function studentsForSchedule(NgajiSchedule $schedule)
     {
+        // 1. Siswa yang dipilih secara spesifik untuk kelompok jadwal ini
+        if ($schedule->siswa()->exists()) {
+            return $schedule->siswa()
+                ->where('status', 'Aktif')
+                ->with(['kelasRef:id,name', 'santriPondok.room.complex', 'santriPondok.complex'])
+                ->orderBy('nama')
+                ->get();
+        }
+
         if ($schedule->boarding_room_id) {
             return SantriPondok::query()
                 ->with(['siswa.kelasRef:id,name', 'room.complex', 'complex'])
@@ -573,33 +623,57 @@ class AbsensiNgajiController extends Controller
                 ->get();
         }
 
-        return SantriPondok::query()
-            ->with(['siswa.kelasRef:id,name', 'room.complex', 'complex'])
-            ->where('status', 'Aktif')
-            ->get()
-            ->map(fn (SantriPondok $row) => $row->siswa?->setRelation('santriPondok', $row))
-            ->filter()
-            ->sortBy('nama')
-            ->values();
+        // Fallback berdasarkan gender jadwal (PA / PI)
+        $query = Siswa::query()
+            ->with(['kelasRef:id,name', 'santriPondok.room.complex', 'santriPondok.complex'])
+            ->where('status', 'Aktif');
+
+        $gender = strtoupper($schedule->gender ?? '');
+        if ($gender === 'PI') {
+            $query->where(function ($q) {
+                $q->whereIn('jenis_kelamin', ['P', 'Perempuan'])
+                  ->orWhereHas('santriPondok.complex', fn ($cq) => $cq->where('gender', 'Putri'));
+            });
+        } elseif ($gender === 'PA') {
+            $query->where(function ($q) {
+                $q->whereIn('jenis_kelamin', ['L', 'Laki-laki'])
+                  ->orWhereHas('santriPondok.complex', fn ($cq) => $cq->where('gender', 'Putra'));
+            });
+        }
+
+        return $query->orderBy('nama')->get();
     }
 
     private function schedulePayload(NgajiSchedule $schedule): array
     {
+        $gender = $schedule->gender ?: ($schedule->teacher?->jenis_kelamin === 'P' ? 'PI' : 'PA');
+        $kitabDisplay = $schedule->kitab_nama ?: ($schedule->book?->name ?: '');
+        $title = $schedule->session?->name ?? 'Ngaji';
+        if ($gender) {
+            $title .= ' (' . ($gender === 'PI' ? 'Putri / PI' : 'Putra / PA') . ')';
+        }
+        if ($kitabDisplay && $kitabDisplay !== 'Kajian Pondok' && $kitabDisplay !== 'Ngaji Pondok') {
+            $title .= ' - ' . $kitabDisplay;
+        }
+
         return [
             'id' => $schedule->id,
             'ngaji_session_id' => $schedule->ngaji_session_id,
+            'gender' => $gender,
             'ngaji_book_id' => $schedule->ngaji_book_id,
+            'kitab_nama' => $schedule->kitab_nama,
             'teacher_id' => $schedule->teacher_id,
             'boarding_complex_id' => $schedule->boarding_complex_id,
             'boarding_room_id' => $schedule->boarding_room_id,
             'class_id' => $schedule->class_id,
             'day_id' => $schedule->day_id,
-            'start_time' => $schedule->start_time,
-            'end_time' => $schedule->end_time,
+            'start_time' => $schedule->start_time ? substr($schedule->start_time, 0, 5) : null,
+            'end_time' => $schedule->end_time ? substr($schedule->end_time, 0, 5) : null,
             'status' => $schedule->status,
             'description' => $schedule->description,
+            'title' => $title,
             'sesi' => $schedule->session?->name,
-            'kitab' => $schedule->book?->name,
+            'kitab' => $kitabDisplay ?: '-',
             'metode' => $schedule->book?->method,
             'pengajar' => $schedule->teacher?->name,
             'komplek' => $schedule->complex?->name,
@@ -608,6 +682,8 @@ class AbsensiNgajiController extends Controller
             'hari' => $schedule->day?->name,
             'session' => $schedule->session,
             'book' => $schedule->book,
+            'student_ids' => $schedule->relationLoaded('siswa') ? $schedule->siswa->pluck('id')->values() : $schedule->siswa()->pluck('siswa.id')->values(),
+            'student_count' => $schedule->relationLoaded('siswa') ? $schedule->siswa->count() : $schedule->siswa()->count(),
         ];
     }
 
