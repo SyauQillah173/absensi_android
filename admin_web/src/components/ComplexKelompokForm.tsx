@@ -123,6 +123,48 @@ export function ComplexKelompokForm({
     return new Set(memberStudents.map((s) => num(s.id)));
   }, [memberStudents]);
 
+  // Deteksi kelompok apakah Putra (PA), Putri (PI), atau Campur
+  const detectedGender = useMemo<'L' | 'P' | 'all'>(() => {
+    if (form.class_id) {
+      const cls = classes.find((c) => num(c.id) === num(form.class_id));
+      if (cls?.gender_group === 'PA') return 'L';
+      if (cls?.gender_group === 'PI') return 'P';
+    }
+    const combined = `${form.nama} ${form.kategori} ${form.sifir}`.toUpperCase();
+    if (/\bPI\b/.test(combined) || combined.includes('PUTRI') || combined.includes('BANAT') || combined.includes('PEREMPUAN')) {
+      return 'P';
+    }
+    if (/\bPA\b/.test(combined) || combined.includes('PUTRA') || combined.includes('BANIN') || combined.includes('LAKI')) {
+      return 'L';
+    }
+    return 'all';
+  }, [form.class_id, form.nama, form.kategori, form.sifir, classes]);
+
+  // State filter gender saat menambah santri (default mengikuti deteksi gender)
+  const [addGenderFilter, setAddGenderFilter] = useState<'all' | 'L' | 'P'>('all');
+
+  // Auto-set filter gender saat kelompok terdeteksi PA atau PI
+  useEffect(() => {
+    if (detectedGender !== 'all') {
+      setAddGenderFilter(detectedGender);
+    }
+  }, [detectedGender]);
+
+  // Anggota santri yang tidak cocok gender kelompoknya
+  const mismatchedMembers = useMemo(() => {
+    if (detectedGender === 'all') return [];
+    return memberStudents.filter((s) => {
+      const sGen = String(s.jenis_kelamin || '').toUpperCase();
+      return sGen && sGen !== detectedGender;
+    });
+  }, [memberStudents, detectedGender]);
+
+  const handleRemoveMismatched = () => {
+    if (mismatchedMembers.length === 0) return;
+    const mismatchedIds = new Set(mismatchedMembers.map((s) => num(s.id)));
+    setMemberStudents((prev) => prev.filter((s) => !mismatchedIds.has(num(s.id))));
+  };
+
   const filteredMembers = useMemo(() => {
     const kw = searchMember.toLowerCase().trim();
     if (!kw) return memberStudents;
@@ -138,13 +180,18 @@ export function ComplexKelompokForm({
     return allStudents
       .filter((s) => !memberIds.has(num(s.id)))
       .filter((s) => {
+        // Filter gender
+        if (addGenderFilter !== 'all') {
+          const sGen = String(s.jenis_kelamin || '').toUpperCase();
+          if (sGen !== addGenderFilter) return false;
+        }
         if (!kw) return true;
         return `${s.nama ?? ''} ${s.nis ?? ''} ${s.nisn ?? ''} ${s.kelas ?? ''}`
           .toLowerCase()
           .includes(kw);
       })
-      .slice(0, 40);
-  }, [allStudents, memberIds, searchAvailable]);
+      .slice(0, 50);
+  }, [allStudents, memberIds, searchAvailable, addGenderFilter]);
 
   const handleAddStudent = (student: ApiRecord) => {
     setMemberStudents((prev) => [...prev, student]);
@@ -540,6 +587,32 @@ export function ComplexKelompokForm({
                     </div>
                   )}
 
+                  {/* Peringatan Santri Beda Gender di Kelompok Ini */}
+                  {mismatchedMembers.length > 0 && (
+                    <div className="rounded-2xl border border-rose-300 bg-rose-50 p-3.5 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-rose-800 text-xs font-extrabold">
+                          <AlertTriangle size={16} />
+                          <span>
+                            Perhatian: Ditemukan {mismatchedMembers.length} santri {detectedGender === 'P' ? 'Laki-laki' : 'Perempuan'} di kelompok {detectedGender === 'P' ? 'Putri (PI)' : 'Putra (PA)'} ini!
+                          </span>
+                        </div>
+                        {!isReadOnly && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveMismatched}
+                            className="rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-extrabold text-white hover:bg-rose-700 transition cursor-pointer shadow-xs whitespace-nowrap"
+                          >
+                            Keluarkan {mismatchedMembers.length} Santri Beda Gender
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[11px] font-medium text-rose-700">
+                        Santri di bawah ini memiliki jenis kelamin yang tidak sesuai dengan peruntukan kelompok. Anda dapat mengeluarkannya dengan 1-klik di atas.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                     <input
@@ -591,8 +664,13 @@ export function ComplexKelompokForm({
                                     : 'bg-rose-50 text-rose-700 border border-rose-200'
                                 }`}
                               >
-                                {s.jenis_kelamin === 'L' ? 'L' : 'P'}
+                                {s.jenis_kelamin === 'L' ? '👦 L' : '👧 P'}
                               </span>
+                              {detectedGender !== 'all' && Boolean(s.jenis_kelamin) && String(s.jenis_kelamin).toUpperCase() !== detectedGender ? (
+                                <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300">
+                                  ⚠️ Beda Gender ({String(s.jenis_kelamin).toUpperCase() === 'L' ? 'Putra' : 'Putri'})
+                                </span>
+                              ) : null}
                             </div>
                             <p className="text-[11px] font-semibold text-slate-500 mt-0.5 truncate">
                               NIS: {text(s.nis)} {s.kamar ? `• ${s.kamar}` : ''} {s.komplek ? `(${s.komplek})` : ''}
@@ -629,6 +707,33 @@ export function ComplexKelompokForm({
                       </div>
                     </div>
 
+                    {/* Filter Gender Pill */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 p-1.5 bg-white rounded-xl border border-teal-200">
+                      <span className="text-[11px] font-bold text-slate-500 pl-1">
+                        Filter Gender: {detectedGender === 'L' ? '👦 Khusus Putra' : detectedGender === 'P' ? '👧 Khusus Putri' : '👥 Campur'}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {(['all', 'L', 'P'] as const).map((g) => (
+                          <button
+                            key={g}
+                            type="button"
+                            onClick={() => setAddGenderFilter(g)}
+                            className={`px-2.5 py-1 text-xs font-black rounded-lg transition-all cursor-pointer ${
+                              addGenderFilter === g
+                                ? g === 'L'
+                                  ? 'bg-blue-600 text-white shadow-xs'
+                                  : g === 'P'
+                                  ? 'bg-pink-600 text-white shadow-xs'
+                                  : 'bg-[#138F81] text-white shadow-xs'
+                                : 'text-slate-600 hover:bg-slate-100'
+                            }`}
+                          >
+                            {g === 'all' ? 'Semua' : g === 'L' ? '👦 Putra (L)' : '👧 Putri (P)'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                       <input
@@ -653,8 +758,8 @@ export function ComplexKelompokForm({
                           >
                             <div className="min-w-0 flex-1">
                               <p className="text-xs font-extrabold text-slate-800 truncate">{text(s.nama)}</p>
-                              <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
-                                NIS: {text(s.nis)} • {s.jenis_kelamin === 'L' ? 'Putra' : 'Putri'} • Kelas: {text(s.kelas, 'Belum ada')}
+                              <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
+                                NIS: {text(s.nis)} • <span className={`font-black ${s.jenis_kelamin === 'L' ? 'text-blue-700' : 'text-pink-700'}`}>{s.jenis_kelamin === 'L' ? '👦 Putra (L)' : '👧 Putri (P)'}</span> • Kelas: {text(s.kelas, 'Belum ada')}
                               </p>
                             </div>
                             <button

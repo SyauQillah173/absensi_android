@@ -21,6 +21,17 @@ function record(value: unknown): ApiRecord {
   return value && typeof value === 'object' && !Array.isArray(value) ? (value as ApiRecord) : {};
 }
 
+function getGroupGender(row: ApiRecord): 'PA' | 'PI' | 'Campur' {
+  const combined = `${row.nama ?? ''} ${row.kategori ?? ''} ${row.sifir ?? ''}`.toUpperCase();
+  if (/\bPI\b/.test(combined) || combined.includes('PUTRI') || combined.includes('BANAT') || combined.includes('PEREMPUAN')) {
+    return 'PI';
+  }
+  if (/\bPA\b/.test(combined) || combined.includes('PUTRA') || combined.includes('BANIN') || combined.includes('LAKI')) {
+    return 'PA';
+  }
+  return 'Campur';
+}
+
 function flattenGroups(groups: ApiRecord[]): ApiRecord[] {
   return groups.flatMap((group) => {
     const kelas = Array.isArray(group.kelas) ? group.kelas : [];
@@ -47,7 +58,8 @@ export function KelompokBelajarPage() {
 
   // Status Filter: semua / ada santri / belum terisi
   const [filterStatus, setFilterStatus] = useState<'all' | 'filled' | 'empty'>('all');
-
+  // Gender Filter: semua / PA / PI / Campur
+  const [genderFilter, setGenderFilter] = useState<'all' | 'PA' | 'PI' | 'Campur'>('all');
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
@@ -103,9 +115,10 @@ export function KelompokBelajarPage() {
     };
   }, [load, activeFormData]);
 
-
   const filledCount = useMemo(() => rows.filter(r => asNumber(r.jumlah_siswa) > 0).length, [rows]);
   const emptyCount = useMemo(() => rows.filter(r => asNumber(r.jumlah_siswa) === 0).length, [rows]);
+  const paCount = useMemo(() => rows.filter(r => getGroupGender(r) === 'PA').length, [rows]);
+  const piCount = useMemo(() => rows.filter(r => getGroupGender(r) === 'PI').length, [rows]);
 
   const filtered = useMemo(() => {
     let result = rows;
@@ -114,6 +127,10 @@ export function KelompokBelajarPage() {
       result = result.filter((row) => asNumber(row.jumlah_siswa) > 0);
     } else if (filterStatus === 'empty') {
       result = result.filter((row) => asNumber(row.jumlah_siswa) === 0);
+    }
+
+    if (genderFilter !== 'all') {
+      result = result.filter((row) => getGroupGender(row) === genderFilter);
     }
 
     const keyword = search.trim().toLowerCase();
@@ -131,7 +148,7 @@ export function KelompokBelajarPage() {
         pembina.includes(keyword)
       );
     });
-  }, [rows, search, filterStatus]);
+  }, [rows, search, filterStatus, genderFilter]);
 
 
   const openDetail = (row: ApiRecord) => {
@@ -156,14 +173,32 @@ export function KelompokBelajarPage() {
         header: 'Nama Kelompok',
         sortable: true,
         sortValue: (row) => String(row.nama ?? ''),
-        render: (row) => (
-          <div>
-            <span className="font-extrabold text-slate-800 text-sm block">{text(row.nama)}</span>
-            <span className="text-[11px] font-bold text-slate-400 mt-0.5 inline-block">
-              Sifir / Level: {text(row.sifir)}
-            </span>
-          </div>
-        ),
+        render: (row) => {
+          const g = getGroupGender(row);
+          return (
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-extrabold text-slate-800 text-sm">{text(row.nama)}</span>
+                {g === 'PA' ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
+                    👦 Putra (PA)
+                  </span>
+                ) : g === 'PI' ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-pink-50 text-pink-700 border border-pink-200 shadow-2xs">
+                    👧 Putri (PI)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-100 text-slate-600 border border-slate-200">
+                    👥 Campur
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] font-bold text-slate-400 mt-0.5 inline-block">
+                Sifir / Level: {text(row.sifir)}
+              </span>
+            </div>
+          );
+        },
       },
       {
         key: 'kategori',
@@ -272,7 +307,6 @@ export function KelompokBelajarPage() {
           setIsReadOnlyForm(false);
           void load(true);
         }}
-
       />
     );
   }
@@ -334,7 +368,7 @@ export function KelompokBelajarPage() {
         <StatCard
           title="Total Kelompok"
           value={rows.length}
-          subtitle={`${groups.length} kategori kelompok`}
+          subtitle={`${paCount} Putra (PA) • ${piCount} Putri (PI)`}
           icon={BookOpen}
           tone="teal"
         />
@@ -356,8 +390,8 @@ export function KelompokBelajarPage() {
 
       {/* Filter & Table */}
       <section className="space-y-4 rounded-3xl bg-white p-4 sm:p-6 shadow-sm ring-1 ring-black/5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex-1 min-w-[260px]">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex-1 min-w-[240px]">
             <SearchInput
               value={search}
               onChange={setSearch}
@@ -365,45 +399,84 @@ export function KelompokBelajarPage() {
             />
           </div>
 
-          {/* Quick Filter Status Santri */}
-          <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 shrink-0 self-start md:self-auto">
-            <button
-              type="button"
-              onClick={() => setFilterStatus('all')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
-                filterStatus === 'all'
-                  ? 'bg-white text-slate-800 shadow-xs ring-1 ring-black/5'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Semua ({rows.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterStatus('filled')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
-                filterStatus === 'filled'
-                  ? 'bg-[#138F81] text-white shadow-xs'
-                  : 'text-slate-600 hover:text-[#138F81]'
-              }`}
-              title="Tampilkan hanya kelompok yang ada santrinya"
-            >
-              <span className={`h-2 w-2 rounded-full ${filterStatus === 'filled' ? 'bg-white' : 'bg-emerald-500'}`} />
-              Ada Santri ({filledCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterStatus('empty')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
-                filterStatus === 'empty'
-                  ? 'bg-slate-700 text-white shadow-xs'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-              title="Tampilkan kelompok yang belum terisi / masih kosong"
-            >
-              <span className={`h-2 w-2 rounded-full ${filterStatus === 'empty' ? 'bg-white' : 'bg-slate-400'}`} />
-              Belum Terisi ({emptyCount})
-            </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Quick Filter Gender Kelompok */}
+            <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 shrink-0">
+              <button
+                type="button"
+                onClick={() => setGenderFilter('all')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  genderFilter === 'all'
+                    ? 'bg-white text-slate-800 shadow-xs ring-1 ring-black/5'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Semua ({rows.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setGenderFilter('PA')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  genderFilter === 'PA'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-blue-700 hover:bg-blue-50'
+                }`}
+              >
+                <span>👦 Putra ({paCount})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setGenderFilter('PI')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  genderFilter === 'PI'
+                    ? 'bg-pink-600 text-white shadow-xs'
+                    : 'text-pink-700 hover:bg-pink-50'
+                }`}
+              >
+                <span>👧 Putri ({piCount})</span>
+              </button>
+            </div>
+
+            {/* Quick Filter Status Santri */}
+            <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 shrink-0">
+              <button
+                type="button"
+                onClick={() => setFilterStatus('all')}
+                className={`px-2.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  filterStatus === 'all'
+                    ? 'bg-white text-slate-800 shadow-xs ring-1 ring-black/5'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Status: Semua
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterStatus('filled')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  filterStatus === 'filled'
+                    ? 'bg-[#138F81] text-white shadow-xs'
+                    : 'text-slate-600 hover:text-[#138F81]'
+                }`}
+                title="Tampilkan hanya kelompok yang ada santrinya"
+              >
+                <span className={`h-2 w-2 rounded-full ${filterStatus === 'filled' ? 'bg-white' : 'bg-emerald-500'}`} />
+                Ada Santri ({filledCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterStatus('empty')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  filterStatus === 'empty'
+                    ? 'bg-slate-700 text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+                title="Tampilkan kelompok yang belum terisi / masih kosong"
+              >
+                <span className={`h-2 w-2 rounded-full ${filterStatus === 'empty' ? 'bg-white' : 'bg-slate-400'}`} />
+                Kosong ({emptyCount})
+              </button>
+            </div>
           </div>
         </div>
 
@@ -417,56 +490,72 @@ export function KelompokBelajarPage() {
               ? 'Tidak ada kelompok belajar yang terisi santri.'
               : filterStatus === 'empty'
               ? 'Seluruh kelompok belajar sudah terisi santri.'
+              : genderFilter !== 'all'
+              ? `Belum ada kelompok belajar untuk ${genderFilter === 'PA' ? 'Putra (PA)' : 'Putri (PI)'}.`
               : 'Belum ada kelompok belajar.'
           }
           minWidth="860px"
-          mobileRender={(row) => (
-            <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-base font-black text-slate-800 leading-snug">{text(row.nama)}</p>
-                  <p className="text-xs font-bold text-slate-400 mt-0.5">Sifir / Level: {text(row.sifir)}</p>
+          mobileRender={(row) => {
+            const g = getGroupGender(row);
+            return (
+              <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-base font-black text-slate-800 leading-snug">{text(row.nama)}</p>
+                      {g === 'PA' ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-blue-700 border border-blue-200">
+                          👦 PA
+                        </span>
+                      ) : g === 'PI' ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-pink-50 text-pink-700 border border-pink-200">
+                          👧 PI
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="text-xs font-bold text-slate-400 mt-0.5">Sifir / Level: {text(row.sifir)}</p>
+                  </div>
+                  <span className="shrink-0 rounded-lg bg-teal-50 border border-teal-200 px-2.5 py-1 text-xs font-black text-teal-800 whitespace-nowrap">
+                    {text(row.kategori)}
+                  </span>
                 </div>
-                <span className="shrink-0 rounded-lg bg-teal-50 border border-teal-200 px-2.5 py-1 text-xs font-black text-teal-800 whitespace-nowrap">
-                  {text(row.kategori)}
-                </span>
-              </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs font-bold text-slate-600">
-                <div className="rounded-xl bg-slate-50 p-2 border border-slate-100 flex items-center gap-1.5">
-                  <span>👥 {asNumber(row.jumlah_siswa)} Santri</span>
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs font-bold text-slate-600">
+                  <div className="rounded-xl bg-slate-50 p-2 border border-slate-100 flex items-center gap-1.5">
+                    <span>👥 {asNumber(row.jumlah_siswa)} Santri</span>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-2 border border-slate-100 flex items-center gap-1.5">
+                    <span>📖 {asNumber(row.jumlah_mapel_aktif)} Mapel</span>
+                  </div>
                 </div>
-                <div className="rounded-xl bg-slate-50 p-2 border border-slate-100 flex items-center gap-1.5">
-                  <span>📖 {asNumber(row.jumlah_mapel_aktif)} Mapel</span>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
-                <button
-                  className="flex-1 rounded-xl bg-[#E8F7F3] py-2 text-xs font-extrabold text-[#138F81] hover:bg-[#d0f2e9] transition-colors text-center"
-                  onClick={() => openDetail(row)}
-                  type="button"
-                >
-                  Detail
-                </button>
-                <button
-                  className="flex-1 rounded-xl bg-[#EAF4FF] py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors inline-flex items-center justify-center gap-1"
-                  onClick={() => openEdit(row)}
-                  type="button"
-                >
-                  <Pencil size={13} /> Edit
-                </button>
-                <button
-                  className="rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-extrabold text-[#D63031] hover:bg-[#fad4d4] transition-colors inline-flex items-center justify-center"
-                  onClick={() => setDeleteTarget(row)}
-                  type="button"
-                  title="Hapus"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            </article>
-          )}
+                <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                  <button
+                    className="flex-1 rounded-xl bg-[#E8F7F3] py-2 text-xs font-extrabold text-[#138F81] hover:bg-[#d0f2e9] transition-colors text-center"
+                    onClick={() => openDetail(row)}
+                    type="button"
+                  >
+                    Detail
+                  </button>
+                  <button
+                    className="flex-1 rounded-xl bg-[#EAF4FF] py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors inline-flex items-center justify-center gap-1"
+                    onClick={() => openEdit(row)}
+                    type="button"
+                  >
+                    <Pencil size={13} /> Edit
+                  </button>
+                  <button
+                    className="rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-extrabold text-[#D63031] hover:bg-[#fad4d4] transition-colors inline-flex items-center justify-center"
+                    onClick={() => setDeleteTarget(row)}
+                    type="button"
+                    title="Hapus"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </article>
+            );
+          }}
         />
       </section>
 
