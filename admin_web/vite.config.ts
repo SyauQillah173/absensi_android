@@ -16,7 +16,7 @@ export default defineConfig({
           'vendor-icons': ['lucide-react'],
           'vendor-excel': ['xlsx-js-style', 'jszip'],
           'vendor-charts': ['recharts'],
-          'vendor-qr': ['qrcode']
+          'vendor-qr': ['qrcode', 'jsqr']
         }
       }
     }
