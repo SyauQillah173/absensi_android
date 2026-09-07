@@ -23,6 +23,28 @@ interface ComplexMapelFormProps {
 
 const HARI_LIST = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
 
+export function getGenderOfClass(cls?: ApiRecord | null): 'PA' | 'PI' | 'Campur' {
+  if (!cls) return 'Campur';
+  const group = String(cls.gender_group || '').toUpperCase();
+  if (group === 'PA') return 'PA';
+  if (group === 'PI') return 'PI';
+  const textName = `${cls.name ?? cls.nama ?? ''} ${cls.category ?? ''}`.toUpperCase();
+  if (/\bPI\b/.test(textName) || textName.includes('PUTRI') || textName.includes('BANAT') || textName.includes('PEREMPUAN')) return 'PI';
+  if (/\bPA\b/.test(textName) || textName.includes('PUTRA') || textName.includes('BANIN') || textName.includes('LAKI')) return 'PA';
+  return 'Campur';
+}
+
+export function getGenderOfTeacher(t?: ApiRecord | null): 'L' | 'P' | 'unknown' {
+  if (!t) return 'unknown';
+  const jk = String(t.jenis_kelamin || '').toUpperCase();
+  if (jk === 'L' || jk === 'LAKI-LAKI') return 'L';
+  if (jk === 'P' || jk === 'PEREMPUAN') return 'P';
+  const name = String(t.name || '').toUpperCase();
+  if (name.includes('USTADZAH') || name.includes('IBU') || name.includes('HJ.') || name.includes('NENG') || name.includes('NING') || name.includes('SITI')) return 'P';
+  if (name.includes('USTADZ') || name.includes('BAPAK') || name.includes('KH.') || name.includes('GUS') || name.includes('KYAI')) return 'L';
+  return 'unknown';
+}
+
 function text(value: unknown, fallback = ''): string {
   const clean = String(value ?? '').trim();
   return clean || fallback;
@@ -90,6 +112,7 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
   const [isSaving, setIsSaving] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [autoGenderNotice, setAutoGenderNotice] = useState('');
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Load teachers and classes
@@ -136,6 +159,136 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
   useEffect(() => {
     scrollToTop();
   }, [activeTab]);
+
+  // Handler memilih guru: deteksi gender guru & arahkan kelas ke PA/PI otomatis
+  const handleSelectTeacher = (teacherId: string) => {
+    const selectedTeacher = teachers.find((t) => String(t.id) === teacherId);
+    const tGen = getGenderOfTeacher(selectedTeacher);
+
+    let targetClassId = newSchedule.class_id;
+    let targetSifir = newSchedule.sifir;
+
+    if (tGen === 'P') {
+      const currentClass = classes.find((c) => String(c.id) === newSchedule.class_id);
+      if (!currentClass || getGenderOfClass(currentClass) !== 'PI') {
+        const matchingPiClass = classes.find((c) => getGenderOfClass(c) === 'PI');
+        if (matchingPiClass) {
+          targetClassId = String(matchingPiClass.id);
+          targetSifir = String(matchingPiClass.name ?? matchingPiClass.nama ?? '');
+          setAutoGenderNotice(`💡 ${text(selectedTeacher?.name)} adalah Guru Perempuan (Ustadzah) ➔ Kelas otomatis diarahkan ke kelompok Putri (PI).`);
+        }
+      }
+    } else if (tGen === 'L') {
+      const currentClass = classes.find((c) => String(c.id) === newSchedule.class_id);
+      if (!currentClass || getGenderOfClass(currentClass) !== 'PA') {
+        const matchingPaClass = classes.find((c) => getGenderOfClass(c) === 'PA');
+        if (matchingPaClass) {
+          targetClassId = String(matchingPaClass.id);
+          targetSifir = String(matchingPaClass.name ?? matchingPaClass.nama ?? '');
+          setAutoGenderNotice(`💡 ${text(selectedTeacher?.name)} adalah Guru Laki-laki (Ustadz) ➔ Kelas otomatis diarahkan ke kelompok Putra (PA).`);
+        }
+      }
+    }
+
+    setNewSchedule((prev) => ({
+      ...prev,
+      teacher_id: teacherId,
+      class_id: targetClassId,
+      sifir: targetSifir,
+    }));
+  };
+
+  // Handler memilih kelas: sesuaikan rekomendasi guru berdasar gender PA/PI
+  const handleSelectClass = (classId: string) => {
+    const selectedClass = classes.find((c) => String(c.id) === classId);
+    const cGen = getGenderOfClass(selectedClass);
+
+    let targetTeacherId = newSchedule.teacher_id;
+    const currentTeacher = teachers.find((t) => String(t.id) === newSchedule.teacher_id);
+    const tGen = getGenderOfTeacher(currentTeacher);
+
+    if (cGen === 'PI' && tGen !== 'P') {
+      const firstFemale = teachers.find((t) => getGenderOfTeacher(t) === 'P');
+      if (firstFemale) {
+        targetTeacherId = String(firstFemale.id);
+        setAutoGenderNotice(`💡 Kelas ${text(selectedClass?.name)} adalah kelompok Putri (PI) ➔ Guru otomatis disesuaikan ke Ustadzah.`);
+      }
+    } else if (cGen === 'PA' && tGen !== 'L') {
+      const firstMale = teachers.find((t) => getGenderOfTeacher(t) === 'L');
+      if (firstMale) {
+        targetTeacherId = String(firstMale.id);
+        setAutoGenderNotice(`💡 Kelas ${text(selectedClass?.name)} adalah kelompok Putra (PA) ➔ Guru otomatis disesuaikan ke Ustadz.`);
+      }
+    }
+
+    setNewSchedule((prev) => ({
+      ...prev,
+      class_id: classId,
+      sifir: selectedClass ? String(selectedClass.name ?? selectedClass.nama ?? '') : '',
+      teacher_id: targetTeacherId,
+    }));
+  };
+
+  // Handler 1-Klik: Duplikasi Jadwal Paralel untuk Pasangan Gender (PA ↔ PI)
+  const handleDuplicatePartner = (targetSchedule: ScheduleItem) => {
+    const currentClass = classes.find((c) => String(c.id) === String(targetSchedule.class_id));
+    const currentGender = getGenderOfClass(currentClass);
+    const targetGender = currentGender === 'PA' ? 'PI' : 'PA';
+
+    // Cari kelas pasangan
+    const partnerClass =
+      classes.find((c) => {
+        if (getGenderOfClass(c) !== targetGender) return false;
+        const curName = String(currentClass?.name ?? '')
+          .replace(/\b(PA|PI|PUTRA|PUTRI)\b/gi, '')
+          .trim()
+          .toLowerCase();
+        const targetName = String(c.name ?? '')
+          .replace(/\b(PA|PI|PUTRA|PUTRI)\b/gi, '')
+          .trim()
+          .toLowerCase();
+        return curName === targetName;
+      }) ||
+      classes.find((c) => getGenderOfClass(c) === targetGender) ||
+      currentClass;
+
+    // Cari guru pasangan yang gendernya sesuai
+    const partnerTeacher = teachers.find((t) => {
+      const g = getGenderOfTeacher(t);
+      return targetGender === 'PI' ? g === 'P' : g === 'L';
+    });
+
+    const partnerItem: ScheduleItem = {
+      hari: targetSchedule.hari,
+      jam_mulai: targetSchedule.jam_mulai,
+      jam_selesai: targetSchedule.jam_selesai,
+      class_id: partnerClass ? Number(partnerClass.id) : undefined,
+      sifir: partnerClass ? String(partnerClass.name ?? partnerClass.nama ?? '') : (targetGender === 'PI' ? 'Putri' : 'Putra'),
+      teacher_id: partnerTeacher ? Number(partnerTeacher.id) : undefined,
+      guru: partnerTeacher ? String(partnerTeacher.name ?? '') : (targetGender === 'PI' ? 'Pilih Ustadzah' : 'Pilih Ustadz'),
+      ruangan: targetSchedule.ruangan,
+      status: 'Aktif',
+    };
+
+    setForm((prev) => ({
+      ...prev,
+      jadwals: [...prev.jadwals, partnerItem],
+    }));
+
+    // Buka edit pada item baru tersebut agar admin bisa cek / ganti guru
+    setEditingIndex(form.jadwals.length);
+    setNewSchedule({
+      hari: partnerItem.hari,
+      jam_mulai: partnerItem.jam_mulai,
+      jam_selesai: partnerItem.jam_selesai,
+      class_id: partnerItem.class_id ? String(partnerItem.class_id) : '',
+      sifir: partnerItem.sifir,
+      teacher_id: partnerItem.teacher_id ? String(partnerItem.teacher_id) : '',
+      ruangan: partnerItem.ruangan || '',
+    });
+    setAutoGenderNotice(`✨ Berhasil menambahkan jadwal paralel untuk kelompok ${targetGender === 'PI' ? 'Putri (PI)' : 'Putra (PA)'}. Silakan pilih guru pengajarnya.`);
+    scrollToTop();
+  };
 
   const handleEditSchedule = (index: number) => {
     const item = form.jadwals[index];
@@ -476,6 +629,20 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
                   )}
                 </div>
 
+                {/* Auto Gender Notification Feedback */}
+                {autoGenderNotice && (
+                  <div className="rounded-xl bg-teal-100/90 border border-teal-300 p-2.5 text-xs font-bold text-teal-900 flex items-center justify-between gap-2 animate-in fade-in duration-200 shadow-2xs">
+                    <span className="flex-1">{autoGenderNotice}</span>
+                    <button
+                      type="button"
+                      onClick={() => setAutoGenderNotice('')}
+                      className="text-teal-700 hover:text-teal-900 text-xs font-black px-1.5 py-0.5 rounded cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                   <div>
                     <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
@@ -522,44 +689,45 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                   <div>
                     <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
-                      Kelas / Kelompok Belajar
-                    </label>
-                    <select
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none"
-                      value={newSchedule.class_id}
-                      onChange={(e) => {
-                        const sel = classes.find((c) => String(c.id) === e.target.value);
-                        setNewSchedule({
-                          ...newSchedule,
-                          class_id: e.target.value,
-                          sifir: sel ? String(sel.name ?? sel.nama ?? '') : '',
-                        });
-                      }}
-                    >
-                      <option value="">-- Pilih Kelas --</option>
-                      {classes.map((c) => (
-                        <option key={c.id as number} value={c.id as number}>
-                          {text(c.name ?? c.nama)} ({text(c.category, 'Madin')})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
                       Guru Pengajar
                     </label>
                     <select
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none"
                       value={newSchedule.teacher_id}
-                      onChange={(e) => setNewSchedule({ ...newSchedule, teacher_id: e.target.value })}
+                      onChange={(e) => handleSelectTeacher(e.target.value)}
                     >
-                      <option value="">-- Pilih Guru --</option>
-                      {teachers.map((t) => (
-                        <option key={t.id as number} value={t.id as number}>
-                          {text(t.name)} {t.kode_guru ? `(${t.kode_guru})` : ''}
-                        </option>
-                      ))}
+                      <option value="">-- Pilih Guru Pengajar --</option>
+                      {teachers.map((t) => {
+                        const g = getGenderOfTeacher(t);
+                        return (
+                          <option key={t.id as number} value={t.id as number}>
+                            {g === 'L' ? '👦 [Ustadz] ' : g === 'P' ? '👧 [Ustadzah] ' : ''}
+                            {text(t.name)} {t.kode_guru ? `(${t.kode_guru})` : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
+                      Kelas / Kelompok Belajar
+                    </label>
+                    <select
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none"
+                      value={newSchedule.class_id}
+                      onChange={(e) => handleSelectClass(e.target.value)}
+                    >
+                      <option value="">-- Pilih Kelas / Kelompok --</option>
+                      {classes.map((c) => {
+                        const g = getGenderOfClass(c);
+                        return (
+                          <option key={c.id as number} value={c.id as number}>
+                            {g === 'PA' ? '👦 [PA] ' : g === 'PI' ? '👧 [PI] ' : '👥 [Campur] '}
+                            {text(c.name ?? c.nama)} ({text(c.category, 'Madin')})
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
@@ -612,7 +780,7 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
                     <Clock3 className="text-slate-500" size={16} /> Daftar Jadwal Aktif ({form.jadwals.length})
                   </h4>
                   <span className="text-xs font-semibold text-slate-400">
-                    1 Guru bisa mengajar di berbagai hari & jam berbeda
+                    Bisa 1 Mapel untuk 2 Guru Paralel (PA & PI)
                   </span>
                 </div>
 
@@ -626,66 +794,120 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-2.5">
-                    {form.jadwals.map((jadwal, idx) => (
-                      <div
-                        key={idx}
-                        className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 shadow-sm transition-all ${
-                          editingIndex === idx
-                            ? 'bg-amber-50/60 border-amber-300 ring-2 ring-amber-300'
-                            : 'bg-white border-slate-200 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3.5">
-                          <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl font-black text-xs ${
-                            editingIndex === idx ? 'bg-amber-200 text-amber-900' : 'bg-teal-50 text-[#138F81]'
-                          }`}>
-                            {jadwal.hari.slice(0, 3)}
-                          </div>
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-extrabold text-sm text-slate-800">
-                                {jadwal.hari}, {jadwal.jam_mulai} - {jadwal.jam_selesai}
-                              </span>
-                              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-black text-slate-700">
-                                🏫 {jadwal.sifir}
-                              </span>
-                              {jadwal.ruangan && (
-                                <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700 border border-amber-200">
-                                  🚪 {jadwal.ruangan}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs font-semibold text-slate-500 mt-1 flex items-center gap-1.5">
-                              <GraduationCap size={13} className="text-[#138F81]" />
-                              <span>Guru: <b>{jadwal.guru}</b></span>
-                            </p>
-                          </div>
-                        </div>
+                    {form.jadwals.map((jadwal, idx) => {
+                      const matchedClass = classes.find((c) => String(c.id) === String(jadwal.class_id));
+                      const classGen = getGenderOfClass(matchedClass);
+                      const matchedTeacher = teachers.find((t) => String(t.id) === String(jadwal.teacher_id));
+                      const teacherGen = getGenderOfTeacher(matchedTeacher);
+                      const isPI = classGen === 'PI' || teacherGen === 'P';
+                      const isPA = classGen === 'PA' || teacherGen === 'L';
 
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleEditSchedule(idx)}
-                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
-                              editingIndex === idx
-                                ? 'bg-amber-600 text-white shadow-xs'
-                                : 'bg-[#EAF4FF] text-[#2E86DE] hover:bg-[#d8ecff]'
-                            }`}
-                            title="Edit slot jadwal ini"
-                          >
-                            <Pencil size={13} /> Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSchedule(idx)}
-                            className="grid h-8 w-8 place-items-center rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-colors cursor-pointer"
-                            title="Hapus slot jadwal ini"
-                          >
-                            <Trash2 size={15} />
-                          </button>
+                      return (
+                        <div
+                          key={idx}
+                          className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 shadow-sm transition-all ${
+                            editingIndex === idx
+                              ? 'bg-amber-50/60 border-amber-300 ring-2 ring-amber-300'
+                              : 'bg-white border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3.5">
+                            <div
+                              className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl font-black text-xs ${
+                                editingIndex === idx
+                                  ? 'bg-amber-200 text-amber-900'
+                                  : isPI
+                                  ? 'bg-pink-50 text-pink-700 border border-pink-200'
+                                  : isPA
+                                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                  : 'bg-teal-50 text-[#138F81]'
+                              }`}
+                            >
+                              {jadwal.hari.slice(0, 3)}
+                            </div>
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-extrabold text-sm text-slate-800">
+                                  {jadwal.hari}, {jadwal.jam_mulai} - {jadwal.jam_selesai}
+                                </span>
+                                <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-black text-slate-700">
+                                  🏫 {jadwal.sifir}
+                                </span>
+                                {isPI ? (
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-pink-50 px-2 py-0.5 text-[11px] font-black text-pink-700 border border-pink-200">
+                                    👧 Putri (PI)
+                                  </span>
+                                ) : isPA ? (
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-black text-blue-700 border border-blue-200">
+                                    👦 Putra (PA)
+                                  </span>
+                                ) : null}
+                                {jadwal.ruangan && (
+                                  <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700 border border-amber-200">
+                                    🚪 {jadwal.ruangan}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs font-semibold text-slate-500 mt-1 flex items-center gap-1.5">
+                                <GraduationCap size={13} className="text-[#138F81]" />
+                                <span>
+                                  Guru:{' '}
+                                  <b className="text-slate-800">
+                                    {teacherGen === 'P' ? '👧 Ustadzah ' : teacherGen === 'L' ? '👦 Ustadz ' : ''}
+                                    {jadwal.guru}
+                                  </b>
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {/* Tombol Buat Pasangan Gender Paralel */}
+                            {isPA && (
+                              <button
+                                type="button"
+                                onClick={() => handleDuplicatePartner(jadwal)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-extrabold bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-200 shadow-2xs transition cursor-pointer"
+                                title="Buat jadwal jam yang sama untuk kelompok Putri (PI)"
+                              >
+                                + Pasangan Putri (PI)
+                              </button>
+                            )}
+                            {isPI && (
+                              <button
+                                type="button"
+                                onClick={() => handleDuplicatePartner(jadwal)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-extrabold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 shadow-2xs transition cursor-pointer"
+                                title="Buat jadwal jam yang sama untuk kelompok Putra (PA)"
+                              >
+                                + Pasangan Putra (PA)
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleEditSchedule(idx)}
+                              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
+                                editingIndex === idx
+                                  ? 'bg-amber-600 text-white shadow-xs'
+                                  : 'bg-[#EAF4FF] text-[#2E86DE] hover:bg-[#d8ecff]'
+                              }`}
+                              title="Edit slot jadwal ini"
+                            >
+                              <Pencil size={13} /> Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSchedule(idx)}
+                              className="grid h-8 w-8 place-items-center rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-colors cursor-pointer"
+                              title="Hapus slot jadwal ini"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

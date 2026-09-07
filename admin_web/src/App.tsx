@@ -220,8 +220,7 @@ function AdminShell() {
             onTabChange={setAbsensiTab}
           />
         ) : null}
-        {safePage === 'mapel' ? <MataPelajaranPage /> : null}
-        {safePage === 'jadwal' ? <JadwalPelajaranPage /> : null}
+        {(safePage === 'mapel' || safePage === 'jadwal') ? <JadwalPelajaranPage /> : null}
         {safePage === 'nilai' ? <NilaiHafalanPage /> : null}
         {safePage === 'hak-akses' && isItAdmin ? <HakAksesPage /> : null}
         {safePage === 'account' ? <AccountPage /> : null}

@@ -14,7 +14,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ComplexKelasForm } from '../components/ComplexKelasForm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
-import { KelasSantriModal } from '../components/KelasSantriModal';
 import { SearchInput } from '../components/SearchInput';
 import { api, type ApiRecord } from '../services/api';
 
@@ -24,7 +23,6 @@ export function MasterKelasPage() {
   const [genderFilter, setGenderFilter] = useState<'all' | 'PA' | 'PI' | 'Campur'>('all');
   const [santriFilter, setSantriFilter] = useState<'all' | 'has_santri' | 'no_santri'>('all');
   const [form, setForm] = useState<ApiRecord | null>(null);
-  const [manageStudentsClass, setManageStudentsClass] = useState<ApiRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ApiRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -227,21 +225,14 @@ export function MasterKelasPage() {
       render: (row) => (
         <div className="flex justify-end gap-2">
           <button
-            className="rounded-xl bg-[#E8F7F3] px-3.5 py-2 text-xs font-extrabold text-[#138F81] hover:bg-[#d0f2e9] transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-            onClick={() => setManageStudentsClass(row)}
-            type="button"
-          >
-            <Users size={13} /> Anggota Santri
-          </button>
-          <button
-            className="rounded-xl bg-[#EAF4FF] px-3.5 py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+            className="rounded-xl bg-[#EAF4FF] px-3.5 py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
             onClick={() => setForm(row)}
             type="button"
           >
-            <Pencil size={13} /> Edit
+            <Pencil size={13} /> Edit Kelas
           </button>
           <button
-            className="rounded-xl bg-[#FDECEC] px-3.5 py-2 text-xs font-extrabold text-[#D63031] hover:bg-[#fad4d4] transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+            className="rounded-xl bg-[#FDECEC] px-3.5 py-2 text-xs font-extrabold text-[#D63031] hover:bg-[#fad4d4] transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
             onClick={() => setDeleteTarget(row)}
             type="button"
           >
@@ -393,6 +384,21 @@ export function MasterKelasPage() {
         </div>
       ) : null}
 
+      {/* PANDUAN SENTRALISASI PENEMPATAN SANTRI */}
+      <div className="flex items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-teal-50/80 border border-teal-200/90 text-teal-900 shadow-2xs">
+        <div className="flex items-start gap-3">
+          <span className="text-xl shrink-0">💡</span>
+          <div>
+            <p className="text-xs sm:text-sm font-black">
+              Penempatan Santri Terpusat di Menu "Kelompok Belajar"
+            </p>
+            <p className="text-[11px] sm:text-xs text-teal-700 font-medium mt-0.5">
+              Menu ini khusus untuk mendata master kelas Madin baru. Begitu kelas baru ditambahkan, sistem otomatis menyediakannya di menu <b>Kelompok Belajar</b> untuk penempatan santri Putra (PA) & Putri (PI) dengan filter otomatis.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* FILTER & SEARCH CONTROLS (RESPONSIVE & TOUCH-FRIENDLY) */}
       <section className="flex flex-col gap-3 bg-white p-3 sm:p-5 rounded-3xl border border-slate-100 shadow-xs">
         <div className="w-full">
@@ -532,18 +538,11 @@ export function MasterKelasPage() {
 
                   <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
                     <button
-                      className="flex-1 rounded-xl bg-[#E8F7F3] py-2.5 text-xs font-extrabold text-[#138F81] hover:bg-teal-100 transition-colors inline-flex items-center justify-center gap-1.5 min-h-[40px] cursor-pointer"
-                      onClick={() => setManageStudentsClass(row)}
-                      type="button"
-                    >
-                      <Users size={13} /> Anggota ({studentCount})
-                    </button>
-                    <button
-                      className="rounded-xl bg-[#EAF4FF] px-3 py-2.5 text-xs font-extrabold text-[#2E86DE] hover:bg-blue-100 transition-colors inline-flex items-center justify-center gap-1.5 min-h-[40px] cursor-pointer"
+                      className="flex-1 rounded-xl bg-[#EAF4FF] py-2.5 text-xs font-extrabold text-[#2E86DE] hover:bg-blue-100 transition-colors inline-flex items-center justify-center gap-1.5 min-h-[40px] cursor-pointer"
                       onClick={() => setForm(row)}
                       type="button"
                     >
-                      <Pencil size={13} /> Edit
+                      <Pencil size={13} /> Edit Kelas
                     </button>
                     <button
                       className="rounded-xl bg-[#FDECEC] p-2.5 text-xs font-extrabold text-[#D63031] hover:bg-rose-100 transition-colors inline-flex items-center justify-center min-h-[40px] min-w-[40px] cursor-pointer"
@@ -570,15 +569,6 @@ export function MasterKelasPage() {
           isBusy={isSaving}
           onCancel={() => setDeleteTarget(null)}
           onConfirm={() => void deleteRecord()}
-        />
-      ) : null}
-
-      {/* KELOLA ANGGOTA SANTRI MODAL */}
-      {manageStudentsClass ? (
-        <KelasSantriModal
-          targetClass={manageStudentsClass}
-          onClose={() => setManageStudentsClass(null)}
-          onUpdated={() => void load(true)}
         />
       ) : null}
     </div>

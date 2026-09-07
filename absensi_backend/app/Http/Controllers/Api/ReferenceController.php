@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\KelompokBelajar;
 use App\Models\SchoolClass;
 use App\Models\SchoolOrigin;
 use Illuminate\Http\Request;
@@ -83,6 +84,21 @@ class ReferenceController extends Controller
             'is_active' => $validated['is_active'] ?? true,
         ]);
 
+        // Otomatis sinkronkan ke Kelompok Belajar agar langsung muncul di menu Kelompok Belajar
+        try {
+            $kelompokNama = trim($validated['name']);
+            if (!KelompokBelajar::where('nama', $kelompokNama)->exists()) {
+                KelompokBelajar::create([
+                    'nama' => $kelompokNama,
+                    'kategori' => trim($validated['category']) ?: 'Madin',
+                    'sifir' => $kelompokNama,
+                    'class_id' => $class->id,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            // Abaikan jika sudah ada atau terjadi race condition
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Data kelas berhasil ditambahkan',
@@ -100,6 +116,7 @@ class ReferenceController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
 
+        $oldName = $schoolClass->name;
         if (isset($validated['name'])) {
             $validated['name'] = trim($validated['name']);
         }
@@ -108,6 +125,22 @@ class ReferenceController extends Controller
         }
 
         $schoolClass->update($validated);
+
+        // Jika nama kelas berubah, sinkronkan juga nama kelompok belajar terkait
+        if (isset($validated['name']) && $validated['name'] !== $oldName) {
+            try {
+                KelompokBelajar::where('class_id', $schoolClass->id)
+                    ->orWhere('nama', $oldName)
+                    ->update([
+                        'nama' => $validated['name'],
+                        'sifir' => $validated['name'],
+                        'kategori' => $validated['category'] ?? $schoolClass->category,
+                        'class_id' => $schoolClass->id,
+                    ]);
+            } catch (\Throwable $e) {
+                // Abaikan jika gagal
+            }
+        }
 
         return response()->json([
             'success' => true,
@@ -126,6 +159,12 @@ class ReferenceController extends Controller
                 'success' => true,
                 'message' => "Kelas dinonaktifkan karena masih memiliki {$studentCount} santri terhubung.",
             ]);
+        }
+
+        try {
+            KelompokBelajar::where('class_id', $schoolClass->id)->delete();
+        } catch (\Throwable $e) {
+            // Abaikan jika kelompok belajar sudah terikat jadwal atau absensi
         }
 
         $schoolClass->delete();
