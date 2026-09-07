@@ -135,11 +135,11 @@ export function ComplexNgajiForm({ initialData, onClose, onSave }: ComplexNgajiF
     void load();
   }, [initialData]);
 
-  // Handler ganti sesi: update default jam
+  // Handler ganti sesi: hanya beri saran default jika jam belum diisi admin
   const handleSelectSession = (id: number) => {
     setSessionId(id);
     const chosen = sessions.find((s) => num(s.id) === id);
-    if (chosen) {
+    if (chosen && !startTime && !endTime) {
       const sName = text(chosen.name).toLowerCase();
       if (chosen.code === 'ngaji_subuh' || sName.includes('subuh')) {
         setStartTime('05:30');
@@ -250,8 +250,8 @@ export function ComplexNgajiForm({ initialData, onClose, onSave }: ComplexNgajiF
       setError('Silakan pilih sesi pengajian (Ngaji Subuh atau Ngaji Sore).');
       return;
     }
-    if (!startTime || !endTime) {
-      setError('Jam mulai dan jam selesai pengajian wajib diisi.');
+    if ((startTime && !endTime) || (!startTime && endTime)) {
+      setError('Mohon lengkapi kedua kolom jam (mulai dan selesai) jika ingin mencantumkan waktu pengajian.');
       return;
     }
 
@@ -263,8 +263,8 @@ export function ComplexNgajiForm({ initialData, onClose, onSave }: ComplexNgajiF
         teacher_id: teacherId ? Number(teacherId) : null,
         kitab_nama: kitabNama.trim() || null,
         hari: hari,
-        start_time: startTime,
-        end_time: endTime,
+        start_time: startTime || null,
+        end_time: endTime || null,
         status: status,
         description: description.trim() || null,
         student_ids: selectedStudentIds,
@@ -476,29 +476,36 @@ export function ComplexNgajiForm({ initialData, onClose, onSave }: ComplexNgajiF
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
-                  Mulai
-                </label>
-                <input
-                  type="time"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none min-h-[42px]"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                />
+            <div className="space-y-1">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+                    <span>Mulai</span>
+                    <span className="text-[10px] font-bold text-teal-600 lowercase bg-teal-50 px-1.5 py-0.5 rounded">bebas atur</span>
+                  </label>
+                  <input
+                    type="time"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none min-h-[42px]"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+                    <span>Selesai</span>
+                    <span className="text-[10px] font-bold text-teal-600 lowercase bg-teal-50 px-1.5 py-0.5 rounded">bebas atur</span>
+                  </label>
+                  <input
+                    type="time"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none min-h-[42px]"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
-                  Selesai
-                </label>
-                <input
-                  type="time"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none min-h-[42px]"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                />
-              </div>
+              <p className="text-[10px] font-bold text-slate-500 pt-0.5 flex items-center gap-1">
+                <span>💡</span> Admin bebas menentukan jam mulai & selesai sesuai kebutuhan pondok.
+              </p>
             </div>
           </div>
 
