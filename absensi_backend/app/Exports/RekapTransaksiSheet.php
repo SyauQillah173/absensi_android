@@ -39,8 +39,8 @@ class RekapTransaksiSheet implements FromCollection, ShouldAutoSize, WithTitle, 
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
 
-                $instansi = $this->docSetting?->institution_name ?: "MTS ASSA'ADAH II";
-                $alamat = $this->docSetting?->institution_address ?: 'Sampurnan Bungah Gresik';
+                $instansi = $this->docSetting?->institution_name ?: 'YAYASAN PONDOK PESANTREN QOMARUDDIN';
+                $alamat = $this->docSetting?->institution_address ?: 'Jl. Masjid Ki Ageng Qomaruddin, Sampurnan, Bungah, Gresik';
                 $tahunText = !empty($this->filters['tahun_ajaran']) ? $this->filters['tahun_ajaran'] : 'Semua Tahun Ajaran';
                 $semText = !empty($this->filters['semester']) ? $this->filters['semester'] : 'Semua Semester';
                 $kelasText = !empty($this->filters['kelas']) ? $this->filters['kelas'] : 'Semua Kelas';
@@ -191,11 +191,17 @@ class RekapTransaksiSheet implements FromCollection, ShouldAutoSize, WithTitle, 
                 $totalRow = $currentRow;
                 $firstDataRow = $headerRow + 1;
                 $lastDataRow = max($headerRow + 1, $currentRow - 1);
+                $totalCount = $this->transactions->count();
 
                 $sheet->mergeCells("A{$totalRow}:K{$totalRow}");
                 $sheet->setCellValue("A{$totalRow}", 'TOTAL KESELURUHAN DITERIMA');
-                $sheet->setCellValue("L{$totalRow}", "=SUM(L{$firstDataRow}:L{$lastDataRow})");
-                $sheet->setCellValue("M{$totalRow}", '="Total: " & COUNTA(C' . $firstDataRow . ':C' . $lastDataRow . ') & " Transaksi"');
+
+                if ($currentRow > $firstDataRow) {
+                    $sheet->setCellValue("L{$totalRow}", "=SUM(L{$firstDataRow}:L{$lastDataRow})");
+                } else {
+                    $sheet->setCellValue("L{$totalRow}", 0);
+                }
+                $sheet->setCellValue("M{$totalRow}", "Total: {$totalCount} Transaksi");
 
                 $sheet->getStyle("A{$totalRow}:M{$totalRow}")->applyFromArray([
                     'font' => [

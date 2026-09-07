@@ -25,4 +25,22 @@ class DocumentSetting extends Model
         'bank_account_holder',
         'bank_sub_name',
     ];
+
+    public function getInstitutionNameAttribute(): string
+    {
+        $name = trim((string) ($this->attributes['payment_admin_name'] ?? ''));
+        if ($name === '' || strtoupper($name) === "MTS ASSA'ADAH II") {
+            return 'YAYASAN PONDOK PESANTREN QOMARUDDIN';
+        }
+        return $name;
+    }
+
+    public function getInstitutionAddressAttribute(): string
+    {
+        $addr = trim((string) ($this->attributes['payment_admin_title'] ?? ''));
+        if ($addr === '' || stripos($addr, 'MTS') !== false) {
+            return 'JL. MASJID KIYAI GEDE BUNGAH GRESIK';
+        }
+        return $addr;
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Models\DocumentSetting;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
@@ -17,6 +18,7 @@ class RekapPerSantriSheet implements FromCollection, ShouldAutoSize, WithTitle, 
     public function __construct(
         private readonly Collection $transactions,
         private readonly array $filters = [],
+        private readonly ?DocumentSetting $docSetting = null,
     ) {
     }
 
@@ -36,23 +38,29 @@ class RekapPerSantriSheet implements FromCollection, ShouldAutoSize, WithTitle, 
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
 
+                $instansi = $this->docSetting?->institution_name ?: 'YAYASAN PONDOK PESANTREN QOMARUDDIN';
                 $tahunText = !empty($this->filters['tahun_ajaran']) ? $this->filters['tahun_ajaran'] : 'Semua Tahun Ajaran';
                 $semText = !empty($this->filters['semester']) ? $this->filters['semester'] : 'Semua Semester';
                 $kelasText = !empty($this->filters['kelas']) ? $this->filters['kelas'] : 'Semua Kelas';
 
                 // 1. TITLE
-                $sheet->setCellValue('A1', 'RINGKASAN TOTAL PEMBAYARAN PER-SANTRI');
-                $sheet->setCellValue('A2', "Tahun Ajaran: {$tahunText}  |  Semester: {$semText}  |  Kelas: {$kelasText}");
+                $sheet->setCellValue('A1', strtoupper($instansi));
+                $sheet->setCellValue('A2', 'RINGKASAN TOTAL PEMBAYARAN PER-SANTRI');
+                $sheet->setCellValue('A3', "Tahun Ajaran: {$tahunText}  |  Semester: {$semText}  |  Kelas: {$kelasText}");
+                $sheet->setCellValue('A4', 'Tanggal Ekspor: ' . now()->format('d-m-Y H:i') . ' WIB');
 
                 $sheet->mergeCells('A1:F1');
                 $sheet->mergeCells('A2:F2');
+                $sheet->mergeCells('A3:F3');
+                $sheet->mergeCells('A4:F4');
 
                 $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF138F81'));
-                $sheet->getStyle('A2')->getFont()->setSize(10)->setItalic(true);
-                $sheet->getStyle('A1:A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12);
+                $sheet->getStyle('A3:A4')->getFont()->setSize(10)->setItalic(true);
+                $sheet->getStyle('A1:A4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-                // 2. TABLE HEADERS (Row 4)
-                $headerRow = 4;
+                // 2. TABLE HEADERS (Row 6)
+                $headerRow = 6;
                 $headers = [
                     'A' => 'NO',
                     'B' => 'NIS',
@@ -149,8 +157,13 @@ class RekapPerSantriSheet implements FromCollection, ShouldAutoSize, WithTitle, 
 
                 $sheet->mergeCells("A{$totalRow}:D{$totalRow}");
                 $sheet->setCellValue("A{$totalRow}", 'TOTAL AKUMULASI SELURUH SANTRI');
-                $sheet->setCellValue("E{$totalRow}", "=SUM(E{$firstDataRow}:E{$lastDataRow})");
-                $sheet->setCellValue("F{$totalRow}", "=SUM(F{$firstDataRow}:F{$lastDataRow})");
+                if ($currentRow > $firstDataRow) {
+                    $sheet->setCellValue("E{$totalRow}", "=SUM(E{$firstDataRow}:E{$lastDataRow})");
+                    $sheet->setCellValue("F{$totalRow}", "=SUM(F{$firstDataRow}:F{$lastDataRow})");
+                } else {
+                    $sheet->setCellValue("E{$totalRow}", 0);
+                    $sheet->setCellValue("F{$totalRow}", 0);
+                }
 
                 $sheet->getStyle("A{$totalRow}:F{$totalRow}")->applyFromArray([
                     'font' => [

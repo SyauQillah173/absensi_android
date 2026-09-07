@@ -1316,8 +1316,8 @@ function IncomeReceiptModal({
   docSetting?: ApiRecord | null;
   onClose: () => void;
 }) {
-  const instansiName = str(docSetting?.payment_admin_name, "MTS ASSA'ADAH II");
-  const instansiAlamat = str(docSetting?.payment_admin_title, "JL. MASJID KIYAI GEDE BUNGAH GRESIK");
+  const instansiName = str(docSetting?.payment_admin_name, 'YAYASAN PONDOK PESANTREN QOMARUDDIN');
+  const instansiAlamat = str(docSetting?.payment_admin_title, 'JL. MASJID KIYAI GEDE BUNGAH GRESIK');
 
   const noTrx = str(row.no_transaksi, `IN-${String(row.id).padStart(4, '0')}`);
   const tglFormatted = row.tanggal ? new Date(String(row.tanggal)).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-';

@@ -22,8 +22,8 @@ class RekapPembayaranExport implements WithMultipleSheets
     {
         return [
             new RekapTransaksiSheet($this->transactions, $this->filters, $this->docSetting),
-            new RekapPerSantriSheet($this->transactions, $this->filters),
-            new RekapPerTipeSheet($this->transactions, $this->filters),
+            new RekapPerSantriSheet($this->transactions, $this->filters, $this->docSetting),
+            new RekapPerTipeSheet($this->transactions, $this->filters, $this->docSetting),
         ];
     }
 }

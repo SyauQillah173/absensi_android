@@ -3423,8 +3423,8 @@ function DocumentSettingsPanel({
         user_id: session?.id ?? 1,
         document_type: 'pembayaran',
         receipt_width: receiptWidth,
-        payment_admin_name: paymentAdminName.trim() || "MTS ASSA'ADAH II",
-        payment_admin_title: paymentAdminTitle.trim() || 'JL. MASJID KIYAI GEDE BUNGAH',
+        payment_admin_name: paymentAdminName.trim() || 'YAYASAN PONDOK PESANTREN QOMARUDDIN',
+        payment_admin_title: paymentAdminTitle.trim() || 'JL. MASJID KIYAI GEDE BUNGAH GRESIK',
         payment_signature_mode: settings?.payment_signature_mode ?? 'kosong',
         bank_name: bankName.trim() || 'Bank Syariah Indonesia (BSI)',
         bank_sub_name: bankSubName.trim() || 'BSI Syariah',
@@ -3450,8 +3450,8 @@ function DocumentSettingsPanel({
     }
   }
 
-  const previewName = paymentAdminName.trim() || "MTS ASSA'ADAH II";
-  const previewAddress = paymentAdminTitle.trim() || 'JL. MASJID KIYAI GEDE BUNGAH';
+  const previewName = paymentAdminName.trim() || 'YAYASAN PONDOK PESANTREN QOMARUDDIN';
+  const previewAddress = paymentAdminTitle.trim() || 'JL. MASJID KIYAI GEDE BUNGAH GRESIK';
 
   return (
     <div className="space-y-6 sm:space-y-8 w-full max-w-full min-w-0">
@@ -3693,24 +3693,24 @@ function DocumentSettingsPanel({
                   className="q-input font-bold w-full max-w-full min-w-0"
                   value={paymentAdminName}
                   onChange={(e) => setPaymentAdminName(e.target.value)}
-                  placeholder="Contoh: MTS ASSA'ADAH II / SISTEM INFORMASI PONDOK"
+                  placeholder="Contoh: YAYASAN PONDOK PESANTREN QOMARUDDIN / SISTEM INFORMASI PONDOK"
                   required
                 />
                 <div className="mt-2 flex flex-wrap gap-1.5 w-full max-w-full min-w-0">
                   <span className="text-[11px] font-semibold text-gray-400 w-full sm:w-auto">Contoh Cepat:</span>
                   <button
                     type="button"
-                    onClick={() => setPaymentAdminName("MTS ASSA'ADAH II")}
-                    className="rounded-xl bg-slate-100 hover:bg-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700 transition-colors cursor-pointer"
+                    onClick={() => setPaymentAdminName('YAYASAN PONDOK PESANTREN QOMARUDDIN')}
+                    className="rounded-xl bg-teal-50 hover:bg-teal-100 px-2.5 py-1 text-[11px] font-bold text-teal-700 transition-colors cursor-pointer border border-teal-200"
                   >
-                    MTS ASSA'ADAH II
+                    YAYASAN PONDOK PESANTREN QOMARUDDIN
                   </button>
                   <button
                     type="button"
-                    onClick={() => setPaymentAdminName('YAYASAN PONDOK PESANTREN QOMARUDDIN')}
+                    onClick={() => setPaymentAdminName('BENDAHARA KEUANGAN PESANTREN')}
                     className="rounded-xl bg-slate-100 hover:bg-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700 transition-colors cursor-pointer"
                   >
-                    PONDOK PESANTREN
+                    BENDAHARA KEUANGAN
                   </button>
                 </div>
               </div>

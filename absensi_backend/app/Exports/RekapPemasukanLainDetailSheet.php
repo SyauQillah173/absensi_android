@@ -39,8 +39,8 @@ class RekapPemasukanLainDetailSheet implements FromCollection, ShouldAutoSize, W
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
 
-                $instansi = $this->docSetting?->institution_name ?: "MTS ASSA'ADAH II";
-                $alamat = $this->docSetting?->institution_address ?: "JL. MASJID KIYAI GEDE BUNGAH GRESIK";
+                $instansi = $this->docSetting?->institution_name ?: 'YAYASAN PONDOK PESANTREN QOMARUDDIN';
+                $alamat = $this->docSetting?->institution_address ?: 'Jl. Masjid Ki Ageng Qomaruddin, Sampurnan, Bungah, Gresik';
                 $periodeText = $this->filters['periode_label'] ?? 'Semua Periode';
 
                 // 1. KOP SURAT / HEADER
@@ -133,7 +133,9 @@ class RekapPemasukanLainDetailSheet implements FromCollection, ShouldAutoSize, W
                     $sheet->setCellValue("H{$totalRow}", 0);
                 }
 
-                $sheet->setCellValue("I{$totalRow}", '');
+                $totalTrx = $this->pemasukan->count();
+                $sheet->setCellValue("I{$totalRow}", "Total: {$totalTrx} Transaksi");
+                $sheet->getStyle("I{$totalRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
                 $sheet->getStyle("A{$totalRow}:I{$totalRow}")->applyFromArray([
                     'font' => ['bold' => true, 'size' => 11, 'color' => ['argb' => 'FF138F81']],

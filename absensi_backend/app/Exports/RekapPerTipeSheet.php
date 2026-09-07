@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Models\DocumentSetting;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
@@ -17,6 +18,7 @@ class RekapPerTipeSheet implements FromCollection, ShouldAutoSize, WithTitle, Wi
     public function __construct(
         private readonly Collection $transactions,
         private readonly array $filters = [],
+        private readonly ?DocumentSetting $docSetting = null,
     ) {
     }
 
@@ -36,22 +38,28 @@ class RekapPerTipeSheet implements FromCollection, ShouldAutoSize, WithTitle, Wi
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
 
+                $instansi = $this->docSetting?->institution_name ?: 'YAYASAN PONDOK PESANTREN QOMARUDDIN';
                 $tahunText = !empty($this->filters['tahun_ajaran']) ? $this->filters['tahun_ajaran'] : 'Semua Tahun Ajaran';
                 $semText = !empty($this->filters['semester']) ? $this->filters['semester'] : 'Semua Semester';
 
                 // 1. TITLE
-                $sheet->setCellValue('A1', 'RINGKASAN TOTAL PEMBAYARAN PER-TIPE TAGIHAN');
-                $sheet->setCellValue('A2', "Tahun Ajaran: {$tahunText}  |  Semester: {$semText}");
+                $sheet->setCellValue('A1', strtoupper($instansi));
+                $sheet->setCellValue('A2', 'RINGKASAN TOTAL PEMBAYARAN PER-TIPE TAGIHAN');
+                $sheet->setCellValue('A3', "Tahun Ajaran: {$tahunText}  |  Semester: {$semText}");
+                $sheet->setCellValue('A4', 'Tanggal Ekspor: ' . now()->format('d-m-Y H:i') . ' WIB');
 
                 $sheet->mergeCells('A1:E1');
                 $sheet->mergeCells('A2:E2');
+                $sheet->mergeCells('A3:E3');
+                $sheet->mergeCells('A4:E4');
 
                 $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF138F81'));
-                $sheet->getStyle('A2')->getFont()->setSize(10)->setItalic(true);
-                $sheet->getStyle('A1:A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12);
+                $sheet->getStyle('A3:A4')->getFont()->setSize(10)->setItalic(true);
+                $sheet->getStyle('A1:A4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-                // 2. TABLE HEADERS (Row 4)
-                $headerRow = 4;
+                // 2. TABLE HEADERS (Row 6)
+                $headerRow = 6;
                 $headers = [
                     'A' => 'NO',
                     'B' => 'TIPE PEMBAYARAN',
@@ -170,8 +178,13 @@ class RekapPerTipeSheet implements FromCollection, ShouldAutoSize, WithTitle, Wi
 
                 $sheet->mergeCells("A{$totalRow}:C{$totalRow}");
                 $sheet->setCellValue("A{$totalRow}", 'TOTAL SELURUH KATEGORI');
-                $sheet->setCellValue("D{$totalRow}", "=SUM(D{$firstDataRow}:D{$lastDataRow})");
-                $sheet->setCellValue("E{$totalRow}", "=SUM(E{$firstDataRow}:E{$lastDataRow})");
+                if ($currentRow > $firstDataRow) {
+                    $sheet->setCellValue("D{$totalRow}", "=SUM(D{$firstDataRow}:D{$lastDataRow})");
+                    $sheet->setCellValue("E{$totalRow}", "=SUM(E{$firstDataRow}:E{$lastDataRow})");
+                } else {
+                    $sheet->setCellValue("D{$totalRow}", 0);
+                    $sheet->setCellValue("E{$totalRow}", 0);
+                }
 
                 $sheet->getStyle("A{$totalRow}:E{$totalRow}")->applyFromArray([
                     'font' => [

@@ -38,8 +38,8 @@ class RekapPengeluaranDetailSheet implements FromCollection, ShouldAutoSize, Wit
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
 
-                $instansi = $this->docSetting?->institution_name ?: "MTS ASSA'ADAH II";
-                $alamat = $this->docSetting?->institution_address ?: 'Sampurnan Bungah Gresik';
+                $instansi = $this->docSetting?->institution_name ?: 'YAYASAN PONDOK PESANTREN QOMARUDDIN';
+                $alamat = $this->docSetting?->institution_address ?: 'Jl. Masjid Ki Ageng Qomaruddin, Sampurnan, Bungah, Gresik';
                 $periodeText = $this->filters['periode_label'] ?? 'Semua Periode';
                 $kategoriText = $this->filters['kategori'] ?? 'Semua Kategori';
 
@@ -146,7 +146,7 @@ class RekapPengeluaranDetailSheet implements FromCollection, ShouldAutoSize, Wit
 
                 // 4. TOTAL ROW WITH REAL EXCEL FORMULA
                 $totalRow = $rowNum;
-                $sheet->setCellValue("A{$totalRow}", 'TOTAL PENGELUARAN');
+                $sheet->setCellValue("A{$totalRow}", 'TOTAL KESELURUHAN PENGELUARAN');
                 $sheet->mergeCells("A{$totalRow}:G{$totalRow}");
 
                 if ($lastDataRow >= 7) {
@@ -154,6 +154,10 @@ class RekapPengeluaranDetailSheet implements FromCollection, ShouldAutoSize, Wit
                 } else {
                     $sheet->setCellValue("H{$totalRow}", 0);
                 }
+
+                $sheet->mergeCells("I{$totalRow}:J{$totalRow}");
+                $totalTrx = $this->pengeluaran->count();
+                $sheet->setCellValue("I{$totalRow}", "Total: {$totalTrx} Transaksi");
 
                 $sheet->getStyle("A{$totalRow}:J{$totalRow}")->applyFromArray([
                     'font' => ['bold' => true, 'size' => 11, 'color' => ['argb' => 'FF138F81']],

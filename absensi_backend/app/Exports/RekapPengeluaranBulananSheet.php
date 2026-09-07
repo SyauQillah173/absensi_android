@@ -81,7 +81,7 @@ class RekapPengeluaranBulananSheet implements FromCollection, ShouldAutoSize, Wi
                     $sheet->setCellValue("B{$rowNum}", $monthLabel);
                     $sheet->setCellValue("C{$rowNum}", $count);
                     $sheet->setCellValue("D{$rowNum}", $total);
-                    $sheet->setCellValue("E{$rowNum}", "=D{$rowNum}/C{$rowNum}");
+                    $sheet->setCellValue("E{$rowNum}", "=IF(C{$rowNum}>0, D{$rowNum}/C{$rowNum}, 0)");
 
                     $sheet->getStyle("A{$rowNum}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                     $sheet->getStyle("B{$rowNum}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
@@ -108,7 +108,7 @@ class RekapPengeluaranBulananSheet implements FromCollection, ShouldAutoSize, Wi
                 if ($lastDataRow >= 5) {
                     $sheet->setCellValue("C{$totalRow}", "=SUM(C5:C{$lastDataRow})");
                     $sheet->setCellValue("D{$totalRow}", "=SUM(D5:D{$lastDataRow})");
-                    $sheet->setCellValue("E{$totalRow}", "=D{$totalRow}/C{$totalRow}");
+                    $sheet->setCellValue("E{$totalRow}", "=IF(C{$totalRow}>0, D{$totalRow}/C{$totalRow}, 0)");
                 } else {
                     $sheet->setCellValue("C{$totalRow}", 0);
                     $sheet->setCellValue("D{$totalRow}", 0);

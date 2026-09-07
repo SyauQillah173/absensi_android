@@ -156,8 +156,8 @@ export function ReceiptPrintPage({ id }: { id: string }) {
   const petugasNama = str(creator.name || settings?.payment_admin_name || 'Petugas Keuangan');
 
   // Institution / Kop data
-  const namaInstansi = str(settings?.payment_admin_name || "MTS ASSA'ADAH II");
-  const alamatInstansi = str(settings?.payment_admin_title || 'JL. MASJID KIYAI GEDE BUNGAH');
+  const namaInstansi = str(settings?.payment_admin_name || 'YAYASAN PONDOK PESANTREN QOMARUDDIN');
+  const alamatInstansi = str(settings?.payment_admin_title || 'JL. MASJID KIYAI GEDE BUNGAH GRESIK');
   const teleponInstansi = str(settings?.phone || '');
 
   return (

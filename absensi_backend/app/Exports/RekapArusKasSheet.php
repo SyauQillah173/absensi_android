@@ -42,7 +42,7 @@ class RekapArusKasSheet implements FromCollection, ShouldAutoSize, WithTitle, Wi
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
 
-                $instansi = $this->docSetting?->institution_name ?: "MTS ASSA'ADAH II";
+                $instansi = $this->docSetting?->institution_name ?: 'YAYASAN PONDOK PESANTREN QOMARUDDIN';
                 $periodeText = $this->filters['periode_label'] ?? 'Semua Periode';
 
                 // Fetch Pembayaran
