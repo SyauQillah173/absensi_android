@@ -242,6 +242,7 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::post('whatsapp/logout', [WhatsAppController::class, 'logout'])->middleware('permission:whatsapp_bot,delete');
         Route::post('whatsapp/send', [WhatsAppController::class, 'send'])->middleware(['permission:whatsapp_bot,create', 'throttle:20,1']);
         Route::get('whatsapp/messages', [WhatsAppController::class, 'messages'])->middleware('permission:whatsapp_bot,view');
+        Route::get('whatsapp/runtime-logs', [WhatsAppController::class, 'runtimeLogs'])->middleware('permission:whatsapp_bot,view');
         Route::post('whatsapp/messages/{message}/retry', [WhatsAppController::class, 'retry'])->middleware('permission:whatsapp_bot,approve');
         Route::get('whatsapp/templates', [WhatsAppController::class, 'templates'])->middleware('permission:whatsapp_bot,view');
         Route::post('whatsapp/templates', [WhatsAppController::class, 'storeTemplate'])->middleware('permission:whatsapp_bot,create');

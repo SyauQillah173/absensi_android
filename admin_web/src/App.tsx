@@ -207,7 +207,7 @@ function AdminShell() {
         {safePage === 'keuangan' ? (
           <FinancePage initialTab={financeTab} onTabChange={setFinanceTab} />
         ) : null}
-        {safePage === 'whatsapp' ? <WhatsAppBotPage /> : null}
+        {safePage === 'whatsapp' && isItAdmin ? <WhatsAppBotPage /> : null}
         {safePage === 'master' ? <BukuIndukPage initialSection={masterSection} onSectionChange={setMasterSection} /> : null}
         {safePage === 'guru' ? <MasterDataPage variant="guru" /> : null}
         {safePage === 'users' ? <MasterDataPage variant="users" /> : null}

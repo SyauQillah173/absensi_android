@@ -985,6 +985,9 @@ export const api = {
   whatsappMessages(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord>('/whatsapp/messages', {}, params);
   },
+  whatsappRuntimeLogs(params?: { limit?: number }) {
+    return request<string[]>('/whatsapp/runtime-logs', {}, params);
+  },
   whatsappRetry(messageId: number) {
     return request<ApiRecord>(`/whatsapp/messages/${messageId}/retry`, { method: 'POST' });
   },

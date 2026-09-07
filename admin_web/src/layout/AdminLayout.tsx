@@ -217,7 +217,7 @@ const allMenu: MenuItem[] = [
       { label: "Rekening Bank & Struk", page: "keuangan", financeTab: "settings", icon: Building2 },
       { label: "Pengaturan Semester & TA", page: "master", masterSection: "akademik", icon: CalendarRange },
       { label: "Profil Identitas Lembaga", page: "master", masterSection: "referensi", icon: Landmark },
-      { label: "Pengaturan WhatsApp Bot", page: "whatsapp", icon: MessageSquare },
+      { label: "Pengaturan WhatsApp Bot", page: "whatsapp", icon: MessageSquare, itOnly: true },
       { label: "Hak Akses & Role User", page: "hak-akses", icon: Shield, itOnly: true },
       { label: "Pengaturan Akun", page: "account", icon: UserCog },
     ],

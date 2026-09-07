@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\NotificationSetting;
 use App\Models\WhatsAppConnectedClient;
 use App\Models\WhatsAppMessageLog;
+use App\Models\WhatsAppSession;
 use App\Models\WhatsAppTemplate;
 use App\Services\ActorResolver;
 use App\Services\WhatsAppBotService;
@@ -27,6 +28,9 @@ class WhatsAppController extends Controller
         $this->touchClient($request);
         $health = $this->bot->health();
         $sessions = $this->bot->syncSessions();
+        if (empty($sessions)) {
+            $sessions = WhatsAppSession::query()->latest('updated_at')->get();
+        }
 
         return response()->json([
             'success' => true,
@@ -97,6 +101,7 @@ class WhatsAppController extends Controller
     {
         $validated = $request->validate(['client_id' => 'required|string|max:80']);
         $response = $this->bot->deleteSession($validated['client_id']);
+        WhatsAppSession::query()->where('client_id', $validated['client_id'])->delete();
         $this->bot->syncSessions();
 
         return response()->json([
@@ -104,6 +109,18 @@ class WhatsAppController extends Controller
             'message' => $response['message'] ?? 'Sesi WhatsApp dimatikan',
             'data' => $response['data'] ?? null,
         ], ($response['success'] ?? false) ? 200 : 422);
+    }
+
+    public function runtimeLogs(Request $request)
+    {
+        $limit = $request->integer('limit', 50);
+        $res = $this->bot->logs($limit);
+        $logs = data_get($res, 'data.logs', data_get($res, 'data', []));
+
+        return response()->json([
+            'success' => $res['success'] ?? false,
+            'data' => is_array($logs) ? $logs : [],
+        ]);
     }
 
     public function send(Request $request)
