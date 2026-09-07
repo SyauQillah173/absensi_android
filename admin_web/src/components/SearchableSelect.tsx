@@ -294,13 +294,13 @@ export default function SearchableSelect({
                         e.stopPropagation();
                         setActiveChip(chip.id);
                       }}
-                      className={`flex items-center justify-center gap-1.5 rounded-lg py-1.5 px-2 text-[11px] font-extrabold transition-all cursor-pointer truncate ${
+                      className={`flex items-center justify-center gap-1.5 rounded-lg py-1.5 px-2 text-[11px] font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                         isActive
                           ? 'bg-[#138F81] text-white shadow-xs'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                       }`}
                     >
-                      <span className="truncate">{chip.label}</span>
+                      <span>{chip.label}</span>
                       <span
                         className={`rounded-full px-1.5 py-0.2 text-[9px] font-black ${
                           isActive ? 'bg-white/20 text-white' : 'bg-slate-300/70 text-slate-700'
@@ -352,7 +352,7 @@ export default function SearchableSelect({
                       setIsOpen(false);
                     }}
                   >
-                    <div className="flex items-center gap-2.5 overflow-hidden mr-2">
+                    <div className="flex items-center gap-3 min-w-0 flex-1 mr-2">
                       {/* Gender avatar icon */}
                       {opt.gender === 'P' || opt.gender === 'PI' ? (
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-pink-100 text-sm shadow-2xs">
@@ -368,30 +368,32 @@ export default function SearchableSelect({
                         </div>
                       )}
 
-                      <div className="truncate text-left">
-                        <div className="flex items-center gap-2">
+                      <div className="min-w-0 flex-1 text-left">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span
-                            className={`font-extrabold truncate ${
+                            className={`font-black text-xs sm:text-sm leading-snug ${
                               isSelected ? 'text-[#138F81]' : 'text-slate-800'
                             }`}
                           >
                             {opt.label}
                           </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          {opt.subLabel && (
+                            <span className="text-[10px] font-semibold text-slate-500">
+                              {opt.subLabel}
+                            </span>
+                          )}
                           {opt.isRecommended && (
-                            <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 border border-emerald-200 px-1.5 py-0.2 text-[9px] font-black text-emerald-800 shrink-0">
+                            <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 border border-emerald-200 px-1.5 py-0.2 text-[9px] font-black text-emerald-800">
                               <Sparkles size={10} /> Disarankan
                             </span>
                           )}
                         </div>
-                        {opt.subLabel && (
-                          <span className="text-[11px] font-semibold text-slate-500 block truncate mt-0.5">
-                            {opt.subLabel}
-                          </span>
-                        )}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
                       {opt.badge && (
                         <span
                           className={`rounded-md border px-2 py-0.5 text-[10px] font-extrabold ${getBadgeStyle(

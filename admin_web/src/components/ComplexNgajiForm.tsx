@@ -434,7 +434,7 @@ export function ComplexNgajiForm({ initialData, onClose, onSave }: ComplexNgajiF
                   placeholder="Pilih atau cari nama guru..."
                   searchPlaceholder="Ketik nama ustadz / ustadzah..."
                   filterChips={teacherFilterChips}
-                  dropdownWidth="w-full"
+                  dropdownWidth="w-full sm:w-[480px] md:w-[520px] lg:w-[560px]"
                   recommendationNotice={
                     gender === 'PI'
                       ? '✨ Direkomendasikan Ustadzah untuk santri Putri (PI)'
