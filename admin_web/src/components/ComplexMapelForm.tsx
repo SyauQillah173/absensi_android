@@ -275,8 +275,8 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
   const teacherFilterChips: FilterChip[] = useMemo(
     () => [
       { id: 'all', label: 'Semua', filter: () => true },
-      { id: 'male', label: '👦 Ustadz (PA)', filter: (opt: SearchSelectOption) => opt.gender === 'L' },
-      { id: 'female', label: '👧 Ustadzah (PI)', filter: (opt: SearchSelectOption) => opt.gender === 'P' },
+      { id: 'male', label: '👦 Ustadz', filter: (opt: SearchSelectOption) => opt.gender === 'L' },
+      { id: 'female', label: '👧 Ustadzah', filter: (opt: SearchSelectOption) => opt.gender === 'P' },
     ],
     []
   );
@@ -303,9 +303,9 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
 
   const classFilterChips: FilterChip[] = useMemo(
     () => [
-      { id: 'all', label: 'Semua Kelas', filter: () => true },
-      { id: 'pa', label: '👦 Khusus Putra (PA)', filter: (opt: SearchSelectOption) => opt.gender === 'PA' },
-      { id: 'pi', label: '👧 Khusus Putri (PI)', filter: (opt: SearchSelectOption) => opt.gender === 'PI' },
+      { id: 'all', label: 'Semua', filter: () => true },
+      { id: 'pa', label: '👦 Putra (PA)', filter: (opt: SearchSelectOption) => opt.gender === 'PA' },
+      { id: 'pi', label: '👧 Putri (PI)', filter: (opt: SearchSelectOption) => opt.gender === 'PI' },
     ],
     []
   );
@@ -776,9 +776,10 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
                       options={teacherOptions}
                       value={newSchedule.teacher_id}
                       onChange={(val) => handleSelectTeacher(String(val))}
-                      placeholder="🔍 Ketik atau cari nama guru..."
+                      placeholder="Pilih atau cari nama guru..."
                       searchPlaceholder="Ketik nama ustadz / ustadzah..."
                       filterChips={teacherFilterChips}
+                      dropdownWidth="w-[320px] sm:w-[390px]"
                       recommendationNotice={
                         selectedClassGender === 'PI'
                           ? '✨ Direkomendasikan Ustadzah untuk kelompok Putri (PI)'
@@ -797,9 +798,10 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
                       options={classOptions}
                       value={newSchedule.class_id}
                       onChange={(val) => handleSelectClass(String(val))}
-                      placeholder="🔍 Ketik atau cari kelas..."
+                      placeholder="Pilih atau cari kelas..."
                       searchPlaceholder="Ketik nama kelas (misal: 1 Wustho, PA, PI)..."
                       filterChips={classFilterChips}
+                      dropdownWidth="w-[320px] sm:w-[390px]"
                       recommendationNotice={
                         selectedTeacherGender === 'P'
                           ? '✨ Direkomendasikan Kelompok Putri (PI) untuk Ustadzah'

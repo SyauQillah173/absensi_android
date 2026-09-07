@@ -30,6 +30,8 @@ export interface SearchableSelectProps {
   recommendationNotice?: string;
   className?: string;
   size?: 'sm' | 'md';
+  dropdownAlign?: 'left' | 'right';
+  dropdownWidth?: string;
 }
 
 export default function SearchableSelect({
@@ -44,6 +46,8 @@ export default function SearchableSelect({
   recommendationNotice,
   className = '',
   size = 'md',
+  dropdownAlign = 'left',
+  dropdownWidth = 'w-full sm:w-[390px]',
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -171,11 +175,11 @@ export default function SearchableSelect({
           {selectedOption ? (
             <div className="flex items-center gap-2 truncate">
               {selectedOption.gender === 'P' || selectedOption.gender === 'PI' ? (
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-pink-100 text-[11px]">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-pink-100 text-[12px]">
                   👧
                 </span>
               ) : selectedOption.gender === 'L' || selectedOption.gender === 'PA' ? (
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-blue-100 text-[11px]">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-blue-100 text-[12px]">
                   👦
                 </span>
               ) : null}
@@ -218,7 +222,7 @@ export default function SearchableSelect({
                 onChange('');
                 setIsOpen(false);
               }}
-              className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
               title="Hapus pilihan"
             >
               <X size={13} />
@@ -231,17 +235,22 @@ export default function SearchableSelect({
         </div>
       </div>
 
-      {/* Floating Dropdown Panel */}
+      {/* Floating Dropdown Panel (Luas & Tidak Sempit) */}
       {isOpen && (
-        <div className="absolute z-50 mt-1.5 max-h-80 w-full overflow-hidden rounded-2xl border border-teal-200/90 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-150 ring-1 ring-black/5">
-          {/* Search Input Box */}
-          <div className="border-b border-slate-100 bg-slate-50/60 p-2.5">
+        <div
+          className={`absolute z-50 mt-2 ${dropdownWidth} overflow-hidden rounded-2xl border border-teal-200/90 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-150 ring-1 ring-black/5 ${
+            dropdownAlign === 'right' ? 'right-0' : 'left-0'
+          }`}
+        >
+          {/* Header Panel: Search Bar + Segmented Filter */}
+          <div className="border-b border-slate-100 bg-slate-50/80 p-3 space-y-2.5">
+            {/* Search Input Box */}
             <div className="relative flex items-center">
               <Search size={15} className="absolute left-3 text-[#138F81] pointer-events-none" />
               <input
                 ref={inputRef}
                 type="text"
-                className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-8 text-xs sm:text-sm font-semibold text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81]/30 transition-all"
+                className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-8 text-xs sm:text-sm font-semibold text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#138F81] focus:ring-2 focus:ring-[#138F81]/20 transition-all"
                 placeholder={searchPlaceholder}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -252,16 +261,24 @@ export default function SearchableSelect({
                 <button
                   type="button"
                   onClick={() => setSearch('')}
-                  className="absolute right-2.5 text-slate-400 hover:text-slate-600 p-0.5 rounded-full"
+                  className="absolute right-2.5 text-slate-400 hover:text-slate-600 p-0.5 rounded-full cursor-pointer"
                 >
                   <X size={14} />
                 </button>
               )}
             </div>
 
-            {/* Quick Filter Chips */}
+            {/* Segmented Control 1 Baris (Rapi & Tidak Bertumpuk) */}
             {filterChips && filterChips.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5 pt-2">
+              <div
+                className={`grid gap-1 bg-slate-200/60 p-1 rounded-xl ${
+                  filterChips.length === 2
+                    ? 'grid-cols-2'
+                    : filterChips.length === 3
+                    ? 'grid-cols-3'
+                    : 'grid-cols-4'
+                }`}
+              >
                 {filterChips.map((chip) => {
                   const isActive = activeChip === chip.id;
                   const count =
@@ -277,16 +294,16 @@ export default function SearchableSelect({
                         e.stopPropagation();
                         setActiveChip(chip.id);
                       }}
-                      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-extrabold transition-all cursor-pointer ${
+                      className={`flex items-center justify-center gap-1.5 rounded-lg py-1.5 px-2 text-[11px] font-extrabold transition-all cursor-pointer truncate ${
                         isActive
                           ? 'bg-[#138F81] text-white shadow-xs'
-                          : 'bg-white border border-slate-200/80 text-slate-600 hover:bg-slate-100'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                       }`}
                     >
-                      <span>{chip.label}</span>
+                      <span className="truncate">{chip.label}</span>
                       <span
-                        className={`rounded-full px-1 text-[9px] font-black ${
-                          isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                        className={`rounded-full px-1.5 py-0.2 text-[9px] font-black ${
+                          isActive ? 'bg-white/20 text-white' : 'bg-slate-300/70 text-slate-700'
                         }`}
                       >
                         {count}
@@ -296,23 +313,23 @@ export default function SearchableSelect({
                 })}
               </div>
             )}
+
+            {/* Recommendation Banner (Kompak & Elegan) */}
+            {recommendationNotice && (
+              <div className="flex items-center gap-1.5 rounded-xl border border-teal-200/90 bg-teal-50/90 px-2.5 py-1.5 text-[11px] font-bold text-teal-900 animate-in fade-in duration-150">
+                <Sparkles size={13} className="text-[#138F81] shrink-0" />
+                <span className="truncate">{recommendationNotice}</span>
+              </div>
+            )}
           </div>
 
-          {/* Recommendation Banner */}
-          {recommendationNotice && (
-            <div className="flex items-center gap-2 border-b border-teal-100 bg-teal-50/90 px-3 py-2 text-[11px] font-bold text-teal-900">
-              <Sparkles size={13} className="text-[#138F81] shrink-0" />
-              <span className="truncate">{recommendationNotice}</span>
-            </div>
-          )}
-
-          {/* Options Scrollable List */}
-          <div className="max-h-56 overflow-y-auto q-scrollbar p-1.5 space-y-1">
+          {/* Options Scrollable List (Tinggi Lega, Muat Banyak Data) */}
+          <div className="max-h-72 overflow-y-auto q-scrollbar p-2 space-y-1">
             {filteredOptions.length === 0 ? (
-              <div className="p-4 text-center">
+              <div className="p-5 text-center">
                 <p className="text-xs font-bold text-slate-400">Tidak ada hasil ditemukan</p>
                 {search && (
-                  <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
+                  <p className="text-[11px] font-semibold text-slate-400 mt-1">
                     Coba kata kunci lain untuk "{search}"
                   </p>
                 )}
@@ -336,17 +353,17 @@ export default function SearchableSelect({
                     }}
                   >
                     <div className="flex items-center gap-2.5 overflow-hidden mr-2">
-                      {/* Gender icon */}
+                      {/* Gender avatar icon */}
                       {opt.gender === 'P' || opt.gender === 'PI' ? (
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-pink-100 text-sm shadow-2xs">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-pink-100 text-sm shadow-2xs">
                           👧
                         </div>
                       ) : opt.gender === 'L' || opt.gender === 'PA' ? (
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-sm shadow-2xs">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-sm shadow-2xs">
                           👦
                         </div>
                       ) : (
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-[#138F81] text-xs font-black shadow-2xs">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-[#138F81] text-xs font-black shadow-2xs">
                           👥
                         </div>
                       )}
@@ -354,7 +371,7 @@ export default function SearchableSelect({
                       <div className="truncate text-left">
                         <div className="flex items-center gap-2">
                           <span
-                            className={`font-bold truncate ${
+                            className={`font-extrabold truncate ${
                               isSelected ? 'text-[#138F81]' : 'text-slate-800'
                             }`}
                           >
@@ -393,9 +410,9 @@ export default function SearchableSelect({
           </div>
 
           {/* Bottom Info Bar */}
-          <div className="border-t border-slate-100 bg-slate-50/70 px-3 py-1.5 text-[10px] font-bold text-slate-400 flex items-center justify-between">
+          <div className="border-t border-slate-100 bg-slate-50/80 px-3.5 py-2 text-[10px] font-bold text-slate-400 flex items-center justify-between">
             <span>
-              {filteredOptions.length} dari {normalizedOptions.length} pilihan
+              Menampilkan {filteredOptions.length} dari {normalizedOptions.length} pilihan
             </span>
             <span className="italic">Tekan Enter untuk pilih cepat</span>
           </div>
