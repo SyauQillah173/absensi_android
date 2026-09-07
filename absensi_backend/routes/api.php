@@ -263,6 +263,9 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
 
         Route::post('siswa/import', [SiswaController::class, 'import'])->middleware('permission:buku_induk,create');
         Route::post('siswa/bulk-status', [SiswaController::class, 'bulkStatus'])->middleware('permission:buku_induk,update');
+        Route::post('siswa/luluskan', [SiswaController::class, 'luluskan'])->middleware('permission:buku_induk,update');
+        Route::post('siswa/kembalikan-aktif', [SiswaController::class, 'kembalikanAktif'])->middleware('permission:buku_induk,update');
+        Route::post('siswa/reset-alumni-to-active', [SiswaController::class, 'resetAlumniToActive'])->middleware('permission:buku_induk,update');
         Route::post('siswa/{siswa}/restore-alumni', [SiswaController::class, 'restoreAlumni'])->middleware('permission:buku_induk,update');
         Route::post('siswa', [SiswaController::class, 'store'])->middleware('permission:buku_induk,create');
         Route::put('siswa/{siswa}', [SiswaController::class, 'update'])->middleware('permission:buku_induk,update');

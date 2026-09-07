@@ -18,7 +18,7 @@ class Siswa extends Model
         'province_id', 'city_id', 'district_id', 'village_id',
         'kode_pos', 'no_whatsapp', 'email_siswa',
         'asal_sekolah', 'sekolah_formal', 'school_origin_id', 'previous_asal_sekolah', 'previous_school_origin_id',
-        'tahun_lulus', 'tahun_akademik_masuk', 'tahun_akademik_masuk_formal', 'academic_year_id',
+        'tahun_lulus', 'tanggal_lulus', 'nomor_ijazah', 'catatan_kelulusan', 'tahun_akademik_masuk', 'tahun_akademik_masuk_formal', 'academic_year_id',
         'jenis_santri', 'student_type_id',
         'anak_ke', 'jml_saudara',
         'nama_ayah', 'nik_ayah', 'tempat_lahir_ayah', 'tanggal_lahir_ayah', 'agama_ayah',
@@ -38,6 +38,11 @@ class Siswa extends Model
         'tanggal_diterima_pondok', 'tanggal_diterima_sekolah',
         'tinggi_badan', 'berat_badan', 'golongan_darah', 'blood_type_id',
         'foto_santri', 'catatan_santri',
+    ];
+
+    protected $casts = [
+        'tanggal_lulus' => 'date:Y-m-d',
+        'tanggal_lahir' => 'date:Y-m-d',
     ];
 
     public function wali()

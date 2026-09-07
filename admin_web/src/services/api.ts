@@ -474,6 +474,15 @@ export const api = {
   bulkUpdateSiswaStatus(ids: number[], status: 'Aktif' | 'Nonaktif' | 'Lulus', extra: ApiRecord = {}) {
     return request<ApiRecord>('/siswa/bulk-status', { method: 'POST', body: JSON.stringify({ ids, status, ...extra }) });
   },
+  luluskanSiswa(data: { ids: number[]; tanggal_lulus: string; tahun_lulus: string; nomor_ijazah?: string; catatan_kelulusan?: string }) {
+    return request<ApiRecord>('/siswa/luluskan', { method: 'POST', body: JSON.stringify(data) });
+  },
+  kembalikanSiswaAktif(ids: number[]) {
+    return request<ApiRecord>('/siswa/kembalikan-aktif', { method: 'POST', body: JSON.stringify({ ids }) });
+  },
+  resetAlumniToActive() {
+    return request<ApiRecord>('/siswa/reset-alumni-to-active', { method: 'POST' });
+  },
   restoreAlumni(siswaId: number) {
     return request<ApiRecord>(`/siswa/${siswaId}/restore-alumni`, { method: 'POST' });
   },

@@ -53,9 +53,15 @@ class SiswaController extends Controller
             $classId = app(ReferenceResolver::class)->classId($request->kelas, false);
             $classId ? $query->where('class_id', $classId) : $query->whereRaw('1 = 0');
         }
-        if ($request->has('status')) {
-            $statusId = app(ReferenceResolver::class)->studentStatusId($request->status);
-            $statusId ? $query->where('student_status_id', $statusId) : $query->whereRaw('1 = 0');
+        if ($request->filled('status')) {
+            $statusVal = trim((string) $request->status);
+            $statusId = app(ReferenceResolver::class)->studentStatusId($statusVal);
+            $query->where(function ($q) use ($statusVal, $statusId) {
+                $q->where('status', $statusVal);
+                if ($statusId) {
+                    $q->orWhere('student_status_id', $statusId);
+                }
+            });
         }
         if ($request->filled('search')) {
             $search = '%' . trim((string) $request->search) . '%';
@@ -135,6 +141,9 @@ class SiswaController extends Controller
             'previous_asal_sekolah' => 'nullable|string',
             'previous_school_origin_id' => 'nullable|integer|exists:school_origins,id',
             'tahun_lulus' => 'nullable|string|max:4',
+            'tanggal_lulus' => 'nullable|date',
+            'nomor_ijazah' => 'nullable|string|max:100',
+            'catatan_kelulusan' => 'nullable|string|max:1000',
             'tahun_akademik_masuk' => 'nullable|string',
             'tahun_akademik_masuk_madin' => 'nullable|string',
             'tahun_akademik_masuk_formal' => 'nullable|string',
@@ -464,6 +473,9 @@ class SiswaController extends Controller
             'previous_asal_sekolah' => 'nullable|string',
             'previous_school_origin_id' => 'nullable|integer|exists:school_origins,id',
             'tahun_lulus' => 'nullable|string|max:4',
+            'tanggal_lulus' => 'nullable|date',
+            'nomor_ijazah' => 'nullable|string|max:100',
+            'catatan_kelulusan' => 'nullable|string|max:1000',
             'tahun_akademik_masuk' => 'nullable|string',
             'tahun_akademik_masuk_madin' => 'nullable|string',
             'tahun_akademik_masuk_formal' => 'nullable|string',
@@ -621,6 +633,119 @@ class SiswaController extends Controller
             'success' => true,
             'message' => "Santri {$siswa->nama} berhasil dipulihkan menjadi Santri Aktif.",
             'data' => $siswa->fresh(),
+        ]);
+    }
+
+    /**
+     * Fitur Kelulusan Resmi Santri menjadi Alumni oleh Admin
+     * Menerima input tanggal_lulus, tahun_lulus, nomor_ijazah, catatan_kelulusan
+     */
+    public function luluskan(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:siswa,id',
+            'tanggal_lulus' => 'required|date',
+            'tahun_lulus' => 'required|string|max:4',
+            'nomor_ijazah' => 'nullable|string|max:100',
+            'catatan_kelulusan' => 'nullable|string|max:1000',
+        ]);
+
+        $ids = array_values(array_unique(array_map('intval', $validated['ids'])));
+        $studentStatusId = app(ReferenceResolver::class)->studentStatusId('Lulus');
+
+        DB::transaction(function () use ($ids, $validated, $studentStatusId) {
+            $siswaList = Siswa::query()->whereIn('id', $ids)->get();
+
+            foreach ($siswaList as $siswa) {
+                $siswa->update([
+                    'status' => 'Lulus',
+                    'student_status_id' => $studentStatusId,
+                    'tanggal_lulus' => $validated['tanggal_lulus'],
+                    'tahun_lulus' => substr((string)$validated['tahun_lulus'], 0, 4),
+                    'nomor_ijazah' => $validated['nomor_ijazah'] ?? null,
+                    'catatan_kelulusan' => $validated['catatan_kelulusan'] ?? null,
+                ]);
+
+                // Lepaskan dari rombel / kelompok belajar aktif
+                $siswa->kelompokBelajar()->detach();
+                $this->waliAccountService->syncForStudent($siswa);
+            }
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => count($ids) . ' santri berhasil resmi dinyatakan Lulus Alumni.',
+            'count' => count($ids),
+        ]);
+    }
+
+    /**
+     * Membatalkan kelulusan & mengembalikan santri alumni ke Santri Aktif
+     */
+    public function kembalikanAktif(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:siswa,id',
+        ]);
+
+        $ids = array_values(array_unique(array_map('intval', $validated['ids'])));
+        $activeStatusId = app(ReferenceResolver::class)->studentStatusId('Aktif') ?? 1;
+
+        DB::transaction(function () use ($ids, $activeStatusId) {
+            $siswaList = Siswa::query()->whereIn('id', $ids)->get();
+
+            foreach ($siswaList as $siswa) {
+                $siswa->update([
+                    'status' => 'Aktif',
+                    'student_status_id' => $activeStatusId,
+                    'tanggal_lulus' => null,
+                    'tahun_lulus' => null,
+                    'nomor_ijazah' => null,
+                    'catatan_kelulusan' => null,
+                ]);
+                $this->waliAccountService->syncForStudent($siswa);
+            }
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => count($ids) . ' santri berhasil dikembalikan menjadi Santri Aktif.',
+            'count' => count($ids),
+        ]);
+    }
+
+    /**
+     * Pemulihan Darurat: Reset seluruh data santri alumni uji coba kembali ke Santri Aktif
+     */
+    public function resetAlumniToActive(Request $request)
+    {
+        $activeStatusId = app(ReferenceResolver::class)->studentStatusId('Aktif') ?? 1;
+        $lulusStatusId = app(ReferenceResolver::class)->studentStatusId('Lulus');
+
+        $query = Siswa::query()->where(function ($q) use ($lulusStatusId) {
+            $q->where('status', 'Lulus');
+            if ($lulusStatusId) {
+                $q->orWhere('student_status_id', $lulusStatusId);
+            }
+        });
+
+        $count = $query->count();
+
+        $query->update([
+            'status' => 'Aktif',
+            'student_status_id' => $activeStatusId,
+            'tanggal_lulus' => null,
+            'tahun_lulus' => null,
+            'nomor_ijazah' => null,
+            'catatan_kelulusan' => null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Alhamdulillah! Sebanyak {$count} santri alumni berhasil dipulihkan menjadi Santri Aktif. Data alumni sekarang bersih.",
+            'count' => $count,
         ]);
     }
 

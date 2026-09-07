@@ -1,5 +1,8 @@
 import {
+  AlertTriangle,
+  Award,
   Building2,
+  Calendar,
   CheckCircle2,
   Download,
   Eye,
@@ -151,6 +154,16 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
   const [resetTarget, setResetTarget] = useState<ApiRecord | null>(null);
   const [resetSuccess, setResetSuccess] = useState<ApiRecord | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<ApiRecord | null>(null);
+  // State Khusus Kelulusan Resmi Santri Alumni
+  const [graduatingTarget, setGraduatingTarget] = useState<ApiRecord[] | null>(null);
+  const [isGraduating, setIsGraduating] = useState(false);
+  const [gradDate, setGradDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [gradYear, setGradYear] = useState(() => String(new Date().getFullYear()));
+  const [gradIjazah, setGradIjazah] = useState('');
+  const [gradCatatan, setGradCatatan] = useState('');
+  const [showResetAlumniModal, setShowResetAlumniModal] = useState(false);
+  const [isResettingAlumni, setIsResettingAlumni] = useState(false);
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -207,6 +220,19 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
         result = await api.boardingStudents();
       }
       let list = Array.isArray(result.data) ? result.data : [];
+      if (variant === 'siswa') {
+        // Santri aktif: pisahkan dan pastikan santri yang sudah berstatus Lulus tidak tercampur
+        list = list.filter((r) => {
+          const st = String(r.status ?? '').toLowerCase();
+          return st !== 'lulus' && Number(r.student_status_id) !== 3;
+        });
+      } else if (variant === 'alumni') {
+        // Data Santri Alumni: HANYA tampilkan santri yang benar-benar resmi berstatus Lulus
+        list = list.filter((r) => {
+          const st = String(r.status ?? '').toLowerCase();
+          return st === 'lulus' || Number(r.student_status_id) === 3;
+        });
+      }
       if (variant === 'login-admin' && !isItAdmin && !pmbVisibleToPengurus) {
         list = list.filter((r) => {
           const at = String(r.admin_type || '').toLowerCase();
@@ -256,10 +282,12 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
       const jk = String(r.jenis_kelamin ?? '').toUpperCase();
       if (s === 'aktif') aktif++;
       else if (s === 'nonaktif') nonaktif++;
-      else if (s === 'lulus') lulus++;
+      else if (s === 'lulus') {
+        lulus++;
+        if (jk === 'L') maleAlumni++;
+        else if (jk === 'P') femaleAlumni++;
+      }
       if (s !== 'lulus') totalSiswa++;
-      if (jk === 'L') maleAlumni++;
-      else if (jk === 'P') femaleAlumni++;
     }
     return { total: rows.length, totalSiswa, aktif, nonaktif, lulus, maleAlumni, femaleAlumni };
   }, [rows]);
@@ -319,6 +347,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
     onReset: (row) => setResetTarget(row),
     onDelete: (row) => setDeleteTarget(row),
     onRestore: (row) => setRestoreTarget(row),
+    onLuluskan: (row) => openLuluskanSingle(row),
     onStatus: (row, status) => {
       if (siswaMode || alumniMode) void updateOneSiswaStatus(row, status as SiswaStatus);
       else if (userMode) void updateOneUserStatus(row, status as UserStatus);
@@ -349,13 +378,93 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
     setSelectedIds(new Set());
   }
 
-  async function updateOneSiswaStatus(row: ApiRecord, status: SiswaStatus) {
-    const id = num(row.id);
-    if (!id || isSaving) return;
+  function openLuluskanSingle(row: ApiRecord) {
+    setGraduatingTarget([row]);
+    setGradDate(new Date().toISOString().split('T')[0]);
+    setGradYear(String(new Date().getFullYear()));
+    setGradIjazah(text(row.nomor_ijazah, ''));
+    setGradCatatan(text(row.catatan_kelulusan, ''));
+  }
+
+  function openLuluskanBulk() {
+    const targets = rows.filter((r) => selectedIds.has(num(r.id)));
+    if (targets.length === 0) return;
+    setGraduatingTarget(targets);
+    setGradDate(new Date().toISOString().split('T')[0]);
+    setGradYear(String(new Date().getFullYear()));
+    setGradIjazah('');
+    setGradCatatan('');
+  }
+
+  async function handleConfirmLuluskan() {
+    if (!graduatingTarget || graduatingTarget.length === 0 || isGraduating) return;
+    setIsGraduating(true);
+    setError('');
+    try {
+      const ids = graduatingTarget.map((r) => num(r.id)).filter(Boolean);
+      await api.luluskanSiswa({
+        ids,
+        tanggal_lulus: gradDate,
+        tahun_lulus: gradYear,
+        nomor_ijazah: gradIjazah.trim() || undefined,
+        catatan_kelulusan: gradCatatan.trim() || undefined,
+      });
+      setNotice(`Alhamdulillah! ${ids.length} santri berhasil resmi dinyatakan Lulus Alumni.`);
+      setGraduatingTarget(null);
+      setSelectedIds(new Set());
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal memproses kelulusan santri.');
+    } finally {
+      setIsGraduating(false);
+    }
+  }
+
+  async function handleResetAllAlumni() {
+    if (isResettingAlumni) return;
+    setIsResettingAlumni(true);
+    setError('');
+    try {
+      const res = await api.resetAlumniToActive();
+      setNotice(res.message || 'Seluruh santri alumni uji coba berhasil dipulihkan menjadi Santri Aktif.');
+      setShowResetAlumniModal(false);
+      setSelectedIds(new Set());
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal mereset data alumni uji coba.');
+    } finally {
+      setIsResettingAlumni(false);
+    }
+  }
+
+  async function handleBulkRestoreAlumni() {
+    if (selectedIds.size === 0 || isSaving) return;
     setIsSaving(true);
     setError('');
     try {
-      await api.updateSiswa(id, { status, ...(status === 'Lulus' ? { tahun_lulus: new Date().getFullYear() } : {}) });
+      const ids = Array.from(selectedIds);
+      await api.kembalikanSiswaAktif(ids);
+      setNotice(`${ids.length} santri alumni berhasil dikembalikan menjadi Santri Aktif.`);
+      setSelectedIds(new Set());
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal memulihkan santri terpilih.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function updateOneSiswaStatus(row: ApiRecord, status: SiswaStatus) {
+    const id = num(row.id);
+    if (!id || isSaving) return;
+    if (status === 'Lulus') {
+      openLuluskanSingle(row);
+      return;
+    }
+    setIsSaving(true);
+    setError('');
+    try {
+      await api.updateSiswa(id, { status });
       setNotice(`Status ${text(row.nama)} berhasil menjadi ${status}.`);
       await load();
     } catch (err) {
@@ -383,10 +492,14 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
 
   async function bulkStatus(status: SiswaStatus) {
     if (!siswaMode || selectedIds.size === 0 || isSaving) return;
+    if (status === 'Lulus') {
+      openLuluskanBulk();
+      return;
+    }
     setIsSaving(true);
     setError('');
     try {
-      await api.bulkUpdateSiswaStatus(Array.from(selectedIds), status, status === 'Lulus' ? { tahun_lulus: new Date().getFullYear() } : {});
+      await api.bulkUpdateSiswaStatus(Array.from(selectedIds), status);
       setNotice(`${selectedIds.size} siswa/santri berhasil diperbarui menjadi ${status}.`);
       await load();
     } catch (err) {
@@ -395,8 +508,6 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
       setIsSaving(false);
     }
   }
-
-
 
   async function restoreAlumniRecord() {
     if (!restoreTarget?.id || isSaving) return;
@@ -644,6 +755,55 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
         </div>
       )}
 
+      {alumniMode ? (
+        <section className="q-panel p-4 sm:p-5 bg-linear-to-r from-purple-50/70 via-indigo-50/40 to-white border border-purple-200/80">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-extrabold text-[#2D3436] flex items-center gap-2">
+                <Award className="text-[#6C5CE7]" size={18} /> Manajemen Kelulusan & Arsip Alumni Pesantren
+              </h3>
+              <p className="text-xs font-semibold text-[#636E72] mt-0.5">
+                Santri hanya tercatat sebagai alumni jika telah diluluskan secara resmi oleh Admin lengkap dengan tanggal dan tahun kelulusan.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              {rows.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setShowResetAlumniModal(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-rose-50 text-rose-700 border border-rose-200 text-xs font-black hover:bg-rose-100 transition-colors shadow-xs"
+                  title="Kembalikan semua santri alumni uji coba menjadi santri aktif"
+                >
+                  <RotateCcw size={14} /> Pulihkan Semua ke Santri Aktif (Reset Uji Coba)
+                </button>
+              ) : null}
+            </div>
+          </div>
+          {selectedCount > 0 ? (
+            <div className="mt-3 pt-3 border-t border-purple-200/60 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-bold text-[#6C5CE7]">{selectedCount} alumni dipilih</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleBulkRestoreAlumni()}
+                  disabled={isSaving}
+                  className="rounded-xl bg-[#6C5CE7] px-4 py-2 text-xs font-extrabold text-white shadow-sm hover:bg-[#5b4cc4] transition-colors inline-flex items-center gap-1.5"
+                >
+                  <RotateCcw size={13} /> Pulihkan {selectedCount} Santri Terpilih ke Aktif
+                </button>
+                <button
+                  type="button"
+                  onClick={clearSelected}
+                  className="rounded-xl bg-white px-3 py-2 text-xs font-bold text-gray-600 border border-gray-200 hover:bg-gray-50"
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       {siswaMode ? (
         <section className="q-panel p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -680,8 +840,8 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
               <button className="rounded-2xl bg-[#E8590C] px-4 py-2 text-sm font-extrabold text-white" onClick={() => void bulkStatus('Nonaktif')} type="button" disabled={isSaving}>
                 Nonaktifkan
               </button>
-              <button className="rounded-2xl bg-[#2E86DE] px-4 py-2 text-sm font-extrabold text-white" onClick={() => void bulkStatus('Lulus')} type="button" disabled={isSaving}>
-                Luluskan
+              <button className="rounded-2xl bg-[#6C5CE7] px-4 py-2 text-sm font-extrabold text-white shadow-md shadow-[#6C5CE7]/20 flex items-center gap-1.5 hover:bg-[#5b4cc4]" onClick={openLuluskanBulk} type="button" disabled={isSaving}>
+                <GraduationCap size={16} /> Luluskan {selectedCount} Santri Terpilih
               </button>
             </div>
           ) : null}
@@ -799,7 +959,185 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
           onConfirm={() => void restoreAlumniRecord()}
         />
       ) : null}
+
+      {graduatingTarget && graduatingTarget.length > 0 ? (
+        <LuluskanModal
+          targets={graduatingTarget}
+          gradDate={gradDate}
+          setGradDate={setGradDate}
+          gradYear={gradYear}
+          setGradYear={setGradYear}
+          gradIjazah={gradIjazah}
+          setGradIjazah={setGradIjazah}
+          gradCatatan={gradCatatan}
+          setGradCatatan={setGradCatatan}
+          isGraduating={isGraduating}
+          onConfirm={() => void handleConfirmLuluskan()}
+          onClose={() => !isGraduating && setGraduatingTarget(null)}
+        />
+      ) : null}
+
+      {showResetAlumniModal ? (
+        <ConfirmDialog
+          title="⚠️ Pulihkan Seluruh Santri Alumni Uji Coba?"
+          message="Tindakan ini akan mengembalikan seluruh santri yang sempat berstatus Lulus kembali menjadi Santri Aktif 100%, serta membersihkan data alumni uji coba kemarin. Gunakan fitur ini untuk memulihkan data santri yang sempat ter-update otomatis saat uji coba kenaikan kelas."
+          tone="danger"
+          confirmLabel={isResettingAlumni ? "Memulihkan..." : "Ya, Pulihkan Semua ke Santri Aktif"}
+          isBusy={isResettingAlumni}
+          onCancel={() => setShowResetAlumniModal(false)}
+          onConfirm={() => void handleResetAllAlumni()}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function LuluskanModal({
+  targets,
+  gradDate,
+  setGradDate,
+  gradYear,
+  setGradYear,
+  gradIjazah,
+  setGradIjazah,
+  gradCatatan,
+  setGradCatatan,
+  isGraduating,
+  onConfirm,
+  onClose,
+}: {
+  targets: ApiRecord[];
+  gradDate: string;
+  setGradDate: (val: string) => void;
+  gradYear: string;
+  setGradYear: (val: string) => void;
+  gradIjazah: string;
+  setGradIjazah: (val: string) => void;
+  gradCatatan: string;
+  setGradCatatan: (val: string) => void;
+  isGraduating: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <ModalForm
+      title="🎓 Form Kelulusan Santri Alumni Resmi"
+      onClose={() => !isGraduating && onClose()}
+      footer={
+        <div className="flex w-full justify-end gap-2">
+          <button
+            type="button"
+            disabled={isGraduating}
+            onClick={onClose}
+            className="rounded-2xl border border-gray-200 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-100"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            disabled={isGraduating || !gradDate || !gradYear}
+            onClick={onConfirm}
+            className="rounded-2xl bg-[#6C5CE7] px-6 py-2.5 text-sm font-black text-white shadow-lg shadow-[#6C5CE7]/30 hover:bg-[#5b4cc4] disabled:opacity-50 inline-flex items-center gap-2"
+          >
+            {isGraduating ? (
+              <>
+                <RefreshCw className="animate-spin" size={16} /> Menyimpan Kelulusan...
+              </>
+            ) : (
+              <>
+                <GraduationCap size={16} /> Konfirmasi Kelulusan ({targets.length} Santri)
+              </>
+            )}
+          </button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        {/* Info Santri yang akan diluluskan */}
+        <div className="rounded-2xl bg-purple-50 border border-purple-200 p-4">
+          <div className="flex items-center justify-between pb-2 border-b border-purple-100">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-[#6C5CE7]">
+              Santri yang Diluluskan ({targets.length} santri)
+            </span>
+            <span className="text-[11px] font-bold text-purple-700 bg-purple-100/80 px-2 py-0.5 rounded-md">
+              Pondok Pesantren Qomaruddin
+            </span>
+          </div>
+          <div className="mt-2 max-h-36 overflow-y-auto space-y-1.5 pr-1 text-xs">
+            {targets.map((s, idx) => (
+              <div key={idx} className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-purple-100 font-bold text-[#2D3436]">
+                <span>{idx + 1}. {text(s.nama)}</span>
+                <span className="font-mono text-gray-500 text-[11px] font-semibold">NIS: {text(s.nis)} • Kelas: {text(s.kelas)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Input Form Kelulusan */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-extrabold text-[#2D3436]">
+              Tanggal Kelulusan Resmi <span className="text-rose-500">*</span>
+            </span>
+            <input
+              type="date"
+              className="q-input w-full"
+              value={gradDate}
+              onChange={(e) => setGradDate(e.target.value)}
+              required
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-extrabold text-[#2D3436]">
+              Tahun Angkatan Kelulusan <span className="text-rose-500">*</span>
+            </span>
+            <input
+              type="number"
+              min="2000"
+              max="2100"
+              className="q-input w-full font-mono"
+              value={gradYear}
+              onChange={(e) => setGradYear(e.target.value)}
+              required
+              placeholder="Contoh: 2026"
+            />
+          </label>
+        </div>
+
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-extrabold text-[#2D3436]">
+            Nomor Ijazah / Sertifikat Kelulusan (Opsional)
+          </span>
+          <input
+            type="text"
+            className="q-input w-full font-mono"
+            value={gradIjazah}
+            onChange={(e) => setGradIjazah(e.target.value)}
+            placeholder="Contoh: IJZ/QMR/2026/001"
+          />
+        </label>
+
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-extrabold text-[#2D3436]">
+            Catatan / Predikat Kelulusan (Opsional)
+          </span>
+          <textarea
+            rows={2}
+            className="q-input w-full"
+            value={gradCatatan}
+            onChange={(e) => setGradCatatan(e.target.value)}
+            placeholder="Contoh: Lulus Mumtaz (Istimewa), Hafal Juz 30, dsb."
+          />
+        </label>
+
+        <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800 font-semibold leading-relaxed flex items-start gap-2">
+          <span className="text-base shrink-0">ℹ️</span>
+          <span>
+            Santri yang dikonfirmasi lulus akan memiliki label resmi <b>ALUMNI LULUS</b> dengan tanggal & tahun tercatat lengkap, serta otomatis masuk ke arsip <b>Buku Induk - Data Santri Alumni</b>.
+          </span>
+        </div>
+      </div>
+    </ModalForm>
   );
 }
 
@@ -1076,6 +1414,7 @@ interface ColumnCallbacks {
   onReset: (row: ApiRecord) => void;
   onDelete: (row: ApiRecord) => void;
   onRestore?: (row: ApiRecord) => void;
+  onLuluskan?: (row: ApiRecord) => void;
   onStatus: (row: ApiRecord, status: string) => void;
   onPrintKts?: (row: ApiRecord) => void;
   isSelected: (id: number) => boolean;
@@ -1087,7 +1426,7 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
   const actionColumn: DataColumn<ApiRecord> = {
     key: 'aksi',
     header: 'Aksi',
-    className: 'text-right w-[150px]',
+    className: 'text-right w-[180px]',
     render: (row) => {
       const isRowItAdmin = row.role === 'admin' && String(row.admin_type || '').toLowerCase() === 'it';
       const isProtectedFromPengurus = isRowItAdmin && !callbacks.isItAdmin;
@@ -1103,14 +1442,24 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
             <Eye size={13} /> Detail
           </button>
           {variant === 'siswa' ? (
-            <button
-              className="inline-flex h-8 items-center gap-1 rounded-xl bg-teal-50 px-2 text-xs font-extrabold text-[#138F81] hover:bg-teal-100 transition-colors border border-teal-200"
-              onClick={() => callbacks.onPrintKts?.(row)}
-              type="button"
-              title="Cetak Kartu Tanda Santri (KTS)"
-            >
-              <QrCode size={13} /> KTS
-            </button>
+            <>
+              <button
+                className="inline-flex h-8 items-center gap-1 rounded-xl bg-teal-50 px-2 text-xs font-extrabold text-[#138F81] hover:bg-teal-100 transition-colors border border-teal-200"
+                onClick={() => callbacks.onPrintKts?.(row)}
+                type="button"
+                title="Cetak Kartu Tanda Santri (KTS)"
+              >
+                <QrCode size={13} /> KTS
+              </button>
+              <button
+                className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#F0ECFF] px-2 text-xs font-extrabold text-[#6C5CE7] hover:bg-[#e2dbff] transition-colors border border-purple-200"
+                onClick={() => callbacks.onLuluskan?.(row)}
+                type="button"
+                title="Luluskan Santri Resmi Menjadi Alumni"
+              >
+                <GraduationCap size={13} /> Lulus
+              </button>
+            </>
           ) : null}
           {isProtectedFromPengurus ? (
             <span
@@ -1370,14 +1719,32 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
         )
       },
       {
-        key: 'tahun_lulus',
-        header: 'Tahun Kelulusan',
-        className: 'w-[140px]',
-        render: (row) => (
-          <span className="font-bold text-[#6C5CE7] bg-[#F0ECFF] px-2.5 py-1 rounded-xl text-xs inline-flex items-center gap-1">
-            🎓 {text(row.tahun_lulus, '-')}
-          </span>
-        )
+        key: 'kelulusan',
+        header: 'Status & Data Kelulusan',
+        className: 'w-[250px]',
+        render: (row) => {
+          const tgl = row.tanggal_lulus
+            ? new Date(String(row.tanggal_lulus)).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+            : '-';
+          return (
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#F0ECFF] text-[#6C5CE7] font-black text-xs border border-purple-200 shadow-2xs">
+                  🎓 ALUMNI LULUS
+                </span>
+                <span className="font-extrabold text-[11px] text-[#2D3436] bg-slate-100 px-2 py-0.5 rounded-md">
+                  Angkatan {text(row.tahun_lulus, '-')}
+                </span>
+              </div>
+              <div className="text-[11px] font-semibold text-[#636E72] flex flex-col gap-0.5">
+                <span>📅 Tgl Lulus: <b className="text-[#2D3436]">{tgl}</b></span>
+                {row.nomor_ijazah ? (
+                  <span>📜 No. Ijazah: <b className="text-[#2D3436] font-mono">{text(row.nomor_ijazah)}</b></span>
+                ) : null}
+              </div>
+            </div>
+          );
+        }
       },
       {
         key: 'kelas',
@@ -1399,12 +1766,6 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
             </div>
           );
         }
-      },
-      {
-        key: 'status',
-        header: 'Status',
-        className: 'w-[110px]',
-        render: () => <StatusBadge label="Lulus (Alumni)" tone="info" />
       },
       {
         key: 'aksi',

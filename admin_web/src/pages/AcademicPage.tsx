@@ -218,7 +218,7 @@ export function AcademicPage() {
       const result = await api.autoPromoteAcademicPeriod(asNumber(autoPromoteTarget.id));
       const payload = (result.data && typeof result.data === 'object' ? result.data : {}) as ApiRecord;
       setNotice(
-        `Kenaikan kelas otomatis berhasil! Total santri diproses: ${payload.total_processed ?? 0}, Naik Kelas: ${payload.promoted ?? 0}, Lulus (Alumni): ${payload.graduated ?? 0}. Data santri yang lulus telah dipindahkan ke Data Santri Alumni.`
+        `Kenaikan kelas otomatis berhasil! Total santri: ${payload.total_santri_diproses ?? payload.total_processed ?? 0}, Naik Kelas: ${payload.berhasil_naik_kelas ?? payload.promoted ?? 0}, Tingkat Akhir: ${payload.tetap_tingkat_akhir ?? 0}. Seluruh santri tetap aktif; kelulusan alumni dilakukan resmi oleh admin.`
       );
       setAutoPromoteTarget(null);
       await load();
@@ -315,9 +315,9 @@ export function AcademicPage() {
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#6C5CE7] text-white text-xs font-black uppercase tracking-wider mb-2">
                 <Sparkles size={13} /> Fitur Otomatisasi Akademik
               </span>
-              <h2 className="text-lg font-black text-[#2D3436]">Kenaikan Kelas Madin & Pemisahan Alumni Otomatis</h2>
+              <h2 className="text-lg font-black text-[#2D3436]">Kenaikan Kelas Madin Otomatis</h2>
               <p className="mt-1 text-xs sm:text-sm font-semibold text-[#636E72] leading-relaxed">
-                Tahun Ajaran <span className="font-extrabold text-[#2D3436]">{text(activeAcademicYear.name)}</span> sedang aktif. Anda dapat menaikkan seluruh siswa madin 1 tingkat sekaligus secara otomatis tanpa perlu dipilih satu per satu. Siswa tingkat akhir (Sifir Sadis) otomatis lulus dan dipindahkan ke Data Santri Alumni agar data rapi dan tidak bercampur.
+                Tahun Ajaran <span className="font-extrabold text-[#2D3436]">{text(activeAcademicYear.name)}</span> sedang aktif. Anda dapat menaikkan seluruh siswa madin 1 tingkat sekaligus secara otomatis. Siswa tingkat akhir (Sifir Sadis) tetap dipertahankan kelasnya dan tetap berstatus Aktif. Kelulusan menjadi alumni diproses resmi oleh admin di menu Santri/Alumni.
               </p>
             </div>
             <button
@@ -368,7 +368,7 @@ export function AcademicPage() {
 
       {autoPromoteTarget ? (
         <ModalForm
-          title="🚀 Kenaikan Kelas Otomatis & Pemisahan Alumni"
+          title="🚀 Kenaikan Kelas Madin Otomatis"
           onClose={() => !isPromoting && setAutoPromoteTarget(null)}
           footer={
             <div className="flex w-full justify-end gap-2">
@@ -419,7 +419,7 @@ export function AcademicPage() {
                   <span className="text-base">🎓</span>
                   <div>
                     <span className="font-extrabold text-[#6C5CE7]">Siswa Tingkat Akhir (Sifir Sadis):</span>
-                    <p className="text-[11px] font-medium text-[#636E72] mt-0.5">Otomatis dinyatakan <b className="text-[#6C5CE7]">LULUS</b> dan langsung dipisahkan masuk ke menu <b className="text-[#2D3436]">Data Santri Alumni</b> agar tidak tercampur dengan siswa aktif maupun siswa baru.</p>
+                    <p className="text-[11px] font-medium text-[#636E72] mt-0.5">Tetap berstatus <b className="text-[#138F81]">AKTIF</b> di kelas akhir. Kelulusan menjadi alumni diproses resmi oleh Admin di menu Santri lengkap dengan tanggal dan tahun.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-purple-100">
