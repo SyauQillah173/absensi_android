@@ -652,7 +652,7 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
         </>
       ) : null}
 
-      <section className="q-panel p-4 sm:p-6">
+      <section className="q-panel p-3 sm:p-5 lg:p-6 w-full max-w-full min-w-0 overflow-hidden">
         {isLoading ? <div className="rounded-2xl bg-white px-4 py-8 text-center text-sm font-bold text-[#636E72]">Memuat data keuangan...</div> : null}
         {!isLoading && activeTab === 'today' ? <PaymentsTable rows={today} emptyText="Belum ada transaksi hari ini." onDeleteTransaction={(row) => setConfirmDelete({ id: num(row.id), type: row.source === 'legacy' ? 'legacy' : 'transaction', title: `Transaksi ${str(row.transaction_code ?? row.kode_transaksi)}` })} onDeleteItem={(item) => setConfirmDelete({ id: num(item.id), type: 'legacy', title: `Item ${str(item.nama)}` })} /> : null}
         {!isLoading && activeTab === 'history' ? (
@@ -3454,53 +3454,53 @@ function DocumentSettingsPanel({
   const previewAddress = paymentAdminTitle.trim() || 'JL. MASJID KIYAI GEDE BUNGAH';
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8 w-full max-w-full min-w-0">
       {/* FORM UTAMA */}
-      <form onSubmit={submit} className="space-y-8">
+      <form onSubmit={submit} className="space-y-6 sm:space-y-8 w-full max-w-full min-w-0">
 
         {/* SECTION 1: REKENING RESMI BANK PESANTREN */}
-        <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100 space-y-6">
+        <div className="rounded-2xl sm:rounded-3xl bg-white p-4 sm:p-6 lg:p-7 shadow-sm border border-gray-100 space-y-5 sm:space-y-6 w-full max-w-full min-w-0 overflow-hidden">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-teal-50 text-[#138F81] border border-teal-200/60">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2.5">
+                <span className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-teal-50 text-[#138F81] border border-teal-200/60 shrink-0">
                   <Building2 size={18} />
                 </span>
-                <h2 className="text-lg font-extrabold text-[#2D3436]">
+                <h2 className="text-base sm:text-lg font-extrabold text-[#2D3436] leading-tight">
                   Rekening Resmi Bank Pesantren (Tujuan Transfer Wali)
                 </h2>
               </div>
-              <p className="text-xs font-semibold text-[#636E72] mt-1">
+              <p className="text-xs font-semibold text-[#636E72] mt-1.5 leading-relaxed">
                 Atur bank resmi yayasan yang digunakan wali santri untuk transfer online. Perubahan di sini langsung terbit realtime di portal wali santri.
               </p>
             </div>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-black text-emerald-800 shrink-0">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-black text-emerald-800 shrink-0 self-start sm:self-auto">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               Tersinkron Realtime ke Wali
             </span>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-12 items-start">
+          <div className="grid gap-6 lg:grid-cols-12 items-start w-full max-w-full min-w-0">
             {/* FORM INPUTS */}
-            <div className="lg:col-span-7 space-y-4">
-              <div>
+            <div className="lg:col-span-7 space-y-4 w-full max-w-full min-w-0">
+              <div className="w-full max-w-full min-w-0">
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
                   Pilih Bank Tujuan (Kode Bank Otomatis Terisi)
                 </label>
                 <select
-                  className="q-input font-bold text-gray-800"
+                  className="q-input font-bold text-gray-800 w-full max-w-full min-w-0 text-xs sm:text-sm truncate"
                   value={bankName}
                   onChange={(e) => handleSelectBankPreset(e.target.value)}
                 >
                   {BANK_PRESETS.map((bp) => (
                     <option key={bp.name} value={bp.name}>
-                      {bp.name} {bp.code ? `(Kode Bank: ${bp.code})` : ''}
+                      {bp.name} {bp.code ? `(${bp.code})` : ''}
                     </option>
                   ))}
                 </select>
 
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <span className="text-[11px] font-semibold text-gray-400">Pilihan Populer:</span>
+                <div className="mt-2.5 flex flex-wrap items-center gap-1.5 w-full max-w-full min-w-0">
+                  <span className="text-[11px] font-semibold text-gray-400 w-full sm:w-auto">Pilihan Populer:</span>
                   {['Bank Syariah Indonesia (BSI)', 'Bank Central Asia (BCA)', 'Bank Rakyat Indonesia (BRI)', 'Bank Negara Indonesia (BNI)', 'Bank Mandiri', 'Bank Jatim / Syariah'].map((bPresetName) => {
                     const presetObj = BANK_PRESETS.find((p) => p.name === bPresetName);
                     return (
@@ -3508,10 +3508,10 @@ function DocumentSettingsPanel({
                         key={bPresetName}
                         type="button"
                         onClick={() => handleSelectBankPreset(bPresetName)}
-                        className={`rounded-lg px-2 py-0.5 text-[10px] font-black transition cursor-pointer ${
+                        className={`rounded-xl px-2.5 py-1 text-[10px] sm:text-[11px] font-bold transition cursor-pointer shrink-0 ${
                           bankName === bPresetName
                             ? 'bg-[#138F81] text-white shadow-xs'
-                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                         }`}
                       >
                         {presetObj?.sub || bPresetName} {presetObj?.code ? `(${presetObj.code})` : ''}
@@ -3521,27 +3521,27 @@ function DocumentSettingsPanel({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-full min-w-0">
+                <div className="sm:col-span-2 w-full max-w-full min-w-0">
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
                     Nama Lengkap Bank
                   </label>
                   <input
                     type="text"
-                    className="q-input font-semibold"
+                    className="q-input font-semibold w-full max-w-full min-w-0"
                     value={bankName}
                     onChange={(e) => setBankName(e.target.value)}
                     placeholder="Contoh: Bank Syariah Indonesia (BSI)"
                     required
                   />
                 </div>
-                <div>
+                <div className="w-full max-w-full min-w-0">
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
                     Kode Bank (3 Digit)
                   </label>
                   <input
                     type="text"
-                    className="q-input font-mono font-bold text-[#138F81]"
+                    className="q-input font-mono font-bold text-[#138F81] w-full max-w-full min-w-0"
                     value={bankCode}
                     onChange={(e) => setBankCode(e.target.value)}
                     placeholder="451"
@@ -3550,27 +3550,27 @@ function DocumentSettingsPanel({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-full min-w-0">
+                <div className="sm:col-span-2 w-full max-w-full min-w-0">
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
                     Nomor Rekening Resmi Pesantren
                   </label>
                   <input
                     type="text"
-                    className="q-input font-mono font-extrabold text-base tracking-wider text-gray-900"
+                    className="q-input font-mono font-extrabold text-base tracking-wider text-gray-900 w-full max-w-full min-w-0"
                     value={bankAccountNumber}
                     onChange={(e) => setBankAccountNumber(e.target.value)}
                     placeholder="Contoh: 7171 2026 88"
                     required
                   />
                 </div>
-                <div>
+                <div className="w-full max-w-full min-w-0">
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
                     Singkatan / Label
                   </label>
                   <input
                     type="text"
-                    className="q-input font-bold"
+                    className="q-input font-bold w-full max-w-full min-w-0"
                     value={bankSubName}
                     onChange={(e) => setBankSubName(e.target.value)}
                     placeholder="BSI Syariah"
@@ -3579,13 +3579,13 @@ function DocumentSettingsPanel({
                 </div>
               </div>
 
-              <div>
+              <div className="w-full max-w-full min-w-0">
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
                   Atas Nama Pemilik Rekening Resmi
                 </label>
                 <input
                   type="text"
-                  className="q-input font-bold"
+                  className="q-input font-bold w-full max-w-full min-w-0"
                   value={bankAccountHolder}
                   onChange={(e) => setBankAccountHolder(e.target.value)}
                   placeholder="Contoh: Yayasan Pondok Pesantren Qomaruddin"
@@ -3595,7 +3595,7 @@ function DocumentSettingsPanel({
             </div>
 
             {/* LIVE PREVIEW KARTU ATM VIRTUAL */}
-            <div className="lg:col-span-5 rounded-3xl bg-slate-50 p-5 border border-slate-200/80 space-y-3">
+            <div className="lg:col-span-5 rounded-2xl sm:rounded-3xl bg-slate-50 p-4 sm:p-5 border border-slate-200/80 space-y-3 w-full max-w-full min-w-0 overflow-hidden">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
                   <CreditCard size={14} className="text-[#138F81]" />
@@ -3607,30 +3607,30 @@ function DocumentSettingsPanel({
               </div>
 
               {/* ATM CARD DESIGN */}
-              <div className="bg-gradient-to-br from-[#0D7A6F] via-[#0A6357] to-[#03342D] text-white rounded-3xl p-5 shadow-xl shadow-teal-950/25 border border-teal-400/30 relative overflow-hidden space-y-4">
+              <div className="bg-gradient-to-br from-[#0D7A6F] via-[#0A6357] to-[#03342D] text-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xl shadow-teal-950/25 border border-teal-400/30 relative overflow-hidden space-y-3 sm:space-y-4 w-full max-w-full min-w-0">
                 <div className="absolute -right-8 -bottom-8 w-36 h-36 rounded-full bg-white/5 blur-xl pointer-events-none" />
                 <div className="absolute left-1/4 -top-8 w-28 h-28 rounded-full bg-[#FFDC80]/10 blur-xl pointer-events-none" />
 
-                <div className="flex items-center justify-between relative z-10">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+                <div className="flex items-center justify-between relative z-10 w-full min-w-0">
+                  <div className="flex items-center gap-2 min-w-0 flex-1 pr-2">
+                    <div className="w-8 h-8 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 shrink-0">
                       <Building2 size={16} className="text-[#FFDC80]" />
                     </div>
-                    <div>
-                      <span className="text-xs font-black tracking-wide block truncate max-w-[160px]">
+                    <div className="min-w-0 flex-1">
+                      <span className="text-xs font-black tracking-wide block truncate">
                         {bankName || 'Bank Pesantren'}
                       </span>
-                      <span className="text-[9px] font-bold text-teal-200 block uppercase tracking-wider">
+                      <span className="text-[9px] font-bold text-teal-200 block uppercase tracking-wider truncate">
                         {bankSubName || 'Rekening Resmi'}
                       </span>
                     </div>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full bg-white/15 backdrop-blur-md text-[9px] font-black border border-white/20 text-[#FFDC80]">
+                  <span className="px-2.5 py-0.5 rounded-full bg-white/15 backdrop-blur-md text-[9px] font-black border border-white/20 text-[#FFDC80] shrink-0">
                     Rekening Resmi
                   </span>
                 </div>
 
-                <div className="space-y-1 relative z-10">
+                <div className="space-y-1 relative z-10 w-full min-w-0">
                   <div className="flex items-center justify-between">
                     <div className="w-8 h-6 rounded-md bg-gradient-to-tr from-amber-300 via-yellow-400 to-amber-200 shadow-inner border border-amber-500/40 flex items-center justify-center">
                       <div className="w-6 h-4 border border-amber-600/40 rounded-xs grid grid-cols-2 gap-0.5 p-0.5">
@@ -3644,16 +3644,16 @@ function DocumentSettingsPanel({
                   </div>
 
                   <div className="pt-2">
-                    <div className="font-mono text-lg sm:text-xl font-black tracking-widest text-white drop-shadow-sm select-all">
+                    <div className="font-mono text-base sm:text-lg md:text-xl font-black tracking-widest text-white drop-shadow-sm select-all break-all">
                       {bankAccountNumber || '---- ---- ----'}
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-white/15 flex items-center justify-between gap-1 text-[11px] text-teal-100 font-medium relative z-10">
-                  <div>
+                <div className="pt-2 border-t border-white/15 flex items-center justify-between gap-1 text-[11px] text-teal-100 font-medium relative z-10 w-full min-w-0">
+                  <div className="min-w-0 flex-1 pr-1.5">
                     <span className="text-[9px] opacity-75 block">Atas Nama:</span>
-                    <strong className="text-white font-black text-xs block truncate max-w-[180px]">
+                    <strong className="text-white font-black text-xs block truncate">
                       {bankAccountHolder || 'Nama Pemilik Rekening'}
                     </strong>
                   </div>
@@ -3671,57 +3671,57 @@ function DocumentSettingsPanel({
         </div>
 
         {/* SECTION 2: FORMAT & JUDUL STRUK THERMAL */}
-        <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100 space-y-6">
+        <div className="rounded-2xl sm:rounded-3xl bg-white p-4 sm:p-6 lg:p-7 shadow-sm border border-gray-100 space-y-5 sm:space-y-6 w-full max-w-full min-w-0 overflow-hidden">
           <div className="border-b border-gray-100 pb-4">
-            <h2 className="text-lg font-extrabold text-[#2D3436]">
+            <h2 className="text-base sm:text-lg font-extrabold text-[#2D3436]">
               Pengaturan Format & Judul Struk Cetak
             </h2>
-            <p className="text-xs font-semibold text-[#636E72] mt-1">
+            <p className="text-xs font-semibold text-[#636E72] mt-1 leading-relaxed">
               Ubah nama institusi, alamat, dan ukuran kertas printer yang tercetak pada struk pembayaran fisik.
             </p>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-12 items-start">
+          <div className="grid gap-6 lg:grid-cols-12 items-start w-full max-w-full min-w-0">
             {/* FORM STRUK */}
-            <div className="lg:col-span-7 space-y-4">
-              <div>
+            <div className="lg:col-span-7 space-y-4 w-full max-w-full min-w-0">
+              <div className="w-full max-w-full min-w-0">
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
                   Judul Struk / Nama Aplikasi & Lembaga
                 </label>
                 <input
                   type="text"
-                  className="q-input font-bold"
+                  className="q-input font-bold w-full max-w-full min-w-0"
                   value={paymentAdminName}
                   onChange={(e) => setPaymentAdminName(e.target.value)}
                   placeholder="Contoh: MTS ASSA'ADAH II / SISTEM INFORMASI PONDOK"
                   required
                 />
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  <span className="text-[11px] font-semibold text-gray-400">Contoh Cepat:</span>
+                <div className="mt-2 flex flex-wrap gap-1.5 w-full max-w-full min-w-0">
+                  <span className="text-[11px] font-semibold text-gray-400 w-full sm:w-auto">Contoh Cepat:</span>
                   <button
                     type="button"
                     onClick={() => setPaymentAdminName("MTS ASSA'ADAH II")}
-                    className="rounded-md bg-gray-100 hover:bg-gray-200 px-2 py-0.5 text-[11px] font-bold text-gray-700 transition-colors"
+                    className="rounded-xl bg-slate-100 hover:bg-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700 transition-colors cursor-pointer"
                   >
                     MTS ASSA'ADAH II
                   </button>
                   <button
                     type="button"
                     onClick={() => setPaymentAdminName('YAYASAN PONDOK PESANTREN QOMARUDDIN')}
-                    className="rounded-md bg-gray-100 hover:bg-gray-200 px-2 py-0.5 text-[11px] font-bold text-gray-700 transition-colors"
+                    className="rounded-xl bg-slate-100 hover:bg-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700 transition-colors cursor-pointer"
                   >
                     PONDOK PESANTREN
                   </button>
                 </div>
               </div>
 
-              <div>
+              <div className="w-full max-w-full min-w-0">
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
                   Alamat / Kontak / Keterangan Baris Ke-2
                 </label>
                 <input
                   type="text"
-                  className="q-input font-medium"
+                  className="q-input font-medium w-full max-w-full min-w-0"
                   value={paymentAdminTitle}
                   onChange={(e) => setPaymentAdminTitle(e.target.value)}
                   placeholder="Contoh: JL. MASJID KIYAI GEDE BUNGAH (031) 3949818"
@@ -3729,18 +3729,18 @@ function DocumentSettingsPanel({
                 />
               </div>
 
-              <div>
+              <div className="w-full max-w-full min-w-0">
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
                   Ukuran Printer & Format Kertas
                 </label>
                 <select
-                  className="q-input font-bold text-gray-800"
+                  className="q-input font-bold text-gray-800 w-full max-w-full min-w-0 text-xs sm:text-sm truncate"
                   value={receiptWidth}
                   onChange={(e) => setReceiptWidth(e.target.value)}
                 >
-                  <option value="58mm">58mm (Printer Thermal Struk Kecil / Bluetooth 58mm)</option>
-                  <option value="80mm">80mm (Printer Thermal Struk Standar / Desktop 80mm)</option>
-                  <option value="100%">100% / A4 / A5 (Kertas Biasa / Inkjet / Laser Printer)</option>
+                  <option value="58mm">58mm (Printer Thermal Bluetooth 58mm)</option>
+                  <option value="80mm">80mm (Printer Thermal Desktop 80mm)</option>
+                  <option value="100%">100% / A4 / A5 (Kertas Biasa / Laser Printer)</option>
                 </select>
                 <p className="mt-1 text-[11px] text-gray-500 font-medium">
                   💡 Struk otomatis auto-fit margin saat dicetak di printer apapun tanpa ada teks terpotong.
@@ -3749,20 +3749,20 @@ function DocumentSettingsPanel({
             </div>
 
             {/* REALTIME THERMAL PREVIEW */}
-            <div className="lg:col-span-5 rounded-3xl bg-gray-50 p-6 border border-gray-200 space-y-3">
+            <div className="lg:col-span-5 rounded-2xl sm:rounded-3xl bg-gray-50 p-4 sm:p-6 border border-gray-200 space-y-3 w-full max-w-full min-w-0 overflow-hidden">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black uppercase tracking-wider text-gray-600">
                   Live Preview Struk Thermal
                 </span>
-                <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-black text-teal-800">
+                <span className="rounded-full bg-teal-100 px-2.5 py-0.5 text-[10px] font-black text-teal-800">
                   {receiptWidth === '80mm' ? '80mm' : receiptWidth === '100%' ? 'A4/A5' : '58mm'}
                 </span>
               </div>
 
               <div
-                className="mx-auto rounded-xl bg-white p-3.5 shadow-md border border-gray-300 text-black font-mono leading-tight space-y-1.5 transition-all duration-300"
+                className="mx-auto rounded-xl bg-white p-3.5 shadow-md border border-gray-300 text-black font-mono leading-tight space-y-1.5 transition-all duration-300 max-w-full overflow-hidden"
                 style={{
-                  width: receiptWidth === '80mm' ? '100%' : receiptWidth === '100%' ? '100%' : '240px',
+                  width: receiptWidth === '80mm' ? '100%' : receiptWidth === '100%' ? '100%' : 'min(240px, 100%)',
                   fontSize: '11px',
                 }}
               >
@@ -3854,17 +3854,17 @@ function DocumentSettingsPanel({
         )}
 
         {/* FEEDBACK & TOMBOL SIMPAN UTAMA */}
-        <div className="space-y-3">
+        <div className="space-y-3 w-full max-w-full min-w-0">
           {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-xs font-bold text-[#D63031]">{error}</div> : null}
           {success ? <div className="rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-xs font-black text-emerald-800">{success}</div> : null}
 
           <button
             type="submit"
             disabled={saving}
-            className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[#138F81] px-6 py-4 text-base font-black text-white hover:bg-[#0F7A6E] shadow-xl shadow-[#138F81]/25 transition-all disabled:opacity-50 cursor-pointer"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#138F81] px-4 py-3.5 sm:px-6 sm:py-4 text-sm sm:text-base font-black text-white hover:bg-[#0F7A6E] shadow-xl shadow-[#138F81]/25 transition-all disabled:opacity-50 cursor-pointer"
           >
-            {saving ? <RefreshCw className="animate-spin" size={20} /> : <Save size={20} />}
-            {saving ? 'Menyimpan Pengaturan...' : 'Simpan Seluruh Pengaturan Sistem (Rekening Resmi & Format Struk)'}
+            {saving ? <RefreshCw className="animate-spin" size={18} /> : <Save size={18} />}
+            <span>{saving ? 'Menyimpan Pengaturan...' : 'Simpan Pengaturan Sistem (Rekening & Format Struk)'}</span>
           </button>
         </div>
       </form>

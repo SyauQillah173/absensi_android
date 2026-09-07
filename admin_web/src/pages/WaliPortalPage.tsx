@@ -2081,23 +2081,23 @@ export function WaliPortalPage() {
                               <div className="absolute left-1/3 -top-10 w-32 h-32 rounded-full bg-[#FFDC80]/10 blur-xl pointer-events-none" />
 
                               {/* TOP ROW */}
-                              <div className="flex items-center justify-between relative z-10">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-8 h-8 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+                              <div className="flex items-center justify-between relative z-10 w-full min-w-0">
+                                <div className="flex items-center gap-2 min-w-0 flex-1 pr-2">
+                                  <div className="w-8 h-8 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 shrink-0">
                                     <Building2 size={16} className="text-[#FFDC80]" />
                                   </div>
-                                  <div>
-                                    <span className="text-xs font-black tracking-wide block">{rekeningResmi.bank_name}</span>
-                                    <span className="text-[9px] font-bold text-teal-200 block uppercase tracking-wider">{rekeningResmi.bank_sub_name}</span>
+                                  <div className="min-w-0 flex-1">
+                                    <span className="text-xs font-black tracking-wide block truncate">{rekeningResmi.bank_name}</span>
+                                    <span className="text-[9px] font-bold text-teal-200 block uppercase tracking-wider truncate">{rekeningResmi.bank_sub_name}</span>
                                   </div>
                                 </div>
-                                <span className="px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-md text-[10px] font-black border border-white/20 text-[#FFDC80]">
+                                <span className="px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-md text-[10px] font-black border border-white/20 text-[#FFDC80] shrink-0">
                                   Rekening Resmi Yayasan
                                 </span>
                               </div>
 
                               {/* CARD CHIP GRAPHIC & NUMBER */}
-                              <div className="space-y-1 relative z-10">
+                              <div className="space-y-1 relative z-10 w-full min-w-0">
                                 <div className="flex items-center justify-between">
                                   <div className="w-9 h-7 rounded-md bg-gradient-to-tr from-amber-300 via-yellow-400 to-amber-200 shadow-inner border border-amber-500/40 flex items-center justify-center">
                                     <div className="w-7 h-5 border border-amber-600/40 rounded-xs grid grid-cols-2 gap-0.5 p-0.5">
@@ -2109,14 +2109,14 @@ export function WaliPortalPage() {
                                 </div>
 
                                 <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                  <div className="font-mono text-xl sm:text-2xl font-black tracking-widest text-white drop-shadow-sm select-all">
+                                  <div className="font-mono text-lg sm:text-xl md:text-2xl font-black tracking-widest text-white drop-shadow-sm select-all break-all">
                                     {rekeningResmi.bank_account_number}
                                   </div>
 
                                   <button
                                     type="button"
                                     onClick={handleCopyRekening}
-                                    className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-xs font-black transition cursor-pointer border border-white/30 shadow-xs"
+                                    className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-xs font-black transition cursor-pointer border border-white/30 shadow-xs shrink-0"
                                   >
                                     {copiedRekening ? <Check size={14} className="text-emerald-300" /> : <Copy size={14} />}
                                     <span>{copiedRekening ? 'Tersalin! ✅' : 'Salin Nomor'}</span>
@@ -2125,14 +2125,14 @@ export function WaliPortalPage() {
                               </div>
 
                               {/* BOTTOM ROW */}
-                              <div className="pt-2 border-t border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] text-teal-100 font-medium relative z-10">
-                                <div>
+                              <div className="pt-2 border-t border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] text-teal-100 font-medium relative z-10 w-full min-w-0">
+                                <div className="min-w-0 flex-1">
                                   <span className="text-[10px] opacity-75 block">Atas Nama Rekening:</span>
-                                  <strong className="text-white font-black text-xs sm:text-sm">
+                                  <strong className="text-white font-black text-xs sm:text-sm block break-words">
                                     {rekeningResmi.bank_account_holder}
                                   </strong>
                                 </div>
-                                <span className="text-[10px] text-[#FFDC80] font-bold">
+                                <span className="text-[10px] text-[#FFDC80] font-bold shrink-0">
                                   Mendukung BI-FAST & Seluruh Bank
                                 </span>
                               </div>
