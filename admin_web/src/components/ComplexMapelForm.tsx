@@ -1,6 +1,7 @@
 import { BookOpen, Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock3, GraduationCap, Pencil, Plus, Save, Trash2, UsersRound, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, type ApiRecord } from '../services/api';
+import SearchableSelect, { type FilterChip, type SearchSelectOption } from './SearchableSelect';
 
 export interface ScheduleItem {
   id?: number;
@@ -162,6 +163,11 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
 
   // Handler memilih guru: deteksi gender guru & arahkan kelas ke PA/PI otomatis
   const handleSelectTeacher = (teacherId: string) => {
+    if (!teacherId) {
+      setNewSchedule((prev) => ({ ...prev, teacher_id: '' }));
+      return;
+    }
+
     const selectedTeacher = teachers.find((t) => String(t.id) === teacherId);
     const tGen = getGenderOfTeacher(selectedTeacher);
 
@@ -200,6 +206,11 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
 
   // Handler memilih kelas: sesuaikan rekomendasi guru berdasar gender PA/PI
   const handleSelectClass = (classId: string) => {
+    if (!classId) {
+      setNewSchedule((prev) => ({ ...prev, class_id: '', sifir: '' }));
+      return;
+    }
+
     const selectedClass = classes.find((c) => String(c.id) === classId);
     const cGen = getGenderOfClass(selectedClass);
 
@@ -228,6 +239,76 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
       teacher_id: targetTeacherId,
     }));
   };
+
+  // Cek gender kelas terpilih untuk rekomendasi guru
+  const selectedClass = useMemo(() => {
+    return classes.find((c) => String(c.id) === String(newSchedule.class_id));
+  }, [classes, newSchedule.class_id]);
+  const selectedClassGender = useMemo(() => getGenderOfClass(selectedClass), [selectedClass]);
+
+  // Cek gender guru terpilih untuk rekomendasi kelas
+  const selectedTeacher = useMemo(() => {
+    return teachers.find((t) => String(t.id) === String(newSchedule.teacher_id));
+  }, [teachers, newSchedule.teacher_id]);
+  const selectedTeacherGender = useMemo(() => getGenderOfTeacher(selectedTeacher), [selectedTeacher]);
+
+  // Option Guru Pengajar untuk SearchableSelect
+  const teacherOptions: SearchSelectOption[] = useMemo(() => {
+    return teachers.map((t) => {
+      const g = getGenderOfTeacher(t);
+      const isRec =
+        (selectedClassGender === 'PI' && g === 'P') ||
+        (selectedClassGender === 'PA' && g === 'L');
+
+      return {
+        value: String(t.id),
+        label: text(t.name),
+        subLabel: t.kode_guru ? `Kode: ${t.kode_guru}` : (t.email ? text(t.email) : undefined),
+        gender: g === 'unknown' ? undefined : g,
+        badge: g === 'L' ? '👦 Ustadz' : g === 'P' ? '👧 Ustadzah' : undefined,
+        badgeColor: g === 'L' ? ('blue' as const) : g === 'P' ? ('pink' as const) : ('teal' as const),
+        isRecommended: isRec,
+      };
+    });
+  }, [teachers, selectedClassGender]);
+
+  const teacherFilterChips: FilterChip[] = useMemo(
+    () => [
+      { id: 'all', label: 'Semua', filter: () => true },
+      { id: 'male', label: '👦 Ustadz (PA)', filter: (opt: SearchSelectOption) => opt.gender === 'L' },
+      { id: 'female', label: '👧 Ustadzah (PI)', filter: (opt: SearchSelectOption) => opt.gender === 'P' },
+    ],
+    []
+  );
+
+  // Option Kelas / Kelompok Belajar untuk SearchableSelect
+  const classOptions: SearchSelectOption[] = useMemo(() => {
+    return classes.map((c) => {
+      const g = getGenderOfClass(c);
+      const isRec =
+        (selectedTeacherGender === 'P' && g === 'PI') ||
+        (selectedTeacherGender === 'L' && g === 'PA');
+
+      return {
+        value: String(c.id),
+        label: text(c.name ?? c.nama),
+        subLabel: `Kategori: ${text(c.category, 'Madin')}`,
+        gender: g,
+        badge: g === 'PA' ? '👦 [PA] Putra' : g === 'PI' ? '👧 [PI] Putri' : '👥 Campur',
+        badgeColor: g === 'PA' ? ('blue' as const) : g === 'PI' ? ('pink' as const) : ('teal' as const),
+        isRecommended: isRec,
+      };
+    });
+  }, [classes, selectedTeacherGender]);
+
+  const classFilterChips: FilterChip[] = useMemo(
+    () => [
+      { id: 'all', label: 'Semua Kelas', filter: () => true },
+      { id: 'pa', label: '👦 Khusus Putra (PA)', filter: (opt: SearchSelectOption) => opt.gender === 'PA' },
+      { id: 'pi', label: '👧 Khusus Putri (PI)', filter: (opt: SearchSelectOption) => opt.gender === 'PI' },
+    ],
+    []
+  );
 
   // Handler 1-Klik: Duplikasi Jadwal Paralel untuk Pasangan Gender (PA ↔ PI)
   const handleDuplicatePartner = (targetSchedule: ScheduleItem) => {
@@ -691,44 +772,42 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
                     <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
                       Guru Pengajar
                     </label>
-                    <select
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none"
+                    <SearchableSelect
+                      options={teacherOptions}
                       value={newSchedule.teacher_id}
-                      onChange={(e) => handleSelectTeacher(e.target.value)}
-                    >
-                      <option value="">-- Pilih Guru Pengajar --</option>
-                      {teachers.map((t) => {
-                        const g = getGenderOfTeacher(t);
-                        return (
-                          <option key={t.id as number} value={t.id as number}>
-                            {g === 'L' ? '👦 [Ustadz] ' : g === 'P' ? '👧 [Ustadzah] ' : ''}
-                            {text(t.name)} {t.kode_guru ? `(${t.kode_guru})` : ''}
-                          </option>
-                        );
-                      })}
-                    </select>
+                      onChange={(val) => handleSelectTeacher(String(val))}
+                      placeholder="🔍 Ketik atau cari nama guru..."
+                      searchPlaceholder="Ketik nama ustadz / ustadzah..."
+                      filterChips={teacherFilterChips}
+                      recommendationNotice={
+                        selectedClassGender === 'PI'
+                          ? '✨ Direkomendasikan Ustadzah untuk kelompok Putri (PI)'
+                          : selectedClassGender === 'PA'
+                          ? '✨ Direkomendasikan Ustadz untuk kelompok Putra (PA)'
+                          : undefined
+                      }
+                    />
                   </div>
 
                   <div>
                     <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
                       Kelas / Kelompok Belajar
                     </label>
-                    <select
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none"
+                    <SearchableSelect
+                      options={classOptions}
                       value={newSchedule.class_id}
-                      onChange={(e) => handleSelectClass(e.target.value)}
-                    >
-                      <option value="">-- Pilih Kelas / Kelompok --</option>
-                      {classes.map((c) => {
-                        const g = getGenderOfClass(c);
-                        return (
-                          <option key={c.id as number} value={c.id as number}>
-                            {g === 'PA' ? '👦 [PA] ' : g === 'PI' ? '👧 [PI] ' : '👥 [Campur] '}
-                            {text(c.name ?? c.nama)} ({text(c.category, 'Madin')})
-                          </option>
-                        );
-                      })}
-                    </select>
+                      onChange={(val) => handleSelectClass(String(val))}
+                      placeholder="🔍 Ketik atau cari kelas..."
+                      searchPlaceholder="Ketik nama kelas (misal: 1 Wustho, PA, PI)..."
+                      filterChips={classFilterChips}
+                      recommendationNotice={
+                        selectedTeacherGender === 'P'
+                          ? '✨ Direkomendasikan Kelompok Putri (PI) untuk Ustadzah'
+                          : selectedTeacherGender === 'L'
+                          ? '✨ Direkomendasikan Kelompok Putra (PA) untuk Ustadz'
+                          : undefined
+                      }
+                    />
                   </div>
 
                   <div>
@@ -737,7 +816,7 @@ export function ComplexMapelForm({ initialData, onClose, onSave }: ComplexMapelF
                     </label>
                     <input
                       type="text"
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 placeholder-slate-400 focus:border-[#138F81] outline-none"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs sm:text-sm font-bold text-slate-800 placeholder-slate-400 focus:border-[#138F81] outline-none min-h-[42px]"
                       placeholder="Ruang 1 / Lab / Musholla"
                       value={newSchedule.ruangan}
                       onChange={(e) => setNewSchedule({ ...newSchedule, ruangan: e.target.value })}
