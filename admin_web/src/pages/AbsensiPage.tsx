@@ -474,6 +474,7 @@ function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget
   const [mapel, setMapel] = useState<ApiRecord[]>([]);
   const [jadwal, setJadwal] = useState<ApiRecord[]>([]);
   const [students, setStudents] = useState<ApiRecord[]>([]);
+  const [genderFilter, setGenderFilter] = useState<'Semua' | 'PA' | 'PI' | 'Campur'>('Semua');
   const [classId, setClassId] = useState(initialTarget?.classId ?? 0);
   const [mapelId, setMapelId] = useState(initialTarget?.mapelId ?? 0);
   const [jadwalId, setJadwalId] = useState(initialTarget?.jadwalId ?? 0);
@@ -615,10 +616,20 @@ function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget
     return classes.find((c) => num(c.id) === classId);
   }, [classes, classId]);
 
+  const displayedClasses = useMemo(() => {
+    if (genderFilter === 'Semua') return classes;
+    return classes.filter((c) => String(c.gender_group) === genderFilter);
+  }, [classes, genderFilter]);
+
+  const isUstadzah = useMemo(() => {
+    if (!selectedJadwal) return false;
+    return selectedJadwal.teacher_jenis_kelamin === 'P' || record(selectedJadwal.teacher).jenis_kelamin === 'P';
+  }, [selectedJadwal]);
+
   const teacherName = useMemo(() => {
     if (!selectedJadwal) return 'Belum Dipilih';
-    return String(selectedJadwal.guru || selectedJadwal.teacher_name || 'Ustadz Pengampu');
-  }, [selectedJadwal]);
+    return String(selectedJadwal.guru || selectedJadwal.teacher_name || (isUstadzah ? 'Ustadzah Pengampu' : 'Ustadz Pengampu'));
+  }, [selectedJadwal, isUstadzah]);
 
   const counts = useMemo(() => {
     const values = Object.values(statuses);
@@ -715,46 +726,87 @@ function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget
       <Message error={error} notice={notice} />
 
       {/* Selector Filters */}
-      <section className="q-panel grid gap-3 p-4 sm:p-6 md:grid-cols-5">
-        <div>
-          <label className="text-[11px] font-bold text-slate-500 mb-1 block">Tanggal KBM</label>
-          <input className="q-input" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+      <section className="q-panel p-4 sm:p-6 space-y-4">
+        {/* Quick Filter Kelompok Madin */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-3">
+          <span className="text-xs font-bold text-slate-500 mr-1">Kelompok Madin:</span>
+          {(['Semua', 'PA', 'PI', 'Campur'] as const).map((g) => {
+            const isSel = genderFilter === g;
+            const label = g === 'Semua' ? 'Semua Kelompok' : g === 'PA' ? '👦 Madin Putra (PA)' : g === 'PI' ? '🧕 Madin Putri (PI)' : '👥 Campur';
+            return (
+              <button
+                key={g}
+                type="button"
+                onClick={() => {
+                  setGenderFilter(g);
+                  // Jika kelas saat ini tidak sesuai filter baru, reset classId
+                  if (g !== 'Semua') {
+                    const match = classes.find(c => String(c.gender_group) === g);
+                    if (match) setClassId(num(match.id));
+                  }
+                }}
+                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                  isSel
+                    ? g === 'PA'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                      : g === 'PI'
+                      ? 'bg-pink-600 text-white shadow-md shadow-pink-500/20'
+                      : g === 'Campur'
+                      ? 'bg-amber-600 text-white shadow-md shadow-amber-500/20'
+                      : 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/20'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
-        <div>
-          <label className="text-[11px] font-bold text-slate-500 mb-1 block">Rombel Kelas</label>
-          <select className="q-input" value={classId} onChange={(event) => setClassId(Number(event.target.value))}>
-            <option value={0}>Pilih kelas</option>
-            {classes.map((item) => (
-              <option key={num(item.id)} value={num(item.id)}>
-                {text(item.name ?? item.nama)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-[11px] font-bold text-slate-500 mb-1 block">Mata Pelajaran</label>
-          <select className="q-input" value={mapelId} onChange={(event) => setMapelId(Number(event.target.value))}>
-            <option value={0}>Pilih mapel</option>
-            {mapel.map((item) => (
-              <option key={num(item.id)} value={num(item.id)}>
-                {text(item.nama ?? item.name)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-[11px] font-bold text-slate-500 mb-1 block">Jadwal & Waktu</label>
-          <select className="q-input" value={jadwalId} onChange={(event) => setJadwalId(Number(event.target.value))}>
-            <option value={0}>Pilih jadwal</option>
-            {jadwal.map((item) => (
-              <option key={num(item.id)} value={num(item.id)}>
-                {text(item.hari ?? item.day ?? item.nama)} {text(item.jam_mulai ?? item.start_time, '')}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex items-end">
-          <RefreshButton isLoading={isLoading} onClick={() => void loadSessionData(classId, mapelId, jadwalId, date)} />
+
+        <div className="grid gap-3 md:grid-cols-5">
+          <div>
+            <label className="text-[11px] font-bold text-slate-500 mb-1 block">Tanggal KBM</label>
+            <input className="q-input" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+          </div>
+          <div>
+            <label className="text-[11px] font-bold text-slate-500 mb-1 block">Rombel Kelas</label>
+            <select className="q-input" value={classId} onChange={(event) => setClassId(Number(event.target.value))}>
+              <option value={0}>Pilih kelas</option>
+              {displayedClasses.map((item) => {
+                const gTag = item.gender_group === 'PA' ? ' [👦 Putra]' : item.gender_group === 'PI' ? ' [🧕 Putri]' : item.gender_group === 'Campur' ? ' [👥 Campur]' : '';
+                return (
+                  <option key={num(item.id)} value={num(item.id)}>
+                    {text(item.name ?? item.nama)}{gTag}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+          <div>
+            <label className="text-[11px] font-bold text-slate-500 mb-1 block">Mata Pelajaran</label>
+            <select className="q-input" value={mapelId} onChange={(event) => setMapelId(Number(event.target.value))}>
+              <option value={0}>Pilih mapel</option>
+              {mapel.map((item) => (
+                <option key={num(item.id)} value={num(item.id)}>
+                  {text(item.nama ?? item.name)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-[11px] font-bold text-slate-500 mb-1 block">Jadwal & Waktu</label>
+            <select className="q-input" value={jadwalId} onChange={(event) => setJadwalId(Number(event.target.value))}>
+              <option value={0}>Pilih jadwal</option>
+              {jadwal.map((item) => (
+                <option key={num(item.id)} value={num(item.id)}>
+                  {text(item.hari ?? item.day ?? item.nama)} {text(item.jam_mulai ?? item.start_time, '')}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <RefreshButton isLoading={isLoading} onClick={() => void loadSessionData(classId, mapelId, jadwalId, date)} />
+          </div>
         </div>
       </section>
 
@@ -763,7 +815,7 @@ function MadinInput({ initialTarget }: { initialTarget?: AbsensiNavigationTarget
         <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-3xl bg-white border border-slate-200 shadow-xs">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs">
             <span className="font-bold text-slate-700 flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-xl">
-              👨‍🏫 Ustadz Pengampu:
+              {isUstadzah ? '🧕 Ustadzah Pengampu:' : '👨‍🏫 Ustadz Pengampu:'}
               <span className="text-[#138F81] font-black">{teacherName}</span>
             </span>
             <span className="font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl">
@@ -1216,6 +1268,7 @@ function MadinRekap() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [search, setSearch] = useState('');
+  const [genderFilter, setGenderFilter] = useState<'Semua' | 'PA' | 'PI' | 'Campur'>('Semua');
   const [rekapRows, setRekapRows] = useState<ApiRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -1238,9 +1291,21 @@ function MadinRekap() {
   }, []);
 
   const filtered = useMemo(() => {
+    let list = rekapRows;
+    if (genderFilter !== 'Semua') {
+      list = list.filter((row) => {
+        const gg = String(row.gender_group ?? record(row.kelasRef).gender_group ?? record(row.class).gender_group ?? '');
+        const kName = String(row.kelas ?? '').toLowerCase();
+        if (gg) return gg === genderFilter;
+        if (genderFilter === 'PA') return kName.includes('putra') || kName.includes('(pa)') || kName.includes(' pa');
+        if (genderFilter === 'PI') return kName.includes('putri') || kName.includes('(pi)') || kName.includes(' pi');
+        if (genderFilter === 'Campur') return kName.includes('campur');
+        return true;
+      });
+    }
     const keyword = search.trim().toLowerCase();
-    if (!keyword) return rekapRows;
-    return rekapRows.filter((row) => {
+    if (!keyword) return list;
+    return list.filter((row) => {
       const nama = String(record(row.siswa).nama ?? row.nama ?? '').toLowerCase();
       const nis = String(record(row.siswa).nis ?? row.nis ?? '').toLowerCase();
       const kelas = String(row.kelas ?? '').toLowerCase();
@@ -1248,11 +1313,35 @@ function MadinRekap() {
       const petugas = String(row.diinput_oleh ?? '').toLowerCase();
       return nama.includes(keyword) || nis.includes(keyword) || kelas.includes(keyword) || mapel.includes(keyword) || petugas.includes(keyword);
     });
-  }, [rekapRows, search]);
+  }, [rekapRows, search, genderFilter]);
 
   const columns: DataColumn<ApiRecord>[] = [
     { key: 'siswa', header: 'Siswa', render: (row) => <span className="font-extrabold">{text(record(row.siswa).nama ?? row.nama)}</span> },
-    { key: 'kelas', header: 'Kelas', render: (row) => text(row.kelas) },
+    {
+      key: 'kelas',
+      header: 'Kelas / Kelompok',
+      render: (row) => {
+        const kName = text(row.kelas);
+        const gg = String(row.gender_group ?? record(row.kelasRef).gender_group ?? '');
+        const isPA = gg === 'PA' || kName.toLowerCase().includes('putra') || kName.toLowerCase().includes('(pa)');
+        const isPI = gg === 'PI' || kName.toLowerCase().includes('putri') || kName.toLowerCase().includes('(pi)');
+        return (
+          <div className="flex flex-col items-start gap-1">
+            <span className="font-semibold text-slate-800">{kName}</span>
+            {isPA && (
+              <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200">
+                👦 Putra
+              </span>
+            )}
+            {isPI && (
+              <span className="inline-flex items-center rounded-full bg-pink-50 px-2 py-0.5 text-[10px] font-bold text-pink-700 border border-pink-200">
+                🧕 Putri
+              </span>
+            )}
+          </div>
+        );
+      }
+    },
     { key: 'mapel', header: 'Mapel', render: (row) => text(row.mapel) },
     { key: 'hadir', header: 'Hadir', render: (row) => num(row.total_hadir) },
     { key: 'izin', header: 'Izin', render: (row) => num(row.total_izin) },
@@ -1264,16 +1353,49 @@ function MadinRekap() {
   return (
     <div className="space-y-5">
       <Message error={error} />
-      <section className="q-panel q-rekap-action-panel grid gap-3 p-4 sm:p-6 md:grid-cols-[1fr_1fr_2fr_auto_auto]">
-        <input className="q-input" inputMode="numeric" value={month} onChange={(event) => setMonth(Number(event.target.value))} />
-        <input className="q-input" inputMode="numeric" value={year} onChange={(event) => setYear(Number(event.target.value))} />
-        <SearchInput value={search} onChange={setSearch} placeholder="Cari siswa / kelas / mapel" />
-        <button className="q-rekap-button rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white" onClick={() => void load()} type="button">
-          Tampilkan
-        </button>
-        <button className="q-rekap-button flex items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-extrabold text-[#138F81]" onClick={() => exportMadinRekapExcel(filtered, month, year)} type="button" disabled={filtered.length === 0}>
-          <Download size={17} /> Excel
-        </button>
+      
+      {/* Action and Filter Panel */}
+      <section className="q-panel p-4 sm:p-6 space-y-4">
+        {/* Quick Pill Filter Kelompok Madin */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-3">
+          <span className="text-xs font-bold text-slate-500 mr-1">Filter Kelompok:</span>
+          {(['Semua', 'PA', 'PI', 'Campur'] as const).map((g) => {
+            const isSel = genderFilter === g;
+            const label = g === 'Semua' ? 'Semua Kelompok' : g === 'PA' ? '👦 Madin Putra (PA)' : g === 'PI' ? '🧕 Madin Putri (PI)' : '👥 Campur';
+            return (
+              <button
+                key={g}
+                type="button"
+                onClick={() => setGenderFilter(g)}
+                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                  isSel
+                    ? g === 'PA'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                      : g === 'PI'
+                      ? 'bg-pink-600 text-white shadow-md shadow-pink-500/20'
+                      : g === 'Campur'
+                      ? 'bg-amber-600 text-white shadow-md shadow-amber-500/20'
+                      : 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/20'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-[1fr_1fr_2fr_auto_auto]">
+          <input className="q-input" inputMode="numeric" value={month} onChange={(event) => setMonth(Number(event.target.value))} />
+          <input className="q-input" inputMode="numeric" value={year} onChange={(event) => setYear(Number(event.target.value))} />
+          <SearchInput value={search} onChange={setSearch} placeholder="Cari siswa / kelas / mapel" />
+          <button className="q-rekap-button rounded-2xl bg-[#138F81] px-4 text-sm font-extrabold text-white cursor-pointer hover:bg-[#0D7A6F] transition-colors" onClick={() => void load()} type="button">
+            Tampilkan
+          </button>
+          <button className="q-rekap-button flex items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-extrabold text-[#138F81] border border-teal-200 hover:bg-teal-50 transition-colors cursor-pointer" onClick={() => exportMadinRekapExcel(filtered, month, year)} type="button" disabled={filtered.length === 0}>
+            <Download size={17} /> Excel
+          </button>
+        </div>
       </section>
       <section className="q-panel p-4 sm:p-6">
         {isLoading ? <LoadingText text="Memuat rekap madin..." /> : <DataTable rows={filtered} columns={columns} emptyText="Rekap madin belum tersedia." />}

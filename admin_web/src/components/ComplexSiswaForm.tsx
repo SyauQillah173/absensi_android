@@ -881,13 +881,36 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                             kelas: prev.kelas || (selected ? String(selected.name) : '')
                           }));
                         }}
-                        options={schoolClasses.map(c => ({
-                          value: String(c.id),
-                          label: `${c.name} (${c.category || 'Madin'}${c.gender_group ? ` - ${c.gender_group}` : ''})`
-                        }))}
+                        options={schoolClasses.map(c => {
+                          const gTag = c.gender_group === 'PA' ? ' [👦 Madin Putra]' : c.gender_group === 'PI' ? ' [🧕 Madin Putri]' : c.gender_group === 'Campur' ? ' [👥 Madin Campur]' : ` (${c.category || 'Madin'})`;
+                          return {
+                            value: String(c.id),
+                            label: `${c.name}${gTag}`
+                          };
+                        })}
                         placeholder="Pilih atau cari Kelas Madin..."
                         disabled={readOnly}
                       />
+                      {(() => {
+                        const selClass = schoolClasses.find(c => String(c.id) === String(form.class_id));
+                        const studentGender = String(form.jenis_kelamin || 'L').toUpperCase();
+                        if (!selClass) return null;
+                        if (selClass.gender_group === 'PI' && studentGender === 'L') {
+                          return (
+                            <div className="mt-2 rounded-xl bg-rose-50 border border-rose-200 p-2.5 text-xs font-bold text-rose-700 flex items-center gap-1.5">
+                              ⚠️ <span>Perhatian: Santri berjenis kelamin Laki-laki dipilih ke kelas <strong>Madin Putri (PI)</strong>. Mohon pastikan kelas sudah sesuai.</span>
+                            </div>
+                          );
+                        }
+                        if (selClass.gender_group === 'PA' && studentGender === 'P') {
+                          return (
+                            <div className="mt-2 rounded-xl bg-rose-50 border border-rose-200 p-2.5 text-xs font-bold text-rose-700 flex items-center gap-1.5">
+                              ⚠️ <span>Perhatian: Santri berjenis kelamin Perempuan dipilih ke kelas <strong>Madin Putra (PA)</strong>. Mohon pastikan kelas sudah sesuai.</span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </label>
                     <label className="block">
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Tahun Masuk Madin</span>

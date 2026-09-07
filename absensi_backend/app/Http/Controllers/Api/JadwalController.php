@@ -16,7 +16,11 @@ class JadwalController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Jadwal::with('mataPelajaran');
+        $query = Jadwal::with([
+            'mataPelajaran',
+            'kelasRef:id,code,name,category,gender_group',
+            'teacher:id,name,jenis_kelamin,kode_guru',
+        ]);
 
         if ($request->filled('status')) {
             if ($request->input('status') !== 'Semua') {
@@ -24,6 +28,21 @@ class JadwalController extends Controller
             }
         } else {
             $query->where('status', 'Aktif');
+        }
+
+        if ($request->filled('gender_group') && $request->input('gender_group') !== 'Semua') {
+            $gGroup = $request->input('gender_group');
+            $query->whereHas('kelasRef', function ($q) use ($gGroup) {
+                if ($gGroup === 'Campur') {
+                    $q->where(function ($sq) {
+                        $sq->where('gender_group', 'Campur')
+                           ->orWhereNull('gender_group')
+                           ->orWhere('gender_group', '');
+                    });
+                } else {
+                    $q->where('gender_group', $gGroup);
+                }
+            });
         }
 
         if ($request->filled('day_id')) {
@@ -54,6 +73,9 @@ class JadwalController extends Controller
                 $q->where('guru', 'ilike', "%$search%")
                   ->orWhereHas('mataPelajaran', function ($q2) use ($search) {
                       $q2->where('nama', 'ilike', "%$search%");
+                  })
+                  ->orWhereHas('kelasRef', function ($q3) use ($search) {
+                      $q3->where('name', 'ilike', "%$search%");
                   });
             });
         }
@@ -99,7 +121,7 @@ class JadwalController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Jadwal berhasil ditambahkan',
-            'data' => $jadwal->load('mataPelajaran'),
+            'data' => $jadwal->load(['mataPelajaran', 'kelasRef:id,code,name,category,gender_group', 'teacher:id,name,jenis_kelamin,kode_guru']),
         ], 201);
     }
 
@@ -107,7 +129,7 @@ class JadwalController extends Controller
     {
         return response()->json([
             'success' => true,
-            'data' => $jadwal->load('mataPelajaran'),
+            'data' => $jadwal->load(['mataPelajaran', 'kelasRef:id,code,name,category,gender_group', 'teacher:id,name,jenis_kelamin,kode_guru']),
         ]);
     }
 
@@ -151,7 +173,7 @@ class JadwalController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Jadwal berhasil diupdate',
-            'data' => $jadwal->load('mataPelajaran'),
+            'data' => $jadwal->load(['mataPelajaran', 'kelasRef:id,code,name,category,gender_group', 'teacher:id,name,jenis_kelamin,kode_guru']),
         ]);
     }
 

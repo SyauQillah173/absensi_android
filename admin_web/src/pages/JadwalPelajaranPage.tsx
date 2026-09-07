@@ -70,6 +70,14 @@ function className(row: ApiRecord): string {
   return text(row.class_name ?? row.kelas ?? row.sifir ?? record(row.class).nama ?? record(row.class).name);
 }
 
+function classGender(row: ApiRecord): string {
+  return text(row.gender_group ?? record(row.kelasRef).gender_group ?? record(row.class).gender_group ?? record(row.school_class).gender_group, '');
+}
+
+function teacherGender(row: ApiRecord): string {
+  return text(row.teacher_jenis_kelamin ?? record(row.teacher).jenis_kelamin, '');
+}
+
 export function JadwalPelajaranPage() {
   const [rows, setRows] = useState<ApiRecord[]>([]);
   const [mapel, setMapel] = useState<ApiRecord[]>([]);
@@ -77,6 +85,7 @@ export function JadwalPelajaranPage() {
   const [classes, setClasses] = useState<ApiRecord[]>([]);
   const [search, setSearch] = useState('');
   const [dayFilter, setDayFilter] = useState('Semua');
+  const [genderFilter, setGenderFilter] = useState<'Semua' | 'PA' | 'PI' | 'Campur'>('Semua');
   const [form, setForm] = useState<JadwalFormState | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ApiRecord | null>(null);
   const [showBatchForm, setShowBatchForm] = useState(false);
@@ -89,8 +98,12 @@ export function JadwalPelajaranPage() {
     setIsLoading(true);
     setError('');
     try {
+      const params: Record<string, string> = {};
+      if (dayFilter !== 'Semua') params.hari = dayFilter;
+      if (genderFilter !== 'Semua') params.gender_group = genderFilter;
+
       const [jadwalResult, mapelResult, teacherResult, classResult] = await Promise.all([
-        api.jadwal(dayFilter === 'Semua' ? undefined : { hari: dayFilter }),
+        api.jadwal(params),
         api.mataPelajaran({ status: 'Aktif' }),
         api.users({ role: 'guru', status: 'Aktif' }),
         api.classes()
@@ -109,13 +122,20 @@ export function JadwalPelajaranPage() {
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dayFilter]);
+  }, [dayFilter, genderFilter]);
 
   const filtered = useMemo(() => {
     const keyword = search.toLowerCase();
-    if (!keyword) return rows;
-    return rows.filter((row) => `${mapelName(row)} ${guruName(row)} ${className(row)} ${row.hari ?? ''} ${row.ruangan ?? ''}`.toLowerCase().includes(keyword));
-  }, [rows, search]);
+    let result = rows;
+    if (genderFilter !== 'Semua') {
+      result = result.filter((row) => {
+        const gg = classGender(row);
+        return gg === genderFilter;
+      });
+    }
+    if (!keyword) return result;
+    return result.filter((row) => `${mapelName(row)} ${guruName(row)} ${className(row)} ${row.hari ?? ''} ${row.ruangan ?? ''}`.toLowerCase().includes(keyword));
+  }, [rows, search, genderFilter]);
 
   const activeCount = rows.filter((row) => text(row.status, 'Aktif') === 'Aktif').length;
   const classCount = new Set(rows.map((row) => className(row)).filter((value) => value !== '-')).size;
@@ -123,9 +143,58 @@ export function JadwalPelajaranPage() {
   const columns = useMemo<DataColumn<ApiRecord>[]>(() => [
     { key: 'hari', header: 'Hari', render: (row) => <span className="font-extrabold">{text(row.hari ?? row.day)}</span> },
     { key: 'jam', header: 'Jam', render: (row) => `${text(row.jam_mulai ?? row.start_time)} - ${text(row.jam_selesai ?? row.end_time)}` },
-    { key: 'mapel', header: 'Mata Pelajaran', render: (row) => mapelName(row) },
-    { key: 'guru', header: 'Guru', render: (row) => guruName(row) },
-    { key: 'kelas', header: 'Kelas/Kelompok', render: (row) => className(row) },
+    { key: 'mapel', header: 'Mata Pelajaran', render: (row) => <span className="font-bold text-[#2D3436]">{mapelName(row)}</span> },
+    {
+      key: 'guru',
+      header: 'Guru Pengampu',
+      render: (row) => {
+        const gName = guruName(row);
+        const tGen = teacherGender(row);
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold text-slate-800">{gName}</span>
+            {tGen === 'L' && (
+              <span className="inline-flex items-center rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200">
+                👦 Ustadz
+              </span>
+            )}
+            {tGen === 'P' && (
+              <span className="inline-flex items-center rounded-md bg-pink-50 px-1.5 py-0.5 text-[10px] font-bold text-pink-700 border border-pink-200">
+                🧕 Ustadzah
+              </span>
+            )}
+          </div>
+        );
+      }
+    },
+    {
+      key: 'kelas',
+      header: 'Kelas / Kelompok',
+      render: (row) => {
+        const cName = className(row);
+        const cGen = classGender(row);
+        return (
+          <div className="flex flex-col items-start gap-1">
+            <span className="font-bold text-slate-800">{cName}</span>
+            {cGen === 'PA' && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700 border border-blue-200">
+                👦 Madin Putra (PA)
+              </span>
+            )}
+            {cGen === 'PI' && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-pink-50 px-2 py-0.5 text-[10px] font-black text-pink-700 border border-pink-200">
+                🧕 Madin Putri (PI)
+              </span>
+            )}
+            {cGen === 'Campur' && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700 border border-amber-200">
+                👥 Campur
+              </span>
+            )}
+          </div>
+        );
+      }
+    },
     { key: 'ruangan', header: 'Ruangan', render: (row) => text(row.ruangan ?? row.room) },
     { key: 'status', header: 'Status', render: (row) => <StatusBadge label={text(row.status, 'Aktif')} tone={text(row.status, 'Aktif') === 'Aktif' ? 'success' : 'danger'} /> },
     {
@@ -133,10 +202,10 @@ export function JadwalPelajaranPage() {
       header: 'Aksi',
       render: (row) => (
         <div className="flex flex-wrap gap-2">
-          <button className="rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-bold text-[#2E86DE]" onClick={() => setForm(newForm(row))} type="button">
+          <button className="rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-bold text-[#2E86DE] hover:bg-blue-100 transition-colors" onClick={() => setForm(newForm(row))} type="button">
             <Pencil size={14} className="inline" /> Edit
           </button>
-          <button className="rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-bold text-[#D63031]" onClick={() => setDeleteTarget(row)} type="button">
+          <button className="rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-bold text-[#D63031] hover:bg-rose-100 transition-colors" onClick={() => setDeleteTarget(row)} type="button">
             <Trash2 size={14} className="inline" /> Hapus
           </button>
         </div>
@@ -256,6 +325,35 @@ export function JadwalPelajaranPage() {
       </div>
 
       <section className="q-panel p-4 sm:p-6">
+        {/* Quick Pill Filter Kelompok Madin */}
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-bold text-[#636E72] mr-1">Kelompok Madin:</span>
+          {(['Semua', 'PA', 'PI', 'Campur'] as const).map((g) => {
+            const isSel = genderFilter === g;
+            const label = g === 'Semua' ? 'Semua Kelompok' : g === 'PA' ? '👦 Madin Putra (PA)' : g === 'PI' ? '🧕 Madin Putri (PI)' : '👥 Campur';
+            return (
+              <button
+                key={g}
+                type="button"
+                onClick={() => setGenderFilter(g)}
+                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                  isSel
+                    ? g === 'PA'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                      : g === 'PI'
+                      ? 'bg-pink-600 text-white shadow-md shadow-pink-500/20'
+                      : g === 'Campur'
+                      ? 'bg-amber-600 text-white shadow-md shadow-amber-500/20'
+                      : 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/20'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
         <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_220px]">
           <SearchInput value={search} onChange={setSearch} placeholder="Cari mapel / guru / kelas / ruangan" />
           <select className="q-input" value={dayFilter} onChange={(event) => setDayFilter(event.target.value)}>
@@ -268,94 +366,161 @@ export function JadwalPelajaranPage() {
           columns={columns}
           emptyText={isLoading ? 'Memuat jadwal...' : 'Belum ada jadwal pelajaran.'}
           minWidth="980px"
-          mobileRender={(row) => (
-            <article className="rounded-3xl bg-white p-4 shadow-sm shadow-black/5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="break-words text-base font-extrabold text-[#2D3436]">{mapelName(row)}</h3>
-                  <p className="mt-1 text-xs font-semibold text-[#636E72]">{text(row.hari ?? row.day)} - {text(row.jam_mulai ?? row.start_time)} sampai {text(row.jam_selesai ?? row.end_time)}</p>
+          mobileRender={(row) => {
+            const cGen = classGender(row);
+            const tGen = teacherGender(row);
+            return (
+              <article className="rounded-3xl bg-white p-4 shadow-sm shadow-black/5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="break-words text-base font-extrabold text-[#2D3436]">{mapelName(row)}</h3>
+                    <p className="mt-1 text-xs font-semibold text-[#636E72]">{text(row.hari ?? row.day)} - {text(row.jam_mulai ?? row.start_time)} sampai {text(row.jam_selesai ?? row.end_time)}</p>
+                  </div>
+                  <StatusBadge label={text(row.status, 'Aktif')} tone={text(row.status, 'Aktif') === 'Aktif' ? 'success' : 'danger'} />
                 </div>
-                <StatusBadge label={text(row.status, 'Aktif')} tone={text(row.status, 'Aktif') === 'Aktif' ? 'success' : 'danger'} />
-              </div>
-              <p className="mt-3 text-xs font-semibold leading-5 text-[#636E72]">Guru: {guruName(row)}</p>
-              <p className="text-xs font-semibold text-[#636E72]">Kelas: {className(row)} - Ruangan: {text(row.ruangan ?? row.room)}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button className="rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-bold text-[#2E86DE]" onClick={() => setForm(newForm(row))} type="button">
-                  <Pencil size={14} className="inline" /> Edit
-                </button>
-                <button className="rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-bold text-[#D63031]" onClick={() => setDeleteTarget(row)} type="button">
-                  <Trash2 size={14} className="inline" /> Hapus
-                </button>
-              </div>
-            </article>
-          )}
+                <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-[#636E72]">
+                  <span>Guru: {guruName(row)}</span>
+                  {tGen === 'L' && <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">👦 Ustadz</span>}
+                  {tGen === 'P' && <span className="rounded bg-pink-50 px-1.5 py-0.5 text-[10px] font-bold text-pink-700">🧕 Ustadzah</span>}
+                </div>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-[#636E72]">
+                  <span>Kelas: {className(row)}</span>
+                  {cGen === 'PA' && <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">👦 Putra (PA)</span>}
+                  {cGen === 'PI' && <span className="rounded bg-pink-50 px-1.5 py-0.5 text-[10px] font-bold text-pink-700">🧕 Putri (PI)</span>}
+                  {cGen === 'Campur' && <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">👥 Campur</span>}
+                  <span className="ml-2">Ruangan: {text(row.ruangan ?? row.room)}</span>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button className="rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-bold text-[#2E86DE]" onClick={() => setForm(newForm(row))} type="button">
+                    <Pencil size={14} className="inline" /> Edit
+                  </button>
+                  <button className="rounded-xl bg-[#FDECEC] px-3 py-2 text-xs font-bold text-[#D63031]" onClick={() => setDeleteTarget(row)} type="button">
+                    <Trash2 size={14} className="inline" /> Hapus
+                  </button>
+                </div>
+              </article>
+            );
+          }}
         />
       </section>
 
-      {form ? (
-        <ModalForm
-          title={form.id ? 'Edit Jadwal Pelajaran' : 'Tambah Jadwal Pelajaran'}
-          onClose={() => setForm(null)}
-          footer={
-            <button className="min-h-12 w-full rounded-2xl bg-[#138F81] text-sm font-extrabold text-white disabled:opacity-60" disabled={isSaving} form="jadwal-form" type="submit">
-              {isSaving ? 'Menyimpan...' : 'Simpan Jadwal'}
-            </button>
+      {form ? (() => {
+        const selClass = classes.find((c) => String(c.id) === String(form.class_id));
+        const selClassGender = selClass?.gender_group ? String(selClass.gender_group) : '';
+        const selTeacher = teachers.find((t) => String(t.id) === String(form.teacher_id));
+        const selTeacherGender = selTeacher?.jenis_kelamin ? String(selTeacher.jenis_kelamin) : '';
+
+        // Urutkan guru: rekomendasi gender yang cocok di atas
+        const sortedTeachers = [...teachers].sort((a, b) => {
+          if (selClassGender === 'PI') {
+            const aIsP = a.jenis_kelamin === 'P' ? -1 : 1;
+            const bIsP = b.jenis_kelamin === 'P' ? -1 : 1;
+            return aIsP - bIsP;
           }
-        >
-          <form id="jadwal-form" className="grid gap-4 md:grid-cols-2" onSubmit={saveForm}>
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[#636E72]">Hari</span>
-              <select className="q-input" value={form.hari} onChange={(event) => setForm({ ...form, hari: event.target.value })}>
-                {days.map((day) => <option key={day} value={day}>{day}</option>)}
-              </select>
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[#636E72]">Mata Pelajaran</span>
-              <select className="q-input" value={form.mapel_id} onChange={(event) => setForm({ ...form, mapel_id: event.target.value })} required>
-                <option value="">Pilih mata pelajaran</option>
-                {mapel.map((item) => <option key={num(item.id)} value={num(item.id)}>{text(item.nama)}</option>)}
-              </select>
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[#636E72]">Jam Mulai</span>
-              <input className="q-input" type="time" value={form.jam_mulai} onChange={(event) => setForm({ ...form, jam_mulai: event.target.value })} required />
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[#636E72]">Jam Selesai</span>
-              <input className="q-input" type="time" value={form.jam_selesai} onChange={(event) => setForm({ ...form, jam_selesai: event.target.value })} required />
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[#636E72]">Guru Pengajar</span>
-              <select className="q-input" value={form.teacher_id} onChange={(event) => setForm({ ...form, teacher_id: event.target.value })}>
-                <option value="">Pilih guru opsional</option>
-                {teachers.map((teacher) => <option key={num(teacher.id)} value={num(teacher.id)}>{text(teacher.name)}</option>)}
-              </select>
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[#636E72]">Kelas/Kelompok</span>
-              <select className="q-input" value={form.class_id} onChange={(event) => setForm({ ...form, class_id: event.target.value, sifir: '' })}>
-                <option value="">Pilih kelas opsional</option>
-                {classes.map((kelas) => <option key={num(kelas.id)} value={num(kelas.id)}>{text(kelas.nama ?? kelas.name ?? kelas.kelas)}</option>)}
-              </select>
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[#636E72]">Nama Kelas Manual</span>
-              <input className="q-input" value={form.sifir} onChange={(event) => setForm({ ...form, sifir: event.target.value, class_id: '' })} placeholder="Jika kelas belum ada di master" />
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-[#636E72]">Ruangan</span>
-              <input className="q-input" value={form.ruangan} onChange={(event) => setForm({ ...form, ruangan: event.target.value })} placeholder="Opsional" />
-            </label>
-            <label className="block md:col-span-2">
-              <span className="mb-2 block text-sm font-bold text-[#636E72]">Status</span>
-              <select className="q-input" value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as JadwalFormState['status'] })}>
-                <option value="Aktif">Aktif</option>
-                <option value="Nonaktif">Nonaktif</option>
-              </select>
-            </label>
-          </form>
-        </ModalForm>
-      ) : null}
+          if (selClassGender === 'PA') {
+            const aIsL = a.jenis_kelamin === 'L' ? -1 : 1;
+            const bIsL = b.jenis_kelamin === 'L' ? -1 : 1;
+            return aIsL - bIsL;
+          }
+          return 0;
+        });
+
+        return (
+          <ModalForm
+            title={form.id ? 'Edit Jadwal Pelajaran' : 'Tambah Jadwal Pelajaran'}
+            onClose={() => setForm(null)}
+            footer={
+              <button className="min-h-12 w-full rounded-2xl bg-[#138F81] text-sm font-extrabold text-white disabled:opacity-60 cursor-pointer shadow-md hover:bg-[#0D7A6F] transition-colors" disabled={isSaving} form="jadwal-form" type="submit">
+                {isSaving ? 'Menyimpan...' : 'Simpan Jadwal'}
+              </button>
+            }
+          >
+            <form id="jadwal-form" className="grid gap-4 md:grid-cols-2" onSubmit={saveForm}>
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-[#636E72]">Hari</span>
+                <select className="q-input" value={form.hari} onChange={(event) => setForm({ ...form, hari: event.target.value })}>
+                  {days.map((day) => <option key={day} value={day}>{day}</option>)}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-[#636E72]">Mata Pelajaran</span>
+                <select className="q-input" value={form.mapel_id} onChange={(event) => setForm({ ...form, mapel_id: event.target.value })} required>
+                  <option value="">Pilih mata pelajaran</option>
+                  {mapel.map((item) => <option key={num(item.id)} value={num(item.id)}>{text(item.nama)}</option>)}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-[#636E72]">Jam Mulai</span>
+                <input className="q-input" type="time" value={form.jam_mulai} onChange={(event) => setForm({ ...form, jam_mulai: event.target.value })} required />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-[#636E72]">Jam Selesai</span>
+                <input className="q-input" type="time" value={form.jam_selesai} onChange={(event) => setForm({ ...form, jam_selesai: event.target.value })} required />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-[#636E72]">Kelas / Kelompok</span>
+                <select className="q-input" value={form.class_id} onChange={(event) => setForm({ ...form, class_id: event.target.value, sifir: '' })}>
+                  <option value="">Pilih kelas opsional</option>
+                  {classes.map((kelas) => {
+                    const gTag = kelas.gender_group === 'PA' ? ' [👦 Putra]' : kelas.gender_group === 'PI' ? ' [🧕 Putri]' : kelas.gender_group === 'Campur' ? ' [👥 Campur]' : '';
+                    return (
+                      <option key={num(kelas.id)} value={num(kelas.id)}>
+                        {text(kelas.nama ?? kelas.name ?? kelas.kelas)}{gTag}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-[#636E72]">Guru Pengampu</span>
+                <select className="q-input" value={form.teacher_id} onChange={(event) => setForm({ ...form, teacher_id: event.target.value })}>
+                  <option value="">Pilih guru opsional</option>
+                  {sortedTeachers.map((teacher) => {
+                    const isL = teacher.jenis_kelamin === 'L';
+                    const isP = teacher.jenis_kelamin === 'P';
+                    const isRecommended = (selClassGender === 'PI' && isP) || (selClassGender === 'PA' && isL);
+                    const tag = isP ? '[🧕 Ustadzah]' : isL ? '[👦 Ustadz]' : '';
+                    const recTag = isRecommended ? ' ⭐ Rekomendasi' : '';
+                    return (
+                      <option key={num(teacher.id)} value={num(teacher.id)}>
+                        {tag} {text(teacher.name)}{recTag}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+
+              {/* Edukasi & Hint Rekomendasi Guru */}
+              {selClassGender === 'PI' && selTeacherGender === 'L' && (
+                <div className="md:col-span-2 rounded-2xl bg-amber-50 border border-amber-200 p-3 text-xs font-semibold text-amber-800">
+                  💡 <strong>Catatan:</strong> Kelas ini adalah <strong>Madin Putri</strong>, sedangkan guru yang dipilih adalah <strong>Ustadz (Laki-laki)</strong>. Pastikan penugasan ini sudah sesuai dengan kebijakan madin.
+                </div>
+              )}
+              {selClassGender === 'PA' && selTeacherGender === 'P' && (
+                <div className="md:col-span-2 rounded-2xl bg-amber-50 border border-amber-200 p-3 text-xs font-semibold text-amber-800">
+                  💡 <strong>Catatan:</strong> Kelas ini adalah <strong>Madin Putra</strong>, sedangkan guru yang dipilih adalah <strong>Ustadzah (Perempuan)</strong>.
+                </div>
+              )}
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-[#636E72]">Nama Kelas Manual</span>
+                <input className="q-input" value={form.sifir} onChange={(event) => setForm({ ...form, sifir: event.target.value, class_id: '' })} placeholder="Jika kelas belum ada di master" />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-bold text-[#636E72]">Ruangan</span>
+                <input className="q-input" value={form.ruangan} onChange={(event) => setForm({ ...form, ruangan: event.target.value })} placeholder="Opsional" />
+              </label>
+              <label className="block md:col-span-2">
+                <span className="mb-2 block text-sm font-bold text-[#636E72]">Status</span>
+                <select className="q-input" value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as JadwalFormState['status'] })}>
+                  <option value="Aktif">Aktif</option>
+                  <option value="Nonaktif">Nonaktif</option>
+                </select>
+              </label>
+            </form>
+          </ModalForm>
+        );
+      })() : null}
 
       {deleteTarget ? (
         <ConfirmDialog

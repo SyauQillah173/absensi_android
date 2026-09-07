@@ -108,8 +108,23 @@ export function BatchJadwalForm({ teachers, mapel, classes, days, onClose, onSuc
   const [error, setError] = useState('');
 
   const mapelOptions = useMemo(() => mapel.map((m) => <option key={num(m.id)} value={num(m.id)}>{text(m.nama)}</option>), [mapel]);
-  const classOptions = useMemo(() => classes.map((c) => <option key={num(c.id)} value={num(c.id)}>{text(c.nama ?? c.name ?? c.kelas)}</option>), [classes]);
-  const teacherOptions = useMemo(() => teachers.map((t) => <option key={num(t.id)} value={num(t.id)}>{text(t.name)}</option>), [teachers]);
+  const classOptions = useMemo(() => classes.map((c) => {
+    const gTag = c.gender_group === 'PA' ? ' [👦 Putra]' : c.gender_group === 'PI' ? ' [🧕 Putri]' : c.gender_group === 'Campur' ? ' [👥 Campur]' : '';
+    return (
+      <option key={num(c.id)} value={num(c.id)}>
+        {text(c.nama ?? c.name ?? c.kelas)}{gTag}
+      </option>
+    );
+  }), [classes]);
+
+  const teacherOptions = useMemo(() => teachers.map((t) => {
+    const tag = t.jenis_kelamin === 'P' ? '[🧕 Ustadzah] ' : t.jenis_kelamin === 'L' ? '[👦 Ustadz] ' : '';
+    return (
+      <option key={num(t.id)} value={num(t.id)}>
+        {tag}{text(t.name)}
+      </option>
+    );
+  }), [teachers]);
 
   function addRow() {
     setRows(prev => [...prev, { key: generateKey(), mapel_id: '', hari: 'Senin', jam_mulai: '', jam_selesai: '', class_id: '', sifir: '' }]);
@@ -196,6 +211,25 @@ export function BatchJadwalForm({ teachers, mapel, classes, days, onClose, onSuc
                   {teacherOptions}
                 </select>
               </label>
+              {(() => {
+                const curT = teachers.find(t => String(t.id) === String(teacherId));
+                if (!curT) return null;
+                const isP = curT.jenis_kelamin === 'P';
+                const isL = curT.jenis_kelamin === 'L';
+                return (
+                  <p className="mt-2.5 text-xs font-semibold text-slate-600 flex items-center gap-1.5">
+                    {isP ? (
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-pink-50 px-2 py-1 text-pink-700 border border-pink-200">
+                        🧕 Guru Ustadzah: Direkomendasikan mengajar pada rombel <strong>[🧕 Putri]</strong> atau [👥 Campur]
+                      </span>
+                    ) : isL ? (
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-blue-700 border border-blue-200">
+                        👦 Guru Ustadz: Direkomendasikan mengajar pada rombel <strong>[👦 Putra]</strong> atau [👥 Campur]
+                      </span>
+                    ) : null}
+                  </p>
+                );
+              })()}
             </section>
 
             <section>
