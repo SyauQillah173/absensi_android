@@ -286,37 +286,37 @@ export function ComplexNgajiForm({ initialData, onClose, onSave }: ComplexNgajiF
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2.5 sm:p-4 md:p-6 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="flex flex-col w-full max-w-5xl xl:max-w-6xl max-h-[94vh] bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200 relative z-10 animate-in zoom-in-95 duration-200">
-        {/* MODAL HEADER */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 sm:px-7 py-3.5 bg-gradient-to-r from-teal-50/70 via-white to-white shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl bg-[#138F81] text-white shadow-md shadow-[#138F81]/25">
-              <BookOpen size={20} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-teal-700 bg-teal-100/70 px-2 py-0.5 rounded-md">
-                  Pondok Pesantren
-                </span>
-                <span className="text-[10px] font-bold text-slate-400">Absensi Pengajian Santri</span>
-              </div>
-              <h2 className="text-sm sm:text-base md:text-lg font-black text-slate-800">
-                {isEditing ? 'Edit Jadwal & Anggota Pengajian' : 'Atur Jadwal Pengajian Baru'}
-              </h2>
-            </div>
+    <div className="w-full flex flex-col bg-white rounded-3xl shadow-sm overflow-hidden border border-slate-200/90 animate-in fade-in duration-200">
+      {/* HEADER FORM HALAMAN TERPADU */}
+      <div className="flex items-center justify-between border-b border-slate-100 px-5 sm:px-7 py-4 bg-gradient-to-r from-teal-50/70 via-white to-white shrink-0">
+        <div className="flex items-center gap-3.5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#138F81] text-white shadow-md shadow-[#138F81]/25">
+            <BookOpen size={22} />
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors cursor-pointer"
-          >
-            <X size={18} />
-          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-teal-700 bg-teal-100/70 px-2 py-0.5 rounded-md">
+                Pondok Pesantren Qomaruddin
+              </span>
+              <span className="text-[10px] font-bold text-slate-400">Absensi Pengajian Santri</span>
+            </div>
+            <h2 className="text-base sm:text-lg font-black text-slate-800">
+              {isEditing ? 'Edit Jadwal & Anggota Pengajian' : 'Atur Jadwal Pengajian Baru'}
+            </h2>
+          </div>
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
+          title="Tutup form dan kembali ke daftar jadwal"
+        >
+          <X size={18} />
+        </button>
+      </div>
 
-        {/* MODAL BODY (RESPONSIF 2 KOLOM DI DESKTOP) */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+      {/* ISI FORM TERPADU (RESPONSIF 2 KOLOM DI DESKTOP) */}
+      <div className="p-5 sm:p-7 space-y-6">
           {error && (
             <div className="rounded-2xl border border-rose-200 bg-rose-50/90 p-3 text-xs sm:text-sm font-bold text-rose-700">
               ⚠️ {error}
@@ -658,6 +658,5 @@ export function ComplexNgajiForm({ initialData, onClose, onSave }: ComplexNgajiF
           </div>
         </div>
       </div>
-    </div>
   );
 }
