@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ComplexKelasForm } from '../components/ComplexKelasForm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
+import { KelasSantriModal } from '../components/KelasSantriModal';
 import { SearchInput } from '../components/SearchInput';
 import { api, type ApiRecord } from '../services/api';
 
@@ -23,6 +24,7 @@ export function MasterKelasPage() {
   const [genderFilter, setGenderFilter] = useState<'all' | 'PA' | 'PI' | 'Campur'>('all');
   const [santriFilter, setSantriFilter] = useState<'all' | 'has_santri' | 'no_santri'>('all');
   const [form, setForm] = useState<ApiRecord | null>(null);
+  const [manageStudentsClass, setManageStudentsClass] = useState<ApiRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ApiRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -225,14 +227,21 @@ export function MasterKelasPage() {
       render: (row) => (
         <div className="flex justify-end gap-2">
           <button
-            className="rounded-xl bg-[#EAF4FF] px-3.5 py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors inline-flex items-center gap-1.5"
+            className="rounded-xl bg-[#E8F7F3] px-3.5 py-2 text-xs font-extrabold text-[#138F81] hover:bg-[#d0f2e9] transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+            onClick={() => setManageStudentsClass(row)}
+            type="button"
+          >
+            <Users size={13} /> Anggota Santri
+          </button>
+          <button
+            className="rounded-xl bg-[#EAF4FF] px-3.5 py-2 text-xs font-extrabold text-[#2E86DE] hover:bg-[#d8ecff] transition-colors inline-flex items-center gap-1.5 cursor-pointer"
             onClick={() => setForm(row)}
             type="button"
           >
-            <Pencil size={13} /> Edit Kelas
+            <Pencil size={13} /> Edit
           </button>
           <button
-            className="rounded-xl bg-[#FDECEC] px-3.5 py-2 text-xs font-extrabold text-[#D63031] hover:bg-[#fad4d4] transition-colors inline-flex items-center gap-1.5"
+            className="rounded-xl bg-[#FDECEC] px-3.5 py-2 text-xs font-extrabold text-[#D63031] hover:bg-[#fad4d4] transition-colors inline-flex items-center gap-1.5 cursor-pointer"
             onClick={() => setDeleteTarget(row)}
             type="button"
           >
@@ -523,14 +532,21 @@ export function MasterKelasPage() {
 
                   <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
                     <button
-                      className="flex-1 rounded-xl bg-[#EAF4FF] py-2.5 text-xs font-extrabold text-[#2E86DE] hover:bg-blue-100 transition-colors inline-flex items-center justify-center gap-1.5 min-h-[40px]"
+                      className="flex-1 rounded-xl bg-[#E8F7F3] py-2.5 text-xs font-extrabold text-[#138F81] hover:bg-teal-100 transition-colors inline-flex items-center justify-center gap-1.5 min-h-[40px] cursor-pointer"
+                      onClick={() => setManageStudentsClass(row)}
+                      type="button"
+                    >
+                      <Users size={13} /> Anggota ({studentCount})
+                    </button>
+                    <button
+                      className="rounded-xl bg-[#EAF4FF] px-3 py-2.5 text-xs font-extrabold text-[#2E86DE] hover:bg-blue-100 transition-colors inline-flex items-center justify-center gap-1.5 min-h-[40px] cursor-pointer"
                       onClick={() => setForm(row)}
                       type="button"
                     >
-                      <Pencil size={13} /> Edit Kelas
+                      <Pencil size={13} /> Edit
                     </button>
                     <button
-                      className="rounded-xl bg-[#FDECEC] p-2.5 text-xs font-extrabold text-[#D63031] hover:bg-rose-100 transition-colors inline-flex items-center justify-center min-h-[40px] min-w-[40px]"
+                      className="rounded-xl bg-[#FDECEC] p-2.5 text-xs font-extrabold text-[#D63031] hover:bg-rose-100 transition-colors inline-flex items-center justify-center min-h-[40px] min-w-[40px] cursor-pointer"
                       onClick={() => setDeleteTarget(row)}
                       type="button"
                       title="Hapus Kelas"
@@ -554,6 +570,15 @@ export function MasterKelasPage() {
           isBusy={isSaving}
           onCancel={() => setDeleteTarget(null)}
           onConfirm={() => void deleteRecord()}
+        />
+      ) : null}
+
+      {/* KELOLA ANGGOTA SANTRI MODAL */}
+      {manageStudentsClass ? (
+        <KelasSantriModal
+          targetClass={manageStudentsClass}
+          onClose={() => setManageStudentsClass(null)}
+          onUpdated={() => void load(true)}
         />
       ) : null}
     </div>

@@ -161,10 +161,11 @@ const allMenu: MenuItem[] = [
     icon: BookOpen,
     children: [
       { label: "Data Kelas Madin", page: "master", masterSection: "kelas", icon: Layers },
-      { label: "Mata Pelajaran & Jadwal Madin", page: "mapel", icon: BookMarked },
+      { label: "Kelompok Belajar", page: "master", masterSection: "kelompok", icon: Users },
+      { label: "Mata Pelajaran Madin", page: "mapel", icon: BookMarked },
+      { label: "Jadwal Pelajaran & Guru", page: "jadwal", icon: CalendarCheck },
       { label: "Jadwal & Kitab Ngaji Santri", page: "absensi", absensiTab: "jadwal-ngaji", icon: LibraryBig },
       { label: "Jadwal & Waktu Sholat Jamaah", page: "absensi", absensiTab: "jenis-sholat", icon: Compass },
-      { label: "Kelompok Belajar", page: "master", masterSection: "kelompok", icon: Users },
     ],
   },
   {
