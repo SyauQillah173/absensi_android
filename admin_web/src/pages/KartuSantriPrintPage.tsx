@@ -1,9 +1,7 @@
 import {
   ArrowLeft,
   Check,
-  CheckCheck,
   CreditCard,
-  Filter,
   Layers,
   Printer,
   RotateCcw,
@@ -11,10 +9,12 @@ import {
   Sparkles,
   User,
   Users,
-  X
+  X,
+  Info,
+  SlidersHorizontal
 } from 'lucide-react';
 import QRCode from 'qrcode';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import qomaruddinLogo from '../assets/logo-qomaruddin.png';
 import { api, type ApiRecord } from '../services/api';
 
@@ -35,14 +35,14 @@ function num(value: unknown): number {
 
 export type ViewMode = 'single' | 'batch';
 export type PrintSideMode = 'both' | 'front' | 'back';
-export type PaperLayoutMode = 'ktp-cr80' | 'a4-sheet';
+export type PaperLayoutMode = 'a4-sheet' | 'ktp-cr80';
 
 export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrintPageProps) {
   const [students, setStudents] = useState<ApiRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Tab Mode: 'single' (Cetak Satuan / Penggantian Kartu Hilang) vs 'batch' (Cetak Massal)
-  const [viewMode, setViewMode] = useState<ViewMode>(initialSiswaId ? 'single' : 'single');
+  const [viewMode, setViewMode] = useState<ViewMode>('single');
 
   // Santri terpilih untuk Mode Satuan
   const [singleSelectedId, setSingleSelectedId] = useState<number | null>(initialSiswaId ?? null);
@@ -56,9 +56,9 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
   const [complexFilter, setComplexFilter] = useState('all');
   const [genderFilter, setGenderFilter] = useState<'all' | 'L' | 'P'>('all');
 
-  // Pengaturan Cetak
+  // Pengaturan Cetak: Default A4 Sheet (Paling sering dipakai printer kantor/pesantren)
   const [printSide, setPrintSide] = useState<PrintSideMode>('both');
-  const [paperLayout, setPaperLayout] = useState<PaperLayoutMode>('ktp-cr80');
+  const [paperLayout, setPaperLayout] = useState<PaperLayoutMode>('a4-sheet');
 
   // Load list santri dari backend
   useEffect(() => {
@@ -169,7 +169,7 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
   return (
     <div className="space-y-6">
       {/* ========================================================= */}
-      {/* CSS KHUSUS PRINT: UKURAN FISIK KTP ASLI (85.6mm x 54mm)   */}
+      {/* CSS KHUSUS PRINT: ISOLASI AREA CETAK 100% BULLETPROOF    */}
       {/* ========================================================= */}
       <style>{`
         @media print {
@@ -177,17 +177,25 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
             ${
               paperLayout === 'ktp-cr80'
                 ? 'size: 85.6mm 54mm; margin: 0;'
-                : 'size: A4 portrait; margin: 8mm;'
+                : 'size: A4 portrait; margin: 6mm;'
             }
           }
           html, body {
             margin: 0 !important;
             padding: 0 !important;
             background: #ffffff !important;
+            color: #000000 !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          .print-hidden-area {
+          .print-hidden-area,
+          aside,
+          header,
+          footer,
+          .q-sidebar,
+          .q-topbar,
+          .q-header-title,
+          .q-profile-chip {
             display: none !important;
           }
           .kts-card-wrapper {
@@ -211,7 +219,7 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
           .a4-sheet-grid {
             display: grid !important;
             grid-template-columns: repeat(2, 85.6mm) !important;
-            gap: 4mm !important;
+            gap: 6mm !important;
             justify-content: center !important;
             align-content: start !important;
           }
@@ -241,7 +249,7 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
                 </h1>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Standar ID Card Internasional CR-80 (85.6mm × 54mm). Pas untuk printer PVC card maupun potong plong.
+                Desain Eksklusif Royal Emerald & Gold Security. Standar Internasional ISO CR-80 (85.6mm × 54mm).
               </p>
             </div>
           </div>
@@ -264,7 +272,15 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
           </div>
         </div>
 
-        {/* Row 2: Tab Navigasi Mode (Satuan vs Massal) + Pengaturan Cetak */}
+        {/* Row 2: Tips Petunjuk Print Agar Warna Sempurna */}
+        <div className="flex items-center gap-2.5 bg-amber-50/80 border border-amber-200 text-amber-900 px-3.5 py-2.5 rounded-2xl text-xs font-semibold">
+          <Info size={16} className="text-amber-600 shrink-0" />
+          <p className="leading-relaxed">
+            <strong className="font-extrabold text-amber-950">Tips Hasil Cetak Tajam:</strong> Pada jendela cetak printer browser Anda, pastikan mencentang opsi <span className="underline decoration-amber-500 font-bold">&quot;Grafik Latar Belakang / Background Graphics&quot;</span> dan pilih margin <span className="font-bold">&quot;None / Minimum&quot;</span> agar warna hijau zamrud dan ornamen emas kartu tercetak utuh.
+          </p>
+        </div>
+
+        {/* Row 3: Tab Navigasi Mode (Satuan vs Massal) + Pengaturan Cetak */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-slate-50 p-2.5 rounded-2xl border border-slate-200">
           {/* TAB MODE: SATUAN (HILANG KARTU) VS MASSAL */}
           <div className="inline-flex rounded-xl bg-white p-1 border border-slate-200 shadow-xs">
@@ -298,8 +314,8 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
           {/* Pengaturan Sisi Kartu & Jenis Kertas */}
           <div className="flex flex-wrap items-center gap-2 text-xs">
             {/* Sisi Cetak */}
-            <div className="flex items-center gap-1 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200">
-              <span className="font-bold text-slate-500">Sisi:</span>
+            <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
+              <span className="font-bold text-slate-500">Sisi Kartu:</span>
               <select
                 value={printSide}
                 onChange={(e) => setPrintSide(e.target.value as PrintSideMode)}
@@ -312,21 +328,21 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
             </div>
 
             {/* Ukuran Kertas / Mesin */}
-            <div className="flex items-center gap-1 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200">
+            <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
               <span className="font-bold text-slate-500">Kertas:</span>
               <select
                 value={paperLayout}
                 onChange={(e) => setPaperLayout(e.target.value as PaperLayoutMode)}
                 className="font-bold text-slate-800 outline-none bg-transparent cursor-pointer"
               >
-                <option value="ktp-cr80">💳 Ukuran KTP (85.6×54mm)</option>
-                <option value="a4-sheet">📄 Grid Lembar A4</option>
+                <option value="a4-sheet">📄 Lembar A4 / Kertas Foto (Printer Biasa)</option>
+                <option value="ktp-cr80">💳 Ukuran KTP CR-80 (Printer Kartu PVC)</option>
               </select>
             </div>
           </div>
         </div>
 
-        {/* Row 3: Filter & Search Bar */}
+        {/* Row 4: Filter & Search Bar */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
           <div className="relative flex items-center">
             <Search size={15} className="absolute left-3 text-slate-400 pointer-events-none" />
@@ -354,9 +370,9 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
               value={genderFilter}
               onChange={(e) => setGenderFilter(e.target.value as 'all' | 'L' | 'P')}
             >
-              <option value="all">Semua Gender (Pa/Pi)</option>
-              <option value="L">👦 Santri Putra</option>
-              <option value="P">👧 Santri Putri</option>
+              <option value="all">Semua Gender (Putra & Putri)</option>
+              <option value="L">👦 Santri Putra (PA)</option>
+              <option value="P">👧 Santri Putri (PI)</option>
             </select>
           </div>
 
@@ -398,18 +414,22 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
       {viewMode === 'single' && (
         <div className="print-hidden-area grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* KOLOM KIRI (4 SPAN): DAFTAR SANTRI UNTUK DIPILIH */}
-          <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200 p-4 shadow-sm flex flex-col h-[560px]">
+          <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200 p-4 shadow-sm flex flex-col h-[580px]">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">
                 PILIH SANTRI ({filteredStudents.length})
               </h3>
               <span className="text-[11px] font-semibold text-slate-400">
-                Klik untuk lihat kartu
+                Klik santri untuk pratinjau
               </span>
             </div>
 
             <div className="flex-1 overflow-y-auto q-scrollbar divide-y divide-slate-100 pr-1 mt-2">
-              {filteredStudents.length === 0 ? (
+              {isLoading ? (
+                <div className="p-8 text-center text-xs text-slate-400 font-semibold">
+                  Memuat data santri...
+                </div>
+              ) : filteredStudents.length === 0 ? (
                 <div className="p-8 text-center text-xs text-slate-400 font-semibold">
                   Santri tidak ditemukan dengan filter ini.
                 </div>
@@ -463,14 +483,14 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
           </div>
 
           {/* KOLOM KANAN (8 SPAN): STUDIO PREVIEW KARTU KTP BESAR & BERSIH */}
-          <div className="lg:col-span-8 bg-gradient-to-br from-slate-100 via-slate-50 to-teal-50/30 rounded-3xl border border-slate-200/90 p-6 flex flex-col items-center justify-center min-h-[560px] relative overflow-hidden shadow-inner">
+          <div className="lg:col-span-8 bg-gradient-to-br from-slate-100 via-slate-50 to-teal-50/40 rounded-3xl border border-slate-200 p-6 flex flex-col items-center justify-center min-h-[580px] relative overflow-hidden shadow-inner">
             {singleStudent ? (
-              <div className="space-y-5 w-full max-w-2xl flex flex-col items-center">
+              <div className="space-y-6 w-full max-w-2xl flex flex-col items-center">
                 {/* Badge Info Santri */}
                 <div className="text-center space-y-1">
-                  <span className="rounded-full bg-teal-100 text-teal-800 text-xs font-black px-3 py-1 uppercase tracking-wider inline-flex items-center gap-1.5">
+                  <span className="rounded-full bg-teal-100 text-teal-800 text-xs font-black px-3 py-1 uppercase tracking-wider inline-flex items-center gap-1.5 shadow-2xs">
                     <Sparkles size={13} className="text-amber-500" />
-                    <span>PREVIEW KARTU RESMI (UKURAN KTP ASLI)</span>
+                    <span>DESAIN KTS RESMI • ROYAL EMERALD GOLD</span>
                   </span>
                   <h2 className="text-base sm:text-lg font-black text-slate-800 uppercase tracking-tight">
                     {text(singleStudent.nama)}
@@ -489,7 +509,7 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
                       <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
                         SISI DEPAN (FRONT)
                       </span>
-                      <div className="shadow-2xl rounded-[3.18mm] overflow-hidden border border-slate-300">
+                      <div className="shadow-2xl rounded-[3.18mm] overflow-hidden border border-slate-300 transform hover:scale-102 transition-transform">
                         <KtsFrontCard student={singleStudent} />
                       </div>
                     </div>
@@ -501,7 +521,7 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
                       <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
                         SISI BELAKANG (BACK)
                       </span>
-                      <div className="shadow-2xl rounded-[3.18mm] overflow-hidden border border-slate-300">
+                      <div className="shadow-2xl rounded-[3.18mm] overflow-hidden border border-slate-300 transform hover:scale-102 transition-transform">
                         <KtsBackCard student={singleStudent} />
                       </div>
                     </div>
@@ -513,13 +533,13 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
                   <button
                     type="button"
                     onClick={handlePrint}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] px-6 py-3 text-xs sm:text-sm font-black text-white shadow-md shadow-[#138F81]/25 transition-all cursor-pointer"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] px-7 py-3.5 text-xs sm:text-sm font-black text-white shadow-lg shadow-[#138F81]/25 transition-all cursor-pointer"
                   >
-                    <Printer size={16} />
+                    <Printer size={18} />
                     <span>Cetak Kartu {text(singleStudent.nama).split(' ')[0]} Sekarang (Ctrl + P)</span>
                   </button>
-                  <p className="text-[11px] text-slate-400 mt-2">
-                    💡 Tips: Jika santri kehilangan kartu, cukup cetak kartu santri bersangkutan di halaman ini.
+                  <p className="text-[11px] text-slate-500 mt-2 font-medium">
+                    💡 Cetak satuan sangat cocok untuk penggantian santri yang kehilangan kartu.
                   </p>
                 </div>
               </div>
@@ -541,7 +561,7 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div>
               <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                <span>Daftar Pilihan Santri Siap Cetak</span>
+                <span>Daftar Pilihan Santri Siap Cetak Massal</span>
                 <span className="rounded-full bg-teal-100 text-[#138F81] text-xs font-black px-2.5 py-0.5">
                   {batchSelectedIds.length} Terpilih
                 </span>
@@ -572,7 +592,7 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
           </div>
 
           {/* Grid Santri untuk Dicentang */}
-          <div className="max-h-80 overflow-y-auto q-scrollbar grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 p-1">
+          <div className="max-h-96 overflow-y-auto q-scrollbar grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 p-1">
             {filteredStudents.map((s) => {
               const isChecked = batchSelectedIds.includes(num(s.id));
               const isPutri = text(s.jenis_kelamin).includes('P');
@@ -612,13 +632,37 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
       )}
 
       {/* ========================================================= */}
-      {/* AREA RENDER DOKUMEN CETAK (HANYA MUNCUL SAAT PRINT)       */}
+      {/* AREA RENDER CETAK DOKUMEN (HANYA MUNCUL DI DIALOG PRINT)  */}
       {/* ========================================================= */}
       <div className="hidden print:block">
         {printStudents.length === 0 ? (
-          <div className="p-8 text-center text-slate-500">Tidak ada kartu yang dipilih.</div>
+          <div className="p-8 text-center text-slate-500">Tidak ada kartu yang dipilih untuk dicetak.</div>
+        ) : viewMode === 'single' && paperLayout === 'a4-sheet' ? (
+          /* ===================================================== */
+          /* KHUSUS CETAK SATUAN DI KERTAS A4 (PAS 1 LEMBAR KERTAS)*/
+          /* Menampilkan Depan & Belakang berdampingan di 1 lembar  */
+          /* ===================================================== */
+          <div className="flex flex-col items-center justify-center min-h-[260mm] p-6">
+            <div className="flex flex-wrap items-center justify-center gap-6">
+              {(printSide === 'both' || printSide === 'front') && (
+                <div className="kts-card-wrapper border border-dashed border-slate-300">
+                  <KtsFrontCard student={printStudents[0]} />
+                </div>
+              )}
+              {(printSide === 'both' || printSide === 'back') && (
+                <div className="kts-card-wrapper border border-dashed border-slate-300">
+                  <KtsBackCard student={printStudents[0]} />
+                </div>
+              )}
+            </div>
+            <p className="text-[9px] text-slate-400 mt-6 tracking-wide font-mono">
+              ✂️ Garis potong presisi ID Card (85.6mm x 54mm) • Pondok Pesantren Qomaruddin Sampurnan
+            </p>
+          </div>
         ) : paperLayout === 'ktp-cr80' ? (
-          /* Mode 1: 1 Halaman per Kartu (Printer Kartu PVC / CR-80) */
+          /* ===================================================== */
+          /* MODE PRINTER KARTU PVC (1 Halaman per sisi kartu)     */
+          /* ===================================================== */
           <div>
             {printStudents.map((student) => (
               <React.Fragment key={text(student.id)}>
@@ -636,7 +680,9 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
             ))}
           </div>
         ) : (
-          /* Mode 2: Grid Lembar A4 Siap Potong */
+          /* ===================================================== */
+          /* MODE MASSAL GRID LEMBAR A4 SIAP POTONG                */
+          /* ===================================================== */
           <div className="a4-sheet-grid">
             {printStudents.map((student) => (
               <React.Fragment key={text(student.id)}>
@@ -662,22 +708,32 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
 // =====================================================================
 // SISI DEPAN KARTU TANDA SANTRI (KTS) RESMI
 // Dimensi: 85.6mm x 54mm (Ukuran KTP Standar Internasional ISO/IEC 7810 ID-1)
+// Desain: Deep Royal Emerald & Gold Security Card with EMV Smartchip
 // =====================================================================
 function KtsFrontCard({ student }: { student: ApiRecord }) {
-  const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const qrCodeValue = `QOMAR-${num(student.id)}-${text(student.nis, '0')}`;
 
+  // Generate QR Code Beresolusi Tinggi (240px untuk ketajaman cetak ~360 DPI)
   useEffect(() => {
-    if (qrCanvasRef.current) {
-      QRCode.toCanvas(qrCanvasRef.current, qrCodeValue, {
-        width: 62,
-        margin: 0,
-        color: {
-          dark: '#0a423d',
-          light: '#ffffff'
-        }
-      }).catch((err) => console.error('QR Render Error:', err));
-    }
+    let active = true;
+    QRCode.toDataURL(qrCodeValue, {
+      width: 240,
+      margin: 1,
+      color: {
+        dark: '#032621', // Deep Royal Emerald pekat tajam
+        light: '#ffffff'
+      },
+      errorCorrectionLevel: 'M'
+    })
+      .then((url) => {
+        if (active) setQrDataUrl(url);
+      })
+      .catch((err) => console.error('Gagal generate QR Code KTS:', err));
+
+    return () => {
+      active = false;
+    };
   }, [qrCodeValue]);
 
   const nama = text(student.nama, 'Nama Santri');
@@ -696,39 +752,75 @@ function KtsFrontCard({ student }: { student: ApiRecord }) {
         height: '54mm',
         borderRadius: '3.18mm',
         WebkitPrintColorAdjust: 'exact',
-        printColorAdjust: 'exact'
+        printColorAdjust: 'exact',
+        background: 'linear-gradient(135deg, #053b34 0%, #0a5247 52%, #042e27 100%)'
       }}
-      className="relative bg-gradient-to-br from-[#0c6b61] via-[#138F81] to-[#0a4f47] text-white p-2.5 shadow-md border border-teal-600 flex flex-col justify-between overflow-hidden print:shadow-none print:border-slate-300 select-none box-border"
+      className="relative text-white p-2.5 shadow-md border border-amber-400/80 flex flex-col justify-between overflow-hidden print:shadow-none select-none box-border"
     >
-      {/* Ornamen Latar Belakang Islami Halus */}
-      <div className="absolute -right-6 -bottom-6 w-28 h-28 rounded-full bg-white/5 pointer-events-none blur-xs" />
-      <div className="absolute left-1/3 -top-10 w-36 h-36 rounded-full bg-amber-400/10 pointer-events-none blur-xs" />
+      {/* 1. ORNAMEN GUILLOCHE SECURITY & WATERMARK LOGO DI LATAR */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.14]" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="kts-guilloche-pat" width="36" height="36" patternUnits="userSpaceOnUse">
+            <path d="M0 18 Q9 0 18 18 T36 18" fill="none" stroke="#fbbf24" strokeWidth="0.5" />
+            <path d="M0 18 Q9 36 18 18 T36 18" fill="none" stroke="#fbbf24" strokeWidth="0.5" />
+            <circle cx="18" cy="18" r="11" fill="none" stroke="#fbbf24" strokeWidth="0.3" strokeDasharray="1.5,1.5" />
+            <circle cx="18" cy="18" r="5" fill="none" stroke="#fbbf24" strokeWidth="0.3" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#kts-guilloche-pat)" />
+      </svg>
 
-      {/* 1. KOP RESMI PESANTREN (UKURAN KTP) */}
-      <div className="flex items-center gap-1.5 border-b border-white/20 pb-1 shrink-0">
-        <img
-          src={qomaruddinLogo}
-          alt="Logo Qomaruddin"
-          className="h-7 w-7 rounded-md bg-white p-0.5 object-contain shrink-0 shadow-2xs"
-        />
-        <div className="min-w-0 flex-1 leading-none">
-          <p className="text-[6.5px] uppercase tracking-wider font-black text-amber-300">
-            YAYASAN PONDOK PESANTREN
-          </p>
-          <h3 className="text-[9.5px] font-black tracking-tight text-white uppercase mt-0.5">
-            QOMARUDDIN SAMPURNAN
-          </h3>
-          <p className="text-[6px] text-teal-100 font-semibold tracking-tight mt-0.5">
-            KARTU TANDA SANTRI (KTS) & PRESENSI RESMI
-          </p>
+      {/* Watermark Logo PP. Qomaruddin di Latar Belakang Tengah */}
+      <img
+        src={qomaruddinLogo}
+        alt=""
+        className="absolute right-10 top-1/2 -translate-y-1/2 h-26 w-26 object-contain pointer-events-none opacity-[0.09] select-none"
+      />
+
+      {/* Garis Border Emas Dalam (Dual Security Frame) */}
+      <div className="absolute inset-[1.4mm] rounded-[2.2mm] border border-amber-300/40 pointer-events-none" />
+
+      {/* 2. KOP RESMI PESANTREN (STANDAR ID CARD RESMI) */}
+      <div className="relative z-10 flex items-center justify-between border-b border-amber-300/40 pb-1 shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="h-7.5 w-7.5 rounded-full bg-white p-0.5 border border-amber-400 shadow-2xs shrink-0 flex items-center justify-center">
+            <img
+              src={qomaruddinLogo}
+              alt="Logo Qomaruddin"
+              className="h-full w-full object-contain"
+            />
+          </div>
+          <div className="min-w-0 leading-none">
+            <p className="text-[6.2px] uppercase tracking-[0.18em] font-black text-amber-300">
+              YAYASAN PONDOK PESANTREN
+            </p>
+            <h3 className="text-[9.5px] font-black tracking-wide text-white uppercase mt-0.5">
+              QOMARUDDIN SAMPURNAN
+            </h3>
+            <p className="text-[5.8px] text-teal-100 font-bold tracking-wider uppercase mt-0.5">
+              KARTU TANDA SANTRI (KTS) RESMI
+            </p>
+          </div>
+        </div>
+
+        {/* Ornamen Smartchip EMV Emas Mini */}
+        <div className="shrink-0 flex flex-col items-end">
+          <div className="w-5 h-3.5 rounded-[2px] bg-gradient-to-tr from-amber-400 via-yellow-200 to-amber-500 border border-amber-600/70 shadow-xs relative overflow-hidden flex items-center justify-center">
+            <div className="absolute inset-0 border-t border-b border-amber-700/40 my-auto h-1.5" />
+            <div className="absolute inset-0 border-l border-r border-amber-700/40 mx-auto w-2" />
+            <div className="w-1.5 h-1.5 rounded-full border border-amber-700/50" />
+          </div>
+          <span className="text-[4.8px] font-mono font-bold text-amber-300 tracking-tighter mt-0.5">
+            SMART ID
+          </span>
         </div>
       </div>
 
-      {/* 2. BODY KARTU: FOTO + BIODATA LENGKAP KTP + QR CODE */}
-      <div className="flex items-center gap-2 my-auto pt-0.5">
+      {/* 3. BODY KARTU: PAS FOTO + TABEL BIODATA + BARCODE QR MEWAH */}
+      <div className="relative z-10 flex items-center gap-2.5 my-auto pt-0.5">
         {/* Pas Foto Santri (Standar Rasio KTP) */}
         <div className="flex flex-col items-center shrink-0">
-          <div className="w-[19mm] h-[25mm] rounded-lg border border-amber-300/80 bg-slate-100 overflow-hidden shadow-xs flex items-center justify-center">
+          <div className="w-[19.5mm] h-[25.5mm] rounded-lg border-1.5 border-amber-400 bg-white overflow-hidden shadow-xs flex items-center justify-center">
             {student.foto_santri ? (
               <img
                 src={String(student.foto_santri)}
@@ -736,53 +828,72 @@ function KtsFrontCard({ student }: { student: ApiRecord }) {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="flex flex-col items-center justify-center text-slate-400 text-center">
-                <span className="text-xl">{isPutri ? '🧕' : '👳‍♂️'}</span>
+              <div className="flex flex-col items-center justify-center text-teal-900/50 p-1 text-center">
+                <svg className="w-8 h-8 text-teal-800/60" viewBox="0 0 24 24" fill="currentColor">
+                  {isPutri ? (
+                    <path d="M12 2c-3.31 0-6 2.69-6 6 0 2.22 1.21 4.15 3 5.19V14c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-.81c1.79-1.04 3-2.97 3-5.19 0-3.31-2.69-6-6-6zm-4 16c-2.21 0-4 1.79-4 4v1h16v-1c0-2.21-1.79-4-4-4H8z" />
+                  ) : (
+                    <path d="M12 2c-2.5 0-4.5.5-5 1.5l-.5 2.5c0 1.5 2.5 3 5.5 3s5.5-1.5 5.5-3l-.5-2.5C16.5 2.5 14.5 2 12 2zm0 8c-2.21 0-4 1.79-4 4v1c0 2.21 1.79 4 4 4s4-1.79 4-4v-1c0-2.21-1.79-4-4-4zm-6 11c0-2.21 1.79-4 4-4h4c2.21 0 4 1.79 4 4v1H6v-1z" />
+                  )}
+                </svg>
+                <span className="text-[5.5px] font-black text-teal-900 uppercase tracking-tighter mt-0.5">
+                  PAS FOTO
+                </span>
               </div>
             )}
           </div>
-          <span className="mt-0.5 text-[6px] font-black uppercase text-amber-200 tracking-wider bg-black/25 px-1 py-0.2 rounded">
-            {isPutri ? 'SANTRI PI' : 'SANTRI PA'}
+          <span className="mt-1 text-[5.8px] font-black uppercase text-amber-950 tracking-wider bg-gradient-to-r from-amber-300 to-amber-400 px-1.5 py-0.5 rounded-full shadow-2xs">
+            {isPutri ? 'SANTRI PUTRI' : 'SANTRI PUTRA'}
           </span>
         </div>
 
-        {/* Tabel Biodata Presisi KTP */}
+        {/* Tabel Biodata Presisi & Elegan */}
         <div className="flex-1 min-w-0 text-[7.5px] leading-tight space-y-0.5">
-          <p className="font-black text-[9px] text-amber-200 uppercase truncate leading-tight pb-0.5">
+          <p className="font-black text-[9.5px] text-[#fff8db] uppercase truncate leading-tight pb-0.5 border-b border-amber-400/30">
             {nama}
           </p>
 
-          <div className="grid grid-cols-[38px_auto] gap-x-0.5 text-teal-50">
-            <span className="font-semibold text-teal-200">NIS</span>
-            <span className="font-mono font-bold text-white">: {nis}</span>
+          <div className="grid grid-cols-[38px_auto] gap-x-0.5 text-teal-50 pt-0.5">
+            <span className="font-bold text-teal-200">NIS</span>
+            <span className="font-mono font-black text-amber-300">: {nis}</span>
 
-            <span className="font-semibold text-teal-200">TTL</span>
+            <span className="font-bold text-teal-200">TTL</span>
             <span className="font-medium text-white truncate">: {ttl}</span>
 
-            <span className="font-semibold text-teal-200">Kamar</span>
+            <span className="font-bold text-teal-200">Kamar</span>
             <span className="font-bold text-amber-100 truncate">: {kamar} ({komplek})</span>
 
-            <span className="font-semibold text-teal-200">Alamat</span>
+            <span className="font-bold text-teal-200">Alamat</span>
             <span className="font-medium text-white truncate">: {alamat}</span>
 
-            <span className="font-semibold text-teal-200">Wali</span>
+            <span className="font-bold text-teal-200">Wali</span>
             <span className="font-medium text-white truncate">: {wali}</span>
           </div>
         </div>
 
-        {/* Barcode QR Code Presisi Sholat */}
-        <div className="shrink-0 flex flex-col items-center bg-white p-0.5 rounded-lg shadow-2xs border border-teal-800/20">
-          <canvas ref={qrCanvasRef} className="w-[16mm] h-[16mm] rounded" />
-          <span className="text-[5.5px] font-black text-slate-800 tracking-tighter uppercase mt-0.5">
-            SCAN SHOLAT
+        {/* Barcode QR Code yang Bersih & Berwibawa (TANPA TEKS "SCAN SHOLAT") */}
+        <div className="shrink-0 flex flex-col items-center justify-center bg-white p-1 rounded-lg shadow-sm border border-amber-400/90 relative">
+          {qrDataUrl ? (
+            <img
+              src={qrDataUrl}
+              alt="QR Code KTS"
+              className="w-[17.5mm] h-[17.5mm] object-contain rounded"
+            />
+          ) : (
+            <div className="w-[17.5mm] h-[17.5mm] bg-white rounded flex items-center justify-center">
+              <span className="text-[6px] text-slate-400">QR</span>
+            </div>
+          )}
+          <span className="text-[5.2px] font-mono font-black text-slate-800 tracking-wider uppercase mt-0.5">
+            VERIFIED ID
           </span>
         </div>
       </div>
 
-      {/* 3. FOOTER KARTU KTP */}
-      <div className="flex items-center justify-between border-t border-white/20 pt-0.5 text-[6.5px] text-teal-100 shrink-0">
-        <span className="font-medium tracking-wide">Sampurnan, Bungah, Gresik</span>
-        <span className="font-mono font-bold text-amber-200">ID: {num(student.id)}</span>
+      {/* 4. FOOTER KARTU */}
+      <div className="relative z-10 flex items-center justify-between border-t border-amber-300/40 pt-0.5 text-[6.5px] text-teal-100 shrink-0">
+        <span className="font-medium tracking-wide">Sampurnan, Bungah, Gresik • Jawa Timur</span>
+        <span className="font-mono font-bold text-amber-300">ID: {num(student.id)}</span>
       </div>
     </div>
   );
@@ -790,7 +901,7 @@ function KtsFrontCard({ student }: { student: ApiRecord }) {
 
 // =====================================================================
 // SISI BELAKANG KARTU TANDA SANTRI (KTS)
-// Dimensi: 85.6mm x 54mm (Tata Tertib & Pengesahan Pesantren)
+// Dimensi: 85.6mm x 54mm (Tata Tertib & Pengesahan Resmi Pesantren)
 // =====================================================================
 function KtsBackCard({ student }: { student: ApiRecord }) {
   return (
@@ -800,50 +911,67 @@ function KtsBackCard({ student }: { student: ApiRecord }) {
         height: '54mm',
         borderRadius: '3.18mm',
         WebkitPrintColorAdjust: 'exact',
-        printColorAdjust: 'exact'
+        printColorAdjust: 'exact',
+        background: '#fcfcfb'
       }}
-      className="relative bg-white text-slate-800 p-2.5 shadow-md border border-slate-200 flex flex-col justify-between overflow-hidden print:shadow-none print:border-slate-300 select-none box-border"
+      className="relative text-slate-800 p-2.5 shadow-md border border-amber-400/70 flex flex-col justify-between overflow-hidden print:shadow-none select-none box-border"
     >
-      <div>
-        <div className="text-center border-b border-slate-200 pb-0.5">
-          <h4 className="text-[8px] font-black uppercase text-[#138F81] tracking-wider">
-            TATA TERTIB & KETENTUAN KTS
+      {/* Watermark Logo PP. Qomaruddin di Latar Belakang Belakang */}
+      <img
+        src={qomaruddinLogo}
+        alt=""
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-24 w-24 object-contain pointer-events-none opacity-[0.08] select-none"
+      />
+
+      {/* Garis Border Dalam Halus */}
+      <div className="absolute inset-[1.4mm] rounded-[2.2mm] border border-amber-400/30 pointer-events-none" />
+
+      {/* Bagian Atas: Header Tata Tertib Deep Emerald */}
+      <div className="relative z-10">
+        <div className="text-center rounded-lg bg-gradient-to-r from-[#063e36] via-[#0b574a] to-[#063e36] text-white py-1 px-2 border border-amber-400/40 shadow-2xs">
+          <h4 className="text-[7.8px] font-black uppercase tracking-wider text-amber-200">
+            TATA TERTIB & KETENTUAN SANTRI
           </h4>
-          <p className="text-[6px] text-slate-500 font-semibold">
-            Pondok Pesantren Qomaruddin Sampurnan Bungah
+          <p className="text-[5.8px] text-teal-100 font-semibold mt-0.2">
+            Pondok Pesantren Qomaruddin Sampurnan Bungah Gresik
           </p>
         </div>
 
-        <ol className="list-decimal list-inside text-[6.8px] text-slate-600 space-y-0.5 mt-1 leading-snug font-medium">
-          <li>Kartu ini identitas resmi santri Pondok Pesantren Qomaruddin.</li>
-          <li>Wajib dibawa setiap Sholat Berjamaah 5 Waktu & KBM Madin.</li>
-          <li>Pindai QR Code di meja pos pengurus sebelum masuk masjid.</li>
-          <li>Dilarang menitipkan atau meminjamkan kartu ke santri lain.</li>
-          <li>Jika kartu hilang, segera lapor bagian keamanan pesantren.</li>
+        <ol className="list-decimal list-inside text-[6.8px] text-slate-700 space-y-0.5 mt-1.5 leading-snug font-medium">
+          <li>Kartu Tanda Santri (KTS) adalah identitas resmi santri PP. Qomaruddin.</li>
+          <li>Wajib dibawa saat Presensi Sholat Berjamaah 5 Waktu & KBM Madin.</li>
+          <li>Pindai barcode pada pos scanner presensi yang telah disediakan.</li>
+          <li>Dilarang keras meminjamkan, menukar, atau memalsukan kartu ini.</li>
+          <li>Jika kartu hilang / rusak, segera lapor Bagian Keamanan Pesantren.</li>
         </ol>
       </div>
 
-      {/* Bagian Pengesahan & Stempel */}
-      <div className="flex items-end justify-between border-t border-slate-200 pt-0.5 text-[6.5px]">
-        <div>
-          <p className="text-[5.5px] text-slate-400 font-semibold">
-            Dicetak: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-          </p>
-          <p className="font-mono font-bold text-slate-600 text-[6.5px]">
-            NIS: {text(student.nis, '-')}
-          </p>
-        </div>
-
-        <div className="text-center leading-tight">
-          <p className="text-[6px] text-slate-500">Pengasuh / Keamanan,</p>
-          <div className="h-4 flex items-center justify-center">
-            <span className="text-[7.5px] font-black text-teal-800 tracking-wider font-serif">
-              [ STEMPEL RESMI ]
-            </span>
+      {/* Bagian Bawah: Legalitas & Pengesahan */}
+      <div className="relative z-10 border-t border-slate-200 pt-1 text-[6.5px]">
+        <div className="flex items-end justify-between">
+          <div>
+            <p className="text-[5.5px] text-slate-400 font-semibold">
+              Dicetak: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </p>
+            <p className="font-mono font-bold text-slate-700 text-[6.8px]">
+              NIS: {text(student.nis, '-')}
+            </p>
+            <div className="mt-0.5 flex items-center gap-0.5 opacity-60">
+              <span className="text-[5px] font-mono tracking-widest text-slate-400">||| | |||| || ||| |||| |</span>
+            </div>
           </div>
-          <p className="font-black text-slate-800 text-[6.5px] underline">
-            PP. Qomaruddin
-          </p>
+
+          <div className="text-center leading-tight">
+            <p className="text-[5.8px] text-slate-500 font-medium">Pengasuh / Bagian Keamanan,</p>
+            <div className="h-4 flex items-center justify-center my-0.5">
+              <span className="text-[7.5px] font-black text-teal-800 tracking-wider font-serif border border-teal-800/40 px-1 py-0.2 rounded bg-teal-50/50">
+                [ STEMPEL RESMI ]
+              </span>
+            </div>
+            <p className="font-black text-slate-800 text-[6.5px] underline">
+              PP. Qomaruddin Sampurnan
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -604,7 +604,7 @@ export function AdminLayout({
 
   const nav = (
     <aside
-      className={`q-sidebar flex h-full flex-col rounded-[26px] bg-[#FFFDF7] p-3.5 lg:p-4 shadow-xl shadow-black/10 transition-colors duration-200 ${
+      className={`q-sidebar flex h-full flex-col rounded-[26px] bg-[#FFFDF7] p-3.5 lg:p-4 shadow-xl shadow-black/10 transition-colors duration-200 print:hidden ${
         collapsed ? "w-23" : "w-72"
       }`}
     >
@@ -751,16 +751,16 @@ export function AdminLayout({
   );
 
   return (
-    <div className="q-app-shell min-h-screen bg-[#FFDC80] dark:bg-[#0B1120] p-2.5 sm:p-4 lg:p-6 theme-light overflow-x-hidden transition-colors duration-300">
-      <div className="mx-auto flex max-w-360 gap-4 lg:gap-6">
-        <div className="hidden shrink-0 lg:block">{nav}</div>
+    <div className="q-app-shell min-h-screen bg-[#FFDC80] dark:bg-[#0B1120] p-2.5 sm:p-4 lg:p-6 theme-light overflow-x-hidden transition-colors duration-300 print:p-0 print:m-0 print:bg-white print:min-h-0 print:overflow-visible">
+      <div className="mx-auto flex max-w-360 gap-4 lg:gap-6 print:m-0 print:p-0 print:max-w-none print:w-full">
+        <div className="hidden shrink-0 lg:block print:hidden">{nav}</div>
         {mobileOpen ? (
           <div
-            className="q-mobile-overlay fixed inset-0 z-40 bg-black/50 backdrop-blur-xs p-4 lg:hidden"
+            className="q-mobile-overlay fixed inset-0 z-40 bg-black/50 backdrop-blur-xs p-4 lg:hidden print:hidden"
             onClick={() => setMobileOpen(false)}
           >
             <div
-              className="q-mobile-drawer relative h-full w-fit max-w-full"
+              className="q-mobile-drawer relative h-full w-fit max-w-full print:hidden"
               onClick={(event) => event.stopPropagation()}
             >
               <button
@@ -776,8 +776,8 @@ export function AdminLayout({
           </div>
         ) : null}
 
-        <main className="min-w-0 flex-1 max-w-full overflow-x-hidden">
-          <header className="q-topbar mb-5 sm:mb-6 lg:mb-8 flex min-h-14 sm:min-h-16 items-center justify-between gap-2 sm:gap-3 rounded-2xl sm:rounded-[26px] bg-[#FFFDF7] dark:bg-slate-900/95 px-3 sm:px-6 shadow-xl shadow-black/10 transition-colors duration-300">
+        <main className="min-w-0 flex-1 max-w-full overflow-x-hidden print:p-0 print:m-0 print:overflow-visible print:w-full">
+          <header className="q-topbar mb-5 sm:mb-6 lg:mb-8 flex min-h-14 sm:min-h-16 items-center justify-between gap-2 sm:gap-3 rounded-2xl sm:rounded-[26px] bg-[#FFFDF7] dark:bg-slate-900/95 px-3 sm:px-6 shadow-xl shadow-black/10 transition-colors duration-300 print:hidden">
             <div className="min-w-0 flex flex-1 items-center gap-2 sm:gap-3">
               <button
                 className="q-icon-button grid h-9 w-9 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-xl sm:rounded-2xl bg-[#E1EFF7] text-[#138F81] transition hover:scale-105"
@@ -1117,10 +1117,10 @@ export function AdminLayout({
             </div>
           </header>
 
-          <div className="q-content-area">{children}</div>
+          <div className="q-content-area print:p-0 print:m-0">{children}</div>
 
           {/* MODERN & PROFESSIONAL FOOTER */}
-          <footer className="mt-8 pt-5 pb-3 border-t border-[#138F81]/15 dark:border-slate-800 text-[#2D3436] dark:text-slate-400">
+          <footer className="mt-8 pt-5 pb-3 border-t border-[#138F81]/15 dark:border-slate-800 text-[#2D3436] dark:text-slate-400 print:hidden">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
               <div>
                 <p className="text-xs font-black text-[#2D3436] dark:text-slate-200 tracking-tight">
@@ -1146,10 +1146,14 @@ export function AdminLayout({
       </div>
 
       {/* 📲 PWA 1-Click Install Banner (Sleek Toast & Dismissible) */}
-      <PwaInstallBanner />
+      <div className="print:hidden">
+        <PwaInstallBanner />
+      </div>
 
       {/* 🔔 Izin Notifikasi Real-Time (Muncul otomatis saat awal masuk aplikasi) */}
-      <NotificationPermissionPrompt userId={session?.id} role={session?.role} />
+      <div className="print:hidden">
+        <NotificationPermissionPrompt userId={session?.id} role={session?.role} />
+      </div>
     </div>
   );
 }
