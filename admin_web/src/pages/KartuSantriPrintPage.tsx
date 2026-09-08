@@ -1083,16 +1083,16 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
           </div>
 
           {/* Area QR Code Besar Beresolusi Tinggi & Kontras Tajam */}
-          <div className="w-full max-w-md flex flex-col items-center justify-center my-auto space-y-4 text-center">
-            {/* Box Putih QR Bersih Murni Khusus Scanner Kamera (Bebas dari teks pengganggu) */}
-            <div className="bg-white p-6 rounded-3xl shadow-2xl flex flex-col items-center justify-center">
+          <div className="w-full max-w-md flex flex-col items-center justify-center my-auto space-y-5 text-center">
+            {/* Box Putih QR Bersih Murni Khusus Scanner Kamera (Quiet Zone Tebal & Bersih) */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-2xl flex flex-col items-center justify-center border-4 border-emerald-400/40">
               <MobileQrDisplay
                 value={`QOMAR-${num(singleStudent.id)}-${text(singleStudent.nis)}`}
               />
             </div>
 
-            {/* Identitas Santri di Luar Box QR */}
-            <div className="text-white space-y-1">
+            {/* Identitas Santri Terpisah Jelas di Bawah Box QR */}
+            <div className="text-white space-y-1.5 pt-2">
               <h2 className="text-xl sm:text-2xl font-black text-amber-300 uppercase tracking-tight">
                 {text(singleStudent.nama)}
               </h2>
@@ -1101,13 +1101,13 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
                 <span className="font-bold text-white">{text(singleStudent.kamar)} ({text(singleStudent.komplek)})</span>
               </p>
               <div className="pt-2">
-                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-extrabold border border-emerald-500/40 shadow-sm">
+                <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-500/25 text-emerald-300 text-xs font-black border border-emerald-500/50 shadow-sm">
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
                   <span>Arahkan ke Kamera Laptop (Jarak 20 - 30 cm)</span>
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium pt-1">
-                💡 Jika terlalu silau di kamera laptop, beri jarak sedikit (jangan terlalu dekat) agar kamera laptop bisa fokus.
+              <p className="text-[11px] text-slate-400 font-medium pt-1 max-w-xs mx-auto">
+                💡 Tips: Set kecerahan layar HP sekitar 50%–70% agar tidak terlalu silau di kamera laptop.
               </p>
             </div>
           </div>
@@ -1200,30 +1200,30 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
   );
 }
 
-// Component QR Code Khusus Layar HP (Resolusi Besar & Sangat Tajam)
+// Component QR Code Khusus Layar HP (Resolusi Besar, Kotak Modul Tebal & Mudah Dibaca Kamera)
 function MobileQrDisplay({ value }: { value: string }) {
   const [dataUrl, setDataUrl] = useState('');
 
   useEffect(() => {
     QRCode.toDataURL(value, {
-      width: 320,
+      width: 360,
       margin: 4, // Quiet Zone standar internasional ISO 18004
       color: { dark: '#000000', light: '#ffffff' },
-      errorCorrectionLevel: 'M'
+      errorCorrectionLevel: 'L' // Error Correction Low -> Modul kotak jauh lebih sedikit, sehingga KOTAK BESAR & TEBAL!
     })
       .then((url) => setDataUrl(url))
       .catch((err) => console.error(err));
   }, [value]);
 
   if (!dataUrl) {
-    return <div className="w-[240px] h-[240px] bg-slate-100 animate-pulse rounded-2xl" />;
+    return <div className="w-[240px] h-[240px] sm:w-[280px] sm:h-[280px] bg-slate-100 animate-pulse rounded-2xl" />;
   }
 
   return (
     <img
       src={dataUrl}
       alt="QR Santri"
-      className="w-[240px] h-[240px] sm:w-[260px] sm:h-[260px] object-contain select-none"
+      className="w-[240px] h-[240px] sm:w-[280px] sm:h-[280px] object-contain select-none"
     />
   );
 }

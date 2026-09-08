@@ -169,7 +169,7 @@ export function PrayerKioskScannerModal({
   const streamRef = useRef<MediaStream | null>(null);
   const animFrameRef = useRef<number | null>(null);
   const modalContainerRef = useRef<HTMLDivElement | null>(null);
-  const recentScannedMap = useRef<Map<number, number>>(new Map()); // Debounce map: id -> timestamp
+  const recentScannedMap = useRef<Map<string, number>>(new Map()); // Debounce map: key -> timestamp
 
   // Update selectedTypeId saat prop berubah
   useEffect(() => {
@@ -274,9 +274,24 @@ export function PrayerKioskScannerModal({
     }
   }, []);
 
-  // Loop Scanning Realtime (Ultra-Fast Dual Engine: Native BarcodeDetector + Multi-Orientation jsQR)
+  // Loop Scanning Realtime (Multi-Pass Super Scanner: Center Viewfinder, Mirrored Pass, Contrast Boost & Native BD)
   const startScanLoop = () => {
     let isDetectingNative = false;
+
+    // Helper fungsi untuk meningkatkan kontras piksel (Adaptive Contrast Enhancement untuk layar HP yang silau)
+    const applyContrastBoost = (data: Uint8ClampedArray, len: number) => {
+      for (let i = 0; i < len; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const gray = (r * 77 + g * 150 + b * 29) >> 8;
+        // Binarization & high contrast stretch
+        const val = gray < 128 ? Math.max(0, gray - 55) : Math.min(255, gray + 55);
+        data[i] = val;
+        data[i + 1] = val;
+        data[i + 2] = val;
+      }
+    };
 
     const scan = async () => {
       if (!videoRef.current || !canvasRef.current) {
@@ -288,68 +303,115 @@ export function PrayerKioskScannerModal({
       const canvas = canvasRef.current;
 
       if (video.readyState >= video.HAVE_CURRENT_DATA && video.videoWidth > 0) {
-        // 1. PRIORITAS UTAMA: Gunakan Native BarcodeDetector (Kecepatan C++ / Hardware Accelerated setara WhatsApp Web)
-        if (barcodeDetectorRef.current && !isDetectingNative) {
-          isDetectingNative = true;
-          try {
-            const barcodes = await barcodeDetectorRef.current.detect(video);
-            if (barcodes && barcodes.length > 0) {
-              for (const barcode of barcodes) {
-                if (barcode.rawValue) {
-                  handleDetectedCode(barcode.rawValue);
-                  break;
-                }
-              }
-            }
-          } catch {
-            // Lanjut ke fallback jsQR jika ada kendala frame
-          } finally {
-            isDetectingNative = false;
-          }
-        }
+        const vw = video.videoWidth;
+        const vh = video.videoHeight;
 
-        // 2. ENGINE CADANGAN / PARALEL: jsQR Multi-Pass & Mirror Compensation
-        // Batasi resolusi kanvas ke max 640 agar pemrosesan CPU instan (< 5ms per frame)
-        const maxDim = 640;
-        let w = video.videoWidth;
-        let h = video.videoHeight;
-        if (w > maxDim || h > maxDim) {
-          const ratio = Math.min(maxDim / w, maxDim / h);
-          w = Math.round(w * ratio);
-          h = Math.round(h * ratio);
-        }
+        // Area tengah viewfinder (65% tengah) untuk modul piksel yang padat & tajam
+        const cropSize = Math.round(Math.min(vw, vh) * 0.65);
+        const sx = Math.round((vw - cropSize) / 2);
+        const sy = Math.round((vh - cropSize) / 2);
 
-        canvas.width = w;
-        canvas.height = h;
+        // Ukuran crop kanvas 480x480 (sangat tajam & ringan diproses CPU < 3ms)
+        const targetDim = 480;
+        canvas.width = targetDim;
+        canvas.height = targetDim;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
         if (ctx) {
-          // Pass A: Scan Frame Normal (attemptBoth: normal & inverted/glare)
-          ctx.drawImage(video, 0, 0, w, h);
-          let imageData = ctx.getImageData(0, 0, w, h);
+          let foundCode: string | null = null;
 
-          let qrCode = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: 'attemptBoth'
-          });
+          // ==============================================================
+          // PASS 1: CROP TENGAH FLIP HORIZONTAL (MIRRORED)
+          // PRIORITAS UTAMA: Webcam laptop Windows secara default ter-mirror!
+          // ==============================================================
+          ctx.save();
+          ctx.scale(-1, 1);
+          ctx.drawImage(video, sx, sy, cropSize, cropSize, -targetDim, 0, targetDim, targetDim);
+          ctx.restore();
 
-          if (qrCode && qrCode.data) {
-            handleDetectedCode(qrCode.data);
-          } else {
-            // Pass B: Scan Frame yang di-FLIP Horizontal (SANGAT KRUSIAL!)
-            // Mengatasi webcam laptop atau kamera yang ter-mirror sehingga QR code terbalik tetap terbaca seketika!
+          let imgData = ctx.getImageData(0, 0, targetDim, targetDim);
+          let qr = jsQR(imgData.data, targetDim, targetDim, { inversionAttempts: 'attemptBoth' });
+          if (qr?.data) {
+            foundCode = qr.data;
+          }
+
+          // ==============================================================
+          // PASS 2: CROP TENGAH NORMAL (NON-MIRRORED)
+          // ==============================================================
+          if (!foundCode) {
+            ctx.drawImage(video, sx, sy, cropSize, cropSize, 0, 0, targetDim, targetDim);
+            imgData = ctx.getImageData(0, 0, targetDim, targetDim);
+            qr = jsQR(imgData.data, targetDim, targetDim, { inversionAttempts: 'attemptBoth' });
+            if (qr?.data) {
+              foundCode = qr.data;
+            }
+          }
+
+          // ==============================================================
+          // PASS 3: CONTRAST BOOST PADA CROP MIRRORED (LAYAR HP ANTI-SILAU)
+          // Membantu membaca layar HP yang backlight-nya terlalu terang
+          // ==============================================================
+          if (!foundCode) {
             ctx.save();
             ctx.scale(-1, 1);
-            ctx.drawImage(video, -w, 0, w, h);
+            ctx.drawImage(video, sx, sy, cropSize, cropSize, -targetDim, 0, targetDim, targetDim);
+            ctx.restore();
+            imgData = ctx.getImageData(0, 0, targetDim, targetDim);
+            applyContrastBoost(imgData.data, imgData.data.length);
+            qr = jsQR(imgData.data, targetDim, targetDim, { inversionAttempts: 'dontInvert' });
+            if (qr?.data) {
+              foundCode = qr.data;
+            }
+          }
+
+          // ==============================================================
+          // PASS 4: NATIVE HARDWARE BARCODE DETECTOR
+          // ==============================================================
+          if (!foundCode && barcodeDetectorRef.current && !isDetectingNative) {
+            isDetectingNative = true;
+            try {
+              let barcodes = await barcodeDetectorRef.current.detect(video);
+              if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+                foundCode = barcodes[0].rawValue;
+              } else {
+                barcodes = await barcodeDetectorRef.current.detect(canvas);
+                if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+                  foundCode = barcodes[0].rawValue;
+                }
+              }
+            } catch {
+              // Ignore hardware detector limitation
+            } finally {
+              isDetectingNative = false;
+            }
+          }
+
+          // ==============================================================
+          // PASS 5: FULL FRAME FALLBACK (MIRRORED & NORMAL)
+          // ==============================================================
+          if (!foundCode) {
+            const fullDim = 640;
+            const fullW = fullDim;
+            const fullH = Math.round((vh / vw) * fullDim);
+            canvas.width = fullW;
+            canvas.height = fullH;
+
+            // Full Frame Mirrored
+            ctx.save();
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0, vw, vh, -fullW, 0, fullW, fullH);
             ctx.restore();
 
-            imageData = ctx.getImageData(0, 0, w, h);
-            qrCode = jsQR(imageData.data, imageData.width, imageData.height, {
-              inversionAttempts: 'attemptBoth'
-            });
-
-            if (qrCode && qrCode.data) {
-              handleDetectedCode(qrCode.data);
+            imgData = ctx.getImageData(0, 0, fullW, fullH);
+            qr = jsQR(imgData.data, fullW, fullH, { inversionAttempts: 'attemptBoth' });
+            if (qr?.data) {
+              foundCode = qr.data;
             }
+          }
+
+          // Jika ditemukan kode barcode / QR code
+          if (foundCode) {
+            handleDetectedCode(foundCode);
           }
         }
       }
@@ -404,27 +466,25 @@ export function PrayerKioskScannerModal({
   const handleDetectedCode = (rawCode: string) => {
     if (isProcessing) return;
 
-    const matched = parseStudentFromCode(rawCode);
-    if (!matched) {
-      return;
-    }
+    const cleanCode = rawCode.trim();
+    if (!cleanCode) return;
 
-    const sId = Number(matched.id);
+    const matched = parseStudentFromCode(cleanCode);
+    const sId = matched ? Number(matched.id) : 0;
     const now = Date.now();
-    const lastScanTime = recentScannedMap.current.get(sId) || 0;
+    const cacheKey = sId > 0 ? `id-${sId}` : `code-${cleanCode}`;
+    const lastScanTime = recentScannedMap.current.get(cacheKey) || 0;
 
-    // Debounce 10 Detik untuk santri yang sama agar tidak spam berulang di kamera
-    if (now - lastScanTime < 10000) {
+    // Debounce 6 Detik untuk kode/santri yang sama agar tidak spam berulang di kamera
+    if (now - lastScanTime < 6000) {
       return;
     }
 
-    // Catat timestamp debounce
-    recentScannedMap.current.set(sId, now);
-
-    void processScan(matched, rawCode);
+    recentScannedMap.current.set(cacheKey, now);
+    void processScan(matched, cleanCode);
   };
 
-  const processScan = async (student: ApiRecord, rawCode: string) => {
+  const processScan = async (student: ApiRecord | undefined, rawCode: string) => {
     setIsProcessing(true);
 
     const nowTimeStr = new Date().toLocaleTimeString('id-ID', {
@@ -433,16 +493,16 @@ export function PrayerKioskScannerModal({
       second: '2-digit'
     });
 
-    const studentId = Number(student.id);
-    const nama = String(student.nama || 'Santri');
-    const nis = String(student.nis || '-');
-    const kamar = String(student.kamar || '-');
-    const komplek = String(student.komplek || '-');
-    const foto = student.foto_santri ? String(student.foto_santri) : undefined;
+    const studentId = student ? Number(student.id) : 0;
+    const nama = student ? String(student.nama || 'Santri') : 'Memverifikasi Santri...';
+    const nis = student ? String(student.nis || '-') : rawCode.replace(/^QOMAR-\d+-/i, '');
+    const kamar = student ? String(student.kamar || '-') : '-';
+    const komplek = student ? String(student.komplek || '-') : '-';
+    const foto = student?.foto_santri ? String(student.foto_santri) : undefined;
 
-    // Tampilkan data langsung di layar (0.01 detik)
+    // Tampilkan data langsung di layar secara instan
     const logItem: ScanLogEntry = {
-      id: `${studentId}-${Date.now()}`,
+      id: `${studentId || rawCode}-${Date.now()}`,
       siswaId: studentId,
       nama,
       nis,
@@ -456,19 +516,31 @@ export function PrayerKioskScannerModal({
     setActiveStudent(logItem);
     setScanLogs((prev) => [logItem, ...prev.slice(0, 19)]); // Simpan 20 log terbaru
 
-    // Audio Feedback Instan
+    // Audio Feedback Instan (Ting! 🔔)
     if (!isMuted) {
       sfx.playSuccess();
     }
 
     try {
-      // Kirim payload super-ringan ke backend (<80 bytes)
+      // Kirim payload quick-scan ke backend (<80 bytes)
       const res = await api.quickScanPrayerAttendance({
         qr_code: rawCode,
-        siswa_id: studentId,
+        siswa_id: studentId > 0 ? studentId : undefined,
         prayer_attendance_type_id: selectedTypeId,
         device_id: posLocation
       });
+
+      // Update data di layar dengan profil lengkap dari database jika tadi baru terdeteksi
+      const serverSiswa = res.data && typeof res.data === 'object' && 'siswa' in res.data ? (res.data as any).siswa : null;
+      if (serverSiswa) {
+        logItem.nama = String(serverSiswa.nama || logItem.nama);
+        logItem.nis = String(serverSiswa.nis || logItem.nis);
+        logItem.kamar = String(serverSiswa.kamar || logItem.kamar);
+        logItem.komplek = String(serverSiswa.komplek || logItem.komplek);
+        if (serverSiswa.foto_santri) logItem.foto = String(serverSiswa.foto_santri);
+        setActiveStudent({ ...logItem });
+        setScanLogs((prev) => prev.map((item) => (item.id === logItem.id ? { ...logItem } : item)));
+      }
 
       if (res.already_attended) {
         logItem.isAlreadyAttended = true;
@@ -493,14 +565,8 @@ export function PrayerKioskScannerModal({
     const code = manualInput.trim();
     if (!code) return;
 
-    const matched = parseStudentFromCode(code);
-    if (!matched) {
-      if (!isMuted) sfx.playError();
-      alert(`Santri dengan kode/NIS "${code}" tidak ditemukan dalam database santri aktif.`);
-      return;
-    }
-
     setManualInput('');
+    const matched = parseStudentFromCode(code);
     void processScan(matched, code);
   };
 
