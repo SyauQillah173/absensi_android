@@ -322,6 +322,15 @@ export function PrayerKioskScannerModal({
       if (foundById) return foundById;
     }
 
+    // Format 4: Cocokkan dengan Nama Santri (Pencarian fleksibel untuk Scan/Ketik Manual)
+    if (clean.length >= 3) {
+      const query = clean.toLowerCase();
+      const foundByName = students.find((s) =>
+        String(s.nama || '').toLowerCase().includes(query)
+      );
+      if (foundByName) return foundByName;
+    }
+
     return undefined;
   };
 
