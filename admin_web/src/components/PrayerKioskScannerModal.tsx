@@ -257,9 +257,28 @@ export function PrayerKioskScannerModal({
     }
   };
 
-  // Loop Scanning Realtime
+  // Native Hardware BarcodeDetector Ref (Engine Chromium / WhatsApp Web)
+  const barcodeDetectorRef = useRef<any>(null);
+  const [isMirrored, setIsMirrored] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
+      try {
+        const BD = (window as any).BarcodeDetector;
+        barcodeDetectorRef.current = new BD({
+          formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'codabar']
+        });
+      } catch (err) {
+        console.warn('Native BarcodeDetector tidak tersedia:', err);
+      }
+    }
+  }, []);
+
+  // Loop Scanning Realtime (Ultra-Fast Dual Engine: Native BarcodeDetector + Multi-Orientation jsQR)
   const startScanLoop = () => {
-    const scan = () => {
+    let isDetectingNative = false;
+
+    const scan = async () => {
       if (!videoRef.current || !canvasRef.current) {
         animFrameRef.current = requestAnimationFrame(scan);
         return;
@@ -268,22 +287,69 @@ export function PrayerKioskScannerModal({
       const video = videoRef.current;
       const canvas = canvasRef.current;
 
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+      if (video.readyState >= video.HAVE_CURRENT_DATA && video.videoWidth > 0) {
+        // 1. PRIORITAS UTAMA: Gunakan Native BarcodeDetector (Kecepatan C++ / Hardware Accelerated setara WhatsApp Web)
+        if (barcodeDetectorRef.current && !isDetectingNative) {
+          isDetectingNative = true;
+          try {
+            const barcodes = await barcodeDetectorRef.current.detect(video);
+            if (barcodes && barcodes.length > 0) {
+              for (const barcode of barcodes) {
+                if (barcode.rawValue) {
+                  handleDetectedCode(barcode.rawValue);
+                  break;
+                }
+              }
+            }
+          } catch {
+            // Lanjut ke fallback jsQR jika ada kendala frame
+          } finally {
+            isDetectingNative = false;
+          }
+        }
+
+        // 2. ENGINE CADANGAN / PARALEL: jsQR Multi-Pass & Mirror Compensation
+        // Batasi resolusi kanvas ke max 640 agar pemrosesan CPU instan (< 5ms per frame)
+        const maxDim = 640;
+        let w = video.videoWidth;
+        let h = video.videoHeight;
+        if (w > maxDim || h > maxDim) {
+          const ratio = Math.min(maxDim / w, maxDim / h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+
+        canvas.width = w;
+        canvas.height = h;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
         if (ctx) {
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          // Pass A: Scan Frame Normal (attemptBoth: normal & inverted/glare)
+          ctx.drawImage(video, 0, 0, w, h);
+          let imageData = ctx.getImageData(0, 0, w, h);
 
-          // Pindai Barcode / QR
-          const qrCode = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: 'dontInvert'
+          let qrCode = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: 'attemptBoth'
           });
 
           if (qrCode && qrCode.data) {
             handleDetectedCode(qrCode.data);
+          } else {
+            // Pass B: Scan Frame yang di-FLIP Horizontal (SANGAT KRUSIAL!)
+            // Mengatasi webcam laptop atau kamera yang ter-mirror sehingga QR code terbalik tetap terbaca seketika!
+            ctx.save();
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, -w, 0, w, h);
+            ctx.restore();
+
+            imageData = ctx.getImageData(0, 0, w, h);
+            qrCode = jsQR(imageData.data, imageData.width, imageData.height, {
+              inversionAttempts: 'attemptBoth'
+            });
+
+            if (qrCode && qrCode.data) {
+              handleDetectedCode(qrCode.data);
+            }
           }
         }
       }
@@ -505,6 +571,19 @@ export function PrayerKioskScannerModal({
 
           <button
             type="button"
+            onClick={() => setIsMirrored(!isMirrored)}
+            className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+              isMirrored
+                ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+            }`}
+            title={isMirrored ? 'Mode Cermin Aktif (Klik untuk Mode Normal)' : 'Mode Normal Aktif (Klik untuk Mode Cermin)'}
+          >
+            <span>{isMirrored ? '🪞 Cermin' : '📷 Normal'}</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setIsMuted(!isMuted)}
             className={`p-2 rounded-xl border transition-colors cursor-pointer ${
               isMuted
@@ -547,7 +626,7 @@ export function PrayerKioskScannerModal({
           <div className="absolute top-3 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
             <div className="rounded-full bg-slate-950/80 backdrop-blur-md px-3.5 py-1 text-xs font-black text-teal-300 border border-teal-500/30 shadow-md flex items-center gap-1.5">
               <Camera size={14} className="text-teal-400 animate-pulse" />
-              <span>Arahkan Barcode KTS ke Kamera</span>
+              <span>Arahkan Barcode KTS / Layar HP ke Kamera (Jarak 20-30 cm)</span>
             </div>
 
             <div className="rounded-full bg-slate-950/80 backdrop-blur-md px-3 py-1 text-xs font-bold text-slate-300 border border-slate-700">
@@ -574,7 +653,9 @@ export function PrayerKioskScannerModal({
               <>
                 <video
                   ref={videoRef}
-                  className="w-full h-full object-cover transform -scale-x-100"
+                  className={`w-full h-full object-cover transition-transform ${
+                    isMirrored ? 'transform -scale-x-100' : 'transform-none'
+                  }`}
                   muted
                   playsInline
                 />

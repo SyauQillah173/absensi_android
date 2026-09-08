@@ -1084,31 +1084,31 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
 
           {/* Area QR Code Besar Beresolusi Tinggi & Kontras Tajam */}
           <div className="w-full max-w-md flex flex-col items-center justify-center my-auto space-y-4 text-center">
-            {/* Box Putih QR Bersih Khusus Kamera Laptop/Kiosk */}
-            <div className="bg-white p-5 rounded-3xl shadow-2xl border-4 border-amber-400 flex flex-col items-center">
+            {/* Box Putih QR Bersih Murni Khusus Scanner Kamera (Bebas dari teks pengganggu) */}
+            <div className="bg-white p-6 rounded-3xl shadow-2xl flex flex-col items-center justify-center">
               <MobileQrDisplay
                 value={`QOMAR-${num(singleStudent.id)}-${text(singleStudent.nis)}`}
               />
-              <span className="text-xs font-mono font-black text-slate-800 tracking-wider uppercase mt-2">
-                AUTHENTIC SCANNER CODE
-              </span>
             </div>
 
-            {/* Identitas Santri */}
+            {/* Identitas Santri di Luar Box QR */}
             <div className="text-white space-y-1">
-              <h2 className="text-lg sm:text-xl font-black text-amber-300 uppercase tracking-tight">
+              <h2 className="text-xl sm:text-2xl font-black text-amber-300 uppercase tracking-tight">
                 {text(singleStudent.nama)}
               </h2>
               <p className="text-xs text-slate-300 font-mono">
                 NIS: <span className="font-bold text-white">{text(singleStudent.nis)}</span> • Kamar:{' '}
-                <span className="font-bold text-white">{text(singleStudent.kamar)}</span>
+                <span className="font-bold text-white">{text(singleStudent.kamar)} ({text(singleStudent.komplek)})</span>
               </p>
               <div className="pt-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-extrabold border border-emerald-500/40">
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-extrabold border border-emerald-500/40 shadow-sm">
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span>Arahkan Layar HP ini ke Kamera Scanner Pos Sholat</span>
+                  <span>Arahkan ke Kamera Laptop (Jarak 20 - 30 cm)</span>
                 </span>
               </div>
+              <p className="text-[11px] text-slate-400 font-medium pt-1">
+                💡 Jika terlalu silau di kamera laptop, beri jarak sedikit (jangan terlalu dekat) agar kamera laptop bisa fokus.
+              </p>
             </div>
           </div>
 
@@ -1206,9 +1206,10 @@ function MobileQrDisplay({ value }: { value: string }) {
 
   useEffect(() => {
     QRCode.toDataURL(value, {
-      width: 280,
-      margin: 1,
-      color: { dark: '#021e1a', light: '#ffffff' }
+      width: 320,
+      margin: 4, // Quiet Zone standar internasional ISO 18004
+      color: { dark: '#000000', light: '#ffffff' },
+      errorCorrectionLevel: 'M'
     })
       .then((url) => setDataUrl(url))
       .catch((err) => console.error(err));
@@ -1222,7 +1223,7 @@ function MobileQrDisplay({ value }: { value: string }) {
     <img
       src={dataUrl}
       alt="QR Santri"
-      className="w-[240px] h-[240px] sm:w-[260px] sm:h-[260px] object-contain rounded-xl"
+      className="w-[240px] h-[240px] sm:w-[260px] sm:h-[260px] object-contain select-none"
     />
   );
 }
@@ -1241,9 +1242,9 @@ function KtsFrontCard({ student }: { student: ApiRecord }) {
     let active = true;
     QRCode.toDataURL(qrCodeValue, {
       width: 240,
-      margin: 1,
+      margin: 2,
       color: {
-        dark: '#032621', // Deep Royal Emerald pekat tajam
+        dark: '#000000', // Hitam pekat kontras maksimal
         light: '#ffffff'
       },
       errorCorrectionLevel: 'M'
