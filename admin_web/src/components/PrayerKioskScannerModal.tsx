@@ -205,6 +205,14 @@ export function PrayerKioskScannerModal({
     };
   }, [isOpen]);
 
+  // State Facing Mode Kamera: Default kamera belakang (environment) di perangkat HP/mobile
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      return 'environment';
+    }
+    return 'user';
+  });
+
   // Start & Stop Kamera
   useEffect(() => {
     if (!isOpen) {
@@ -212,18 +220,19 @@ export function PrayerKioskScannerModal({
       return;
     }
 
-    startCamera();
+    void startCamera(facingMode);
     return () => {
       stopCamera();
     };
   }, [isOpen]);
 
-  const startCamera = async () => {
+  const startCamera = async (overrideFacingMode?: 'user' | 'environment') => {
     setCameraError(null);
+    const targetFacing = overrideFacingMode || facingMode;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: 'user',
+          facingMode: { ideal: targetFacing },
           width: { ideal: 1280 },
           height: { ideal: 720 }
         },
@@ -238,9 +247,42 @@ export function PrayerKioskScannerModal({
         startScanLoop();
       }
     } catch (err) {
-      console.error('Gagal akses kamera:', err);
-      setCameraError('Kamera tidak dapat diakses atau diblokir oleh browser. Gunakan input NIS/Barcode scanner di bawah.');
+      console.error('Gagal akses kamera dengan mode:', targetFacing, err);
+      // Fallback: coba mode sebaliknya jika kamera tertentu tidak tersedia
+      if (!overrideFacingMode) {
+        try {
+          const fallbackFacing = targetFacing === 'user' ? 'environment' : 'user';
+          const fallbackStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: fallbackFacing },
+            audio: false
+          });
+          streamRef.current = fallbackStream;
+          setFacingMode(fallbackFacing);
+          if (videoRef.current) {
+            videoRef.current.srcObject = fallbackStream;
+            videoRef.current.setAttribute('playsinline', 'true');
+            await videoRef.current.play();
+            startScanLoop();
+          }
+          return;
+        } catch {
+          // Lanjut ke penanganan error
+        }
+      }
+      setCameraError('Kamera tidak dapat diakses atau diblokir oleh browser. Pastikan izin kamera aktif.');
     }
+  };
+
+  // Fungsi Putar / Ganti Kamera Depan <-> Belakang
+  const switchCamera = async () => {
+    const nextMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(nextMode);
+    // Jika ganti ke kamera belakang, matikan efek mirror otomatis
+    if (nextMode === 'environment') {
+      setIsMirrored(false);
+    }
+    stopCamera();
+    await startCamera(nextMode);
   };
 
   const stopCamera = () => {
@@ -590,118 +632,235 @@ export function PrayerKioskScannerModal({
       ref={modalContainerRef}
       className="fixed inset-0 z-50 bg-slate-950 flex flex-col justify-between overflow-hidden text-white font-sans select-none"
     >
-      {/* 1. TOP BAR KIOSK POS */}
-      <header className="flex items-center justify-between px-4 sm:px-6 py-3 bg-slate-900/95 border-b border-slate-800 backdrop-blur-md shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#0c6b61] to-[#138F81] shadow-lg shadow-teal-500/20">
-            <UserCheck className="h-6 w-6 text-white" />
-          </div>
-          <div>
+      {/* 1. TOP BAR KIOSK POS (RESPONSIF MOBILE & DESKTOP) */}
+      <header className="px-3 sm:px-6 py-2.5 sm:py-3 bg-slate-900/95 border-b border-slate-800 backdrop-blur-md shrink-0">
+        {/* Mobile View Header (sm:hidden): Rapi 2 Baris, Tombol Tutup X Besar & Jelas */}
+        <div className="flex sm:hidden flex-col gap-2">
+          {/* Baris 1 Mobile: Logo + Judul + Tombol Tutup X */}
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-2">
-                <span>POS SCANNER MANDIRI SHOLAT</span>
-                <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
-              </h1>
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-[#0c6b61] to-[#138F81] shadow-md">
+                <UserCheck className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xs font-black tracking-tight text-white flex items-center gap-1.5">
+                  <span>POS SCANNER SHOLAT</span>
+                  <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                </h1>
+                <p className="text-[10px] text-slate-400 font-semibold truncate max-w-[180px]">
+                  {posLocation}
+                </p>
+              </div>
             </div>
-            <p className="text-xs font-semibold text-slate-400">
-              Pondok Pesantren Qomaruddin Sampurnan Bungah
-            </p>
+
+            {/* Tombol Tutup Merah Mudah di-tap di HP */}
+            <button
+              type="button"
+              onClick={() => {
+                stopCamera();
+                onClose();
+              }}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-600/90 hover:bg-rose-700 text-white text-xs font-bold transition-colors cursor-pointer active:scale-95 shadow-md"
+              title="Tutup Pos Scanner"
+            >
+              <X size={15} />
+              <span>Tutup</span>
+            </button>
+          </div>
+
+          {/* Baris 2 Mobile: Sesi Sholat + Putar Kamera + Mirror + Suara */}
+          <div className="flex items-center justify-between gap-1.5">
+            <select
+              value={selectedTypeId}
+              onChange={(e) => setSelectedTypeId(Number(e.target.value))}
+              className="flex-1 min-w-[100px] rounded-xl border border-slate-700 bg-slate-800 px-2 py-1.5 text-xs font-extrabold text-amber-300 outline-none"
+            >
+              {types.map((t) => (
+                <option key={String(t.id)} value={Number(t.id)}>
+                  🕌 {String(t.name)}
+                </option>
+              ))}
+            </select>
+
+            {/* Tombol Putar Kamera Depan / Belakang di Mobile */}
+            <button
+              type="button"
+              onClick={() => void switchCamera()}
+              className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 shrink-0 ${
+                facingMode === 'environment'
+                  ? 'bg-teal-500/25 border-teal-400 text-teal-200'
+                  : 'bg-indigo-500/25 border-indigo-400 text-indigo-200'
+              }`}
+              title="Putar Kamera Depan / Belakang"
+            >
+              <RefreshCw size={13} className={facingMode === 'environment' ? '' : 'rotate-180'} />
+              <span>{facingMode === 'environment' ? '📷 Belakang' : '🤳 Depan'}</span>
+            </button>
+
+            {/* Tombol Mirror */}
+            <button
+              type="button"
+              onClick={() => setIsMirrored(!isMirrored)}
+              className={`px-2 py-1.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+                isMirrored
+                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                  : 'bg-slate-800 border-slate-700 text-slate-300'
+              }`}
+              title={isMirrored ? 'Mode Cermin Aktif' : 'Mode Normal Aktif'}
+            >
+              <span>{isMirrored ? '🪞' : '📷'}</span>
+            </button>
+
+            {/* Tombol Suara */}
+            <button
+              type="button"
+              onClick={() => setIsMuted(!isMuted)}
+              className={`p-1.5 rounded-xl border transition-colors cursor-pointer shrink-0 ${
+                isMuted
+                  ? 'bg-rose-500/20 border-rose-500/50 text-rose-400'
+                  : 'bg-slate-800 border-slate-700 text-teal-300'
+              }`}
+              title={isMuted ? 'Suara Senyap' : 'Suara Aktif'}
+            >
+              {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+            </button>
           </div>
         </div>
 
-        {/* Setting Cepat Pos & Waktu Sholat */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          <select
-            value={selectedTypeId}
-            onChange={(e) => setSelectedTypeId(Number(e.target.value))}
-            className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-extrabold text-amber-300 outline-none focus:border-[#138F81]"
-          >
-            {types.map((t) => (
-              <option key={String(t.id)} value={Number(t.id)}>
-                🕌 {String(t.name)}
-              </option>
-            ))}
-          </select>
+        {/* Desktop View Header (hidden sm:flex): Tampilan Lengkap Kiosk */}
+        <div className="hidden sm:flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#0c6b61] to-[#138F81] shadow-lg shadow-teal-500/20">
+              <UserCheck className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-2">
+                  <span>POS SCANNER MANDIRI SHOLAT</span>
+                  <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                </h1>
+              </div>
+              <p className="text-xs font-semibold text-slate-400">
+                Pondok Pesantren Qomaruddin Sampurnan Bungah
+              </p>
+            </div>
+          </div>
 
-          <select
-            value={posLocation}
-            onChange={(e) => setPosLocation(e.target.value)}
-            className="hidden md:block rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 outline-none focus:border-[#138F81]"
-          >
-            {POS_LOCATIONS.map((loc) => (
-              <option key={loc} value={loc}>
-                {loc}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <select
+              value={selectedTypeId}
+              onChange={(e) => setSelectedTypeId(Number(e.target.value))}
+              className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-extrabold text-amber-300 outline-none focus:border-[#138F81]"
+            >
+              {types.map((t) => (
+                <option key={String(t.id)} value={Number(t.id)}>
+                  🕌 {String(t.name)}
+                </option>
+              ))}
+            </select>
 
-          <button
-            type="button"
-            onClick={() => setIsMirrored(!isMirrored)}
-            className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
-              isMirrored
-                ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
-                : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
-            }`}
-            title={isMirrored ? 'Mode Cermin Aktif (Klik untuk Mode Normal)' : 'Mode Normal Aktif (Klik untuk Mode Cermin)'}
-          >
-            <span>{isMirrored ? '🪞 Cermin' : '📷 Normal'}</span>
-          </button>
+            <select
+              value={posLocation}
+              onChange={(e) => setPosLocation(e.target.value)}
+              className="hidden md:block rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 outline-none focus:border-[#138F81]"
+            >
+              {POS_LOCATIONS.map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            </select>
 
-          <button
-            type="button"
-            onClick={() => setIsMuted(!isMuted)}
-            className={`p-2 rounded-xl border transition-colors cursor-pointer ${
-              isMuted
-                ? 'bg-rose-500/20 border-rose-500/50 text-rose-400'
-                : 'bg-slate-800 border-slate-700 text-teal-300 hover:bg-slate-700'
-            }`}
-            title={isMuted ? 'Suara Dinonaktifkan' : 'Suara Aktif (Ting! 🔔)'}
-          >
-            {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-          </button>
+            {/* Tombol Putar Kamera Depan / Belakang */}
+            <button
+              type="button"
+              onClick={() => void switchCamera()}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                facingMode === 'environment'
+                  ? 'bg-teal-500/20 border-teal-500/50 text-teal-300'
+                  : 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300'
+              }`}
+              title="Putar Kamera (Depan / Belakang)"
+            >
+              <RefreshCw size={14} className={facingMode === 'environment' ? '' : 'rotate-180'} />
+              <span>{facingMode === 'environment' ? '📷 Kamera Belakang' : '🤳 Kamera Depan'}</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={toggleFullscreen}
-            className="p-2 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors cursor-pointer"
-            title="Layar Penuh (Kiosk)"
-          >
-            {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-          </button>
+            <button
+              type="button"
+              onClick={() => setIsMirrored(!isMirrored)}
+              className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                isMirrored
+                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                  : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+              }`}
+              title={isMirrored ? 'Mode Cermin Aktif (Klik untuk Mode Normal)' : 'Mode Normal Aktif (Klik untuk Mode Cermin)'}
+            >
+              <span>{isMirrored ? '🪞 Cermin' : '📷 Normal'}</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              stopCamera();
-              onClose();
-            }}
-            className="p-2 rounded-xl bg-rose-600/90 text-white hover:bg-rose-700 transition-colors cursor-pointer ml-1"
-            title="Tutup Pos Scanner"
-          >
-            <X size={18} />
-          </button>
+            <button
+              type="button"
+              onClick={() => setIsMuted(!isMuted)}
+              className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                isMuted
+                  ? 'bg-rose-500/20 border-rose-500/50 text-rose-400'
+                  : 'bg-slate-800 border-slate-700 text-teal-300 hover:bg-slate-700'
+              }`}
+              title={isMuted ? 'Suara Dinonaktifkan' : 'Suara Aktif (Ting! 🔔)'}
+            >
+              {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            </button>
+
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="p-2 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors cursor-pointer"
+              title="Layar Penuh (Kiosk)"
+            >
+              {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                stopCamera();
+                onClose();
+              }}
+              className="p-2 rounded-xl bg-rose-600/90 text-white hover:bg-rose-700 transition-colors cursor-pointer ml-1"
+              title="Tutup Pos Scanner"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* 2. BODY KIOSK: 2 KOLOM (KIRI: SCANNER KAMERA, KANAN: LIVE CARD SANTRI & LOG) */}
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 overflow-hidden">
+      {/* 2. BODY KIOSK: RESPONSIF MOBILE & DESKTOP (Scrollable di HP) */}
+      <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 p-3 sm:p-4 overflow-y-auto lg:overflow-hidden">
         {/* KOLOM KIRI (7 SPAN): KAMERA SCANNER + FRAME FOCUS */}
-        <div className="lg:col-span-7 flex flex-col justify-between rounded-3xl bg-slate-900 border border-slate-800 overflow-hidden relative shadow-2xl">
+        <div className="lg:col-span-7 flex flex-col justify-between rounded-3xl bg-slate-900 border border-slate-800 overflow-hidden relative shadow-2xl min-h-[360px] sm:min-h-[420px] lg:min-h-0">
           {/* Petunjuk Arahkan KTS */}
-          <div className="absolute top-3 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
-            <div className="rounded-full bg-slate-950/80 backdrop-blur-md px-3.5 py-1 text-xs font-black text-teal-300 border border-teal-500/30 shadow-md flex items-center gap-1.5">
-              <Camera size={14} className="text-teal-400 animate-pulse" />
-              <span>Arahkan Barcode KTS / Layar HP ke Kamera (Jarak 20-30 cm)</span>
+          <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none">
+            <div className="rounded-full bg-slate-950/85 backdrop-blur-md px-3 py-1 text-[11px] sm:text-xs font-black text-teal-300 border border-teal-500/30 shadow-md flex items-center gap-1.5">
+              <Camera size={13} className="text-teal-400 animate-pulse shrink-0" />
+              <span className="truncate">Arahkan Barcode KTS (Jarak 20-30 cm)</span>
             </div>
 
-            <div className="rounded-full bg-slate-950/80 backdrop-blur-md px-3 py-1 text-xs font-bold text-slate-300 border border-slate-700">
-              {posLocation}
-            </div>
+            {/* Tombol Floating Ganti Kamera di Atas Video */}
+            <button
+              type="button"
+              onClick={() => void switchCamera()}
+              className="pointer-events-auto rounded-full bg-slate-950/85 hover:bg-teal-900/80 backdrop-blur-md px-3 py-1 text-[11px] sm:text-xs font-bold text-slate-200 border border-slate-700 shadow-md flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+              title="Putar Kamera"
+            >
+              <RefreshCw size={12} className="text-teal-400" />
+              <span>{facingMode === 'environment' ? 'Belakang' : 'Depan'}</span>
+            </button>
           </div>
 
           {/* Area Video Kamera */}
-          <div className="relative flex-1 flex items-center justify-center bg-black overflow-hidden">
+          <div className="relative flex-1 flex items-center justify-center bg-black overflow-hidden min-h-[280px]">
             {cameraError ? (
               <div className="p-6 text-center max-w-md space-y-3">
                 <AlertCircle className="h-12 w-12 text-rose-400 mx-auto" />
@@ -709,7 +868,7 @@ export function PrayerKioskScannerModal({
                 <p className="text-xs text-slate-400 leading-relaxed">{cameraError}</p>
                 <button
                   type="button"
-                  onClick={startCamera}
+                  onClick={() => void startCamera()}
                   className="rounded-xl bg-teal-600 px-4 py-2 text-xs font-bold text-white hover:bg-teal-500 transition-colors cursor-pointer"
                 >
                   Coba Hubungkan Ulang Kamera
@@ -728,8 +887,8 @@ export function PrayerKioskScannerModal({
                 <canvas ref={canvasRef} className="hidden" />
 
                 {/* Target Frame Reticle Laser Hijau */}
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                  <div className="relative w-64 h-64 sm:w-80 sm:h-80 rounded-3xl border-2 border-dashed border-teal-400/70 flex items-center justify-center shadow-[0_0_50px_rgba(19,143,129,0.25)]">
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-4">
+                  <div className="relative w-56 h-56 sm:w-80 sm:h-80 rounded-3xl border-2 border-dashed border-teal-400/70 flex items-center justify-center shadow-[0_0_50px_rgba(19,143,129,0.25)]">
                     {/* Corner Reticles */}
                     <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-teal-400 rounded-tl-xl" />
                     <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-teal-400 rounded-tr-xl" />
