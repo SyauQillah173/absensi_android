@@ -3,6 +3,7 @@ import {
   Check,
   CreditCard,
   Download,
+  Home,
   Info,
   Layers,
   Maximize2,
@@ -74,110 +75,98 @@ async function generateKtsJpg(student: ApiRecord, side: 'front' | 'back'): Promi
   };
 
   if (side === 'front') {
-    // 1. Background Gradient Deep Emerald Green
-    const grad = ctx.createLinearGradient(0, 0, width, height);
-    grad.addColorStop(0, '#053b34');
-    grad.addColorStop(0.5, '#0a5247');
-    grad.addColorStop(1, '#042e27');
-    ctx.fillStyle = grad;
+    // 1. Background Putih Bersih
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
 
-    // 2. Ornamen Guilloche Pattern Halus
-    ctx.strokeStyle = 'rgba(251, 191, 36, 0.12)';
-    ctx.lineWidth = 1;
-    for (let x = -100; x < width + 100; x += 45) {
-      ctx.beginPath();
-      ctx.arc(x, height / 2, 280, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
-    // 3. Watermark Logo Transparan di Tengah
-    try {
-      const logoImg = await loadImage(qomaruddinLogo);
-      ctx.save();
-      ctx.globalAlpha = 0.08;
-      ctx.drawImage(logoImg, width / 2 - 120, height / 2 - 150, 320, 320);
-      ctx.restore();
-    } catch {
-      // safe fallback
-    }
-
-    // 4. Double Gold Border
-    // Outer border
-    ctx.strokeStyle = '#f59e0b';
-    ctx.lineWidth = 5;
-    ctx.strokeRect(10, 10, width - 20, height - 20);
-
-    // Inner border
-    ctx.strokeStyle = 'rgba(253, 224, 71, 0.45)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(20, 20, width - 40, height - 40);
-
-    // 5. Header / Kop Pesantren
-    ctx.strokeStyle = 'rgba(253, 224, 71, 0.4)';
-    ctx.lineWidth = 1.5;
+    // 2. Ornamen Watermark Kubah di Kanan Bawah
+    ctx.strokeStyle = 'rgba(11, 128, 98, 0.14)';
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(25, 115);
-    ctx.lineTo(width - 25, 115);
+    ctx.arc(width - 80, height - 40, 180, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(width - 80, height - 40, 130, 0, Math.PI * 2);
     ctx.stroke();
 
-    // Gambar Logo di Kop
+    // 3. Ornamen Lengkungan Hijau Sisi Kiri (Canva Green Waves)
+    // Layer 1: Hijau Toska Cerah
+    ctx.fillStyle = '#00A86B';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(190, 60, 290, 260, 210, 460);
+    ctx.bezierCurveTo(170, 560, 90, 610, 0, 638);
+    ctx.closePath();
+    ctx.fill();
+
+    // Layer 2: Hijau Emerald Elegan
+    ctx.fillStyle = '#0B8062';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(150, 60, 230, 240, 165, 440);
+    ctx.bezierCurveTo(130, 520, 60, 590, 0, 638);
+    ctx.closePath();
+    ctx.fill();
+
+    // Layer 3: Aksen Hijau Tua Dalam
+    ctx.fillStyle = '#065f46';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(105, 50, 165, 210, 105, 400);
+    ctx.bezierCurveTo(75, 500, 25, 570, 0, 610);
+    ctx.closePath();
+    ctx.fill();
+
+    // 4. Kop Surat di Kanan Atas
+    // Logo Resmi Qomaruddin
     try {
       const logoImg = await loadImage(qomaruddinLogo);
-      // Lingkaran putih di belakang logo
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(75, 68, 38, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#f59e0b';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      ctx.drawImage(logoImg, 45, 38, 60, 60);
+      ctx.drawImage(logoImg, width - 110, 22, 75, 75);
     } catch {
       // safe fallback
     }
 
     // Teks Kop
-    ctx.fillStyle = '#fde047';
-    ctx.font = '900 15px sans-serif';
-    ctx.letterSpacing = '3px';
-    ctx.fillText('YAYASAN PONDOK PESANTREN', 130, 48);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 24px sans-serif';
-    ctx.letterSpacing = '1px';
-    ctx.fillText('QOMARUDDIN SAMPURNAN', 130, 78);
-
-    ctx.fillStyle = '#99f6e4';
-    ctx.font = 'bold 13px sans-serif';
-    ctx.letterSpacing = '1.5px';
-    ctx.fillText('KARTU TANDA SANTRI (KTS) RESMI', 130, 100);
-
-    // Kode ID di kanan atas kop
-    ctx.fillStyle = '#fde047';
-    ctx.font = 'bold 14px monospace';
     ctx.textAlign = 'right';
-    ctx.fillText(`ID: ${num(student.id)}`, width - 35, 70);
+    ctx.fillStyle = '#0B8062';
+    ctx.font = 'bold 22px "Amiri", "Traditional Arabic", serif, sans-serif';
+    ctx.fillText('المعهد الإسلامي السلفي قمر الدين', width - 125, 46);
+
+    ctx.font = '900 18px sans-serif';
+    ctx.letterSpacing = '0.5px';
+    ctx.fillText('PONDOK PESANTREN QOMARUDDIN', width - 125, 72);
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = 'bold 12.5px sans-serif';
+    ctx.letterSpacing = '0px';
+    ctx.fillText('Sampurnan Bungah Gresik • NSP : 510035250011', width - 125, 93);
     ctx.textAlign = 'left';
 
-    // 6. Pas Foto Santri
-    const photoX = 40;
-    const photoY = 140;
-    const photoW = 230;
-    const photoH = 300;
+    // 5. Pas Foto Santri
+    const photoX = 170;
+    const photoY = 145;
+    const photoW = 210;
+    const photoH = 280;
 
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(photoX, photoY, photoW, photoH);
-    ctx.strokeStyle = '#f59e0b';
+    // Background kotak foto hijau khas Canva
+    ctx.fillStyle = '#00A86B';
+    ctx.beginPath();
+    ctx.roundRect(photoX, photoY, photoW, photoH, 24);
+    ctx.fill();
+    ctx.strokeStyle = '#0B8062';
     ctx.lineWidth = 3;
-    ctx.strokeRect(photoX, photoY, photoW, photoH);
+    ctx.stroke();
 
     let photoDrawn = false;
     if (student.foto_santri) {
       try {
         const photoImg = await loadImage(String(student.foto_santri));
-        ctx.drawImage(photoImg, photoX + 2, photoY + 2, photoW - 4, photoH - 4);
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(photoX, photoY, photoW, photoH, 24);
+        ctx.clip();
+        ctx.drawImage(photoImg, photoX, photoY, photoW, photoH);
+        ctx.restore();
         photoDrawn = true;
       } catch {
         // Gagal load foto
@@ -185,73 +174,96 @@ async function generateKtsJpg(student: ApiRecord, side: 'front' | 'back'): Promi
     }
 
     if (!photoDrawn) {
-      ctx.fillStyle = '#0f766e';
-      ctx.font = 'bold 18px sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 64px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(isPutri ? '🧕 SANTRI PI' : '👳 SANTRI PA', photoX + photoW / 2, photoY + photoH / 2);
+      ctx.fillText(isPutri ? '🧕' : '👳', photoX + photoW / 2, photoY + photoH / 2 + 10);
+      ctx.font = '900 14px sans-serif';
+      ctx.fillText(isPutri ? 'SANTRI PUTRI' : 'SANTRI PUTRA', photoX + photoW / 2, photoY + photoH / 2 + 50);
       ctx.textAlign = 'left';
     }
 
-    // Badge Santri di Bawah Foto
-    ctx.fillStyle = '#f59e0b';
+    // 6. Biodata Santri
+    const bioX = 410;
+    ctx.fillStyle = '#065f46';
+    ctx.font = '900 32px sans-serif';
+    ctx.fillText(nama, bioX, 185);
+
+    ctx.fillStyle = '#334155';
+    ctx.font = 'bold 19px sans-serif';
+    ctx.fillText(ttl, bioX, 222);
+
+    // NIS & Kamar
+    ctx.fillStyle = '#0B8062';
+    ctx.font = 'bold 17px sans-serif';
+    ctx.fillText('NIS:', bioX, 258);
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '900 19px monospace';
+    ctx.fillText(nis, bioX + 45, 258);
+
+    ctx.fillStyle = '#0B8062';
+    ctx.font = 'bold 17px sans-serif';
+    ctx.fillText('• Kamar: ' + kamar + ' (' + komplek + ')', bioX + 160, 258);
+
+    // Alamat
+    ctx.fillStyle = '#0B8062';
+    ctx.font = 'bold 17px sans-serif';
+    ctx.fillText('🏠 Alamat :', bioX, 298);
+
+    ctx.fillStyle = '#475569';
+    ctx.font = '500 16px sans-serif';
+    const displayAlamat = alamat.length > 55 ? alamat.slice(0, 52) + '...' : alamat;
+    ctx.fillText(displayAlamat, bioX, 326);
+
+    // 7. Pita KTS & Badge Website di Bawah Foto / Alamat
+    // Icon Bulat
+    ctx.fillStyle = '#00A86B';
     ctx.beginPath();
-    ctx.roundRect(photoX + 15, photoY + photoH + 15, photoW - 30, 36, 18);
+    ctx.arc(185, 475, 14, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#1e293b';
-    ctx.font = '900 13px sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 14px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(isPutri ? 'SANTRI PUTRI' : 'SANTRI PUTRA', photoX + photoW / 2, photoY + photoH + 38);
+    ctx.fillText('Q', 185, 480);
     ctx.textAlign = 'left';
 
-    // 7. Tabel Biodata
-    const bioX = 300;
-    ctx.fillStyle = '#fff8db';
-    ctx.font = '900 24px sans-serif';
-    ctx.fillText(nama.toUpperCase(), bioX, 165);
+    ctx.fillStyle = '#065f46';
+    ctx.font = '900 19px sans-serif';
+    ctx.letterSpacing = '0.5px';
+    ctx.fillText('KARTU TANDA SANTRI', 210, 482);
+    ctx.letterSpacing = '0px';
 
-    // Garis bawah nama
-    ctx.strokeStyle = 'rgba(253, 224, 71, 0.4)';
-    ctx.lineWidth = 1.5;
+    // Badge Pill Website Hijau
+    ctx.fillStyle = '#00A86B';
     ctx.beginPath();
-    ctx.moveTo(bioX, 178);
-    ctx.lineTo(bioX + 380, 178);
-    ctx.stroke();
+    ctx.roundRect(210, 502, 210, 38, 19);
+    ctx.fill();
 
-    const drawRow = (label: string, val: string, yPos: number, isMono = false) => {
-      ctx.fillStyle = '#99f6e4';
-      ctx.font = 'bold 17px sans-serif';
-      ctx.fillText(label, bioX, yPos);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('www.qomaruddin.com', 315, 527);
+    ctx.textAlign = 'left';
 
-      ctx.fillStyle = isMono ? '#fde047' : '#ffffff';
-      ctx.font = isMono ? '900 20px monospace' : '600 17px sans-serif';
-      ctx.fillText(`: ${val}`, bioX + 90, yPos);
-    };
+    // 8. Barcode QR Code Absensi (Sesuai Permintaan Khusus Pengurus)
+    const qrSize = 185;
+    const qrX = width - qrSize - 55;
+    const qrY = 145;
 
-    drawRow('NIS', nis, 220, true);
-    drawRow('TTL', ttl, 265);
-    drawRow('Kamar', `${kamar} (${komplek})`, 310);
-    drawRow('Alamat', alamat, 355);
-    drawRow('Wali', wali, 400);
-
-    // 8. Barcode QR Code (Bersih Tanpa Text Scan Sholat)
-    const qrSize = 210;
-    const qrX = width - qrSize - 45;
-    const qrY = 160;
-
-    // Kotak putih QR
+    // Kotak Putih QR dengan Border Hijau
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.roundRect(qrX, qrY, qrSize, qrSize + 35, 14);
+    ctx.roundRect(qrX, qrY, qrSize, qrSize + 40, 20);
     ctx.fill();
-    ctx.strokeStyle = '#f59e0b';
+    ctx.strokeStyle = '#0B8062';
     ctx.lineWidth = 2.5;
     ctx.stroke();
 
     try {
       const qrDataUrl = await QRCode.toDataURL(qrCodeValue, {
-        width: 320,
+        width: 300,
         margin: 1,
-        color: { dark: '#032621', light: '#ffffff' }
+        color: { dark: '#065f46', light: '#ffffff' }
       });
       const qrImg = await loadImage(qrDataUrl);
       ctx.drawImage(qrImg, qrX + 10, qrY + 10, qrSize - 20, qrSize - 20);
@@ -259,125 +271,107 @@ async function generateKtsJpg(student: ApiRecord, side: 'front' | 'back'): Promi
       // safe fallback
     }
 
-    ctx.fillStyle = '#1e293b';
-    ctx.font = '900 12px monospace';
+    ctx.fillStyle = '#065f46';
+    ctx.font = '900 13px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('VERIFIED ID', qrX + qrSize / 2, qrY + qrSize + 22);
-    ctx.textAlign = 'left';
-
-    // 9. Footer
-    ctx.strokeStyle = 'rgba(253, 224, 71, 0.4)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(25, height - 55);
-    ctx.lineTo(width - 25, height - 55);
-    ctx.stroke();
-
-    ctx.fillStyle = '#99f6e4';
-    ctx.font = '600 15px sans-serif';
-    ctx.fillText('Sampurnan, Bungah, Gresik • Jawa Timur', 40, height - 25);
-
-    ctx.fillStyle = '#fde047';
-    ctx.font = 'bold 15px monospace';
-    ctx.textAlign = 'right';
-    ctx.fillText(`KTS-QOMARUDDIN • 2026`, width - 40, height - 25);
+    ctx.fillText('SCAN PRESENSI', qrX + qrSize / 2, qrY + qrSize + 26);
     ctx.textAlign = 'left';
   } else {
-    // SISI BELAKANG (BACK CARD)
-    ctx.fillStyle = '#fcfcfb';
+    // SISI BELAKANG (BACK CARD PERSIS SESUAI CANVA PENGURUS)
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
 
-    // Double Border
-    ctx.strokeStyle = '#f59e0b';
-    ctx.lineWidth = 5;
-    ctx.strokeRect(10, 10, width - 20, height - 20);
-
-    ctx.strokeStyle = 'rgba(245, 158, 11, 0.3)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(20, 20, width - 40, height - 40);
-
-    // Watermark Logo
-    try {
-      const logoImg = await loadImage(qomaruddinLogo);
-      ctx.save();
-      ctx.globalAlpha = 0.07;
-      ctx.drawImage(logoImg, width / 2 - 150, height / 2 - 150, 300, 300);
-      ctx.restore();
-    } catch {
-      // safe fallback
-    }
-
-    // Header Tata Tertib
-    const hGrad = ctx.createLinearGradient(40, 35, width - 80, 80);
-    hGrad.addColorStop(0, '#063e36');
-    hGrad.addColorStop(0.5, '#0b574a');
-    hGrad.addColorStop(1, '#063e36');
-    ctx.fillStyle = hGrad;
+    // 1. Ornamen Sayap Lengkung Hijau Sisi Kiri & Kanan
+    // Sisi Kiri
+    ctx.fillStyle = '#00A86B';
     ctx.beginPath();
-    ctx.roundRect(40, 35, width - 80, 85, 12);
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(160, 80, 210, 250, 160, 440);
+    ctx.bezierCurveTo(120, 540, 60, 600, 0, 638);
+    ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = '#f59e0b';
-    ctx.lineWidth = 2;
+
+    ctx.fillStyle = '#0B8062';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(110, 70, 150, 220, 120, 410);
+    ctx.bezierCurveTo(90, 490, 30, 570, 0, 620);
+    ctx.closePath();
+    ctx.fill();
+
+    // Sisi Kanan
+    ctx.fillStyle = '#00A86B';
+    ctx.beginPath();
+    ctx.moveTo(width, 0);
+    ctx.bezierCurveTo(width - 160, 80, width - 210, 250, width - 160, 440);
+    ctx.bezierCurveTo(width - 120, 540, width - 60, 600, width, 638);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#0B8062';
+    ctx.beginPath();
+    ctx.moveTo(width, 0);
+    ctx.bezierCurveTo(width - 110, 70, width - 150, 220, width - 120, 410);
+    ctx.bezierCurveTo(width - 90, 490, width - 30, 570, width, 620);
+    ctx.closePath();
+    ctx.fill();
+
+    // 2. Ornamen Watermark Kubah di Kanan Bawah
+    ctx.strokeStyle = 'rgba(11, 128, 98, 0.12)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(width - 90, height - 30, 160, 0, Math.PI * 2);
     ctx.stroke();
 
-    ctx.fillStyle = '#fde047';
-    ctx.font = '900 20px sans-serif';
+    // 3. Kop Tengah Atas
     ctx.textAlign = 'center';
-    ctx.fillText('TATA TERTIB & KETENTUAN SANTRI', width / 2, 72);
+    ctx.fillStyle = '#0B8062';
+    ctx.font = 'bold 24px "Amiri", "Traditional Arabic", serif, sans-serif';
+    ctx.fillText('المعهد الإسلامي السلفي قمر الدين', width / 2, 60);
 
-    ctx.fillStyle = '#99f6e4';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.fillText('Pondok Pesantren Qomaruddin Sampurnan Bungah Gresik', width / 2, 98);
+    ctx.font = '900 18px sans-serif';
+    ctx.letterSpacing = '0.5px';
+    ctx.fillText('PONDOK PESANTREN QOMARUDDIN', width / 2, 88);
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.letterSpacing = '0px';
+    ctx.fillText('Sampurnan Bungah Gresik • NSP : 510035250011', width / 2, 110);
     ctx.textAlign = 'left';
 
-    // 5 Butir Tata Tertib
+    // 4. Isi Ketentuan Tata Tertib (4 Butir Resmi Pengurus)
+    // Bullet Bulat Hijau Khas Canva
+    ctx.fillStyle = '#00A86B';
+    ctx.beginPath();
+    ctx.arc(175, 178, 14, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#1e293b';
+    ctx.font = '600 17.5px sans-serif';
     const rules = [
-      '1. Kartu Tanda Santri (KTS) adalah identitas resmi santri Pondok Pesantren Qomaruddin.',
-      '2. Wajib dibawa saat Presensi Sholat Berjamaah 5 Waktu & KBM Madrasah Diniyah.',
-      '3. Pindai barcode pada pos scanner presensi yang telah disediakan sebelum masuk masjid.',
-      '4. Dilarang keras meminjamkan, menukar, atau memalsukan kartu identitas ini.',
-      '5. Jika kartu hilang atau rusak, segera lapor ke Bagian Keamanan Pesantren.'
+      'Kartu Tanda Santri wajib dibawa dan digunakan oleh pemiliknya selama berada di lingkungan pesantren.',
+      'Kartu ini tidak boleh dipindahtangankan, dipalsukan, atau disalahgunakan.',
+      'Setiap pelanggaran akan dikenakan sanksi sesuai tata tertib pesantren yang berlaku.',
+      'Kartu yang hilang atau ditemukan wajib segera dilaporkan atau dikembalikan kepada pihak Pondok Pesantren Qomaruddin.'
     ];
 
-    ctx.fillStyle = '#1e293b';
-    ctx.font = '600 17px sans-serif';
-    let rY = 175;
-    rules.forEach((r) => {
-      ctx.fillText(r, 55, rY);
-      rY += 48;
+    let ruleY = 184;
+    rules.forEach((r, idx) => {
+      ctx.font = idx === 0 ? '700 17.5px sans-serif' : '500 17.5px sans-serif';
+      // Baris pertama rata dengan bullet di x = 205, baris berikutnya di x = 205
+      ctx.fillText(r, 205, ruleY);
+      ruleY += 46;
     });
 
-    // Garis Footer
-    ctx.strokeStyle = '#cbd5e1';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(40, height - 145);
-    ctx.lineTo(width - 40, height - 145);
-    ctx.stroke();
-
-    // Kolom Kiri Bawah
+    // 5. Pengesahan Pengasuh di Kiri Bawah
     ctx.fillStyle = '#64748b';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.fillText(`Dicetak: ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}`, 55, height - 105);
+    ctx.font = '500 15px sans-serif';
+    ctx.fillText('Pemangku,', 170, height - 120);
+    ctx.fillText('Pondok Pesantren Qomaruddin', 170, height - 95);
 
-    ctx.fillStyle = '#1e293b';
-    ctx.font = '900 17px monospace';
-    ctx.fillText(`NIS: ${nis}`, 55, height - 75);
-
-    // Kolom Kanan Bawah (Stempel & Pengesahan)
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#64748b';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.fillText('Pengasuh / Bagian Keamanan,', width - 180, height - 110);
-
-    ctx.fillStyle = '#0d9488';
-    ctx.font = '900 16px serif';
-    ctx.fillText('[ STEMPEL RESMI ]', width - 180, height - 75);
-
-    ctx.fillStyle = '#0f172a';
-    ctx.font = '900 15px sans-serif';
-    ctx.fillText('PP. QOMARUDDIN SAMPURNAN', width - 180, height - 48);
-    ctx.textAlign = 'left';
+    ctx.fillStyle = '#065f46';
+    ctx.font = '900 19px sans-serif';
+    ctx.fillText('Dr. KH. M. Ala\'uddin, Lc., M.SEI.', 170, height - 65);
   }
 
   return new Promise((resolve, reject) => {
@@ -887,9 +881,9 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
               <div className="space-y-6 w-full max-w-2xl flex flex-col items-center">
                 {/* Badge Info Santri */}
                 <div className="text-center space-y-1">
-                  <span className="rounded-full bg-teal-100 text-teal-800 text-xs font-black px-3 py-1 uppercase tracking-wider inline-flex items-center gap-1.5 shadow-2xs">
-                    <Sparkles size={13} className="text-amber-500" />
-                    <span>DESAIN KTS RESMI • ROYAL EMERALD GOLD</span>
+                  <span className="rounded-full bg-emerald-100 text-[#065f46] text-xs font-black px-3 py-1 uppercase tracking-wider inline-flex items-center gap-1.5 shadow-2xs">
+                    <Sparkles size={13} className="text-emerald-600" />
+                    <span>DESAIN RESMI PENGURUS • HIJAU EMERALD QOMARUDDIN</span>
                   </span>
                   <h2 className="text-base sm:text-lg font-black text-slate-800 uppercase tracking-tight">
                     {text(singleStudent.nama)}
@@ -1237,14 +1231,14 @@ function KtsFrontCard({ student }: { student: ApiRecord }) {
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const qrCodeValue = `QOMAR-${num(student.id)}-${text(student.nis, '0')}`;
 
-  // Generate QR Code Beresolusi Tinggi (240px untuk ketajaman cetak ~360 DPI)
+  // Generate QR Code Beresolusi Tinggi (280px untuk ketajaman cetak ~360 DPI)
   useEffect(() => {
     let active = true;
     QRCode.toDataURL(qrCodeValue, {
-      width: 240,
-      margin: 2,
+      width: 280,
+      margin: 1,
       color: {
-        dark: '#000000', // Hitam pekat kontras maksimal
+        dark: '#065f46',
         light: '#ffffff'
       },
       errorCorrectionLevel: 'M'
@@ -1261,11 +1255,10 @@ function KtsFrontCard({ student }: { student: ApiRecord }) {
 
   const nama = text(student.nama, 'Nama Santri');
   const nis = text(student.nis, '-');
-  const ttl = `${text(student.tempat_lahir, '')}${student.tempat_lahir && student.tanggal_lahir ? ', ' : ''}${text(student.tanggal_lahir, '-')}`;
+  const ttl = `${text(student.tempat_lahir, 'Gresik')}${student.tempat_lahir && student.tanggal_lahir ? ', ' : ''}${text(student.tanggal_lahir, '-')}`;
   const kamar = text(student.kamar, '-');
   const komplek = text(student.komplek, '-');
-  const alamat = `${text(student.kecamatan, '')}${student.kecamatan && student.kota ? ', ' : ''}${text(student.kota, text(student.alamat, '-'))}`;
-  const wali = text(student.nama_wali, text(student.nama_ayah, '-'));
+  const alamat = text(student.alamat, `${text(student.kecamatan, '')} ${text(student.kota, 'Gresik')}`.trim());
   const isPutri = text(student.jenis_kelamin).includes('P') || text(student.jenis_kelamin).toUpperCase() === 'PEREMPUAN';
 
   return (
@@ -1276,142 +1269,141 @@ function KtsFrontCard({ student }: { student: ApiRecord }) {
         borderRadius: '3.18mm',
         WebkitPrintColorAdjust: 'exact',
         printColorAdjust: 'exact',
-        background: 'linear-gradient(135deg, #053b34 0%, #0a5247 52%, #042e27 100%)'
+        background: '#ffffff'
       }}
-      className="relative text-white p-2.5 shadow-md border border-amber-400/80 flex flex-col justify-between overflow-hidden print:shadow-none select-none box-border"
+      className="relative text-slate-800 p-2 shadow-md border border-slate-200 flex flex-col justify-between overflow-hidden print:shadow-none select-none box-border font-sans"
     >
-      {/* 1. ORNAMEN GUILLOCHE SECURITY & WATERMARK LOGO DI LATAR */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.14]" xmlns="http://www.w3.org/2000/svg">
+      {/* 1. TEKSTUR POLA ISLAMI HALUS (ARABESQUE BACKGROUND) */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.05]" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <pattern id="kts-guilloche-pat" width="36" height="36" patternUnits="userSpaceOnUse">
-            <path d="M0 18 Q9 0 18 18 T36 18" fill="none" stroke="#fbbf24" strokeWidth="0.5" />
-            <path d="M0 18 Q9 36 18 18 T36 18" fill="none" stroke="#fbbf24" strokeWidth="0.5" />
-            <circle cx="18" cy="18" r="11" fill="none" stroke="#fbbf24" strokeWidth="0.3" strokeDasharray="1.5,1.5" />
-            <circle cx="18" cy="18" r="5" fill="none" stroke="#fbbf24" strokeWidth="0.3" />
+          <pattern id="kts-front-pat" width="28" height="28" patternUnits="userSpaceOnUse">
+            <path d="M14 0 L28 14 L14 28 L0 14 Z" fill="none" stroke="#065f46" strokeWidth="0.5" />
+            <circle cx="14" cy="14" r="7" fill="none" stroke="#065f46" strokeWidth="0.4" />
+            <circle cx="0" cy="0" r="4" fill="none" stroke="#065f46" strokeWidth="0.4" />
+            <circle cx="28" cy="0" r="4" fill="none" stroke="#065f46" strokeWidth="0.4" />
+            <circle cx="0" cy="28" r="4" fill="none" stroke="#065f46" strokeWidth="0.4" />
+            <circle cx="28" cy="28" r="4" fill="none" stroke="#065f46" strokeWidth="0.4" />
           </pattern>
         </defs>
-        <rect width="100%" height="100%" fill="url(#kts-guilloche-pat)" />
+        <rect width="100%" height="100%" fill="url(#kts-front-pat)" />
       </svg>
 
-      {/* Watermark Logo PP. Qomaruddin di Latar Belakang Tengah */}
-      <img
-        src={qomaruddinLogo}
-        alt=""
-        className="absolute right-10 top-1/2 -translate-y-1/2 h-26 w-26 object-contain pointer-events-none opacity-[0.09] select-none"
-      />
+      {/* 2. WATERMARK KUBAH ARSITEKTUR PESANTREN DI KANAN BAWAH */}
+      <svg className="absolute right-0 bottom-0 w-[44mm] h-[36mm] pointer-events-none opacity-[0.14] text-[#065f46]" viewBox="0 0 200 160" fill="currentColor">
+        <circle cx="170" cy="130" r="60" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="4,4" />
+        <circle cx="170" cy="130" r="45" fill="none" stroke="currentColor" strokeWidth="2" />
+        <circle cx="170" cy="130" r="30" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M130 160 C 130 115, 150 95, 170 80 C 190 95, 210 115, 210 160 Z" opacity="0.6" />
+      </svg>
 
-      {/* Garis Border Emas Dalam (Dual Security Frame) */}
-      <div className="absolute inset-[1.4mm] rounded-[2.2mm] border border-amber-300/40 pointer-events-none" />
+      {/* 3. ORNAMEN KURVA HIJAU SISI KIRI (CANVA GREEN CURVED WINGS) */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 856 540" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* Layer 1: Hijau Toska Cerah */}
+        <path d="M 0 0 C 160 50, 240 220, 180 390 C 140 480, 80 520, 0 540 L 0 540 Z" fill="#00A86B" />
+        {/* Layer 2: Hijau Emerald Elegan */}
+        <path d="M 0 0 C 130 50, 190 200, 140 370 C 110 440, 50 500, 0 540 Z" fill="#0B8062" />
+        {/* Layer 3: Aksen Hijau Tua Dalam */}
+        <path d="M 0 0 C 90 40, 140 180, 90 340 C 60 420, 20 480, 0 520 Z" fill="#065f46" />
+      </svg>
 
-      {/* 2. KOP RESMI PESANTREN (BERSIH, TANPA CHIP SMART ID ALAY) */}
-      <div className="relative z-10 flex items-center justify-between border-b border-amber-300/40 pb-1 shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="h-7.5 w-7.5 rounded-full bg-white p-0.5 border border-amber-400 shadow-2xs shrink-0 flex items-center justify-center">
-            <img
-              src={qomaruddinLogo}
-              alt="Logo Qomaruddin"
-              className="h-full w-full object-contain"
-            />
-          </div>
-          <div className="min-w-0 leading-none">
-            <p className="text-[6.2px] uppercase tracking-[0.18em] font-black text-amber-300">
-              YAYASAN PONDOK PESANTREN
-            </p>
-            <h3 className="text-[9.5px] font-black tracking-wide text-white uppercase mt-0.5">
-              QOMARUDDIN SAMPURNAN
-            </h3>
-            <p className="text-[5.8px] text-teal-100 font-bold tracking-wider uppercase mt-0.5">
-              KARTU TANDA SANTRI (KTS) RESMI
-            </p>
-          </div>
+      {/* 4. KOP PESANTREN RESMI DI KANAN ATAS */}
+      <div className="relative z-10 flex items-center justify-end gap-2 pl-18 shrink-0">
+        <div className="text-right leading-none">
+          <p className="font-serif font-black text-[#0B8062] text-[8.2px] leading-tight tracking-wide" dir="rtl">
+            المعهد الإسلامي السلفي قمر الدين
+          </p>
+          <h4 className="font-black text-[7.2px] text-[#0B8062] tracking-tight uppercase mt-0.5">
+            PONDOK PESANTREN QOMARUDDIN
+          </h4>
+          <p className="text-[5px] text-slate-500 font-bold tracking-tight mt-0.5">
+            Sampurnan Bungah Gresik • NSP : 510035250011
+          </p>
         </div>
-
-        {/* Nomor ID Santri di Kanan Atas Kop */}
-        <div className="shrink-0 text-right">
-          <span className="text-[6.2px] font-mono font-bold text-amber-300 tracking-wider">
-            ID: {num(student.id)}
-          </span>
+        <div className="h-7.5 w-7.5 rounded-full bg-white p-0.5 border border-amber-400 shadow-2xs shrink-0 flex items-center justify-center">
+          <img
+            src={qomaruddinLogo}
+            alt="Logo Qomaruddin"
+            className="h-full w-full object-contain"
+          />
         </div>
       </div>
 
-      {/* 3. BODY KARTU: PAS FOTO + TABEL BIODATA + BARCODE QR MEWAH */}
-      <div className="relative z-10 flex items-center gap-2.5 my-auto pt-0.5">
-        {/* Pas Foto Santri (Standar Rasio KTP) */}
-        <div className="flex flex-col items-center shrink-0">
-          <div className="w-[19.5mm] h-[25.5mm] rounded-lg border-1.5 border-amber-400 bg-white overflow-hidden shadow-xs flex items-center justify-center">
-            {student.foto_santri ? (
-              <img
-                src={String(student.foto_santri)}
-                alt={nama}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center text-teal-900/50 p-1 text-center">
-                <svg className="w-8 h-8 text-teal-800/60" viewBox="0 0 24 24" fill="currentColor">
-                  {isPutri ? (
-                    <path d="M12 2c-3.31 0-6 2.69-6 6 0 2.22 1.21 4.15 3 5.19V14c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-.81c1.79-1.04 3-2.97 3-5.19 0-3.31-2.69-6-6-6zm-4 16c-2.21 0-4 1.79-4 4v1h16v-1c0-2.21-1.79-4-4-4H8z" />
-                  ) : (
-                    <path d="M12 2c-2.5 0-4.5.5-5 1.5l-.5 2.5c0 1.5 2.5 3 5.5 3s5.5-1.5 5.5-3l-.5-2.5C16.5 2.5 14.5 2 12 2zm0 8c-2.21 0-4 1.79-4 4v1c0 2.21 1.79 4 4 4s4-1.79 4-4v-1c0-2.21-1.79-4-4-4zm-6 11c0-2.21 1.79-4 4-4h4c2.21 0 4 1.79 4 4v1H6v-1z" />
-                  )}
-                </svg>
-                <span className="text-[5.5px] font-black text-teal-900 uppercase tracking-tighter mt-0.5">
-                  PAS FOTO
-                </span>
-              </div>
-            )}
-          </div>
-          <span className="mt-1 text-[5.8px] font-black uppercase text-amber-950 tracking-wider bg-gradient-to-r from-amber-300 to-amber-400 px-1.5 py-0.5 rounded-full shadow-2xs">
-            {isPutri ? 'SANTRI PUTRI' : 'SANTRI PUTRA'}
-          </span>
+      {/* 5. BODY: PAS FOTO + BIODATA + QR CODE ABSENSI */}
+      <div className="relative z-10 flex items-center gap-2 pl-14 my-auto">
+        {/* Pas Foto Santri */}
+        <div className="w-[18.5mm] h-[24.5mm] rounded-xl border-1.5 border-[#0B8062] bg-[#00A86B] overflow-hidden shadow-xs flex items-center justify-center shrink-0">
+          {student.foto_santri ? (
+            <img
+              src={String(student.foto_santri)}
+              alt={nama}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center text-white p-1 text-center">
+              <span className="text-2xl">{isPutri ? '🧕' : '👳'}</span>
+              <span className="text-[5.5px] font-black uppercase tracking-wider mt-0.5 text-teal-100">
+                PAS FOTO
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Tabel Biodata Presisi & Elegan */}
-        <div className="flex-1 min-w-0 text-[7.5px] leading-tight space-y-0.5">
-          <p className="font-black text-[9.5px] text-[#fff8db] uppercase truncate leading-tight pb-0.5 border-b border-amber-400/30">
+        {/* Biodata Santri */}
+        <div className="flex-1 min-w-0 pr-1 space-y-0.5">
+          <h3 className="font-black text-[10.5px] text-[#065f46] uppercase leading-tight truncate">
             {nama}
+          </h3>
+          <p className="text-[6.5px] text-slate-600 font-semibold truncate">
+            {ttl}
+          </p>
+          <p className="text-[6.2px] text-slate-700 font-bold truncate">
+            <span className="text-[#0B8062]">NIS:</span> <span className="font-mono">{nis}</span> • <span className="text-[#0B8062]">Kamar:</span> {kamar} ({komplek})
           </p>
 
-          <div className="grid grid-cols-[38px_auto] gap-x-0.5 text-teal-50 pt-0.5">
-            <span className="font-bold text-teal-200">NIS</span>
-            <span className="font-mono font-black text-amber-300">: {nis}</span>
-
-            <span className="font-bold text-teal-200">TTL</span>
-            <span className="font-medium text-white truncate">: {ttl}</span>
-
-            <span className="font-bold text-teal-200">Kamar</span>
-            <span className="font-bold text-amber-100 truncate">: {kamar} ({komplek})</span>
-
-            <span className="font-bold text-teal-200">Alamat</span>
-            <span className="font-medium text-white truncate">: {alamat}</span>
-
-            <span className="font-bold text-teal-200">Wali</span>
-            <span className="font-medium text-white truncate">: {wali}</span>
+          {/* Alamat Santri */}
+          <div className="pt-0.5">
+            <div className="flex items-center gap-0.5 text-[6px] font-black text-[#0B8062]">
+              <Home size={7.5} />
+              <span>Alamat :</span>
+            </div>
+            <p className="text-[5.8px] text-slate-600 leading-tight line-clamp-2 max-w-[34mm] font-medium">
+              {alamat}
+            </p>
           </div>
         </div>
 
-        {/* Barcode QR Code yang Bersih & Berwibawa (TANPA TEKS "SCAN SHOLAT") */}
-        <div className="shrink-0 flex flex-col items-center justify-center bg-white p-1 rounded-lg shadow-sm border border-amber-400/90 relative">
+        {/* QR Code Absensi Santri (Fitur Baru Permintaan Pengurus) */}
+        <div className="shrink-0 flex flex-col items-center justify-center bg-white p-1 rounded-xl border border-teal-600/30 shadow-xs">
           {qrDataUrl ? (
             <img
               src={qrDataUrl}
-              alt="QR Code KTS"
-              className="w-[17.5mm] h-[17.5mm] object-contain rounded"
+              alt="QR Code Presensi"
+              className="w-[16mm] h-[16mm] object-contain"
             />
           ) : (
-            <div className="w-[17.5mm] h-[17.5mm] bg-white rounded flex items-center justify-center">
+            <div className="w-[16mm] h-[16mm] bg-white rounded flex items-center justify-center">
               <span className="text-[6px] text-slate-400">QR</span>
             </div>
           )}
-          <span className="text-[5.2px] font-mono font-black text-slate-800 tracking-wider uppercase mt-0.5">
-            VERIFIED ID
+          <span className="text-[4.8px] font-mono font-black text-[#065f46] tracking-wider uppercase mt-0.5">
+            SCAN PRESENSI
           </span>
         </div>
       </div>
 
-      {/* 4. FOOTER KARTU */}
-      <div className="relative z-10 flex items-center justify-between border-t border-amber-300/40 pt-0.5 text-[6.5px] text-teal-100 shrink-0">
-        <span className="font-medium tracking-wide">Sampurnan, Bungah, Gresik • Jawa Timur</span>
-        <span className="font-mono font-bold text-amber-300">ID: {num(student.id)}</span>
+      {/* 6. FOOTER: LOGO KTS + BADGE WEBSITE RESMI */}
+      <div className="relative z-10 flex items-center justify-between pl-14 pt-0.5 border-t border-slate-200 shrink-0">
+        <div className="flex items-center gap-1">
+          <div className="w-3.5 h-3.5 rounded-full bg-[#00A86B] flex items-center justify-center text-[7.5px] text-white font-black">
+            Q
+          </div>
+          <span className="text-[6.5px] font-black tracking-wide text-[#065f46] uppercase">
+            KARTU TANDA SANTRI
+          </span>
+        </div>
+        <div className="px-2 py-0.5 rounded-full bg-[#00A86B] text-white text-[5.5px] font-black tracking-wide shadow-2xs">
+          www.qomaruddin.com
+        </div>
       </div>
     </div>
   );
@@ -1419,7 +1411,7 @@ function KtsFrontCard({ student }: { student: ApiRecord }) {
 
 // =====================================================================
 // SISI BELAKANG KARTU TANDA SANTRI (KTS)
-// Dimensi: 85.6mm x 54mm (Tata Tertib & Pengesahan Resmi Pesantren)
+// Dimensi: 85.6mm x 54mm (Tata Tertib & Ketentuan Resmi Pengurus)
 // =====================================================================
 function KtsBackCard({ student }: { student: ApiRecord }) {
   return (
@@ -1430,66 +1422,82 @@ function KtsBackCard({ student }: { student: ApiRecord }) {
         borderRadius: '3.18mm',
         WebkitPrintColorAdjust: 'exact',
         printColorAdjust: 'exact',
-        background: '#fcfcfb'
+        background: '#ffffff'
       }}
-      className="relative text-slate-800 p-2.5 shadow-md border border-amber-400/70 flex flex-col justify-between overflow-hidden print:shadow-none select-none box-border"
+      className="relative text-slate-800 p-2.5 shadow-md border border-slate-200 flex flex-col justify-between overflow-hidden print:shadow-none select-none box-border font-sans"
     >
-      {/* Watermark Logo PP. Qomaruddin di Latar Belakang Belakang */}
-      <img
-        src={qomaruddinLogo}
-        alt=""
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-24 w-24 object-contain pointer-events-none opacity-[0.08] select-none"
-      />
+      {/* 1. TEKSTUR POLA ISLAMI HALUS (ARABESQUE BACKGROUND) */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.05]" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="kts-back-pat" width="28" height="28" patternUnits="userSpaceOnUse">
+            <path d="M14 0 L28 14 L14 28 L0 14 Z" fill="none" stroke="#065f46" strokeWidth="0.5" />
+            <circle cx="14" cy="14" r="7" fill="none" stroke="#065f46" strokeWidth="0.4" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#kts-back-pat)" />
+      </svg>
 
-      {/* Garis Border Dalam Halus */}
-      <div className="absolute inset-[1.4mm] rounded-[2.2mm] border border-amber-400/30 pointer-events-none" />
+      {/* 2. WATERMARK KUBAH ARSITEKTUR PESANTREN DI KANAN BAWAH */}
+      <svg className="absolute right-0 bottom-0 w-[44mm] h-[36mm] pointer-events-none opacity-[0.14] text-[#065f46]" viewBox="0 0 200 160" fill="currentColor">
+        <circle cx="170" cy="130" r="60" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="4,4" />
+        <circle cx="170" cy="130" r="45" fill="none" stroke="currentColor" strokeWidth="2" />
+        <path d="M130 160 C 130 115, 150 95, 170 80 C 190 95, 210 115, 210 160 Z" opacity="0.6" />
+      </svg>
 
-      {/* Bagian Atas: Header Tata Tertib Deep Emerald */}
-      <div className="relative z-10">
-        <div className="text-center rounded-lg bg-gradient-to-r from-[#063e36] via-[#0b574a] to-[#063e36] text-white py-1 px-2 border border-amber-400/40 shadow-2xs">
-          <h4 className="text-[7.8px] font-black uppercase tracking-wider text-amber-200">
-            TATA TERTIB & KETENTUAN SANTRI
-          </h4>
-          <p className="text-[5.8px] text-teal-100 font-semibold mt-0.2">
-            Pondok Pesantren Qomaruddin Sampurnan Bungah Gresik
-          </p>
-        </div>
+      {/* 3. ORNAMEN KURVA HIJAU DI SISI KIRI & KANAN (CANVA FRAMING) */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 856 540" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* Sayap Kiri Hijau */}
+        <path d="M 0 0 C 140 70, 190 220, 150 380 C 110 460, 60 510, 0 540 Z" fill="#00A86B" />
+        <path d="M 0 0 C 100 60, 140 200, 110 360 C 80 430, 30 490, 0 530 Z" fill="#0B8062" />
 
-        <ol className="list-decimal list-inside text-[6.8px] text-slate-700 space-y-0.5 mt-1.5 leading-snug font-medium">
-          <li>Kartu Tanda Santri (KTS) adalah identitas resmi santri PP. Qomaruddin.</li>
-          <li>Wajib dibawa saat Presensi Sholat Berjamaah 5 Waktu & KBM Madin.</li>
-          <li>Pindai barcode pada pos scanner presensi yang telah disediakan.</li>
-          <li>Dilarang keras meminjamkan, menukar, atau memalsukan kartu ini.</li>
-          <li>Jika kartu hilang / rusak, segera lapor Bagian Keamanan Pesantren.</li>
-        </ol>
+        {/* Sayap Kanan Hijau */}
+        <path d="M 856 0 C 716 70, 666 220, 706 380 C 746 460, 796 510, 856 540 Z" fill="#00A86B" />
+        <path d="M 856 0 C 756 60, 716 200, 746 360 C 776 430, 826 490, 856 530 Z" fill="#0B8062" />
+      </svg>
+
+      {/* 4. KOP RESMI PESANTREN DI TENGAH ATAS */}
+      <div className="relative z-10 text-center leading-none px-12 shrink-0">
+        <p className="font-serif font-black text-[#0B8062] text-[8.5px] leading-tight tracking-wide" dir="rtl">
+          المعهد الإسلامي السلفي قمر الدين
+        </p>
+        <h4 className="font-black text-[7.2px] text-[#0B8062] tracking-tight uppercase mt-0.5">
+          PONDOK PESANTREN QOMARUDDIN
+        </h4>
+        <p className="text-[5px] text-slate-500 font-bold tracking-tight mt-0.5">
+          Sampurnan Bungah Gresik • NSP : 510035250011
+        </p>
       </div>
 
-      {/* Bagian Bawah: Legalitas & Pengesahan */}
-      <div className="relative z-10 border-t border-slate-200 pt-1 text-[6.5px]">
-        <div className="flex items-end justify-between">
-          <div>
-            <p className="text-[5.5px] text-slate-400 font-semibold">
-              Dicetak: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+      {/* 5. ISI KETENTUAN TATA TERTIB RESMI (PERSIS DARI PENGURUS) */}
+      <div className="relative z-10 px-12 my-auto">
+        <div className="flex items-start gap-1.5">
+          {/* Bullet Bulat Hijau Khas Canva */}
+          <div className="w-2.5 h-2.5 rounded-full bg-[#00A86B] shrink-0 mt-0.5 shadow-xs" />
+          <div className="space-y-1 text-[5.8px] sm:text-[6px] text-slate-800 leading-snug font-medium">
+            <p className="font-semibold text-slate-900">
+              Kartu Tanda Santri wajib dibawa dan digunakan oleh pemiliknya selama berada di lingkungan pesantren.
             </p>
-            <p className="font-mono font-bold text-slate-700 text-[6.8px]">
-              NIS: {text(student.nis, '-')}
+            <p>
+              Kartu ini tidak boleh dipindahtangankan, dipalsukan, atau disalahgunakan.
             </p>
-            <div className="mt-0.5 flex items-center gap-0.5 opacity-60">
-              <span className="text-[5px] font-mono tracking-widest text-slate-400">||| | |||| || ||| |||| |</span>
-            </div>
+            <p>
+              Setiap pelanggaran akan dikenakan sanksi sesuai tata tertib pesantren yang berlaku.
+            </p>
+            <p>
+              Kartu yang hilang atau ditemukan wajib segera dilaporkan atau dikembalikan kepada pihak Pondok Pesantren Qomaruddin.
+            </p>
           </div>
+        </div>
+      </div>
 
-          <div className="text-center leading-tight">
-            <p className="text-[5.8px] text-slate-500 font-medium">Pengasuh / Bagian Keamanan,</p>
-            <div className="h-4 flex items-center justify-center my-0.5">
-              <span className="text-[7.5px] font-black text-teal-800 tracking-wider font-serif border border-teal-800/40 px-1 py-0.2 rounded bg-teal-50/50">
-                [ STEMPEL RESMI ]
-              </span>
-            </div>
-            <p className="font-black text-slate-800 text-[6.5px] underline">
-              PP. QOMARUDDIN SAMPURNAN
-            </p>
-          </div>
+      {/* 6. PENGESAHAN PENGASUH DI KIRI BAWAH */}
+      <div className="relative z-10 pl-12 pr-12 pt-0.5 shrink-0">
+        <div className="text-left leading-tight text-[5.8px] text-slate-700">
+          <p className="font-medium text-slate-500">Pemangku,</p>
+          <p className="font-medium text-slate-500">Pondok Pesantren Qomaruddin</p>
+          <p className="font-black text-[#065f46] text-[6.5px] mt-1 tracking-tight">
+            Dr. KH. M. Ala'uddin, Lc., M.SEI.
+          </p>
         </div>
       </div>
     </div>
