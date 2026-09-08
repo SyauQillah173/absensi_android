@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\PaymentVerificationController;
 use App\Http\Controllers\Api\PembayaranController;
 use App\Http\Controllers\Api\PemasukanLainController;
 use App\Http\Controllers\Api\PengeluaranController;
+use App\Http\Controllers\Api\PetugasPengajuanController;
 use App\Http\Controllers\Api\PenilaianController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\PmbController;
@@ -135,6 +136,12 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::get('wali/nilai', [WaliController::class, 'nilai'])->middleware('permission:nilai_wali,view');
         Route::get('wali/materi', [MateriController::class, 'materiAnak'])->middleware('permission:kegiatan_belajar,view');
         Route::get('wali/kegiatan', [KegiatanController::class, 'kegiatanWali'])->middleware('permission:kegiatan_belajar,view');
+    });
+
+    // 💼 Portal Petugas Pengaju Anggaran (Pondok & Madin)
+    Route::prefix('petugas')->group(function () {
+        Route::get('pengeluaran', [PetugasPengajuanController::class, 'index']);
+        Route::post('pengeluaran', [PetugasPengajuanController::class, 'store']);
     });
 
     // Read access needed by admin and guru operational screens.

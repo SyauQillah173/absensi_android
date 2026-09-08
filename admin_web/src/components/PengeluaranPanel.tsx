@@ -1158,8 +1158,10 @@ export function PengeluaranPanel({
                     paginatedRows.map((row) => {
                       const noTrx = str(row.no_transaksi, `EXP-${String(row.id).padStart(4, '0')}`);
                       const tglStr = row.tanggal ? new Date(String(row.tanggal)).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
-                      const petugasName = str((row.penginput as ApiRecord)?.name, 'Admin');
+                      const petugasName = str(row.nama_petugas, str((row.penginput as ApiRecord)?.name, 'Admin'));
                       const isMadin = str(row.pos_pengeluaran, 'pondok').toLowerCase() === 'madin';
+                      const hasNota = Boolean(row.bukti_foto_url || row.bukti_foto);
+                      const notaUrl = str(row.bukti_foto_url, row.bukti_foto ? `/storage/${row.bukti_foto}` : '');
 
                       return (
                         <tr key={num(row.id)} className="hover:bg-teal-50/40 transition-colors">
@@ -1195,6 +1197,18 @@ export function PengeluaranPanel({
                                 {str(row.keterangan)}
                               </p>
                             )}
+                            {hasNota && (
+                              <div className="mt-1">
+                                <a
+                                  href={notaUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 rounded-md bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700 transition-colors shadow-2xs"
+                                >
+                                  <span>🧾 Lihat Bukti Nota</span>
+                                </a>
+                              </div>
+                            )}
                           </td>
 
                           {/* KATEGORI */}
@@ -1214,7 +1228,9 @@ export function PengeluaranPanel({
                             <span className="block text-[11px] font-bold text-teal-900 truncate max-w-[150px]" title={str(row.metode_pembayaran)}>
                               {str(row.metode_pembayaran, 'Kas Pembayaran Siswa')}
                             </span>
-                            <span className="block text-[10px] text-gray-400">Oleh: {petugasName}</span>
+                            <span className="block text-[10px] text-gray-500">
+                              {row.nama_petugas ? `Diajukan: ${str(row.nama_petugas)}` : `Oleh: ${petugasName}`}
+                            </span>
                           </td>
 
                           {/* AKSI */}

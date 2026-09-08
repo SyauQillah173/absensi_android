@@ -16,16 +16,19 @@ class Pengeluaran extends Model
         'tanggal',
         'kategori',
         'pos_pengeluaran',
+        'status_pengajuan',
         'metode_pembayaran',
         'keterangan',
         'bukti_foto',
         'diinput_oleh',
+        'nama_petugas',
         'academic_year_id',
         'semester_id',
     ];
 
     protected $appends = [
         'pos_pengeluaran_label',
+        'bukti_foto_url',
     ];
 
     public function getPosPengeluaranLabelAttribute(): string
@@ -33,6 +36,17 @@ class Pengeluaran extends Model
         return strtolower($this->pos_pengeluaran ?? 'pondok') === 'madin' 
             ? 'Madrasah Diniyah' 
             : 'Pondok Pesantren';
+    }
+
+    public function getBuktiFotoUrlAttribute(): ?string
+    {
+        if (empty($this->bukti_foto)) {
+            return null;
+        }
+        if (str_starts_with($this->bukti_foto, 'http://') || str_starts_with($this->bukti_foto, 'https://')) {
+            return $this->bukti_foto;
+        }
+        return asset('storage/' . $this->bukti_foto);
     }
 
     protected $casts = [

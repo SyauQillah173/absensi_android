@@ -22,6 +22,7 @@ const ReceiptPrintPage = lazy(() => import('./pages/ReceiptPrintPage').then((m) 
 const ExpensePrintPage = lazy(() => import('./pages/ExpensePrintPage').then((m) => ({ default: m.ExpensePrintPage })));
 const KartuSantriPrintPage = lazy(() => import('./pages/KartuSantriPrintPage').then((m) => ({ default: m.KartuSantriPrintPage })));
 const WaliPortalPage = lazy(() => import('./pages/WaliPortalPage').then((m) => ({ default: m.WaliPortalPage })));
+const PetugasAnggaranPortalPage = lazy(() => import('./pages/PetugasAnggaranPortalPage').then((m) => ({ default: m.PetugasAnggaranPortalPage })));
 const PmbAdminPage = lazy(() => import('./pages/PmbAdminPage').then((m) => ({ default: m.PmbAdminPage })));
 const PublicPmbLandingPage = lazy(() => import('./pages/PublicPmbLandingPage').then((m) => ({ default: m.PublicPmbLandingPage })));
 
@@ -143,6 +144,18 @@ function AdminShell() {
     return (
       <Suspense fallback={<PageLoader />}>
         <WaliPortalPage />
+      </Suspense>
+    );
+  }
+
+  // Khusus role Petugas Pengaju Anggaran, tampilkan langsung Portal Petugas yang praktis & realtime
+  if (
+    session?.role === 'petugas' ||
+    (session?.role === 'admin' && String(session?.admin_type || '').toLowerCase() === 'petugas')
+  ) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <PetugasAnggaranPortalPage />
       </Suspense>
     );
   }

@@ -207,6 +207,8 @@ class PermissionService
         $viewDefaults = [
             'admin_bendahara' => ['dashboard', 'keuangan'],
             'admin_bendahara_2' => ['dashboard', 'keuangan'],
+            'admin_petugas' => ['dashboard', 'keuangan'],
+            'petugas' => ['dashboard', 'keuangan'],
             'admin_pondok' => ['dashboard', 'buku_induk', 'absensi'],
 
             'admin_absensi' => ['dashboard', 'absensi', 'nilai', 'mata_pelajaran', 'buku_induk', 'ruang_sifir'],
@@ -341,6 +343,10 @@ class PermissionService
                 return 'admin_bendahara';
             }
 
+            if (in_array($type, ['petugas', 'pengaju', 'petugas_anggaran'], true)) {
+                return 'admin_petugas';
+            }
+
             if (in_array($type, ['madrasah', 'absensi', 'kepala_madrasah', 'kepala_sekolah', 'monitoring', 'kepala'], true)) {
                 return 'admin_absensi';
             }
@@ -362,6 +368,7 @@ class PermissionService
             'admin_pmb',
             'admin_bendahara',
             'admin_bendahara_2',
+            'admin_petugas',
             'admin_akademik',
             'admin_pondok',
             'admin_absensi',
@@ -372,6 +379,7 @@ class PermissionService
             'guru_sholat',
             'guru_asrama',
             'wali',
+            'petugas',
         ];
     }
 }

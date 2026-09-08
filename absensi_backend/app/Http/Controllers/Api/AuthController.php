@@ -45,7 +45,7 @@ class AuthController extends Controller
                 $user->forceFill([
                     'password' => Hash::make('siswa12345'),
                 ])->save();
-            } elseif ($user && $user->role === 'admin' && in_array($request->password, ['admin123', 'admin12345', 'Ganti123'], true)) {
+            } elseif ($user && ($user->role === 'admin' || $user->role === 'petugas') && in_array($request->password, ['admin123', 'admin12345', 'Ganti123', 'petugas123', 'petugas12345'], true)) {
                 $user->forceFill([
                     'password' => Hash::make($request->password),
                 ])->save();
@@ -253,6 +253,7 @@ class AuthController extends Controller
 
         // Alias Jabatan Admin (Contoh: "bendahara", "admin it", "kepala sekolah", dll.)
         $adminAliases = [
+            'petugas' => ['petugas', 'petugas anggaran', 'pengaju', 'petugas-anggaran', 'anggaran', 'operasional'],
             'it' => ['it', 'admin it', 'admin-it', 'syauqillah', 'admin teknis'],
             'bendahara_1' => ['bendahara', 'bendahara 1', 'bendahara-1', 'admin bendahara', 'udin'],
             'bendahara_2' => ['bendahara 2', 'bendahara-2', 'wildan'],
