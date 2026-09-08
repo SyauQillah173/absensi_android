@@ -962,6 +962,18 @@ function PrayerInput() {
   const [notice, setNotice] = useState('');
   const [showKioskScanner, setShowKioskScanner] = useState(false);
 
+  // Tab View Mode: 'riwayat' (Riwayat Live Jama'ah) atau 'kamar' (Ceklis Manual Per Kamar)
+  const [viewMode, setViewMode] = useState<'riwayat' | 'kamar'>('riwayat');
+
+  // State Khusus Riwayat Live Presensi Sholat
+  const [historyDate, setHistoryDate] = useState(today());
+  const [historyTypeId, setHistoryTypeId] = useState<number>(0); // 0 = Semua Riwayat Jama'ah
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyList, setHistoryList] = useState<ApiRecord[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<ApiRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const selectedComplex = complexes.find((item) => num(item.id) === complexId) ?? complexes[0];
   const roomOptions = roomsOf(selectedComplex ?? {});
   const hasExisting = Object.values(initialStatuses).some(Boolean);
@@ -1027,6 +1039,25 @@ function PrayerInput() {
     }
   }
 
+  // Load Riwayat Live Presensi Sholat
+  const loadHistory = useCallback(async (targetDate = historyDate, targetTypeId = historyTypeId) => {
+    setIsHistoryLoading(true);
+    setError('');
+    try {
+      const params: Record<string, string | number | boolean> = { tanggal: targetDate };
+      if (targetTypeId > 0) {
+        params.prayer_attendance_type_id = targetTypeId;
+      }
+      const result = await api.absensiSholat(params);
+      const data = rows(result.data ?? result);
+      setHistoryList(data);
+    } catch (err) {
+      console.error('Gagal memuat riwayat absensi sholat:', err);
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  }, [historyDate, historyTypeId]);
+
   useEffect(() => {
     void loadMaster();
   }, []);
@@ -1040,6 +1071,10 @@ function PrayerInput() {
   useEffect(() => {
     void loadContext(roomId, typeId);
   }, [date, roomId, typeId]);
+
+  useEffect(() => {
+    void loadHistory(historyDate, historyTypeId);
+  }, [historyDate, historyTypeId, loadHistory]);
 
   const counts = useMemo(() => {
     const values = Object.values(statuses);
@@ -1079,6 +1114,7 @@ function PrayerInput() {
       });
       setNotice(text(result.message, 'Absensi sholat berhasil disimpan.'));
       await loadContext(roomId, typeId);
+      await loadHistory(historyDate, historyTypeId);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Absensi sholat gagal disimpan');
     } finally {
@@ -1095,6 +1131,7 @@ function PrayerInput() {
       const result = await api.cancelAbsensiSholat({ tanggal: date, boarding_room_id: roomId, prayer_attendance_type_id: prayerTypeParam(typeId), reason: 'Dibatalkan dari web admin' });
       setNotice(text(result.message, 'Absensi sholat berhasil dibatalkan.'));
       await loadContext(roomId, typeId);
+      await loadHistory(historyDate, historyTypeId);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Absensi sholat gagal dibatalkan');
     } finally {
@@ -1102,8 +1139,77 @@ function PrayerInput() {
     }
   }
 
+  // Eksekusi Hapus Presensi Sholat Per Santri
+  async function handleDeleteSingleAttendance() {
+    if (!itemToDelete) return;
+    setIsDeleting(true);
+    setError('');
+    try {
+      const id = num(itemToDelete.id);
+      const res = await api.deleteAbsensiSholat(id);
+      setNotice(text(res.message, 'Presensi sholat santri berhasil dihapus.'));
+      setItemToDelete(null);
+      await loadHistory(historyDate, historyTypeId);
+      if (roomId) {
+        await loadContext(roomId, typeId);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal menghapus presensi santri');
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  // Statistik Riwayat Live Sholat Hari Ini
+  const historyStats = useMemo(() => {
+    let total = 0;
+    const byType: Record<string, number> = {};
+    historyList.forEach((row) => {
+      total++;
+      const name = String(row.jenis_sholat || record(row.prayerType).name || "Jama'ah");
+      byType[name] = (byType[name] || 0) + 1;
+    });
+    return { total, byType };
+  }, [historyList]);
+
+  // Filter Pencarian di Riwayat Live
+  const filteredHistoryList = useMemo(() => {
+    const q = historySearch.trim().toLowerCase();
+    if (!q) return historyList;
+    return historyList.filter((row) => {
+      const siswa = record(row.siswa);
+      const nama = String(siswa.nama ?? row.nama ?? '').toLowerCase();
+      const nis = String(siswa.nis ?? row.nis ?? '').toLowerCase();
+      const kelas = String(siswa.kelas ?? row.kelas ?? '').toLowerCase();
+      const kamar = String(siswa.kamar ?? record(row.boardingRoom).name ?? row.kamar ?? '').toLowerCase();
+      const jenis = String(row.jenis_sholat ?? '').toLowerCase();
+      return nama.includes(q) || nis.includes(q) || kelas.includes(q) || kamar.includes(q) || jenis.includes(q);
+    });
+  }, [historyList, historySearch]);
+
+  const getSholatBadgeColor = (name: string) => {
+    const lower = name.toLowerCase();
+    if (lower.includes('subuh')) return 'bg-cyan-50 text-cyan-800 border-cyan-300';
+    if (lower.includes('dzuhur') || lower.includes('dhuhur')) return 'bg-amber-50 text-amber-800 border-amber-300';
+    if (lower.includes('ashar')) return 'bg-emerald-50 text-emerald-800 border-emerald-300';
+    if (lower.includes('maghrib')) return 'bg-rose-50 text-rose-800 border-rose-300';
+    if (lower.includes('isya')) return 'bg-indigo-50 text-indigo-800 border-indigo-300';
+    return 'bg-teal-50 text-teal-800 border-teal-300';
+  };
+
+  const formatScannedTime = (isoString?: string) => {
+    if (!isoString) return '-';
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return '-';
+      return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + ' WIB';
+    } catch {
+      return '-';
+    }
+  };
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <Message error={error} notice={notice} />
 
       {/* BANNER POS SCANNER MANDIRI SHOLAT (KIOSK MODE) */}
@@ -1117,12 +1223,12 @@ function PrayerInput() {
               <h3 className="text-base font-black tracking-tight text-white">
                 Pos Scanner Mandiri Sholat (Scan Barcode KTS)
               </h3>
-              <span className="rounded-full bg-amber-400 text-slate-950 text-[10px] font-black px-2 py-0.5">
+              <span className="rounded-full bg-amber-400 text-slate-950 text-[10px] font-black px-2.5 py-0.5 shadow-xs">
                 Kiosk Mode
               </span>
             </div>
             <p className="text-xs text-teal-100 font-medium mt-0.5">
-              Taruh laptop/HP di pos pintu masjid. Santri scan Barcode KTS mandiri, layar menampilkan profil santri lengkap, dan notifikasi otomatis masuk ke Aplikasi PWA Wali.
+              Taruh laptop/HP di pos pintu masjid. Santri scan Barcode KTS mandiri atau input NIS manual, langsung tersimpan dan riwayat otomatis tampil di bawah.
             </p>
           </div>
         </div>
@@ -1130,7 +1236,7 @@ function PrayerInput() {
         <button
           type="button"
           onClick={() => setShowKioskScanner(true)}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white text-[#0C6B61] hover:bg-teal-50 px-5 py-3 text-xs sm:text-sm font-black shadow-md transition-all cursor-pointer shrink-0"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white text-[#0C6B61] hover:bg-teal-50 px-5 py-3 text-xs sm:text-sm font-black shadow-md transition-all cursor-pointer shrink-0 active:scale-95"
         >
           <Camera size={18} />
           <span>Buka Pos Scanner</span>
@@ -1143,56 +1249,355 @@ function PrayerInput() {
           onClose={() => setShowKioskScanner(false)}
           types={types}
           activeTypeId={typeId || Number(types[0]?.id || 1)}
-          onAttendanceSuccess={() => void loadContext(roomId, typeId)}
+          onAttendanceSuccess={() => {
+            void loadContext(roomId, typeId);
+            void loadHistory(historyDate, historyTypeId);
+          }}
         />
       )}
 
-      <section className="q-panel grid gap-3 p-4 sm:p-6 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
-        <select className="q-input" value={typeId} onChange={(event) => setTypeId(Number(event.target.value))}>
-          <option value={0}>Waktu jama'ah</option>
-          {types.map((type) => (
-            <option key={num(type.id)} value={num(type.id)}>{text(type.name)}</option>
-          ))}
-        </select>
-        <input className="q-input" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-        <select className="q-input" value={complexId} onChange={(event) => setComplexId(Number(event.target.value))}>
-          {complexes.map((complex) => (
-            <option key={num(complex.id)} value={num(complex.id)}>{text(complex.name)}</option>
-          ))}
-        </select>
-        <select className="q-input" value={roomId} onChange={(event) => setRoomId(Number(event.target.value))}>
-          {roomOptions.map((room) => (
-            <option key={num(room.id)} value={num(room.id)}>{text(room.name)}</option>
-          ))}
-        </select>
-        <RefreshButton isLoading={isLoading} onClick={() => void loadContext(roomId, typeId)} />
-      </section>
+      {/* NAVIGATION SUB-TAB TOGGLE */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+        <div className="flex items-center gap-2 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200">
+          <button
+            type="button"
+            onClick={() => setViewMode('riwayat')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+              viewMode === 'riwayat'
+                ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+            }`}
+          >
+            <span>⚡ Riwayat Presensi Jama'ah (Live)</span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                viewMode === 'riwayat' ? 'bg-white text-[#138F81]' : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              {historyList.length}
+            </span>
+          </button>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <StatCard title="Masuk" value={counts.M} subtitle="Status M" icon={Check} tone="teal" />
-        <StatCard title="Izin" value={counts.I} subtitle="Status I" icon={ClipboardList} tone="orange" />
-        <StatCard title="Sakit" value={counts.S} subtitle="Status S" icon={X} tone="red" />
-        <StatCard title="Belum" value={counts.kosong} subtitle="Belum dipilih" icon={CalendarCheck} tone="blue" />
+          <button
+            type="button"
+            onClick={() => setViewMode('kamar')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+              viewMode === 'kamar'
+                ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+            }`}
+          >
+            <span>📋 Input Ceklis per Kamar Asrama</span>
+          </button>
+        </div>
+
+        {viewMode === 'riwayat' && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500 font-bold hidden sm:inline">Status Sinkronisasi:</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-black text-emerald-700">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              Live Real-time
+            </span>
+          </div>
+        )}
       </div>
 
-      <AttendanceRows
-        isLoading={isLoading}
-        rows={inputRows.map((row) => record(row.siswa))}
-        emptyText="Belum ada santri aktif ikut sholat pada kamar ini."
-        statusMap={statuses}
-        labels={prayerStatusLabels}
-        options={['M', 'I', 'S']}
-        onChange={setStudentStatus}
-      />
+      {/* ========================================================================= */}
+      {/* MODE 1: RIWAYAT LIVE PRESENSI SHOLAT DENGAN FILTER SESI & HAPUS PER SANTRI */}
+      {/* ========================================================================= */}
+      {viewMode === 'riwayat' && (
+        <div className="space-y-4">
+          {/* FILTER BAR RIWAYAT */}
+          <section className="q-panel grid gap-3 p-4 sm:p-5 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_2fr_auto] items-center">
+            {/* Filter Sesi Sholat (Subuh, Dzuhur, Ashar, Maghrib, Isya, atau Semua) */}
+            <div>
+              <label className="text-[11px] font-bold text-slate-500 mb-1 block">Pilih Sesi Sholat</label>
+              <select
+                className="q-input"
+                value={historyTypeId}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setHistoryTypeId(val);
+                  void loadHistory(historyDate, val);
+                }}
+              >
+                <option value={0}>✨ Semua Riwayat Jama'ah (Rekapan Lengkap)</option>
+                {types.map((t) => (
+                  <option key={num(t.id)} value={num(t.id)}>
+                    {text(t.name)}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-      <SaveBar
-        isSaving={isSaving}
-        disabled={inputRows.length === 0 || (!hasChanges && hasExisting)}
-        primaryLabel={hasExisting ? 'Perbarui Absensi' : 'Simpan Absensi'}
-        onReset={() => setStatuses(initialStatuses)}
-        onCancel={hasExisting ? () => void cancel() : undefined}
-        onSave={() => void save()}
-      />
+            {/* Filter Tanggal */}
+            <div>
+              <label className="text-[11px] font-bold text-slate-500 mb-1 block">Tanggal Presensi</label>
+              <input
+                className="q-input"
+                type="date"
+                value={historyDate}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setHistoryDate(val);
+                  void loadHistory(val, historyTypeId);
+                }}
+              />
+            </div>
+
+            {/* Pencarian Santri */}
+            <div>
+              <label className="text-[11px] font-bold text-slate-500 mb-1 block">Cari Santri / Kamar / Kelas</label>
+              <SearchInput
+                value={historySearch}
+                onChange={setHistorySearch}
+                placeholder="Ketik Nama santri, NIS, Kamar, atau Kelas..."
+              />
+            </div>
+
+            {/* Tombol Refresh */}
+            <div className="flex items-end pt-5 sm:pt-0">
+              <RefreshButton
+                isLoading={isHistoryLoading}
+                onClick={() => void loadHistory(historyDate, historyTypeId)}
+              />
+            </div>
+          </section>
+
+          {/* STATISTIK PRESENSI SHOLAT HARI INI */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="rounded-2xl p-3.5 bg-gradient-to-br from-teal-500 to-[#0C6B61] text-white shadow-xs">
+              <div className="text-[11px] font-bold text-teal-100 uppercase tracking-wider">Total Hadir</div>
+              <div className="text-2xl font-black mt-0.5">{historyStats.total}</div>
+              <div className="text-[10px] text-teal-200 mt-0.5 font-medium">Santri Jama'ah</div>
+            </div>
+
+            {types.map((t) => {
+              const name = text(t.name);
+              const count = historyStats.byType[name] || 0;
+              const badge = getSholatBadgeColor(name);
+              return (
+                <div key={num(t.id)} className={`rounded-2xl p-3.5 border bg-white shadow-xs ${badge.split(' ')[2]}`}>
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">{name}</div>
+                  <div className="text-2xl font-black text-slate-800 mt-0.5">{count}</div>
+                  <div className="text-[10px] text-slate-500 font-medium">Santri Hadir</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* TABEL DAFTAR RIWAYAT LIVE */}
+          <div className="rounded-3xl border border-slate-200/90 bg-white shadow-xs overflow-hidden">
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
+              <div>
+                <h4 className="text-sm font-black text-slate-800">
+                  Daftar Santri Sudah Hadir Sholat {historyTypeId > 0 ? text(types.find((t) => num(t.id) === historyTypeId)?.name) : "(Semua Sesi)"}
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Menampilkan {filteredHistoryList.length} dari total {historyList.length} presensi pada tanggal {historyDate}.
+                </p>
+              </div>
+
+              {filteredHistoryList.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-xs transition-all cursor-pointer"
+                >
+                  <Printer size={14} className="text-slate-500" />
+                  <span>Cetak Rekapan</span>
+                </button>
+              )}
+            </div>
+
+            {isHistoryLoading ? (
+              <div className="p-12 text-center text-slate-500">
+                <RefreshCw size={28} className="animate-spin text-[#138F81] mx-auto mb-2" />
+                <p className="text-xs font-bold">Memuat riwayat presensi sholat...</p>
+              </div>
+            ) : filteredHistoryList.length === 0 ? (
+              <div className="p-12 text-center">
+                <div className="h-14 w-14 rounded-2xl bg-teal-50 text-[#138F81] border border-teal-100 flex items-center justify-center mx-auto mb-3">
+                  <Landmark size={28} />
+                </div>
+                <h5 className="text-sm font-bold text-slate-800">Belum ada riwayat presensi sholat</h5>
+                <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
+                  {historySearch
+                    ? `Tidak ada santri yang cocok dengan pencarian "${historySearch}".`
+                    : 'Belum ada santri yang melakukan scan barcode atau diabsen sholat pada tanggal dan sesi ini. Silakan buka Pos Scanner untuk mulai presensi mandiri.'}
+                </p>
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowKioskScanner(true)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#138F81] text-white px-4 py-2 text-xs font-bold shadow-md shadow-[#138F81]/20 hover:bg-[#0D7A6F] transition-all cursor-pointer"
+                  >
+                    <Camera size={14} />
+                    <span>Buka Pos Scanner Sekarang</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-black uppercase tracking-wider text-slate-500">
+                      <th className="py-3.5 px-4 w-12 text-center">#</th>
+                      <th className="py-3.5 px-4">Santri</th>
+                      <th className="py-3.5 px-4">Kamar & Asrama</th>
+                      <th className="py-3.5 px-4">Waktu Sholat</th>
+                      <th className="py-3.5 px-4">Waktu Presensi</th>
+                      <th className="py-3.5 px-4">Metode / Petugas</th>
+                      <th className="py-3.5 px-4 text-center">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredHistoryList.map((row, idx) => {
+                      const siswa = record(row.siswa);
+                      const nama = text(siswa.nama ?? row.nama, 'Santri');
+                      const nis = text(siswa.nis ?? row.nis, '-');
+                      const kelas = text(siswa.kelas ?? row.kelas, '-');
+                      const kamar = text(siswa.kamar ?? record(row.boardingRoom).name ?? row.kamar, '-');
+                      const komplek = text(siswa.komplek ?? record(record(row.boardingRoom).complex).name ?? row.komplek, '-');
+                      const sholatName = text(row.jenis_sholat ?? record(row.prayerType).name, "Jama'ah Sholat");
+                      const scannedTime = formatScannedTime(String(row.created_at || ''));
+                      const badgeColor = getSholatBadgeColor(sholatName);
+                      const via = String(row.diinput_via || '');
+                      const viaLabel = via === 'kiosk_qr' ? '📷 Pos Scanner KTS' : via === 'online' ? '💻 Web Admin' : via || 'Presensi';
+                      const inputOleh = text(row.diinput_oleh, 'Petugas');
+                      const foto = siswa.foto_santri;
+
+                      return (
+                        <tr key={num(row.id) || idx} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="py-3 px-4 text-center font-bold text-slate-400">{idx + 1}</td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-3">
+                              {foto ? (
+                                <img
+                                  src={String(foto)}
+                                  alt={nama}
+                                  className="h-10 w-10 rounded-full object-cover border border-slate-200 shrink-0"
+                                />
+                              ) : (
+                                <div className="h-10 w-10 rounded-full bg-teal-100 text-teal-800 font-black flex items-center justify-center text-xs shrink-0 border border-teal-200">
+                                  {nama.slice(0, 2).toUpperCase()}
+                                </div>
+                              )}
+                              <div>
+                                <div className="font-black text-slate-800 text-xs sm:text-sm">{nama}</div>
+                                <div className="text-[11px] font-bold text-slate-500">
+                                  NIS: <span className="font-mono text-teal-700">{nis}</span> · Kelas {kelas}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="font-bold text-slate-700">{kamar}</div>
+                            <div className="text-[11px] text-slate-500 font-medium">{komplek}</div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-black border ${badgeColor}`}>
+                              {sholatName}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="font-mono font-bold text-slate-800 text-xs">{scannedTime}</div>
+                            <div className="text-[10px] text-slate-500">{text(row.tanggal, historyDate)}</div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+                              {viaLabel}
+                            </span>
+                            <div className="text-[10px] text-slate-500 mt-0.5">Oleh: {inputOleh}</div>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <button
+                              type="button"
+                              onClick={() => setItemToDelete(row)}
+                              title={`Hapus presensi ${nama} (${sholatName}) jika salah scan`}
+                              className="inline-flex items-center justify-center h-8 w-8 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 transition-all cursor-pointer active:scale-95 shadow-2xs"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODE 2: INPUT MANUAL CEKLIS PER KAMAR ASRAMA (KOMPONEN ASLI LAMA) */}
+      {/* ========================================================================= */}
+      {viewMode === 'kamar' && (
+        <div className="space-y-4">
+          <section className="q-panel grid gap-3 p-4 sm:p-6 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+            <select className="q-input" value={typeId} onChange={(event) => setTypeId(Number(event.target.value))}>
+              <option value={0}>Waktu jama'ah</option>
+              {types.map((type) => (
+                <option key={num(type.id)} value={num(type.id)}>{text(type.name)}</option>
+              ))}
+            </select>
+            <input className="q-input" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+            <select className="q-input" value={complexId} onChange={(event) => setComplexId(Number(event.target.value))}>
+              {complexes.map((complex) => (
+                <option key={num(complex.id)} value={num(complex.id)}>{text(complex.name)}</option>
+              ))}
+            </select>
+            <select className="q-input" value={roomId} onChange={(event) => setRoomId(Number(event.target.value))}>
+              {roomOptions.map((room) => (
+                <option key={num(room.id)} value={num(room.id)}>{text(room.name)}</option>
+              ))}
+            </select>
+            <RefreshButton isLoading={isLoading} onClick={() => void loadContext(roomId, typeId)} />
+          </section>
+
+          <div className="grid gap-4 md:grid-cols-4">
+            <StatCard title="Masuk" value={counts.M} subtitle="Status M" icon={Check} tone="teal" />
+            <StatCard title="Izin" value={counts.I} subtitle="Status I" icon={ClipboardList} tone="orange" />
+            <StatCard title="Sakit" value={counts.S} subtitle="Status S" icon={X} tone="red" />
+            <StatCard title="Belum" value={counts.kosong} subtitle="Belum dipilih" icon={CalendarCheck} tone="blue" />
+          </div>
+
+          <AttendanceRows
+            isLoading={isLoading}
+            rows={inputRows.map((row) => record(row.siswa))}
+            emptyText="Belum ada santri aktif ikut sholat pada kamar ini."
+            statusMap={statuses}
+            labels={prayerStatusLabels}
+            options={['M', 'I', 'S']}
+            onChange={setStudentStatus}
+          />
+
+          <SaveBar
+            isSaving={isSaving}
+            disabled={inputRows.length === 0 || (!hasChanges && hasExisting)}
+            primaryLabel={hasExisting ? 'Perbarui Absensi' : 'Simpan Absensi'}
+            onReset={() => setStatuses(initialStatuses)}
+            onCancel={hasExisting ? () => void cancel() : undefined}
+            onSave={() => void save()}
+          />
+        </div>
+      )}
+
+      {/* DIALOG KONFIRMASI HAPUS PRESENSI SHOLAT PER SANTRI */}
+      {itemToDelete && (
+        <ConfirmDialog
+          title="Hapus Presensi Sholat Santri"
+          message={`Apakah Anda yakin ingin menghapus data presensi sholat ${text(record(itemToDelete.siswa).nama ?? itemToDelete.nama, 'Santri')} untuk sholat ${text(itemToDelete.jenis_sholat, "Jama'ah Sholat")} pada tanggal ${text(itemToDelete.tanggal, historyDate)}? Tindakan ini akan membatalkan status hadir santri dan membersihkan data notifikasi terkait.`}
+          confirmLabel={isDeleting ? 'Menghapus...' : 'Ya, Hapus Presensi'}
+          cancelLabel="Batalkan"
+          tone="danger"
+          isBusy={isDeleting}
+          onCancel={() => setItemToDelete(null)}
+          onConfirm={() => void handleDeleteSingleAttendance()}
+        />
+      )}
     </div>
   );
 }

@@ -719,6 +719,12 @@ export const api = {
   cancelAbsensiSholat(data: { tanggal: string; boarding_room_id: number; prayer_attendance_type_id?: number; reason?: string }) {
     return request<ApiRecord>('/absensi-sholat/cancel', { method: 'POST', body: JSON.stringify(data) });
   },
+  absensiSholat(params?: Record<string, string | number | boolean>) {
+    return request<ApiRecord[]>('/absensi-sholat', {}, params);
+  },
+  deleteAbsensiSholat(id: number) {
+    return request<ApiRecord>(`/absensi-sholat/${id}`, { method: 'DELETE' });
+  },
   quickScanPrayerAttendance(data: { qr_code?: string; siswa_id?: number; prayer_attendance_type_id: number; tanggal?: string; device_id?: string }) {
     return request<ApiRecord>('/absensi-sholat/quick-scan', { method: 'POST', body: JSON.stringify(data) });
   },

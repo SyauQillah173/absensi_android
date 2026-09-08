@@ -181,6 +181,7 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::post('absensi-sholat/bulk', [AbsensiSholatController::class, 'storeBulk'])->middleware(['permission:absensi,create', 'throttle:30,1']);
         Route::post('absensi-sholat/quick-scan', [AbsensiSholatController::class, 'quickScan'])->middleware(['permission:absensi,create']);
         Route::post('absensi-sholat/cancel', [AbsensiSholatController::class, 'cancel'])->middleware('permission:absensi,cancel');
+        Route::delete('absensi-sholat/{id}', [AbsensiSholatController::class, 'destroy'])->middleware('permission:absensi,cancel');
 
         Route::get('absensi-ngaji/sessions', [AbsensiNgajiController::class, 'sessions'])->middleware('permission:absensi,view');
         Route::get('absensi-ngaji/books', [AbsensiNgajiController::class, 'books'])->middleware('permission:absensi,view');

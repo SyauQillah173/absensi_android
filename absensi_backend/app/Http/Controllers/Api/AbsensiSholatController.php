@@ -202,7 +202,7 @@ class AbsensiSholatController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $query->orderByDesc('tanggal')->limit((int) $request->input('limit', 300))->get()
+            'data' => $query->orderByDesc('tanggal')->orderByDesc('id')->limit((int) $request->input('limit', 500))->get()
                 ->map(fn (AbsensiSholat $row) => $this->attendancePayload($row))
                 ->values(),
         ]);
@@ -528,6 +528,59 @@ class AbsensiSholatController extends Controller
             'success' => true,
             'message' => $rows->count() . ' data absensi sholat dibatalkan',
             'cancelled' => $rows->count(),
+        ]);
+    }
+
+    /**
+     * Hapus presensi sholat per santri (jika admin salah scan / salah input)
+     */
+    public function destroy(Request $request, $id)
+    {
+        $actor = $request->user();
+        if (!$actor || !in_array($actor->role, ['admin', 'guru'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya admin atau guru yang berhak menghapus data presensi sholat',
+            ], 403);
+        }
+
+        $absensiSholat = AbsensiSholat::with(['siswa', 'prayerType', 'boardingRoom'])->find($id);
+        if (!$absensiSholat) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data presensi sholat tidak ditemukan atau sudah dihapus',
+            ], 404);
+        }
+
+        if (!$this->canModify($absensiSholat, $actor)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki akses untuk menghapus presensi santri ini',
+            ], 403);
+        }
+
+        $nama = $absensiSholat->siswa?->nama ?? 'Santri';
+        $sholatName = $absensiSholat->prayerType?->name ?? "Jama'ah Sholat";
+        $before = $absensiSholat->toArray();
+        $absensiId = $absensiSholat->id;
+
+        DB::transaction(function () use ($absensiSholat, $absensiId, $before, $actor, $request) {
+            $absensiSholat->delete();
+
+            // Bersihkan notifikasi terkait agar bersih tanpa jejak di login wali & role lain
+            AppNotification::query()
+                ->where('type', 'absensi_sholat')
+                ->where('data->absensi_sholat_id', $absensiId)
+                ->delete();
+
+            app(AuditLogService::class)->record($request, 'absensi_sholat', 'delete', $absensiSholat, $before, null);
+        });
+
+        \Illuminate\Support\Facades\Cache::flush();
+
+        return response()->json([
+            'success' => true,
+            'message' => "Presensi sholat {$sholatName} untuk {$nama} berhasil dihapus.",
         ]);
     }
 
@@ -887,6 +940,8 @@ class AbsensiSholatController extends Controller
             'id' => $siswa->id,
             'nis' => $siswa->nis,
             'nama' => $siswa->nama,
+            'foto_santri' => $siswa->foto_santri,
+            'jenis_kelamin' => $siswa->jenis_kelamin,
             'kelas' => $siswa->kelasRef?->name ?? $siswa->kelas,
             'class_id' => $siswa->class_id,
             'boarding_room_id' => $siswa->santriPondok?->boarding_room_id ?? $siswa->boarding_room_id,
