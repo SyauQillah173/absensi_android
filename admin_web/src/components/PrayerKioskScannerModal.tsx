@@ -15,7 +15,13 @@ import {
 } from 'lucide-react';
 import jsQR from 'jsqr';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api, type ApiRecord } from '../services/api';
+
+const isMobileDevice = () => {
+  if (typeof window === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 1024;
+};
 
 interface PrayerKioskScannerModalProps {
   isOpen: boolean;
@@ -207,10 +213,7 @@ export function PrayerKioskScannerModal({
 
   // State Facing Mode Kamera: Default kamera belakang (environment) di perangkat HP/mobile
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      return 'environment';
-    }
-    return 'user';
+    return isMobileDevice() ? 'environment' : 'user';
   });
 
   // Start & Stop Kamera
@@ -229,15 +232,47 @@ export function PrayerKioskScannerModal({
   const startCamera = async (overrideFacingMode?: 'user' | 'environment') => {
     setCameraError(null);
     const targetFacing = overrideFacingMode || facingMode;
+
+    // Bersihkan stream lama jika masih aktif
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: targetFacing },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: false
-      });
+      let stream: MediaStream | null = null;
+
+      // 1. Coba dengan constraint ideal facingMode & resolusi HD
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: targetFacing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+      } catch {
+        // 2. Coba tanpa batasan resolusi (beberapa browser HP menolak request jika resolusi di-lock)
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: targetFacing === 'environment' ? { ideal: 'environment' } : 'user'
+            },
+            audio: false
+          });
+        } catch {
+          // 3. Fallback ke kamera default perangkat apapun yang tersedia
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false
+          });
+        }
+      }
+
+      if (!stream) {
+        throw new Error('Tidak dapat memperoleh stream video.');
+      }
 
       streamRef.current = stream;
       if (videoRef.current) {
@@ -269,7 +304,7 @@ export function PrayerKioskScannerModal({
           // Lanjut ke penanganan error
         }
       }
-      setCameraError('Kamera tidak dapat diakses atau diblokir oleh browser. Pastikan izin kamera aktif.');
+      setCameraError('Kamera tidak dapat diakses atau diblokir oleh browser. Pastikan izin kamera aktif pada browser HP Anda.');
     }
   };
 
@@ -277,11 +312,13 @@ export function PrayerKioskScannerModal({
   const switchCamera = async () => {
     const nextMode = facingMode === 'user' ? 'environment' : 'user';
     setFacingMode(nextMode);
-    // Jika ganti ke kamera belakang, matikan efek mirror otomatis
+    // Jika ganti ke kamera belakang, matikan efek mirror otomatis agar teks tidak terbalik
     if (nextMode === 'environment') {
       setIsMirrored(false);
     }
     stopCamera();
+    // Beri jeda 150ms agar hardware sensor kamera dilepas oleh sistem operasi Android/iOS
+    await new Promise((resolve) => setTimeout(resolve, 150));
     await startCamera(nextMode);
   };
 
@@ -627,10 +664,10 @@ export function PrayerKioskScannerModal({
 
   const currentPrayerName = String(types.find((t) => Number(t.id) === selectedTypeId)?.name || 'Sholat Berjamaah');
 
-  return (
+  return createPortal(
     <div
       ref={modalContainerRef}
-      className="fixed inset-0 z-50 bg-slate-950 flex flex-col justify-between overflow-hidden text-white font-sans select-none"
+      className="fixed inset-0 z-[99999] bg-slate-950 flex flex-col justify-between overflow-hidden text-white font-sans select-none"
     >
       {/* 1. TOP BAR KIOSK POS (RESPONSIF MOBILE & DESKTOP) */}
       <header className="px-3 sm:px-6 py-2.5 sm:py-3 bg-slate-900/95 border-b border-slate-800 backdrop-blur-md shrink-0">
@@ -837,12 +874,12 @@ export function PrayerKioskScannerModal({
       </header>
 
       {/* 2. BODY KIOSK: RESPONSIF MOBILE & DESKTOP (Scrollable di HP) */}
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 p-3 sm:p-4 overflow-y-auto lg:overflow-hidden">
+      <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 p-2.5 sm:p-4 overflow-y-auto lg:overflow-hidden overscroll-contain">
         {/* KOLOM KIRI (7 SPAN): KAMERA SCANNER + FRAME FOCUS */}
-        <div className="lg:col-span-7 flex flex-col justify-between rounded-3xl bg-slate-900 border border-slate-800 overflow-hidden relative shadow-2xl min-h-[360px] sm:min-h-[420px] lg:min-h-0">
+        <div className="lg:col-span-7 flex flex-col justify-between rounded-3xl bg-slate-900 border border-slate-800 overflow-hidden relative shadow-2xl min-h-[280px] sm:min-h-[380px] lg:min-h-0">
           {/* Petunjuk Arahkan KTS */}
-          <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none">
-            <div className="rounded-full bg-slate-950/85 backdrop-blur-md px-3 py-1 text-[11px] sm:text-xs font-black text-teal-300 border border-teal-500/30 shadow-md flex items-center gap-1.5">
+          <div className="absolute top-2.5 left-2.5 right-2.5 z-20 flex items-center justify-between pointer-events-none">
+            <div className="rounded-full bg-slate-950/85 backdrop-blur-md px-2.5 py-1 text-[11px] sm:text-xs font-black text-teal-300 border border-teal-500/30 shadow-md flex items-center gap-1.5">
               <Camera size={13} className="text-teal-400 animate-pulse shrink-0" />
               <span className="truncate">Arahkan Barcode KTS (Jarak 20-30 cm)</span>
             </div>
@@ -851,7 +888,7 @@ export function PrayerKioskScannerModal({
             <button
               type="button"
               onClick={() => void switchCamera()}
-              className="pointer-events-auto rounded-full bg-slate-950/85 hover:bg-teal-900/80 backdrop-blur-md px-3 py-1 text-[11px] sm:text-xs font-bold text-slate-200 border border-slate-700 shadow-md flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+              className="pointer-events-auto rounded-full bg-slate-950/85 hover:bg-teal-900/80 backdrop-blur-md px-2.5 py-1 text-[11px] sm:text-xs font-bold text-slate-200 border border-slate-700 shadow-md flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
               title="Putar Kamera"
             >
               <RefreshCw size={12} className="text-teal-400" />
@@ -860,7 +897,7 @@ export function PrayerKioskScannerModal({
           </div>
 
           {/* Area Video Kamera */}
-          <div className="relative flex-1 flex items-center justify-center bg-black overflow-hidden min-h-[280px]">
+          <div className="relative flex-1 flex items-center justify-center bg-black overflow-hidden min-h-[220px] sm:min-h-[280px]">
             {cameraError ? (
               <div className="p-6 text-center max-w-md space-y-3">
                 <AlertCircle className="h-12 w-12 text-rose-400 mx-auto" />
@@ -887,8 +924,8 @@ export function PrayerKioskScannerModal({
                 <canvas ref={canvasRef} className="hidden" />
 
                 {/* Target Frame Reticle Laser Hijau */}
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-4">
-                  <div className="relative w-56 h-56 sm:w-80 sm:h-80 rounded-3xl border-2 border-dashed border-teal-400/70 flex items-center justify-center shadow-[0_0_50px_rgba(19,143,129,0.25)]">
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-3">
+                  <div className="relative w-48 h-48 sm:w-72 sm:h-72 lg:w-80 lg:h-80 rounded-3xl border-2 border-dashed border-teal-400/70 flex items-center justify-center shadow-[0_0_50px_rgba(19,143,129,0.25)]">
                     {/* Corner Reticles */}
                     <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-teal-400 rounded-tl-xl" />
                     <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-teal-400 rounded-tr-xl" />
@@ -1059,6 +1096,7 @@ export function PrayerKioskScannerModal({
           💡 Catatan: Notifikasi presensi langsung terkirim ke Aplikasi Wali (PWA) tanpa membebani WhatsApp Gateway.
         </div>
       </footer>
-    </div>
+    </div>,
+    document.body
   );
 }
