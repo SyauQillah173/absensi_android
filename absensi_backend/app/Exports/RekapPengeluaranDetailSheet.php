@@ -49,10 +49,10 @@ class RekapPengeluaranDetailSheet implements FromCollection, ShouldAutoSize, Wit
                 $sheet->setCellValue('A3', "Periode: {$periodeText}  |  Kategori: {$kategoriText}");
                 $sheet->setCellValue('A4', 'Tanggal Ekspor: ' . now()->format('d-m-Y H:i') . ' WIB');
 
-                $sheet->mergeCells('A1:J1');
-                $sheet->mergeCells('A2:J2');
-                $sheet->mergeCells('A3:J3');
-                $sheet->mergeCells('A4:J4');
+                $sheet->mergeCells('A1:K1');
+                $sheet->mergeCells('A2:K2');
+                $sheet->mergeCells('A3:K3');
+                $sheet->mergeCells('A4:K4');
 
                 $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(15)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF138F81'));
                 $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12);
@@ -65,20 +65,21 @@ class RekapPengeluaranDetailSheet implements FromCollection, ShouldAutoSize, Wit
                     'A' => 'NO',
                     'B' => 'TANGGAL',
                     'C' => 'NO. TRANSAKSI',
-                    'D' => 'KEPERLUAN / JUDUL',
-                    'E' => 'KATEGORI',
-                    'F' => 'DIBAYARKAN KEPADA',
-                    'G' => 'METODE / SUMBER DANA',
-                    'H' => 'NOMINAL (RP)',
-                    'I' => 'DIINPUT OLEH',
-                    'J' => 'KETERANGAN / CATATAN',
+                    'D' => 'POS ANGGARAN',
+                    'E' => 'KEPERLUAN / JUDUL',
+                    'F' => 'KATEGORI',
+                    'G' => 'DIBAYARKAN KEPADA',
+                    'H' => 'METODE / SUMBER DANA',
+                    'I' => 'NOMINAL (RP)',
+                    'J' => 'DIINPUT OLEH',
+                    'K' => 'KETERANGAN / CATATAN',
                 ];
 
                 foreach ($headers as $col => $text) {
                     $sheet->setCellValue("{$col}{$headerRow}", $text);
                 }
 
-                $sheet->getStyle("A{$headerRow}:J{$headerRow}")->applyFromArray([
+                $sheet->getStyle("A{$headerRow}:K{$headerRow}")->applyFromArray([
                     'font' => [
                         'bold' => true,
                         'color' => ['argb' => 'FFFFFFFF'],
@@ -107,6 +108,7 @@ class RekapPengeluaranDetailSheet implements FromCollection, ShouldAutoSize, Wit
                 foreach ($this->pengeluaran as $item) {
                     $tanggal = $item->tanggal ? \Carbon\Carbon::parse($item->tanggal)->format('d/m/Y') : '-';
                     $noTrx = $item->no_transaksi ?: ('EXP-' . sprintf('%04d', $item->id));
+                    $posLabel = strtolower($item->pos_pengeluaran ?? 'pondok') === 'madin' ? 'Madrasah Diniyah' : 'Pondok Pesantren';
                     $judul = $item->judul ?? '-';
                     $kategori = $item->kategori ?? 'Umum';
                     $penerima = $item->dibayarkan_kepada ?? '-';
@@ -118,25 +120,27 @@ class RekapPengeluaranDetailSheet implements FromCollection, ShouldAutoSize, Wit
                     $sheet->setCellValue("A{$rowNum}", $no++);
                     $sheet->setCellValue("B{$rowNum}", $tanggal);
                     $sheet->setCellValue("C{$rowNum}", $noTrx);
-                    $sheet->setCellValue("D{$rowNum}", $judul);
-                    $sheet->setCellValue("E{$rowNum}", $kategori);
-                    $sheet->setCellValue("F{$rowNum}", $penerima);
-                    $sheet->setCellValue("G{$rowNum}", $metode);
-                    $sheet->setCellValue("H{$rowNum}", $nominal);
-                    $sheet->setCellValue("I{$rowNum}", $petugas);
-                    $sheet->setCellValue("J{$rowNum}", $keterangan);
+                    $sheet->setCellValue("D{$rowNum}", $posLabel);
+                    $sheet->setCellValue("E{$rowNum}", $judul);
+                    $sheet->setCellValue("F{$rowNum}", $kategori);
+                    $sheet->setCellValue("G{$rowNum}", $penerima);
+                    $sheet->setCellValue("H{$rowNum}", $metode);
+                    $sheet->setCellValue("I{$rowNum}", $nominal);
+                    $sheet->setCellValue("J{$rowNum}", $petugas);
+                    $sheet->setCellValue("K{$rowNum}", $keterangan);
 
                     // Row styling
                     $sheet->getStyle("A{$rowNum}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                     $sheet->getStyle("B{$rowNum}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                     $sheet->getStyle("C{$rowNum}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                    $sheet->getStyle("E{$rowNum}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                    $sheet->getStyle("G{$rowNum}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                    $sheet->getStyle("H{$rowNum}")->getNumberFormat()->setFormatCode('"Rp "#,##0');
-                    $sheet->getStyle("H{$rowNum}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                    $sheet->getStyle("D{$rowNum}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet->getStyle("F{$rowNum}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet->getStyle("H{$rowNum}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet->getStyle("I{$rowNum}")->getNumberFormat()->setFormatCode('"Rp "#,##0');
+                    $sheet->getStyle("I{$rowNum}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
 
                     if ($rowNum % 2 === 0) {
-                        $sheet->getStyle("A{$rowNum}:J{$rowNum}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF9FBFC');
+                        $sheet->getStyle("A{$rowNum}:K{$rowNum}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF9FBFC');
                     }
 
                     $rowNum++;
@@ -147,19 +151,19 @@ class RekapPengeluaranDetailSheet implements FromCollection, ShouldAutoSize, Wit
                 // 4. TOTAL ROW WITH REAL EXCEL FORMULA
                 $totalRow = $rowNum;
                 $sheet->setCellValue("A{$totalRow}", 'TOTAL KESELURUHAN PENGELUARAN');
-                $sheet->mergeCells("A{$totalRow}:G{$totalRow}");
+                $sheet->mergeCells("A{$totalRow}:H{$totalRow}");
 
                 if ($lastDataRow >= 7) {
-                    $sheet->setCellValue("H{$totalRow}", "=SUM(H7:H{$lastDataRow})");
+                    $sheet->setCellValue("I{$totalRow}", "=SUM(I7:I{$lastDataRow})");
                 } else {
-                    $sheet->setCellValue("H{$totalRow}", 0);
+                    $sheet->setCellValue("I{$totalRow}", 0);
                 }
 
-                $sheet->mergeCells("I{$totalRow}:J{$totalRow}");
+                $sheet->mergeCells("J{$totalRow}:K{$totalRow}");
                 $totalTrx = $this->pengeluaran->count();
-                $sheet->setCellValue("I{$totalRow}", "Total: {$totalTrx} Transaksi");
+                $sheet->setCellValue("J{$totalRow}", "Total: {$totalTrx} Transaksi");
 
-                $sheet->getStyle("A{$totalRow}:J{$totalRow}")->applyFromArray([
+                $sheet->getStyle("A{$totalRow}:K{$totalRow}")->applyFromArray([
                     'font' => ['bold' => true, 'size' => 11, 'color' => ['argb' => 'FF138F81']],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFE8F8F5']],
                     'borders' => [
@@ -171,12 +175,12 @@ class RekapPengeluaranDetailSheet implements FromCollection, ShouldAutoSize, Wit
                 ]);
 
                 $sheet->getStyle("A{$totalRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                $sheet->getStyle("H{$totalRow}")->getNumberFormat()->setFormatCode('"Rp "#,##0');
-                $sheet->getStyle("H{$totalRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                $sheet->getStyle("I{$totalRow}")->getNumberFormat()->setFormatCode('"Rp "#,##0');
+                $sheet->getStyle("I{$totalRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
 
                 // Thin borders for data rows
                 if ($lastDataRow >= 7) {
-                    $sheet->getStyle("A7:J{$lastDataRow}")->applyFromArray([
+                    $sheet->getStyle("A7:K{$lastDataRow}")->applyFromArray([
                         'borders' => [
                             'allBorders' => [
                                 'borderStyle' => Border::BORDER_THIN,

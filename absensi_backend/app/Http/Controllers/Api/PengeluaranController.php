@@ -35,17 +35,22 @@ class PengeluaranController extends Controller
             });
         }
 
-        // 2. Kategori Filter
+        // 2. Pos Pengeluaran Filter (Pondok vs Madin)
+        if ($request->filled('pos_pengeluaran') && $request->pos_pengeluaran !== 'all') {
+            $query->where('pos_pengeluaran', strtolower($request->pos_pengeluaran));
+        }
+
+        // 3. Kategori Filter
         if ($request->filled('kategori') && $request->kategori !== 'all') {
             $query->where('kategori', $request->kategori);
         }
 
-        // 3. Metode Pembayaran Filter
+        // 4. Metode Pembayaran Filter
         if ($request->filled('metode_pembayaran') && $request->metode_pembayaran !== 'all') {
             $query->where('metode_pembayaran', $request->metode_pembayaran);
         }
 
-        // 4. Academic Year & Semester & Year Filter
+        // 5. Academic Year & Semester & Year Filter
         if ($request->filled('academic_year_id') && $request->academic_year_id !== 'all') {
             $query->where('academic_year_id', $request->academic_year_id);
         }
@@ -56,7 +61,7 @@ class PengeluaranController extends Controller
             $query->whereYear('tanggal', $request->year);
         }
 
-        // 5. Date Range Filter
+        // 6. Date Range Filter
         if ($request->filled('start_date')) {
             $query->whereDate('tanggal', '>=', $request->start_date);
         }
@@ -68,7 +73,7 @@ class PengeluaranController extends Controller
         $statsQuery = clone $query;
         $pengeluaranList = $query->orderBy('tanggal', 'desc')->orderBy('id', 'desc')->get();
 
-        // 6. Calculate Realtime Summary Statistics
+        // 7. Calculate Realtime Summary Statistics
         $now = Carbon::now();
         $todayStr = $now->toDateString();
         $thisMonthStr = $now->format('Y-m');
@@ -79,7 +84,19 @@ class PengeluaranController extends Controller
         $totalPengeluaranAll = (int) Pengeluaran::sum('jumlah');
         $countTotal = $pengeluaranList->count();
 
-        // 7. Calculate Treasury Inflow (Pemasukan Siswa + Pemasukan Sumber Dana Lain)
+        // Pos Breakdown (All Time)
+        $totalPondokAll = (int) Pengeluaran::where(function ($q) {
+            $q->where('pos_pengeluaran', 'pondok')->orWhereNull('pos_pengeluaran');
+        })->sum('jumlah');
+        $totalMadinAll = (int) Pengeluaran::where('pos_pengeluaran', 'madin')->sum('jumlah');
+
+        // Pos Breakdown (Filtered / Current View)
+        $totalPondokFiltered = (int) $pengeluaranList->filter(fn ($p) => strtolower($p->pos_pengeluaran ?? 'pondok') === 'pondok')->sum('jumlah');
+        $totalMadinFiltered = (int) $pengeluaranList->filter(fn ($p) => strtolower($p->pos_pengeluaran ?? 'pondok') === 'madin')->sum('jumlah');
+        $countPondokFiltered = $pengeluaranList->filter(fn ($p) => strtolower($p->pos_pengeluaran ?? 'pondok') === 'pondok')->count();
+        $countMadinFiltered = $pengeluaranList->filter(fn ($p) => strtolower($p->pos_pengeluaran ?? 'pondok') === 'madin')->count();
+
+        // 8. Calculate Treasury Inflow (Pemasukan Siswa + Pemasukan Sumber Dana Lain - 1 PINTU TERPADU)
         $totalPemasukanSiswa = (int) Pembayaran::whereNotIn('status', ['Dibatalkan', 'Batal'])->sum('jumlah');
         $totalPemasukanBulanIni = (int) Pembayaran::whereNotIn('status', ['Dibatalkan', 'Batal'])->where('tanggal', 'like', "{$thisMonthStr}%")->sum('jumlah');
         $totalPemasukanHariIni = (int) Pembayaran::whereNotIn('status', ['Dibatalkan', 'Batal'])->whereDate('tanggal', $todayStr)->sum('jumlah');
@@ -92,7 +109,7 @@ class PengeluaranController extends Controller
         $totalSeluruhPemasukanBulanIni = $totalPemasukanBulanIni + $totalPemasukanLainBulanIni;
         $totalSeluruhPemasukanHariIni = $totalPemasukanHariIni + $totalPemasukanLainHariIni;
 
-        // Net Cash Balance (Sisa Saldo Kas Bersih)
+        // Net Cash Balance (Sisa Saldo Kas Bersih = Pemasukan Terpadu - (Pengeluaran Pondok + Pengeluaran Madin))
         $saldoKasBersih = $totalSeluruhPemasukan - $totalPengeluaranAll;
         $saldoKasBulanIni = $totalSeluruhPemasukanBulanIni - $totalThisMonth;
         $saldoKasHariIni = $totalSeluruhPemasukanHariIni - $totalToday;
@@ -139,6 +156,12 @@ class PengeluaranController extends Controller
                 'total_this_month' => $totalThisMonth,
                 'total_pengeluaran_all' => $totalPengeluaranAll,
                 'total_count' => $countTotal,
+                'total_pondok' => $totalPondokAll,
+                'total_madin' => $totalMadinAll,
+                'total_pondok_filtered' => $totalPondokFiltered,
+                'total_madin_filtered' => $totalMadinFiltered,
+                'count_pondok_filtered' => $countPondokFiltered,
+                'count_madin_filtered' => $countMadinFiltered,
                 'total_pemasukan' => $totalSeluruhPemasukan,
                 'total_pemasukan_siswa' => $totalPemasukanSiswa,
                 'total_pemasukan_lain' => $totalPemasukanLain,
@@ -172,6 +195,7 @@ class PengeluaranController extends Controller
             'judul' => 'required|string|max:255',
             'jumlah' => 'required|numeric|min:0',
             'tanggal' => 'required|date',
+            'pos_pengeluaran' => 'nullable|string|in:pondok,madin',
             'kategori' => 'nullable|string|max:255',
             'metode_pembayaran' => 'nullable|string|max:50',
             'dibayarkan_kepada' => 'nullable|string|max:255',
@@ -201,7 +225,10 @@ class PengeluaranController extends Controller
             }
         }
 
-        // 3. Generate sequential/random transaction code (OUT-YYYYMMDD-XXXX)
+        // 3. Pos Pengeluaran default to 'pondok' if empty
+        $data['pos_pengeluaran'] = strtolower($data['pos_pengeluaran'] ?? 'pondok');
+
+        // 4. Generate sequential/random transaction code (OUT-YYYYMMDD-XXXX)
         $data['no_transaksi'] = $this->generateExpenseCode();
         $data['metode_pembayaran'] = $data['metode_pembayaran'] ?? 'Tunai';
 
@@ -225,6 +252,7 @@ class PengeluaranController extends Controller
             'judul' => 'sometimes|required|string|max:255',
             'jumlah' => 'sometimes|required|numeric|min:0',
             'tanggal' => 'sometimes|required|date',
+            'pos_pengeluaran' => 'nullable|string|in:pondok,madin',
             'kategori' => 'nullable|string|max:255',
             'metode_pembayaran' => 'nullable|string|max:50',
             'dibayarkan_kepada' => 'nullable|string|max:255',
@@ -240,7 +268,12 @@ class PengeluaranController extends Controller
             ], 422);
         }
 
-        $pengeluaran->update($validator->validated());
+        $updateData = $validator->validated();
+        if (isset($updateData['pos_pengeluaran'])) {
+            $updateData['pos_pengeluaran'] = strtolower($updateData['pos_pengeluaran']);
+        }
+
+        $pengeluaran->update($updateData);
 
         return response()->json([
             'success' => true,
@@ -279,6 +312,10 @@ class PengeluaranController extends Controller
             });
         }
 
+        if ($request->filled('pos_pengeluaran') && $request->pos_pengeluaran !== 'all') {
+            $query->where('pos_pengeluaran', strtolower($request->pos_pengeluaran));
+        }
+
         if ($request->filled('kategori') && $request->kategori !== 'all') {
             $query->where('kategori', $request->kategori);
         }
@@ -313,8 +350,14 @@ class PengeluaranController extends Controller
             $periodeLabel = 'Mulai ' . Carbon::parse($request->start_date)->format('d/m/Y');
         }
 
+        $posLabel = 'Semua Pos (Pondok & Madin)';
+        if ($request->filled('pos_pengeluaran') && $request->pos_pengeluaran !== 'all') {
+            $posLabel = strtolower($request->pos_pengeluaran) === 'madin' ? 'Khusus Madrasah Diniyah (Madin)' : 'Khusus Pondok Pesantren';
+        }
+
         $filters = [
             'periode_label' => $periodeLabel,
+            'pos_pengeluaran' => $posLabel,
             'kategori' => $request->filled('kategori') && $request->kategori !== 'all' ? $request->kategori : 'Semua Kategori',
         ];
 

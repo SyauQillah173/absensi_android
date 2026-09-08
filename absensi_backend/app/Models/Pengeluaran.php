@@ -15,6 +15,7 @@ class Pengeluaran extends Model
         'jumlah',
         'tanggal',
         'kategori',
+        'pos_pengeluaran',
         'metode_pembayaran',
         'keterangan',
         'bukti_foto',
@@ -22,6 +23,17 @@ class Pengeluaran extends Model
         'academic_year_id',
         'semester_id',
     ];
+
+    protected $appends = [
+        'pos_pengeluaran_label',
+    ];
+
+    public function getPosPengeluaranLabelAttribute(): string
+    {
+        return strtolower($this->pos_pengeluaran ?? 'pondok') === 'madin' 
+            ? 'Madrasah Diniyah' 
+            : 'Pondok Pesantren';
+    }
 
     protected $casts = [
         'jumlah' => 'integer',

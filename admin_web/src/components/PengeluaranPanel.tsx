@@ -80,6 +80,7 @@ export interface QuickExpensePresetItem {
   id: string;
   label: string;
   cat: string;
+  pos?: 'pondok' | 'madin';
 }
 
 const DEFAULT_CATEGORIES = [
@@ -104,13 +105,15 @@ const FUND_SOURCES = [
 ];
 
 export const DEFAULT_QUICK_EXPENSES: QuickExpensePresetItem[] = [
-  { id: '1', label: 'Beras & Dapur', cat: 'Konsumsi & Dapur' },
-  { id: '2', label: 'Listrik & Air PLN', cat: 'Operasional & Utilitas' },
-  { id: '3', label: 'Honor Asatidz / Guru', cat: 'Honor & Gaji Asatidz' },
-  { id: '4', label: 'ATK & Kertas Cetak', cat: 'ATK & Percetakan' },
-  { id: '5', label: 'Perbaikan Gedung', cat: 'Perawatan Gedung' },
-  { id: '6', label: 'Konsumsi Rapat / Tamu', cat: 'Konsumsi & Dapur' },
-  { id: '7', label: 'Obat & Kebersihan', cat: 'Kesehatan & Kebersihan' },
+  { id: '1', label: 'Beras & Dapur', cat: 'Konsumsi & Dapur', pos: 'pondok' },
+  { id: '2', label: 'Listrik & Air PLN', cat: 'Operasional & Utilitas', pos: 'pondok' },
+  { id: '3', label: 'Honor Asatidz / Guru', cat: 'Honor & Gaji Asatidz', pos: 'madin' },
+  { id: '4', label: 'ATK & Kertas Cetak', cat: 'ATK & Percetakan', pos: 'madin' },
+  { id: '5', label: 'Kitab & Modul Madin', cat: 'Sarana & Prasarana', pos: 'madin' },
+  { id: '6', label: 'Ujian Semester Madin', cat: 'Kegiatan & Lomba Santri', pos: 'madin' },
+  { id: '7', label: 'Perbaikan Gedung', cat: 'Perawatan Gedung', pos: 'pondok' },
+  { id: '8', label: 'Konsumsi Rapat / Tamu', cat: 'Konsumsi & Dapur', pos: 'pondok' },
+  { id: '9', label: 'Obat & Kebersihan', cat: 'Kesehatan & Kebersihan', pos: 'pondok' },
 ];
 
 const STORAGE_KEY_EXPENSE_PRESETS = 'pesantren_quick_expense_presets_v2';
@@ -154,6 +157,7 @@ export function PengeluaranPanel({
   // --- FORM STATE ---
   const todayStr = new Date().toISOString().split('T')[0];
   const [tanggal, setTanggal] = useState(todayStr);
+  const [posPengeluaran, setPosPengeluaran] = useState<'pondok' | 'madin'>('pondok');
   const [judul, setJudul] = useState('');
   const [kategori, setKategori] = useState('Konsumsi & Dapur');
   const [customKategori, setCustomKategori] = useState('');
@@ -164,6 +168,7 @@ export function PengeluaranPanel({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // --- FILTER & SEARCH STATE ---
+  const [posFilter, setPosFilter] = useState<'all' | 'pondok' | 'madin'>('all');
   const [search, setSearch] = useState('');
   const [periodFilter, setPeriodFilter] = useState<'today' | 'this_month' | 'this_year' | 'all' | 'custom'>('this_month');
   const [academicYearFilter, setAcademicYearFilter] = useState('all');
@@ -214,6 +219,12 @@ export function PengeluaranPanel({
     return rows.filter((r) => {
       const rowDate = String(r.tanggal || '').split('T')[0];
 
+      // 0. Pos Pengeluaran Filter (Pondok vs Madin vs Semua)
+      if (posFilter !== 'all') {
+        const rPos = str(r.pos_pengeluaran || 'pondok').toLowerCase();
+        if (rPos !== posFilter) return false;
+      }
+
       // 1. Period Filter (Pills)
       if (periodFilter === 'today' && rowDate !== todayStr) return false;
       if (periodFilter === 'this_month' && !rowDate.startsWith(curMonthPrefix)) return false;
@@ -250,6 +261,7 @@ export function PengeluaranPanel({
         const ket = str(r.keterangan).toLowerCase();
         const petugas = str((r.penginput as ApiRecord)?.name).toLowerCase();
         const ayName = str((r.academicYear as ApiRecord)?.name).toLowerCase();
+        const posName = str(r.pos_pengeluaran || 'pondok').toLowerCase();
 
         return (
           j.includes(query) ||
@@ -258,13 +270,14 @@ export function PengeluaranPanel({
           no.includes(query) ||
           ket.includes(query) ||
           petugas.includes(query) ||
-          ayName.includes(query)
+          ayName.includes(query) ||
+          posName.includes(query)
         );
       }
 
       return true;
     });
-  }, [rows, search, periodFilter, academicYearFilter, calendarYearFilter, customStartDate, customEndDate, categoryFilter, methodFilter, todayStr]);
+  }, [rows, posFilter, search, periodFilter, academicYearFilter, calendarYearFilter, customStartDate, customEndDate, categoryFilter, methodFilter, todayStr]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -293,6 +306,10 @@ export function PengeluaranPanel({
     const curMonthPrefix = `${curYear}-${curMonth}`;
 
     let totalPengeluaranAll = 0;
+    let totalPondokAll = 0;
+    let totalMadinAll = 0;
+    let countPondok = 0;
+    let countMadin = 0;
     let totalMonth = 0;
     let totalToday = 0;
     let totalFiltered = 0;
@@ -302,8 +319,16 @@ export function PengeluaranPanel({
       const rowDate = String(r.tanggal || '').split('T')[0];
       const amt = num(r.jumlah);
       const cat = str(r.kategori, 'Lain-lain');
+      const pos = str(r.pos_pengeluaran || 'pondok').toLowerCase();
 
       totalPengeluaranAll += amt;
+      if (pos === 'madin') {
+        totalMadinAll += amt;
+        countMadin += 1;
+      } else {
+        totalPondokAll += amt;
+        countPondok += 1;
+      }
 
       if (rowDate.startsWith(curMonthPrefix)) {
         totalMonth += amt;
@@ -319,13 +344,22 @@ export function PengeluaranPanel({
       totalFiltered += num(r.jumlah);
     });
 
-    // Inflow from student payments
+    // Inflow from student payments & kas masuk lain (TERPADU 1 PINTU)
     const totalPemasukanSiswa = num(summaryData?.total_pemasukan) || totalPemasukanFallback;
     const saldoKasBersih = totalPemasukanSiswa - totalPengeluaranAll;
+
+    const pctPondok = totalPengeluaranAll > 0 ? Math.round((totalPondokAll / totalPengeluaranAll) * 100) : 0;
+    const pctMadin = totalPengeluaranAll > 0 ? Math.round((totalMadinAll / totalPengeluaranAll) * 100) : 0;
 
     return {
       totalPemasukanSiswa,
       totalPengeluaranAll,
+      totalPondokAll,
+      totalMadinAll,
+      countPondok,
+      countMadin,
+      pctPondok,
+      pctMadin,
       saldoKasBersih,
       totalMonth,
       totalToday,
@@ -355,6 +389,7 @@ export function PengeluaranPanel({
         judul: judul.trim(),
         jumlah: cleanAmount,
         tanggal,
+        pos_pengeluaran: posPengeluaran,
         kategori: finalCategory,
         dibayarkan_kepada: dibayarkanKepada.trim() || null,
         metode_pembayaran: metodePembayaran,
@@ -371,6 +406,7 @@ export function PengeluaranPanel({
       setDibayarkanKepada('');
       setKeterangan('');
       setCustomKategori('');
+      setPosPengeluaran('pondok');
       showToast('✅ Pengeluaran kas keluar berhasil dicatat!', 'success');
     } catch (err) {
       showToast(`Gagal mencatat pengeluaran: ${err instanceof Error ? err.message : 'Error'}`, 'error');
@@ -403,59 +439,188 @@ export function PengeluaranPanel({
 
   return (
     <div className="space-y-6">
-      {/* 1. TOP SUMMARY: ARUS KAS PESANTREN (INFLOW VS OUTFLOW VS NET BALANCE) */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* CARD 1: PEMASUKAN SISWA */}
-        <div className="rounded-3xl bg-white p-5 shadow-xs border border-emerald-100 flex items-center gap-4 transition-all hover:shadow-md">
-          <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-            <ArrowDownLeft size={24} />
+      {/* 0. SEGMENTED SWITCHER: PILIHAN POS PENGELUARAN (SEMUA / PONDOK / MADIN) */}
+      <div className="rounded-3xl bg-white p-3 sm:p-4 shadow-xs border border-gray-200/80">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="flex items-center gap-3 px-1">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-[#138F81] text-lg font-black border border-teal-200">
+              🏛️
+            </div>
+            <div>
+              <h4 className="text-sm font-black text-gray-900 flex items-center gap-2">
+                <span>Pos Anggaran Kas Keluar</span>
+                <span className="rounded-full bg-teal-100 text-teal-800 text-[10px] font-black px-2 py-0.5">
+                  1 Pintu Pemasukan • 2 Pos Belanja
+                </span>
+              </h4>
+              <p className="text-xs text-gray-500 font-medium">
+                Pemasukan kas santri terpadu satu pintu, pengeluaran dipantau terpisah antara Pondok & Madin
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-[11px] font-bold tracking-wider text-emerald-700 uppercase">Pemasukan Transaksi Siswa</p>
-            <p className="text-xl font-black text-emerald-900 mt-0.5">{formatMoney(stats.totalPemasukanSiswa)}</p>
-            <p className="text-[11px] font-semibold text-emerald-600 mt-0.5">📥 Sumber Kas Pembayaran Santri</p>
+
+          <div className="grid grid-cols-3 gap-1.5 p-1 rounded-2xl bg-gray-100/90 border border-gray-200/80 self-stretch md:self-auto">
+            {/* TAB SEMUA */}
+            <button
+              type="button"
+              onClick={() => setPosFilter('all')}
+              className={`flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition-all ${
+                posFilter === 'all'
+                  ? 'bg-white text-gray-900 shadow-xs ring-1 ring-black/5'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-white/40'
+              }`}
+            >
+              <span>🏢</span>
+              <span>Semua Pos</span>
+              <span className="ml-1 rounded-full bg-gray-200 px-1.5 py-0.2 text-[10px] font-black text-gray-700">
+                {rows.length}
+              </span>
+            </button>
+
+            {/* TAB PONDOK */}
+            <button
+              type="button"
+              onClick={() => setPosFilter('pondok')}
+              className={`flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition-all ${
+                posFilter === 'pondok'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-emerald-800 hover:bg-emerald-50'
+              }`}
+            >
+              <span>🕌</span>
+              <span>Pos Pondok</span>
+              <span className={`ml-1 rounded-full px-1.5 py-0.2 text-[10px] font-black ${
+                posFilter === 'pondok' ? 'bg-emerald-700 text-white' : 'bg-emerald-100 text-emerald-800'
+              }`}>
+                {stats.countPondok}
+              </span>
+            </button>
+
+            {/* TAB MADIN */}
+            <button
+              type="button"
+              onClick={() => setPosFilter('madin')}
+              className={`flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition-all ${
+                posFilter === 'madin'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-indigo-800 hover:bg-indigo-50'
+              }`}
+            >
+              <span>📖</span>
+              <span>Pos Madin</span>
+              <span className={`ml-1 rounded-full px-1.5 py-0.2 text-[10px] font-black ${
+                posFilter === 'madin' ? 'bg-indigo-700 text-white' : 'bg-indigo-100 text-indigo-800'
+              }`}>
+                {stats.countMadin}
+              </span>
+            </button>
           </div>
         </div>
+      </div>
 
-        {/* CARD 2: TOTAL PENGELUARAN */}
-        <div className="rounded-3xl bg-white p-5 shadow-xs border border-rose-100 flex items-center gap-4 transition-all hover:shadow-md">
-          <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
-            <ArrowUpRight size={24} />
+      {/* 1. TOP SUMMARY: 5 KARTU METRIK EKSEKUTIF ARUS KAS TERPADU */}
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-5">
+        {/* CARD 1: PEMASUKAN TERPADU 1 PINTU */}
+        <div className="rounded-3xl bg-white p-4 shadow-xs border border-emerald-100 flex items-center gap-3.5 transition-all hover:shadow-md">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+            <ArrowDownLeft size={22} />
           </div>
-          <div>
-            <p className="text-[11px] font-bold tracking-wider text-rose-700 uppercase">Total Pengeluaran Kas</p>
-            <p className="text-xl font-black text-rose-900 mt-0.5">{formatMoney(stats.totalPengeluaranAll)}</p>
-            <p className="text-[11px] font-semibold text-rose-600 mt-0.5">📤 Akumulasi Kas Keluar Pesantren</p>
-          </div>
-        </div>
-
-        {/* CARD 3: SISA SALDO KAS BERSIH (NET) */}
-        <div className="rounded-3xl bg-white p-5 shadow-xs border border-teal-100 flex items-center gap-4 transition-all hover:shadow-md">
-          <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-[#138F81]">
-            <Wallet size={24} />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold tracking-wider text-[#138F81] uppercase">
-              Sisa Saldo Kas Tersedia
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold tracking-wider text-emerald-700 uppercase truncate">
+              Pemasukan Kas (1 Pintu)
             </p>
-            <p className="text-xl font-black text-gray-900 mt-0.5">
+            <p className="text-lg font-black text-emerald-950 mt-0.5 truncate">
+              {formatMoney(stats.totalPemasukanSiswa)}
+            </p>
+            <p className="text-[10px] font-bold text-emerald-600 truncate mt-0.5">
+              📥 Pembayaran Santri & Kas Lain
+            </p>
+          </div>
+        </div>
+
+        {/* CARD 2: TOTAL PENGELUARAN GABUNGAN */}
+        <div className="rounded-3xl bg-white p-4 shadow-xs border border-rose-100 flex items-center gap-3.5 transition-all hover:shadow-md">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+            <ArrowUpRight size={22} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold tracking-wider text-rose-700 uppercase truncate">
+              Total Pengeluaran
+            </p>
+            <p className="text-lg font-black text-rose-950 mt-0.5 truncate">
+              {formatMoney(stats.totalPengeluaranAll)}
+            </p>
+            <p className="text-[10px] font-bold text-rose-600 truncate mt-0.5">
+              📤 Gabungan ({rows.length} Trx)
+            </p>
+          </div>
+        </div>
+
+        {/* CARD 3: KHUSUS PENGELUARAN PONDOK */}
+        <div className={`rounded-3xl bg-white p-4 shadow-xs border transition-all hover:shadow-md flex items-center gap-3.5 ${
+          posFilter === 'pondok' ? 'border-emerald-400 ring-2 ring-emerald-500/20' : 'border-emerald-100'
+        }`}>
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 text-lg">
+            🕌
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1">
+              <p className="text-[10px] font-bold tracking-wider text-emerald-800 uppercase truncate">
+                Belanja Pondok
+              </p>
+              <span className="rounded-full bg-emerald-100 px-1.5 py-0.2 text-[9px] font-black text-emerald-800">
+                {stats.pctPondok}%
+              </span>
+            </div>
+            <p className="text-lg font-black text-emerald-900 mt-0.5 truncate">
+              {formatMoney(stats.totalPondokAll)}
+            </p>
+            <p className="text-[10px] font-bold text-emerald-600 truncate mt-0.5">
+              Asrama, Dapur & Utilitas
+            </p>
+          </div>
+        </div>
+
+        {/* CARD 4: KHUSUS PENGELUARAN MADIN */}
+        <div className={`rounded-3xl bg-white p-4 shadow-xs border transition-all hover:shadow-md flex items-center gap-3.5 ${
+          posFilter === 'madin' ? 'border-indigo-400 ring-2 ring-indigo-500/20' : 'border-indigo-100'
+        }`}>
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-700 text-lg">
+            📖
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1">
+              <p className="text-[10px] font-bold tracking-wider text-indigo-800 uppercase truncate">
+                Belanja Madin
+              </p>
+              <span className="rounded-full bg-indigo-100 px-1.5 py-0.2 text-[9px] font-black text-indigo-800">
+                {stats.pctMadin}%
+              </span>
+            </div>
+            <p className="text-lg font-black text-indigo-950 mt-0.5 truncate">
+              {formatMoney(stats.totalMadinAll)}
+            </p>
+            <p className="text-[10px] font-bold text-indigo-600 truncate mt-0.5">
+              Kitab, Ujian & Guru Madin
+            </p>
+          </div>
+        </div>
+
+        {/* CARD 5: SISA SALDO KAS BERSIH (NET) */}
+        <div className="rounded-3xl bg-white p-4 shadow-xs border border-teal-100 flex items-center gap-3.5 transition-all hover:shadow-md">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-[#138F81]">
+            <Wallet size={22} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold tracking-wider text-[#138F81] uppercase truncate">
+              Sisa Saldo Kas Bersih
+            </p>
+            <p className="text-lg font-black text-gray-900 mt-0.5 truncate">
               {formatMoney(stats.saldoKasBersih)}
             </p>
-            <p className="text-[11px] font-bold text-teal-600 mt-0.5">
-              {stats.saldoKasBersih >= 0 ? '✨ Kas Surplus & Siap Pakai' : '⚠️ Kas Defisit'}
+            <p className="text-[10px] font-bold text-teal-600 truncate mt-0.5">
+              {stats.saldoKasBersih >= 0 ? '✨ Surplus Siap Pakai' : '⚠️ Defisit Kas'}
             </p>
-          </div>
-        </div>
-
-        {/* CARD 4: PENGELUARAN HARI INI */}
-        <div className="rounded-3xl bg-white p-5 shadow-xs border border-gray-100 flex items-center gap-4 transition-all hover:shadow-md">
-          <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
-            <CalendarDays size={24} />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold tracking-wider text-gray-500 uppercase">Pengeluaran Hari Ini</p>
-            <p className="text-xl font-black text-gray-900 mt-0.5">{formatMoney(stats.totalToday)}</p>
-            <p className="text-[11px] font-bold text-amber-700 mt-0.5">{stats.countFiltered} data difilter</p>
           </div>
         </div>
       </div>
@@ -468,7 +633,7 @@ export function PengeluaranPanel({
               <span>📝</span> Catat Kas Keluar / Pengeluaran Baru
             </h3>
             <p className="text-xs text-gray-500 font-medium mt-0.5">
-              Ambil dana operasional dari kas pembayaran santri atau sumber dana kas lainnya
+              Pilih pos anggaran pengeluaran (Pondok atau Madin) dan masukkan rincian kas keluar
             </p>
           </div>
           <span className="self-start sm:self-auto rounded-full bg-teal-50 border border-teal-200 px-3 py-1 text-[11px] font-black text-teal-800">
@@ -508,9 +673,13 @@ export function PengeluaranPanel({
                   onClick={() => {
                     setJudul(item.label);
                     setKategori(item.cat);
+                    if (item.pos) {
+                      setPosPengeluaran(item.pos);
+                    }
                   }}
                   className="rounded-xl bg-white hover:bg-teal-50 hover:text-teal-800 hover:border-teal-300 border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 transition-all shadow-2xs flex items-center gap-1.5"
                 >
+                  <span className="text-[10px]">{item.pos === 'madin' ? '📖' : '🕌'}</span>
                   <span>{item.label}</span>
                 </button>
               ))
@@ -519,6 +688,85 @@ export function PengeluaranPanel({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+          {/* PILIHAN POS ANGGARAN PENGELUARAN (PONDOK VS MADIN) */}
+          <div>
+            <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-2">
+              Pos Anggaran Pengeluaran <span className="text-red-500">*</span>
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* OPSI 1: PONDOK PESANTREN */}
+              <button
+                type="button"
+                onClick={() => setPosPengeluaran('pondok')}
+                className={`flex items-start gap-3 rounded-2xl p-3.5 text-left border-2 transition-all cursor-pointer ${
+                  posPengeluaran === 'pondok'
+                    ? 'border-emerald-500 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-500/20'
+                    : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50'
+                }`}
+              >
+                <div
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg font-black ${
+                    posPengeluaran === 'pondok'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}
+                >
+                  🕌
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-gray-900">
+                      Pengeluaran Pondok Pesantren
+                    </span>
+                    {posPengeluaran === 'pondok' && (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">
+                        ✓ Terpilih
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-0.5">
+                    Operasional asrama santri, beras & dapur, listrik gedung, kebersihan, kesehatan
+                  </p>
+                </div>
+              </button>
+
+              {/* OPSI 2: MADRASAH DINIYAH (MADIN) */}
+              <button
+                type="button"
+                onClick={() => setPosPengeluaran('madin')}
+                className={`flex items-start gap-3 rounded-2xl p-3.5 text-left border-2 transition-all cursor-pointer ${
+                  posPengeluaran === 'madin'
+                    ? 'border-indigo-500 bg-indigo-50/70 shadow-xs ring-1 ring-indigo-500/20'
+                    : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50'
+                }`}
+              >
+                <div
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg font-black ${
+                    posPengeluaran === 'madin'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}
+                >
+                  📖
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-gray-900">
+                      Pengeluaran Madrasah Diniyah (Madin)
+                    </span>
+                    {posPengeluaran === 'madin' && (
+                      <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-black text-indigo-800">
+                        ✓ Terpilih
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-0.5">
+                    Pengadaan kitab madin, honor guru madin, lembar ujian semester, ATK kelas
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
           {/* BARIS 1: 3 KOLOM (SUMBER DANA, TANGGAL, KATEGORI) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* SUMBER DANA */}
@@ -890,6 +1138,7 @@ export function PengeluaranPanel({
                 <thead className="sticky top-0 bg-[#F4F8F7] text-[11px] font-black uppercase text-[#138F81] border-b border-gray-200 shadow-2xs">
                   <tr>
                     <th className="py-3 px-3.5">Tanggal & No Trx</th>
+                    <th className="py-3 px-3.5 text-center">Pos Anggaran</th>
                     <th className="py-3 px-3.5">Keperluan / Judul</th>
                     <th className="py-3 px-3.5">Kategori</th>
                     <th className="py-3 px-3.5 text-right">Nominal (Rp)</th>
@@ -900,7 +1149,7 @@ export function PengeluaranPanel({
                 <tbody className="divide-y divide-gray-100 bg-white">
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-gray-400">
+                      <td colSpan={7} className="py-12 text-center text-gray-400">
                         <p className="text-sm font-bold">Tidak ada data pengeluaran yang sesuai filter.</p>
                         <p className="text-xs text-gray-400 mt-1">Coba sesuaikan kata kunci pencarian atau tanggal.</p>
                       </td>
@@ -910,6 +1159,7 @@ export function PengeluaranPanel({
                       const noTrx = str(row.no_transaksi, `EXP-${String(row.id).padStart(4, '0')}`);
                       const tglStr = row.tanggal ? new Date(String(row.tanggal)).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
                       const petugasName = str((row.penginput as ApiRecord)?.name, 'Admin');
+                      const isMadin = str(row.pos_pengeluaran, 'pondok').toLowerCase() === 'madin';
 
                       return (
                         <tr key={num(row.id)} className="hover:bg-teal-50/40 transition-colors">
@@ -917,6 +1167,19 @@ export function PengeluaranPanel({
                           <td className="py-3 px-3.5 font-medium whitespace-nowrap">
                             <span className="font-bold text-gray-900 block">{tglStr}</span>
                             <span className="text-[10px] font-mono text-gray-400">{noTrx}</span>
+                          </td>
+
+                          {/* POS ANGGARAN */}
+                          <td className="py-3 px-3.5 text-center whitespace-nowrap">
+                            {isMadin ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-[10px] font-black text-indigo-700 shadow-2xs">
+                                <span>📖</span> Madin
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[10px] font-black text-emerald-700 shadow-2xs">
+                                <span>🕌</span> Pondok
+                              </span>
+                            )}
                           </td>
 
                           {/* KEPERLUAN & PENERIMA */}
@@ -1197,6 +1460,9 @@ function EditExpenseModal({
   onSaved: () => Promise<void>;
   existingCategories: string[];
 }) {
+  const [posPengeluaran, setPosPengeluaran] = useState<'pondok' | 'madin'>(
+    str(row.pos_pengeluaran, 'pondok').toLowerCase() === 'madin' ? 'madin' : 'pondok'
+  );
   const [judul, setJudul] = useState(str(row.judul, ''));
   const [jumlah, setJumlah] = useState(String(row.jumlah ?? '0'));
   const [tanggal, setTanggal] = useState(str(row.tanggal, new Date().toISOString().split('T')[0]));
@@ -1216,6 +1482,7 @@ function EditExpenseModal({
         judul: judul.trim(),
         jumlah: num(jumlah),
         tanggal,
+        pos_pengeluaran: posPengeluaran,
         kategori,
         dibayarkan_kepada: dibayarkanKepada.trim() || null,
         metode_pembayaran: metodePembayaran,
@@ -1253,6 +1520,35 @@ function EditExpenseModal({
       }
     >
       <form id="edit-pengeluaran-form" className="space-y-3.5" onSubmit={submit}>
+        {/* POS ANGGARAN SELECTOR */}
+        <div>
+          <label className="block text-xs font-black text-gray-700 uppercase mb-1.5">Pos Anggaran Pengeluaran</label>
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={() => setPosPengeluaran('pondok')}
+              className={`flex items-center justify-center gap-2 rounded-xl p-2.5 text-xs font-extrabold border-2 transition-all cursor-pointer ${
+                posPengeluaran === 'pondok'
+                  ? 'border-emerald-500 bg-emerald-50 text-emerald-900 shadow-2xs'
+                  : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+              }`}
+            >
+              <span>🕌</span> Pondok Pesantren
+            </button>
+            <button
+              type="button"
+              onClick={() => setPosPengeluaran('madin')}
+              className={`flex items-center justify-center gap-2 rounded-xl p-2.5 text-xs font-extrabold border-2 transition-all cursor-pointer ${
+                posPengeluaran === 'madin'
+                  ? 'border-indigo-500 bg-indigo-50 text-indigo-900 shadow-2xs'
+                  : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+              }`}
+            >
+              <span>📖</span> Madrasah Diniyah (Madin)
+            </button>
+          </div>
+        </div>
+
         <div>
           <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Tanggal</label>
           <input type="date" className="q-input font-bold" value={tanggal} onChange={(e) => setTanggal(e.target.value)} required />
@@ -1329,6 +1625,7 @@ function ExpenseReceiptModal({
   const nominalValue = num(row.jumlah);
   const terbilangText = angkaTerbilang(nominalValue) + ' Rupiah';
   const petugasName = str((row.penginput as ApiRecord)?.name, 'Bendahara Keuangan');
+  const posLabel = str(row.pos_pengeluaran, 'pondok').toLowerCase() === 'madin' ? '📖 Madrasah Diniyah (Madin)' : '🕌 Pondok Pesantren';
 
   function handlePrint() {
     window.print();
@@ -1379,6 +1676,10 @@ function ExpenseReceiptModal({
               <span className="font-bold text-gray-900">{tglFormatted}</span>
             </div>
             <div className="flex justify-between">
+              <span className="text-gray-500">Pos Anggaran:</span>
+              <span className="font-extrabold text-teal-900">{posLabel}</span>
+            </div>
+            <div className="flex justify-between">
               <span className="text-gray-500">Kategori Kas:</span>
               <span className="font-bold text-teal-800">{str(row.kategori, 'Umum')}</span>
             </div>
@@ -1422,7 +1723,7 @@ function ExpenseReceiptModal({
               </p>
             </div>
             <div>
-              <p className="text-gray-500">Bendahara Pondok,</p>
+              <p className="text-gray-500">Bendahara,</p>
               <div className="h-14" />
               <p className="font-bold text-gray-900 underline">( {petugasName} )</p>
             </div>
@@ -1455,6 +1756,7 @@ function ExportPengeluaranModal({
 }) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [posPengeluaran, setPosPengeluaran] = useState('all');
   const [academicYearId, setAcademicYearId] = useState('all');
   const [calendarYear, setCalendarYear] = useState('all');
   const [kategori, setKategori] = useState('all');
@@ -1469,6 +1771,7 @@ function ExportPengeluaranModal({
       await api.exportPengeluaran({
         start_date: startDate || '',
         end_date: endDate || '',
+        pos_pengeluaran: posPengeluaran !== 'all' ? posPengeluaran : '',
         academic_year_id: academicYearId !== 'all' ? academicYearId : '',
         year: calendarYear !== 'all' ? calendarYear : '',
         kategori: kategori !== 'all' ? kategori : '',

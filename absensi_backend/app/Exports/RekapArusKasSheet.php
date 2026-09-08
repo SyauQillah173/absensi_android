@@ -91,10 +91,11 @@ class RekapArusKasSheet implements FromCollection, ShouldAutoSize, WithTitle, Wi
                 }
 
                 foreach ($this->pengeluaran as $out) {
+                    $posTag = strtolower($out->pos_pengeluaran ?? 'pondok') === 'madin' ? '[Madin] ' : '[Pondok] ';
                     $ledger->push([
                         'tanggal' => $out->tanggal ? Carbon::parse($out->tanggal)->toDateString() : '',
                         'no_trx' => $out->no_transaksi ?: ('EXP-' . sprintf('%04d', $out->id)),
-                        'uraian' => 'Pengeluaran: ' . ($out->judul ?? '-') . ($out->dibayarkan_kepada ? ' (Kpd: ' . $out->dibayarkan_kepada . ')' : ''),
+                        'uraian' => 'Pengeluaran ' . $posTag . ($out->judul ?? '-') . ($out->dibayarkan_kepada ? ' (Kpd: ' . $out->dibayarkan_kepada . ')' : ''),
                         'kategori' => $out->kategori ?: 'Operasional',
                         'masuk' => 0,
                         'keluar' => (float) ($out->jumlah ?? 0),
