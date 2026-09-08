@@ -20,6 +20,7 @@ import {
 import QRCode from 'qrcode';
 import React, { useEffect, useMemo, useState } from 'react';
 import qomaruddinLogo from '../assets/logo-qomaruddin.png';
+import kaligrafiQomaruddin from '../assets/kaligrafi-qomaruddin.png';
 import { api, type ApiRecord } from '../services/api';
 
 interface KartuSantriPrintPageProps {
@@ -126,20 +127,28 @@ async function generateKtsJpg(student: ApiRecord, side: 'front' | 'back'): Promi
       // safe fallback
     }
 
-    // Teks Kop
+    // Gambar Kaligrafi Arab Asli (Khat Tsuluts Resmi Qomaruddin)
+    try {
+      const kaligrafiImg = await loadImage(kaligrafiQomaruddin);
+      ctx.drawImage(kaligrafiImg, width - 365, 26, 240, 38);
+    } catch {
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#0B8062';
+      ctx.font = 'bold 22px "Amiri", "Traditional Arabic", serif, sans-serif';
+      ctx.fillText('المعهد الإسلامي السلفي قمر الدين', width - 125, 46);
+    }
+
+    // Teks Kop Latin
     ctx.textAlign = 'right';
     ctx.fillStyle = '#0B8062';
-    ctx.font = 'bold 22px "Amiri", "Traditional Arabic", serif, sans-serif';
-    ctx.fillText('المعهد الإسلامي السلفي قمر الدين', width - 125, 46);
-
     ctx.font = '900 18px sans-serif';
     ctx.letterSpacing = '0.5px';
-    ctx.fillText('PONDOK PESANTREN QOMARUDDIN', width - 125, 72);
+    ctx.fillText('PONDOK PESANTREN QOMARUDDIN', width - 125, 75);
 
     ctx.fillStyle = '#64748b';
     ctx.font = 'bold 12.5px sans-serif';
     ctx.letterSpacing = '0px';
-    ctx.fillText('Sampurnan Bungah Gresik • NSP : 510035250011', width - 125, 93);
+    ctx.fillText('Sampurnan Bungah Gresik • NSP : 510035250011', width - 125, 96);
     ctx.textAlign = 'left';
 
     // 5. Pas Foto Santri
@@ -324,11 +333,19 @@ async function generateKtsJpg(student: ApiRecord, side: 'front' | 'back'): Promi
     ctx.stroke();
 
     // 3. Kop Tengah Atas
+    // Gambar Kaligrafi Arab Asli di Tengah
+    try {
+      const kaligrafiImg = await loadImage(kaligrafiQomaruddin);
+      ctx.drawImage(kaligrafiImg, width / 2 - 130, 26, 260, 42);
+    } catch {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#0B8062';
+      ctx.font = 'bold 24px "Amiri", "Traditional Arabic", serif, sans-serif';
+      ctx.fillText('المعهد الإسلامي السلفي قمر الدين', width / 2, 58);
+    }
+
     ctx.textAlign = 'center';
     ctx.fillStyle = '#0B8062';
-    ctx.font = 'bold 24px "Amiri", "Traditional Arabic", serif, sans-serif';
-    ctx.fillText('المعهد الإسلامي السلفي قمر الدين', width / 2, 60);
-
     ctx.font = '900 18px sans-serif';
     ctx.letterSpacing = '0.5px';
     ctx.fillText('PONDOK PESANTREN QOMARUDDIN', width / 2, 88);
@@ -1308,10 +1325,12 @@ function KtsFrontCard({ student }: { student: ApiRecord }) {
 
       {/* 4. KOP PESANTREN RESMI DI KANAN ATAS */}
       <div className="relative z-10 flex items-center justify-end gap-2 pl-18 shrink-0">
-        <div className="text-right leading-none">
-          <p className="font-serif font-black text-[#0B8062] text-[8.2px] leading-tight tracking-wide" dir="rtl">
-            المعهد الإسلامي السلفي قمر الدين
-          </p>
+        <div className="text-right leading-none flex flex-col items-end">
+          <img
+            src={kaligrafiQomaruddin}
+            alt="المعهد الإسلامي السلفي قمر الدين"
+            className="h-3.5 w-auto object-contain mb-0.5"
+          />
           <h4 className="font-black text-[7.2px] text-[#0B8062] tracking-tight uppercase mt-0.5">
             PONDOK PESANTREN QOMARUDDIN
           </h4>
@@ -1456,10 +1475,12 @@ function KtsBackCard({ student }: { student: ApiRecord }) {
       </svg>
 
       {/* 4. KOP RESMI PESANTREN DI TENGAH ATAS */}
-      <div className="relative z-10 text-center leading-none px-12 shrink-0">
-        <p className="font-serif font-black text-[#0B8062] text-[8.5px] leading-tight tracking-wide" dir="rtl">
-          المعهد الإسلامي السلفي قمر الدين
-        </p>
+      <div className="relative z-10 text-center leading-none px-12 shrink-0 flex flex-col items-center">
+        <img
+          src={kaligrafiQomaruddin}
+          alt="المعهد الإسلامي السلفي قمر الدين"
+          className="h-4 w-auto object-contain mx-auto mb-0.5"
+        />
         <h4 className="font-black text-[7.2px] text-[#0B8062] tracking-tight uppercase mt-0.5">
           PONDOK PESANTREN QOMARUDDIN
         </h4>
