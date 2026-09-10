@@ -173,6 +173,7 @@ function sessionFromData(data: ApiRecord, token: string): UserSession {
     status: data.status ? String(data.status) : undefined,
     permissions: data.permissions && typeof data.permissions === 'object' ? (data.permissions as ApiRecord) : undefined,
     anak: Array.isArray(data.anak) ? (data.anak as ApiRecord[]) : undefined,
+    hak_akses: data.hak_akses && typeof data.hak_akses === 'object' ? (data.hak_akses as UserSession['hak_akses']) : undefined,
     must_change_password: Boolean(data.must_change_password),
     token
   };
@@ -361,7 +362,8 @@ export const api = {
       const enriched = {
         ...sessionFromData(profileData, token),
         admin_type: session.admin_type ?? null,
-        anak: session.anak ?? (Array.isArray(profileData.anak) ? (profileData.anak as ApiRecord[]) : undefined)
+        anak: session.anak ?? (Array.isArray(profileData.anak) ? (profileData.anak as ApiRecord[]) : undefined),
+        hak_akses: session.hak_akses ?? (profileData.hak_akses && typeof profileData.hak_akses === 'object' ? (profileData.hak_akses as UserSession['hak_akses']) : undefined),
       };
       writeSession(enriched);
       return enriched;
@@ -382,7 +384,11 @@ export const api = {
     }
     const response = await request<ApiRecord>('/profile');
     const data = (response.data && typeof response.data === 'object' ? response.data : {}) as ApiRecord;
-    const next = { ...sessionFromData(data, current.token), admin_type: current.admin_type ?? (data.admin_type ? String(data.admin_type) : null) };
+    const next = {
+      ...sessionFromData(data, current.token),
+      admin_type: current.admin_type ?? (data.admin_type ? String(data.admin_type) : null),
+      hak_akses: (data.hak_akses && typeof data.hak_akses === 'object' ? (data.hak_akses as UserSession['hak_akses']) : current.hak_akses),
+    };
     writeSession(next);
     return next;
   },
@@ -1210,5 +1216,98 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
+  },
+
+  // 🚨 Modul Kedisiplinan & Pencatatan Pelanggaran Santri (Pengurus Keamanan & Admin)
+  getPelanggaran(params?: Record<string, any>) {
+    return request<ApiRecord[]>('/pelanggaran', { method: 'GET' }, params);
+  },
+  getPelanggaranStats() {
+    return request<ApiRecord>('/pelanggaran/stats');
+  },
+  async createPelanggaran(payload: {
+    siswa_id: number;
+    tanggal: string;
+    waktu?: string;
+    kategori_id?: number;
+    judul_pelanggaran: string;
+    tingkat: 'Ringan' | 'Sedang' | 'Berat';
+    poin: number;
+    denda?: number;
+    status_denda?: 'tidak_ada' | 'belum_dibayar' | 'lunas';
+    keterangan?: string;
+    tindakan_takzir?: string;
+    bukti_foto?: File | string;
+  }) {
+    if (payload.bukti_foto instanceof File) {
+      const form = new FormData();
+      Object.entries(payload).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) {
+          if (k === 'bukti_foto' && v instanceof File) {
+            form.set('bukti_foto', v);
+          } else {
+            form.set(k, String(v));
+          }
+        }
+      });
+      return uploadRequest<ApiRecord>('/pelanggaran', form);
+    }
+    return request<ApiRecord>('/pelanggaran', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  updatePelanggaran(id: number, payload: ApiRecord) {
+    return request<ApiRecord>(`/pelanggaran/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+  deletePelanggaran(id: number) {
+    return request<ApiRecord>(`/pelanggaran/${id}`, {
+      method: 'DELETE',
+    });
+  },
+  terbitkanSuratPanggilan(id: number) {
+    return request<ApiRecord>(`/pelanggaran/${id}/terbitkan-surat`, {
+      method: 'POST',
+    });
+  },
+  bayarDendaPelanggaran(id: number) {
+    return request<ApiRecord>(`/pelanggaran/${id}/bayar-denda`, {
+      method: 'POST',
+    });
+  },
+  getPelanggaranKategori() {
+    return request<ApiRecord[]>('/pelanggaran/kategori');
+  },
+  storePelanggaranKategori(payload: {
+    nama_pelanggaran: string;
+    tingkat: string;
+    poin_default: number;
+    denda_default?: number;
+    tindakan_rekomendasi?: string;
+  }) {
+    return request<ApiRecord>('/pelanggaran/kategori', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  getPelanggaranSettings() {
+    return request<ApiRecord>('/pelanggaran/settings');
+  },
+  updatePelanggaranSettings(payload: {
+    warning_threshold_points: number;
+    enable_denda: boolean;
+    surat_template_title?: string;
+    surat_template_body?: string;
+  }) {
+    return request<ApiRecord>('/pelanggaran/settings', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  getWaliPelanggaran(siswaId: number) {
+    return request<ApiRecord>(`/wali/pelanggaran/${siswaId}`);
   }
 };

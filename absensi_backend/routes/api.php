@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\PaymentMethodController;
 use App\Http\Controllers\Api\PaymentPeriodTypeController;
 use App\Http\Controllers\Api\PaymentTypeController;
 use App\Http\Controllers\Api\PaymentVerificationController;
+use App\Http\Controllers\Api\PelanggaranController;
 use App\Http\Controllers\Api\PembayaranController;
 use App\Http\Controllers\Api\PemasukanLainController;
 use App\Http\Controllers\Api\PengeluaranController;
@@ -134,6 +135,7 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::get('wali/pembayaran/verifikasi', [PaymentVerificationController::class, 'indexWali']);
         Route::post('wali/pembayaran/verifikasi', [PaymentVerificationController::class, 'storeWali']);
         Route::get('wali/nilai', [WaliController::class, 'nilai'])->middleware('permission:nilai_wali,view');
+        Route::get('wali/pelanggaran/{siswaId}', [PelanggaranController::class, 'waliPelanggaran']);
         Route::get('wali/materi', [MateriController::class, 'materiAnak'])->middleware('permission:kegiatan_belajar,view');
         Route::get('wali/kegiatan', [KegiatanController::class, 'kegiatanWali'])->middleware('permission:kegiatan_belajar,view');
     });
@@ -243,6 +245,19 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::get('settings/menus', [PermissionController::class, 'menus'])->middleware('permission:hak_akses,view');
         Route::get('settings/permissions', [PermissionController::class, 'index'])->middleware('permission:hak_akses,view');
         Route::put('settings/permissions', [PermissionController::class, 'update'])->middleware('permission:hak_akses,update');
+
+        // 🚨 Modul Kedisiplinan & Pencatatan Pelanggaran Santri (Pengurus Keamanan & Admin)
+        Route::get('pelanggaran', [PelanggaranController::class, 'index']);
+        Route::post('pelanggaran', [PelanggaranController::class, 'store']);
+        Route::get('pelanggaran/stats', [PelanggaranController::class, 'stats']);
+        Route::get('pelanggaran/kategori', [PelanggaranController::class, 'getCategories']);
+        Route::post('pelanggaran/kategori', [PelanggaranController::class, 'storeCategory']);
+        Route::get('pelanggaran/settings', [PelanggaranController::class, 'getSettings']);
+        Route::post('pelanggaran/settings', [PelanggaranController::class, 'updateSettings']);
+        Route::put('pelanggaran/{id}', [PelanggaranController::class, 'update']);
+        Route::delete('pelanggaran/{id}', [PelanggaranController::class, 'destroy']);
+        Route::post('pelanggaran/{id}/terbitkan-surat', [PelanggaranController::class, 'terbitkanSurat']);
+        Route::post('pelanggaran/{id}/bayar-denda', [PelanggaranController::class, 'bayarDenda']);
 
         Route::get('whatsapp/status', [WhatsAppController::class, 'status'])->middleware('permission:whatsapp_bot,view');
         Route::post('whatsapp/connect', [WhatsAppController::class, 'connect'])->middleware(['permission:whatsapp_bot,create', 'throttle:20,1']);

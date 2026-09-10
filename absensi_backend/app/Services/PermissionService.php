@@ -209,6 +209,8 @@ class PermissionService
             'admin_bendahara_2' => ['dashboard', 'keuangan'],
             'admin_petugas' => ['dashboard', 'keuangan'],
             'petugas' => ['dashboard', 'keuangan'],
+            'admin_keamanan' => ['dashboard', 'pelanggaran', 'buku_induk'],
+            'keamanan' => ['dashboard', 'pelanggaran', 'buku_induk'],
             'admin_pondok' => ['dashboard', 'buku_induk', 'absensi'],
 
             'admin_absensi' => ['dashboard', 'absensi', 'nilai', 'mata_pelajaran', 'buku_induk', 'ruang_sifir'],
@@ -298,6 +300,7 @@ class PermissionService
     {
         return collect([
             ['id' => null, 'key' => 'dashboard', 'label' => 'Dashboard', 'group' => 'umum', 'icon' => 'home', 'description' => null, 'sort_order' => 1, 'is_core' => true, 'is_active' => true],
+            ['id' => null, 'key' => 'pelanggaran', 'label' => 'Kedisiplinan & Pelanggaran', 'group' => 'admin', 'icon' => 'shield_alert', 'description' => 'Pencatatan pelanggaran & poin kedisiplinan santri', 'sort_order' => 5, 'is_core' => false, 'is_active' => true],
             ['id' => null, 'key' => 'absensi', 'label' => 'Absensi', 'group' => 'guru', 'icon' => 'checklist', 'description' => null, 'sort_order' => 10, 'is_core' => false, 'is_active' => true],
             ['id' => null, 'key' => 'mata_pelajaran', 'label' => 'Mata Pelajaran', 'group' => 'akademik', 'icon' => 'book', 'description' => null, 'sort_order' => 20, 'is_core' => false, 'is_active' => true],
             ['id' => null, 'key' => 'nilai', 'label' => 'Nilai Ujian/Hafalan', 'group' => 'akademik', 'icon' => 'award', 'description' => null, 'sort_order' => 30, 'is_core' => false, 'is_active' => true],
@@ -347,6 +350,10 @@ class PermissionService
                 return 'admin_petugas';
             }
 
+            if (in_array($type, ['keamanan', 'pengurus_keamanan', 'admin_keamanan'], true)) {
+                return 'admin_keamanan';
+            }
+
             if (in_array($type, ['madrasah', 'absensi', 'kepala_madrasah', 'kepala_sekolah', 'monitoring', 'kepala'], true)) {
                 return 'admin_absensi';
             }
@@ -369,6 +376,7 @@ class PermissionService
             'admin_bendahara',
             'admin_bendahara_2',
             'admin_petugas',
+            'admin_keamanan',
             'admin_akademik',
             'admin_pondok',
             'admin_absensi',
@@ -380,6 +388,7 @@ class PermissionService
             'guru_asrama',
             'wali',
             'petugas',
+            'keamanan',
         ];
     }
 }

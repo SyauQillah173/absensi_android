@@ -111,6 +111,17 @@ export const SYSTEM_ROLE_OPTIONS: RoleOption[] = [
     tone: 'info'
   },
   {
+    key: 'admin_keamanan',
+    role: 'admin',
+    adminType: 'keamanan',
+    label: 'Pengurus Keamanan (Kedisiplinan & Pelanggaran)',
+    badge: 'Pengurus Keamanan',
+    icon: '🛡️',
+    description: 'Petugas keamanan pondok: pencatatan pelanggaran santri, poin tata tertib, takzir, denda, dan surat panggilan wali santri.',
+    loginView: 'Dashboard Keamanan + Kelola Pelanggaran, Poin & Surat Panggilan',
+    tone: 'warning'
+  },
+  {
     key: 'guru',
     role: 'guru',
     label: 'Ustadz / Guru Pengajar',
@@ -145,11 +156,13 @@ export function getRoleDisplayName(
 
   if (role === 'guru') return teacherTitle;
   if (role === 'wali') return 'Wali Santri';
+  if (role === 'keamanan') return 'Pengurus Keamanan';
 
   if (role === 'admin' || !role) {
     if (adminType === 'it' || adminType === 'admin_it') return 'Admin IT';
     if (adminType === 'pengurus' || adminType === 'admin_pengurus') return 'Admin Pengurus';
     if (adminType === 'pmb' || adminType === 'admin_pmb') return 'Panitia PMB';
+    if (adminType === 'keamanan' || adminType === 'admin_keamanan' || adminType === 'tatib') return 'Pengurus Keamanan';
     if (
       adminType === 'kepala_sekolah' ||
       adminType === 'kepala_madrasah' ||

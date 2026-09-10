@@ -45,7 +45,7 @@ class AuthController extends Controller
                 $user->forceFill([
                     'password' => Hash::make('siswa12345'),
                 ])->save();
-            } elseif ($user && ($user->role === 'admin' || $user->role === 'petugas') && in_array($request->password, ['admin123', 'admin12345', 'Ganti123', 'petugas123', 'petugas12345'], true)) {
+            } elseif ($user && ($user->role === 'admin' || $user->role === 'petugas' || $user->role === 'keamanan') && in_array($request->password, ['admin123', 'admin12345', 'Ganti123', 'petugas123', 'petugas12345', 'keamanan123', 'keamanan12345'], true)) {
                 $user->forceFill([
                     'password' => Hash::make($request->password),
                 ])->save();
@@ -99,13 +99,23 @@ class AuthController extends Controller
             'pmb_visible_to_pengurus' => (bool) \App\Models\PmbCmsSetting::getValue('pmb_visible_to_pengurus', false),
         ];
 
-        // Jika role guru → sertakan hak akses absensi sholat & ngaji
+        // Jika role guru → sertakan hak akses absensi yang dinamis sesuai penugasan jadwal admin
         if ($user->role === 'guru') {
-            $canSholat = \App\Models\GuruAbsensiSholatAccess::where('user_id', $user->id)->where('is_active', true)->exists();
-            $canNgaji = \App\Models\NgajiSchedule::where('status', 'Aktif')->where('teacher_id', $user->id)->exists();
+            $canMadin = \App\Models\Jadwal::where(function ($q) use ($user) {
+                $q->where('guru_id', $user->id)
+                  ->orWhere('guru', $user->name);
+            })->exists();
+
+            $canSholat = \App\Models\GuruAbsensiSholatAccess::where('user_id', $user->id)
+                ->where('is_active', true)
+                ->exists();
+
+            $canNgaji = \App\Models\NgajiSchedule::where('status', 'Aktif')
+                ->where('teacher_id', $user->id)
+                ->exists();
 
             $responseData['hak_akses'] = [
-                'absen_madin' => true,
+                'absen_madin' => $canMadin,
                 'absen_sholat' => $canSholat,
                 'absen_ngaji' => $canNgaji,
                 'nilai' => true,

@@ -40,6 +40,19 @@ class UserProfileController extends Controller
                 'foto_profil' => $user->foto_profil,
                 'foto_url' => $this->profilePhotoUrl($user),
                 'permissions' => app(PermissionService::class)->permissionsForUser($user),
+                'hak_akses' => $user->role === 'guru' ? [
+                    'absen_madin' => \App\Models\Jadwal::where(function ($q) use ($user) {
+                        $q->where('guru_id', $user->id)
+                          ->orWhere('guru', $user->name);
+                    })->exists(),
+                    'absen_sholat' => \App\Models\GuruAbsensiSholatAccess::where('user_id', $user->id)
+                        ->where('is_active', true)
+                        ->exists(),
+                    'absen_ngaji' => \App\Models\NgajiSchedule::where('status', 'Aktif')
+                        ->where('teacher_id', $user->id)
+                        ->exists(),
+                    'nilai' => true,
+                ] : null,
             ],
         ]);
     }

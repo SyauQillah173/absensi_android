@@ -70,8 +70,7 @@ import { ToastNotification } from '../components/ToastNotification';
 import { ensurePushSubscribed, subscribeToPushNotifications, sendTestPushNotification, clearAppBadge } from '../utils/pushNotification';
 import qomaruddinLogo from '../assets/logo-qomaruddin.png';
 
-type WaliTabKey = 'biodata' | 'keuangan' | 'absensi' | 'nilai';
-type AbsensiSubTab = 'madin' | 'ngaji' | 'sholat';
+type WaliTabKey = 'keuangan' | 'pelanggaran' | 'biodata' | 'nilai';
 type KeuanganSubTab = 'tagihan' | 'riwayat' | 'transfer';
 type NilaiSubTab = 'akademik' | 'hafalan';
 
@@ -98,7 +97,6 @@ function formatGridNumber(val: number): string {
 export function WaliPortalPage() {
   const { session, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<WaliTabKey>('keuangan');
-  const [absensiSubTab, setAbsensiSubTab] = useState<AbsensiSubTab>('madin');
   const [keuanganSubTab, setKeuanganSubTab] = useState<KeuanganSubTab>('tagihan');
   const [nilaiSubTab, setNilaiSubTab] = useState<NilaiSubTab>('akademik');
 
@@ -127,10 +125,25 @@ export function WaliPortalPage() {
   const [childData, setChildData] = useState<ApiRecord | null>(null);
   const [biodata, setBiodata] = useState<ApiRecord | null>(null);
   const [keuanganData, setKeuanganData] = useState<ApiRecord | null>(null);
-  const [absensiMadinData, setAbsensiMadinData] = useState<ApiRecord | null>(null);
-  const [absensiSholatData, setAbsensiSholatData] = useState<ApiRecord | null>(null);
-  const [absensiNgajiData, setAbsensiNgajiData] = useState<ApiRecord | null>(null);
   const [nilaiData, setNilaiData] = useState<ApiRecord | null>(null);
+
+  // Kedisiplinan & Pelanggaran Santri states
+  const [pelanggaranData, setPelanggaranData] = useState<{
+    siswa?: ApiRecord;
+    settings?: {
+      max_poin_panggilan: number;
+      enable_denda: boolean;
+      surat_template_title?: string;
+      surat_template_body?: string;
+    };
+    total_poin?: number;
+    total_denda_pending?: number;
+    is_over_threshold?: boolean;
+    surat_panggilan?: ApiRecord | null;
+    pelanggaran?: ApiRecord[];
+  } | null>(null);
+  const [viewSuratModal, setViewSuratModal] = useState<ApiRecord | null>(null);
+  const [pelanggaranFilter, setPelanggaranFilter] = useState<'all' | 'belum_tuntas' | 'selesai'>('all');
 
   // Search filter for bills
   const [billSearch, setBillSearch] = useState('');
@@ -308,12 +321,10 @@ export function WaliPortalPage() {
       setIsLoading(true);
       try {
         // Run parallel queries
-        const [bioRes, payRes, madinRes, sholatRes, ngajiRes, nilaiRes, verifRes] = await Promise.allSettled([
+        const [bioRes, payRes, pelanggaranRes, nilaiRes, verifRes] = await Promise.allSettled([
           api.waliBiodata(siswaId),
           api.waliPembayaran(siswaId),
-          api.waliAbsensi(siswaId, { bulan: selectedMonth, tahun: selectedYear }),
-          api.waliAbsensiSholat(siswaId, { bulan: selectedMonth, tahun: selectedYear }),
-          api.waliAbsensiNgaji(siswaId, { bulan: selectedMonth, tahun: selectedYear }),
+          api.getWaliPelanggaran(siswaId),
           api.waliNilai(siswaId),
           api.waliGetVerifikasiPembayaran(siswaId),
         ]);
@@ -341,16 +352,8 @@ export function WaliPortalPage() {
           setVerifikasiList(Array.isArray(verifRes.value.data) ? (verifRes.value.data as ApiRecord[]) : []);
         }
 
-        if (madinRes.status === 'fulfilled' && madinRes.value.success) {
-          setAbsensiMadinData(madinRes.value);
-        }
-
-        if (sholatRes.status === 'fulfilled' && sholatRes.value.success) {
-          setAbsensiSholatData(sholatRes.value);
-        }
-
-        if (ngajiRes.status === 'fulfilled' && ngajiRes.value.success) {
-          setAbsensiNgajiData(ngajiRes.value);
+        if (pelanggaranRes.status === 'fulfilled' && pelanggaranRes.value.success) {
+          setPelanggaranData(pelanggaranRes.value.data as any);
         }
 
         if (nilaiRes.status === 'fulfilled' && nilaiRes.value.success) {
@@ -368,28 +371,18 @@ export function WaliPortalPage() {
     return () => {
       isMounted = false;
     };
-  }, [selectedChildId, selectedMonth, selectedYear, childrenList]);
+  }, [selectedChildId, childrenList]);
 
-  // Reload attendance when filter changes
-  const handleReloadAttendance = async () => {
+  // Reload pelanggaran data
+  const handleReloadPelanggaran = async () => {
     if (!selectedChildId) return;
     try {
-      const [madinRes, sholatRes, ngajiRes] = await Promise.allSettled([
-        api.waliAbsensi(selectedChildId, { bulan: selectedMonth, tahun: selectedYear }),
-        api.waliAbsensiSholat(selectedChildId, { bulan: selectedMonth, tahun: selectedYear }),
-        api.waliAbsensiNgaji(selectedChildId, { bulan: selectedMonth, tahun: selectedYear }),
-      ]);
-      if (madinRes.status === 'fulfilled' && madinRes.value.success) {
-        setAbsensiMadinData(madinRes.value);
-      }
-      if (sholatRes.status === 'fulfilled' && sholatRes.value.success) {
-        setAbsensiSholatData(sholatRes.value);
-      }
-      if (ngajiRes.status === 'fulfilled' && ngajiRes.value.success) {
-        setAbsensiNgajiData(ngajiRes.value);
+      const res = await api.getWaliPelanggaran(selectedChildId);
+      if (res.success && res.data) {
+        setPelanggaranData(res.data as any);
       }
     } catch (err) {
-      console.error('Failed to reload attendance', err);
+      console.error('Failed to reload pelanggaran data', err);
     }
   };
 
@@ -808,43 +801,26 @@ export function WaliPortalPage() {
     }
   };
 
-  // Attendance stats
-  const madinStats = (absensiMadinData?.stats ?? absensiMadinData?.statistik ?? absensiMadinData?.ringkasan ?? {}) as ApiRecord;
-  const madinGrouped = useMemo(() => {
-    return Array.isArray(absensiMadinData?.grouped)
-      ? (absensiMadinData.grouped as ApiRecord[])
-      : Array.isArray(absensiMadinData?.data)
-      ? (absensiMadinData.data as ApiRecord[])
-      : Array.isArray(absensiMadinData?.records)
-      ? (absensiMadinData.records as ApiRecord[])
-      : [];
-  }, [absensiMadinData]);
+  // Kedisiplinan & Pelanggaran computed stats
+  const violationList = useMemo(() => {
+    return Array.isArray(pelanggaranData?.pelanggaran) ? (pelanggaranData.pelanggaran as ApiRecord[]) : [];
+  }, [pelanggaranData]);
 
-  const sholatStats = (absensiSholatData?.stats ?? absensiSholatData?.statistik ?? absensiSholatData?.ringkasan ?? {}) as ApiRecord;
-  const sholatGrouped = useMemo(() => {
-    return Array.isArray(absensiSholatData?.grouped)
-      ? (absensiSholatData.grouped as ApiRecord[])
-      : Array.isArray(absensiSholatData?.data)
-      ? (absensiSholatData.data as ApiRecord[])
-      : Array.isArray(absensiSholatData?.records)
-      ? (absensiSholatData.records as ApiRecord[])
-      : [];
-  }, [absensiSholatData]);
+  const maxPoinThreshold = Number(pelanggaranData?.settings?.max_poin_panggilan || 100);
+  const currentPoin = Number(pelanggaranData?.total_poin || 0);
+  const totalDendaPending = Number(pelanggaranData?.total_denda_pending || 0);
+  const isOverThreshold = Boolean(pelanggaranData?.is_over_threshold || currentPoin >= maxPoinThreshold);
+  const poinPercentage = Math.min(100, Math.round((currentPoin / maxPoinThreshold) * 100));
 
-  const ngajiStats = (absensiNgajiData?.stats ?? absensiNgajiData?.statistik ?? absensiNgajiData?.ringkasan ?? {}) as ApiRecord;
-  const ngajiGrouped = useMemo(() => {
-    return Array.isArray(absensiNgajiData?.grouped)
-      ? (absensiNgajiData.grouped as ApiRecord[])
-      : Array.isArray(absensiNgajiData?.data)
-      ? (absensiNgajiData.data as ApiRecord[])
-      : Array.isArray(absensiNgajiData?.records)
-      ? (absensiNgajiData.records as ApiRecord[])
-      : [];
-  }, [absensiNgajiData]);
-
-  const totalMadinPresensi = Number(madinStats.total ?? 0);
-  const hadirMadinPresensi = Number(madinStats.hadir ?? 0);
-  const madinPercent = totalMadinPresensi > 0 ? Math.round((hadirMadinPresensi / totalMadinPresensi) * 100) : 100;
+  const filteredPelanggaranList = useMemo(() => {
+    if (pelanggaranFilter === 'belum_tuntas') {
+      return violationList.filter((v) => v.status_denda === 'belum_dibayar' || (v.poin && Number(v.poin) > 0));
+    }
+    if (pelanggaranFilter === 'selesai') {
+      return violationList.filter((v) => v.status_denda !== 'belum_dibayar');
+    }
+    return violationList;
+  }, [violationList, pelanggaranFilter]);
 
   // Nilai records
   const raportList = useMemo(() => {
@@ -1153,17 +1129,21 @@ export function WaliPortalPage() {
 
               <div className="h-10 w-px bg-white/20 hidden sm:block" />
 
-              {/* KEHADIRAN MADIN */}
+              {/* KEDISIPLINAN & POIN PELANGGARAN */}
               <button
                 type="button"
-                onClick={() => setActiveTab('absensi')}
-                className="px-4 py-2.5 text-center rounded-2xl bg-white/15 hover:bg-white/25 border border-white/20 transition cursor-pointer"
+                onClick={() => setActiveTab('pelanggaran')}
+                className={`px-4 py-2.5 text-center rounded-2xl transition cursor-pointer border ${
+                  currentPoin > 0
+                    ? 'bg-rose-500/25 hover:bg-rose-500/35 border-rose-300/40 text-white'
+                    : 'bg-white/15 hover:bg-white/25 border-white/20 text-white'
+                }`}
               >
                 <span className="block text-[10px] uppercase font-black text-white/80 tracking-wider">
-                  Disiplin Kehadiran
+                  Kedisiplinan Santri
                 </span>
                 <span className="text-sm font-black text-white block mt-0.5">
-                  {totalMadinPresensi > 0 ? `${madinPercent}% Hadir` : '100% (Disiplin)'}
+                  {currentPoin === 0 ? '0 Poin (Teladan ✨)' : `⚠️ ${currentPoin} Poin Pelanggaran`}
                 </span>
               </button>
             </div>
@@ -1173,7 +1153,7 @@ export function WaliPortalPage() {
         {/* ========================================================================= */}
         {/* 4. NAVIGATION TABS (MATCHING PROJECT DESIGN SYSTEM) */}
         {/* ========================================================================= */}
-        <nav className="flex items-center gap-2 overflow-x-auto p-1.5 rounded-2xl sm:rounded-[24px] bg-white shadow-xl shadow-black/5 scrollbar-none">
+        <nav className="flex items-center gap-2 overflow-x-auto p-1.5 rounded-2xl sm:rounded-[24px] bg-white dark:bg-slate-900 shadow-xl shadow-black/5 scrollbar-none">
           {[
             {
               key: 'keuangan',
@@ -1183,11 +1163,13 @@ export function WaliPortalPage() {
               badgeColor: 'bg-amber-100 text-[#E65100] font-black border border-amber-300',
             },
             {
-              key: 'absensi',
-              label: 'Absensi Realtime',
-              icon: CalendarCheck,
-              badge: totalMadinPresensi > 0 ? `${hadirMadinPresensi} Hadir` : null,
-              badgeColor: 'bg-[#E8F7F3] text-[#138F81] border border-[#138F81]/30',
+              key: 'pelanggaran',
+              label: 'Kedisiplinan & Pelanggaran',
+              icon: ShieldAlert,
+              badge: currentPoin > 0 ? `${currentPoin} Poin` : 'Bersih',
+              badgeColor: currentPoin > 0
+                ? 'bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400 border border-rose-300 dark:border-rose-800 font-black'
+                : 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-300 font-black',
             },
             { key: 'biodata', label: 'Data Diri Santri', icon: User, badge: null, badgeColor: '' },
             { key: 'nilai', label: 'Nilai & Hafalan', icon: Award, badge: null, badgeColor: '' },
@@ -2729,247 +2711,499 @@ export function WaliPortalPage() {
               </div>
             )}
 
+            {/* TAB 2: KEDISIPLINAN & PENCATATAN PELANGGARAN SANTRI */}
             {/* ========================================================================= */}
-            {/* TAB 2: ABSENSI REALTIME (MADIN, SHOLAT, NGAJI) */}
-            {/* ========================================================================= */}
-            {activeTab === 'absensi' && (
-              <div className="space-y-4 sm:space-y-6">
-                {/* FILTER HEADER (BULAN, TAHUN & SUB-TABS) */}
-                <div className="q-card bg-white rounded-[26px] p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl shadow-black/5">
-                  <div className="flex items-center gap-2">
-                    <Calendar size={18} className="text-[#138F81]" />
-                    <span className="text-xs font-black text-[#2D3436] uppercase tracking-wide">
-                      Filter Periode:
-                    </span>
-                    <select
-                      value={selectedMonth}
-                      onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                      className="px-3 py-1.5 text-xs font-black rounded-xl border border-slate-200 bg-[#f8fafc] text-[#2D3436] focus:ring-2 focus:ring-[#138F81]/30 outline-hidden cursor-pointer"
-                    >
-                      {monthsList.map((m) => (
-                        <option key={m.value} value={m.value}>
-                          {m.label}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={selectedYear}
-                      onChange={(e) => setSelectedYear(Number(e.target.value))}
-                      className="px-3 py-1.5 text-xs font-black rounded-xl border border-slate-200 bg-[#f8fafc] text-[#2D3436] focus:ring-2 focus:ring-[#138F81]/30 outline-hidden cursor-pointer"
-                    >
-                      {[2024, 2025, 2026, 2027].map((y) => (
-                        <option key={y} value={y}>
-                          {y}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={handleReloadAttendance}
-                      className="p-2 text-[#138F81] hover:text-white bg-[#E1EFF7] hover:bg-[#138F81] rounded-xl transition cursor-pointer"
-                      title="Perbarui Data Presensi"
-                    >
-                      <RefreshCw size={14} />
-                    </button>
+            {activeTab === 'pelanggaran' && (
+              <div className="space-y-6 animate-fadeIn">
+                {/* 1. HEADER RINGKASAN KEDISIPLINAN & REFRESH */}
+                <div className="q-card bg-white dark:bg-slate-800 rounded-[28px] p-5 sm:p-6 shadow-xl shadow-black/5 border border-slate-100 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-950/50 text-[#138F81] flex items-center justify-center shrink-0 shadow-inner">
+                      <ShieldAlert size={26} />
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-base sm:text-lg font-black text-[#2D3436] dark:text-white">
+                          Buku Kedisiplinan & Pelanggaran Santri
+                        </h3>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-50 dark:bg-emerald-950/50 text-[#138F81] border border-[#138F81]/20">
+                          🛡️ Pengurus Keamanan
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                        Pemantauan tata tertib, catatan poin pelanggaran, takzir edukatif, dan surat panggilan resmi wali santri.
+                      </p>
+                    </div>
                   </div>
 
-                  {/* 3 SUB-TABS: MADIN, NGAJI, SHOLAT */}
-                  <div className="flex items-center gap-1.5 bg-[#E1EFF7] p-1.5 rounded-2xl">
-                    {[
-                      { id: 'madin', label: 'Madin Diniyah' },
-                      { id: 'sholat', label: 'Jamaah Sholat' },
-                      { id: 'ngaji', label: 'Ngaji Kitab' },
-                    ].map((st) => (
+                  <button
+                    type="button"
+                    onClick={handleReloadPelanggaran}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-black transition cursor-pointer self-start md:self-center"
+                  >
+                    <RefreshCw size={14} />
+                    <span>Perbarui Data</span>
+                  </button>
+                </div>
+
+                {/* 2. EMERGENCY RED BANNER IF OVER THRESHOLD OR HAS CALLING LETTER */}
+                {isOverThreshold && (
+                  <div className="relative overflow-hidden rounded-[26px] bg-gradient-to-r from-rose-600 via-rose-500 to-amber-600 p-5 sm:p-6 text-white shadow-xl shadow-rose-950/20 border-2 border-rose-300/40 animate-pulse">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-start sm:items-center gap-3.5">
+                        <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0 border border-white/30">
+                          <AlertTriangle size={28} className="text-amber-200" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2.5 py-0.5 rounded-full bg-white text-rose-700 text-[10px] font-black uppercase tracking-wider">
+                              Pemberitahuan Mendesak
+                            </span>
+                            <span className="text-xs font-bold text-rose-100">
+                              Ambang Batas Poin Terlampaui ({currentPoin} / {maxPoinThreshold} Poin)
+                            </span>
+                          </div>
+                          <h4 className="text-base sm:text-lg font-black text-white mt-1">
+                            Surat Panggilan Orang Tua / Wali Santri Telah Diterbitkan
+                          </h4>
+                          <p className="text-xs text-rose-100 mt-1 max-w-2xl leading-relaxed">
+                            {pelanggaranData?.settings?.surat_template_body ||
+                              'Akumulasi poin kedisiplinan ananda telah mencapai batas peringatan. Dimohon Bapak/Ibu segera datang ke Kantor Pengurus Keamanan Pondok Pesantren Qomaruddin untuk berkoordinasi dan pembinaan santri.'}
+                          </p>
+                        </div>
+                      </div>
+
                       <button
-                        key={st.id}
                         type="button"
-                        onClick={() => setAbsensiSubTab(st.id as AbsensiSubTab)}
-                        className={`px-4 py-2 text-xs font-black rounded-xl transition cursor-pointer ${
-                          absensiSubTab === st.id
-                            ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25'
-                            : 'text-[#636E72] hover:text-[#138F81]'
+                        onClick={() =>
+                          setViewSuratModal(
+                            pelanggaranData?.surat_panggilan || {
+                              nomor_surat: `SP/KEAMANAN/${new Date().toISOString().slice(0, 10).replace(/-/g, '')}/${String(selectedChildId).padStart(4, '0')}`,
+                              diterbitkan_at: new Date().toISOString(),
+                              total_poin: currentPoin,
+                            }
+                          )
+                        }
+                        className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white text-rose-700 hover:bg-amber-100 text-xs font-black shadow-lg shadow-black/10 transition transform active:scale-95 cursor-pointer shrink-0"
+                      >
+                        <Printer size={15} />
+                        <span>Lihat & Unduh Surat Panggilan 📄</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. THREE METRIC CARDS */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+                  {/* CARD 1: AKUMULASI POIN & PROGRESS BAR */}
+                  <div className="q-card bg-white dark:bg-slate-800 rounded-[26px] p-5 sm:p-6 shadow-xl shadow-black/5 border border-slate-100 dark:border-slate-700 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-500">
+                        Total Poin Pelanggaran
+                      </span>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                          currentPoin === 0
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : isOverThreshold
+                            ? 'bg-rose-100 text-rose-700'
+                            : 'bg-amber-100 text-amber-800'
                         }`}
                       >
-                        {st.label}
+                        {currentPoin === 0 ? 'Bersih ✨' : isOverThreshold ? 'Bahaya ⚠️' : 'Bimbingan ℹ️'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className={`text-3xl font-black ${isOverThreshold ? 'text-rose-600' : currentPoin > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                          {currentPoin}
+                        </span>
+                        <span className="text-xs font-bold text-slate-400">
+                          / {maxPoinThreshold} Batas Maksimal
+                        </span>
+                      </div>
+                      <div className="mt-3 w-full h-2.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            isOverThreshold
+                              ? 'bg-rose-500'
+                              : currentPoin > maxPoinThreshold * 0.5
+                              ? 'bg-amber-500'
+                              : 'bg-emerald-500'
+                          }`}
+                          style={{ width: `${poinPercentage}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 font-semibold pt-1">
+                      {isOverThreshold
+                        ? '🚨 Santri melampaui batas poin kedisiplinan.'
+                        : currentPoin === 0
+                        ? '🌟 Santri berakhlak baik, tidak ada catatan pelanggaran.'
+                        : `ℹ️ Masih dalam batas aman (${maxPoinThreshold - currentPoin} poin tersisa).`}
+                    </p>
+                  </div>
+
+                  {/* CARD 2: STATUS SURAT PANGGILAN */}
+                  <div className="q-card bg-white dark:bg-slate-800 rounded-[26px] p-5 sm:p-6 shadow-xl shadow-black/5 border border-slate-100 dark:border-slate-700 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-500">
+                        Surat Panggilan Orang Tua
+                      </span>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                          isOverThreshold || Boolean(pelanggaranData?.surat_panggilan)
+                            ? 'bg-rose-100 text-rose-700'
+                            : 'bg-emerald-100 text-emerald-800'
+                        }`}
+                      >
+                        {isOverThreshold || Boolean(pelanggaranData?.surat_panggilan) ? 'Wajib Hadir' : 'Nihil'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-black text-[#2D3436] dark:text-white">
+                        {isOverThreshold || Boolean(pelanggaranData?.surat_panggilan)
+                          ? 'Diterbitkan Pengurus Keamanan'
+                          : 'Tidak Ada Surat Panggilan Aktif'}
+                      </p>
+                      <p className="text-xs text-slate-500 font-semibold mt-1">
+                        {isOverThreshold || Boolean(pelanggaranData?.surat_panggilan)
+                          ? 'Wali Santri dimohon segera menghadap ke kantor pondok.'
+                          : 'Pertahankan kedisiplinan dan tata tertib ananda di pondok.'}
+                      </p>
+                    </div>
+
+                    {(isOverThreshold || Boolean(pelanggaranData?.surat_panggilan)) && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setViewSuratModal(
+                            pelanggaranData?.surat_panggilan || {
+                              nomor_surat: `SP/KEAMANAN/${new Date().toISOString().slice(0, 10).replace(/-/g, '')}/${String(selectedChildId).padStart(4, '0')}`,
+                              diterbitkan_at: new Date().toISOString(),
+                              total_poin: currentPoin,
+                            }
+                          )
+                        }
+                        className="inline-flex items-center gap-1.5 text-xs font-black text-rose-600 hover:text-rose-700 hover:underline cursor-pointer pt-1"
+                      >
+                        <FileText size={14} />
+                        <span>Buka Rincian Surat Panggilan Resmi ↗</span>
                       </button>
-                    ))}
+                    )}
+                  </div>
+
+                  {/* CARD 3: DENDA TATA TERTIB (OPSIONAL SESUAI ATURAN ADMIN) */}
+                  <div className="q-card bg-white dark:bg-slate-800 rounded-[26px] p-5 sm:p-6 shadow-xl shadow-black/5 border border-slate-100 dark:border-slate-700 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-500">
+                        Kewajiban Denda Pelanggaran
+                      </span>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                          totalDendaPending > 0
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-emerald-100 text-emerald-800'
+                        }`}
+                      >
+                        {totalDendaPending > 0 ? 'Ada Tagihan' : 'Tuntas'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-2xl sm:text-3xl font-black text-[#138F81] dark:text-teal-400">
+                        Rp {totalDendaPending.toLocaleString('id-ID')}
+                      </span>
+                      <p className="text-xs text-slate-500 font-semibold mt-1">
+                        {totalDendaPending > 0
+                          ? 'Denda diselesaikan langsung ke Kantor Pengurus Keamanan.'
+                          : 'Tidak ada tagihan denda kedisiplinan yang tertunggak.'}
+                      </p>
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 italic pt-1">
+                      * Sesuai ketentuan rapat pengurus keamanan yayasan.
+                    </p>
                   </div>
                 </div>
 
-                {/* STATS COUNTERS */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                  <div className="q-card bg-[#E8F7F3] rounded-[22px] p-4 sm:p-5 border-2 border-[#138F81]/20 shadow-md">
-                    <span className="text-[11px] font-black text-[#138F81] uppercase block">Total Hadir</span>
-                    <p className="text-2xl sm:text-3xl font-black text-[#0D7A6F] mt-1">
-                      {absensiSubTab === 'madin' ? String(madinStats.hadir ?? 0) : absensiSubTab === 'ngaji' ? String(ngajiStats.hadir ?? 0) : String(sholatStats.masuk ?? 0)} Hari
-                    </p>
-                  </div>
-                  <div className="q-card bg-[#E1EFF7] rounded-[22px] p-4 sm:p-5 border-2 border-sky-300/30 shadow-md">
-                    <span className="text-[11px] font-black text-sky-800 uppercase block">Izin</span>
-                    <p className="text-2xl sm:text-3xl font-black text-sky-700 mt-1">
-                      {absensiSubTab === 'madin' ? String(madinStats.izin ?? 0) : absensiSubTab === 'ngaji' ? String(ngajiStats.izin ?? 0) : String(sholatStats.izin ?? 0)} Hari
-                    </p>
-                  </div>
-                  <div className="q-card bg-[#FFF8E1] rounded-[22px] p-4 sm:p-5 border-2 border-amber-300/40 shadow-md">
-                    <span className="text-[11px] font-black text-amber-800 uppercase block">Sakit</span>
-                    <p className="text-2xl sm:text-3xl font-black text-amber-700 mt-1">
-                      {absensiSubTab === 'madin' ? String(madinStats.sakit ?? 0) : absensiSubTab === 'ngaji' ? String(ngajiStats.sakit ?? 0) : String(sholatStats.sakit ?? 0)} Hari
-                    </p>
-                  </div>
-                  <div className="q-card bg-[#FEE2E2] rounded-[22px] p-4 sm:p-5 border-2 border-rose-300/40 shadow-md">
-                    <span className="text-[11px] font-black text-rose-800 uppercase block">Alfa / Tanpa Keterangan</span>
-                    <p className="text-2xl sm:text-3xl font-black text-rose-700 mt-1">
-                      {absensiSubTab === 'madin' ? String(madinStats.alfa ?? 0) : absensiSubTab === 'ngaji' ? String(ngajiStats.alfa ?? 0) : '0'} Hari
-                    </p>
-                  </div>
-                </div>
+                {/* 4. DAFTAR RIWAYAT PELANGGARAN SANTRI */}
+                <div className="q-card bg-white dark:bg-slate-800 rounded-[28px] p-5 sm:p-7 shadow-xl shadow-black/5 border border-slate-100 dark:border-slate-700 space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-700 pb-4">
+                    <div>
+                      <h4 className="text-sm sm:text-base font-black text-[#2D3436] dark:text-white">
+                        Catatan Riwayat Pelanggaran ({violationList.length})
+                      </h4>
+                      <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                        Laporan resmi setiap pelanggaran yang dicatat langsung oleh pengurus keamanan.
+                      </p>
+                    </div>
 
-                {/* LOGS LIST */}
-                <div className="q-card bg-white rounded-[28px] p-5 sm:p-7 space-y-4 shadow-xl shadow-black/5">
-                  <h3 className="text-sm font-black text-[#2D3436] flex items-center justify-between pb-3 border-b border-slate-100">
-                    <span className="flex items-center gap-2">
-                      <CalendarCheck size={18} className="text-[#138F81]" />
-                      Jurnal Kehadiran {absensiSubTab === 'madin' ? 'Madrasah Diniyah' : absensiSubTab === 'ngaji' ? 'Pengajian Kitab Kuning' : 'Sholat Berjamaah'}
-                    </span>
-                    <span className="text-xs font-bold text-[#138F81]">
-                      Bulan {monthsList.find((m) => m.value === selectedMonth)?.label} {selectedYear}
-                    </span>
-                  </h3>
+                    <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700/60 p-1 rounded-2xl self-start sm:self-center">
+                      <button
+                        type="button"
+                        onClick={() => setPelanggaranFilter('all')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
+                          pelanggaranFilter === 'all'
+                            ? 'bg-[#138F81] text-white shadow-sm'
+                            : 'text-slate-600 dark:text-slate-300 hover:text-[#138F81]'
+                        }`}
+                      >
+                        Semua ({violationList.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPelanggaranFilter('belum_tuntas')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
+                          pelanggaranFilter === 'belum_tuntas'
+                            ? 'bg-[#138F81] text-white shadow-sm'
+                            : 'text-slate-600 dark:text-slate-300 hover:text-[#138F81]'
+                        }`}
+                      >
+                        Perlu Diselesaikan ({violationList.filter((v) => v.status_denda === 'belum_dibayar' || Number(v.poin || 0) > 0).length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPelanggaranFilter('selesai')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
+                          pelanggaranFilter === 'selesai'
+                            ? 'bg-[#138F81] text-white shadow-sm'
+                            : 'text-slate-600 dark:text-slate-300 hover:text-[#138F81]'
+                        }`}
+                      >
+                        Tuntas
+                      </button>
+                    </div>
+                  </div>
 
-                  {/* MADIN LOGS */}
-                  {absensiSubTab === 'madin' && (
-                    madinGrouped.length === 0 ? (
-                      <div className="py-12 text-center text-slate-400">
-                        <CalendarCheck size={38} className="mx-auto mb-2 text-[#138F81]/40" />
-                        <p className="text-sm font-black text-[#2D3436]">Belum ada catatan absensi madin pada bulan ini.</p>
-                        {Number(absensiMadinData?.total_all_records ?? 0) > 0 && (
-                          <div className="mt-4 inline-flex flex-col sm:flex-row items-center gap-2.5 p-3 px-4 rounded-2xl bg-amber-50 text-amber-900 border border-amber-200 text-xs font-bold shadow-xs">
-                            <span>💡 Terdeteksi presensi santri tersimpan pada bulan lain. Coba pilih <strong>Bulan Agustus {selectedYear}</strong>:</span>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedMonth(8)}
-                              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-black cursor-pointer shadow-xs transition active:scale-95"
-                            >
-                              Lihat Presensi Agustus
-                            </button>
+                  {filteredPelanggaranList.length === 0 ? (
+                    <div className="py-14 text-center">
+                      <div className="w-16 h-16 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-3">
+                        <CheckCircle2 size={36} />
+                      </div>
+                      <h5 className="text-base font-black text-[#2D3436] dark:text-white">
+                        Alhamdulillah, Tidak Ada Catatan Pelanggaran!
+                      </h5>
+                      <p className="text-xs text-slate-500 font-semibold max-w-md mx-auto mt-1 leading-relaxed">
+                        Ananda senantiasa menjaga ketertiban, sopan santun, dan mematuhi seluruh tata tertib Pondok Pesantren Qomaruddin.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3.5">
+                      {filteredPelanggaranList.map((item, idx) => {
+                        const tingkat = String(item.tingkat || 'Ringan');
+                        const poin = Number(item.poin || 0);
+                        const denda = Number(item.denda || 0);
+                        const isDendaUnpaid = item.status_denda === 'belum_dibayar';
+
+                        return (
+                          <div
+                            key={item.id ? String(item.id) : idx}
+                            className="p-4 sm:p-5 rounded-2xl bg-[#FBFDFC] dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-[#138F81]/40 transition space-y-3 shadow-xs"
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span
+                                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                                      tingkat === 'Berat'
+                                        ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                                        : tingkat === 'Sedang'
+                                        ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                        : 'bg-blue-100 text-blue-800 border border-blue-300'
+                                    }`}
+                                  >
+                                    Pelanggaran {tingkat}
+                                  </span>
+                                  <span className="text-xs font-mono font-bold text-slate-400">
+                                    📅 {String(item.tanggal || '-')} {item.waktu ? `• ⏰ ${item.waktu}` : ''}
+                                  </span>
+                                </div>
+                                <h5 className="text-sm sm:text-base font-black text-[#2D3436] dark:text-white mt-1">
+                                  {String(item.judul_pelanggaran || item.nama_pelanggaran || 'Pelanggaran Tata Tertib')}
+                                </h5>
+                              </div>
+
+                              <div className="flex items-center gap-2 self-start sm:self-auto">
+                                <span className="px-3 py-1 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 text-xs font-black">
+                                  +{poin} Poin
+                                </span>
+                                {denda > 0 && (
+                                  <span
+                                    className={`px-3 py-1 rounded-xl text-xs font-black ${
+                                      isDendaUnpaid
+                                        ? 'bg-amber-100 text-amber-900 border border-amber-300 animate-pulse'
+                                        : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                                    }`}
+                                  >
+                                    Denda: Rp {denda.toLocaleString('id-ID')} ({isDendaUnpaid ? 'Belum Bayar' : 'Lunas'})
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* KETERANGAN & KRONOLOGI */}
+                            {Boolean(item.keterangan) && (
+                              <div className="text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+                                <span className="font-bold text-slate-700 dark:text-slate-200">Keterangan:</span> {String(item.keterangan)}
+                              </div>
+                            )}
+
+                            {/* TAKZIR EDUKATIF */}
+                            {Boolean(item.tindakan_takzir) && (
+                              <div className="text-xs text-emerald-800 dark:text-emerald-300 bg-emerald-50/70 dark:bg-emerald-950/40 p-3 rounded-xl border border-emerald-200 dark:border-emerald-800 flex items-start gap-2">
+                                <span className="font-black shrink-0">📖 Takzir Pembinaan:</span>
+                                <span>{String(item.tindakan_takzir)}</span>
+                              </div>
+                            )}
+
+                            {/* FOOTER METADATA: PETUGAS KEAMANAN & FOTO BUKTI */}
+                            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 font-semibold">
+                              <span>
+                                Petugas Keamanan: <strong className="text-[#2D3436] dark:text-slate-300">{String(item.nama_petugas || 'Pengurus Keamanan')}</strong>
+                              </span>
+
+                              {Boolean(item.bukti_foto) && (
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewProofImage(String(item.bukti_foto))}
+                                  className="inline-flex items-center gap-1.5 text-[#138F81] hover:underline font-bold cursor-pointer"
+                                >
+                                  <Eye size={13} />
+                                  <span>Lihat Bukti Foto</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {madinGrouped.map((day, idx) => {
-                          const records = (Array.isArray(day.records) ? day.records : []) as ApiRecord[];
-                          return (
-                            <div key={idx} className="p-4 rounded-2xl bg-[#f8fafc] border border-slate-200">
-                              <div className="flex items-center justify-between mb-2.5">
-                                <span className="text-xs font-black text-[#2D3436]">
-                                  📅 {String(day.hari || '')}, {String(day.tanggal || '')}
-                                </span>
-                                <span className="text-[10px] font-extrabold text-[#138F81]">{records.length} Mata Pelajaran</span>
-                              </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                {records.map((rec, rIdx) => (
-                                  <div key={rIdx} className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-                                    <div>
-                                      <p className="text-xs font-black text-[#2D3436]">{String(rec.mapel || 'Pelajaran')}</p>
-                                      <p className="text-[10px] text-[#636E72] font-medium">Pengajar: {String(rec.diinput_oleh || 'Ustadz')}</p>
-                                    </div>
-                                    <span
-                                      className={`text-[10px] font-black px-2.5 py-0.5 rounded-md ${
-                                        rec.status === 'Hadir'
-                                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
-                                          : rec.status === 'Izin'
-                                          ? 'bg-sky-50 text-sky-700 border border-sky-300'
-                                          : rec.status === 'Sakit'
-                                          ? 'bg-amber-50 text-amber-800 border border-amber-300'
-                                          : 'bg-rose-50 text-rose-700 border border-rose-300'
-                                      }`}
-                                    >
-                                      {String(rec.status || 'Hadir')}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )
-                  )}
-
-                  {/* SHOLAT LOGS */}
-                  {absensiSubTab === 'sholat' && (
-                    sholatGrouped.length === 0 ? (
-                      <div className="py-12 text-center text-slate-400">
-                        <Home size={38} className="mx-auto mb-2 text-[#138F81]/40" />
-                        <p className="text-sm font-black text-[#2D3436]">Belum ada catatan absensi sholat pada bulan ini.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {sholatGrouped.map((day, idx) => {
-                          const records = (Array.isArray(day.records) ? day.records : []) as ApiRecord[];
-                          return (
-                            <div key={idx} className="p-4 rounded-2xl bg-[#f8fafc] border border-slate-200">
-                              <div className="flex items-center justify-between mb-2.5">
-                                <span className="text-xs font-black text-[#2D3436]">
-                                  🕌 {String(day.hari || '')}, {String(day.tanggal || '')}
-                                </span>
-                              </div>
-                              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                                {records.map((rec, rIdx) => (
-                                  <div key={rIdx} className="bg-white p-2.5 rounded-xl border border-slate-200 text-center shadow-2xs">
-                                    <p className="text-[11px] font-black text-[#2D3436]">{String(rec.jenis_sholat || 'Sholat')}</p>
-                                    <span className="inline-block mt-1 text-[10px] font-black px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-300">
-                                      {String(rec.status || 'Masuk')}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )
-                  )}
-
-                  {/* NGAJI LOGS */}
-                  {absensiSubTab === 'ngaji' && (
-                    ngajiGrouped.length === 0 ? (
-                      <div className="py-12 text-center text-slate-400">
-                        <BookOpen size={38} className="mx-auto mb-2 text-[#138F81]/40" />
-                        <p className="text-sm font-black text-[#2D3436]">Belum ada catatan absensi ngaji pada bulan ini.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {ngajiGrouped.map((day, idx) => {
-                          const records = (Array.isArray(day.records) ? day.records : []) as ApiRecord[];
-                          return (
-                            <div key={idx} className="p-4 rounded-2xl bg-[#f8fafc] border border-slate-200">
-                              <div className="flex items-center justify-between mb-2.5">
-                                <span className="text-xs font-black text-[#2D3436]">
-                                  📖 {String(day.hari || '')}, {String(day.tanggal || '')}
-                                </span>
-                              </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                {records.map((rec, rIdx) => (
-                                  <div key={rIdx} className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-                                    <div>
-                                      <p className="text-xs font-black text-[#2D3436]">{String(rec.kitab || rec.mapel || 'Ngaji Kitab')}</p>
-                                      <p className="text-[10px] text-[#636E72] font-medium">Sesi: {String(rec.sesi || 'Kajian Sore')}</p>
-                                    </div>
-                                    <span className="text-[10px] font-black px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-300">
-                                      {String(rec.status || 'Masuk')}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
+
+                {/* 5. OFFICIAL SURAT PANGGILAN MODAL (RESMI DENGAN KOP SURAT) */}
+                {viewSuratModal && (
+                  <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white">
+                    <div className="bg-white text-slate-900 rounded-[28px] max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative border border-slate-200 print:border-none print:shadow-none print:p-0">
+                      {/* MODAL CONTROLS (HIDDEN IN PRINT) */}
+                      <div className="flex items-center justify-between border-b pb-4 mb-6 print:hidden">
+                        <div className="flex items-center gap-2">
+                          <ShieldAlert className="text-rose-600" size={22} />
+                          <h4 className="text-base font-black text-slate-900">
+                            Surat Panggilan Resmi Orang Tua / Wali
+                          </h4>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => window.print()}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#138F81] text-white text-xs font-black hover:bg-[#0D7A6F] shadow-sm transition cursor-pointer"
+                          >
+                            <Printer size={14} />
+                            <span>Cetak Surat</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setViewSuratModal(null)}
+                            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                          >
+                            <X size={18} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* SURAT CONTENT (FORMAL PESANTREN LETTERHEAD) */}
+                      <div className="space-y-5 text-xs text-slate-800 leading-relaxed font-serif">
+                        {/* KOP SURAT */}
+                        <div className="text-center border-b-2 border-slate-900 pb-3">
+                          <img
+                            src={qomaruddinLogo}
+                            alt="Logo Pesantren"
+                            className="w-14 h-14 mx-auto mb-1.5 object-contain"
+                          />
+                          <h2 className="text-sm sm:text-base font-black tracking-wider uppercase font-sans text-slate-900">
+                            YAYASAN PONDOK PESANTREN QOMARUDDIN
+                          </h2>
+                          <h3 className="text-xs font-black uppercase tracking-wider font-sans text-[#138F81]">
+                            PENGURUS BAGIAN KETERTIBAN & KEAMANAN SANTRI
+                          </h3>
+                          <p className="text-[10px] text-slate-600 font-sans mt-0.5">
+                            Jl. Raya Sampurnan No. 01, Bungah, Gresik, Jawa Timur 61152 • Telp: (031) 3949xxx
+                          </p>
+                        </div>
+
+                        {/* NOMOR & PERIHAL */}
+                        <div className="flex justify-between font-sans text-xs">
+                          <div>
+                            <p><strong>Nomor :</strong> {String(viewSuratModal.nomor_surat || viewSuratModal.surat_panggilan_nomor || 'SP/KEAMANAN/RESMI')}</p>
+                            <p><strong>Lampiran :</strong> -</p>
+                            <p><strong>Perihal :</strong> <span className="underline font-bold">Panggilan Orang Tua / Wali Santri Terkait Kedisiplinan</span></p>
+                          </div>
+                          <div className="text-right">
+                            <p>Bungah, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                          </div>
+                        </div>
+
+                        {/* TUJUAN SURAT */}
+                        <div className="font-sans text-xs">
+                          <p>Kepada Yth.</p>
+                          <p className="font-bold">Bapak / Ibu Wali Santri dari ananda:</p>
+                          <div className="pl-4 mt-1 space-y-0.5 font-mono text-[11px]">
+                            <p>Nama Santri : <strong>{studentName}</strong></p>
+                            <p>NIS : <strong>{studentNis}</strong></p>
+                            <p>Kelas Madin : <strong>{studentKelas}</strong></p>
+                            <p>Asrama/Kamar : <strong>{studentKomplek} / {studentKamar}</strong></p>
+                          </div>
+                          <p className="mt-1">Di Tempat</p>
+                        </div>
+
+                        {/* SALAM & ISI SURAT */}
+                        <div className="space-y-2">
+                          <p className="italic font-bold">Assalamu'alaikum Warahmatullahi Wabarakatuh,</p>
+                          <p>
+                            Semoga limpahan rahmat, taufiq, serta hidayah Allah SWT senantiasa menyertai Bapak/Ibu sekalian dalam menjalankan aktivitas sehari-hari.
+                          </p>
+                          <p>
+                            Sehubungan dengan adanya evaluasi kedisiplinan dan tata tertib santri di Pondok Pesantren Qomaruddin, dengan ini kami memberitahukan bahwa ananda telah memperoleh akumulasi poin pelanggaran sebesar <strong className="text-rose-700 font-black font-sans text-sm">{currentPoin} Poin</strong> (telah mencapai ambang batas peringatan {maxPoinThreshold} poin).
+                          </p>
+                          <p>
+                            Guna kebaikan dan kelancaran pendidikan ananda ke depan, kami mengharap kehadiran Bapak/Ibu Wali Santri ke Kantor Pengurus Keamanan Pondok Pesantren Qomaruddin pada:
+                          </p>
+
+                          <div className="pl-5 my-2 space-y-1 font-sans font-bold bg-slate-50 p-3 rounded-xl border border-slate-200">
+                            <p>Hari / Tanggal : Segera dalam 3 (tiga) hari kerja sejak diterbitkan</p>
+                            <p>Waktu : 08.30 - 15.00 WIB</p>
+                            <p>Tempat : Kantor Pengurus Bagian Keamanan Pondok Pesantren Qomaruddin</p>
+                            <p>Keperluan : Koordinasi, Evaluasi Kedisiplinan & Bimbingan Ananda</p>
+                          </div>
+
+                          <p>
+                            Mengingat pentingnya koordinasi ini demi masa depan dan akhlak ananda, kami sangat mengharapkan kehadiran Bapak/Ibu tepat pada waktunya.
+                          </p>
+                          <p className="italic font-bold pt-1">Wassalamu'alaikum Warahmatullahi Wabarakatuh.</p>
+                        </div>
+
+                        {/* TANDA TANGAN */}
+                        <div className="pt-4 flex justify-end font-sans">
+                          <div className="text-center w-56">
+                            <p className="text-[11px] text-slate-600">Pengurus Bagian Keamanan,</p>
+                            <p className="text-[11px] font-bold text-slate-800">Pondok Pesantren Qomaruddin</p>
+                            <div className="h-16 flex items-center justify-center">
+                              <span className="px-3 py-1 rounded-lg border-2 border-dashed border-[#138F81] text-[#138F81] font-mono text-[10px] font-bold rotate-[-3deg]">
+                                STEMPEL DIGITAL RESMI KEAMANAN
+                              </span>
+                            </div>
+                            <p className="font-bold underline text-xs">Ustadz M. Farhan, S.Pd.I</p>
+                            <p className="text-[10px] text-slate-500">Kepala Bagian Keamanan Santri</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

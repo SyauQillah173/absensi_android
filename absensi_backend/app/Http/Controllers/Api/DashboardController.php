@@ -533,6 +533,9 @@ class DashboardController extends Controller
         $jadwalCardsBesok = $jadwalBesok->map(fn (Jadwal $j) => $formatCard($j, false, true))->values();
         $jadwalCardsMingguan = $allJadwal->map(fn (Jadwal $j) => $formatCard($j, $j->hari === $todayDay, $j->hari === $tomorrowDay))->values();
 
+        // 3. Madin Access for Guru (hanya jika ada jadwal KBM yang diatur admin)
+        $canMadin = $allJadwal->isNotEmpty() || $guru->role === 'admin';
+
         // 4. Sholat Access for Guru
         $sholatAccess = GuruAbsensiSholatAccess::query()
             ->where('user_id', $guru->id)
@@ -563,7 +566,7 @@ class DashboardController extends Controller
                 'unit_kerja' => $guru->unit_kerja ?: 'Madrasah Diniyah PP Qomaruddin',
             ],
             'hak_akses' => [
-                'absen_madin' => true,
+                'absen_madin' => $canMadin,
                 'absen_sholat' => $canSholat,
                 'absen_ngaji' => $canNgaji,
                 'nilai' => true,

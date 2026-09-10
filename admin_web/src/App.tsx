@@ -18,6 +18,7 @@ const NilaiHafalanPage = lazy(() => import('./pages/NilaiHafalanPage').then((m) 
 const HakAksesPage = lazy(() => import('./pages/HakAksesPage').then((m) => ({ default: m.HakAksesPage })));
 const WhatsAppBotPage = lazy(() => import('./pages/WhatsAppBotPage').then((m) => ({ default: m.WhatsAppBotPage })));
 const AccountPage = lazy(() => import('./pages/AccountPage').then((m) => ({ default: m.AccountPage })));
+const PelanggaranPage = lazy(() => import('./pages/PelanggaranPage').then((m) => ({ default: m.PelanggaranPage })));
 const ReceiptPrintPage = lazy(() => import('./pages/ReceiptPrintPage').then((m) => ({ default: m.ReceiptPrintPage })));
 const ExpensePrintPage = lazy(() => import('./pages/ExpensePrintPage').then((m) => ({ default: m.ExpensePrintPage })));
 const KartuSantriPrintPage = lazy(() => import('./pages/KartuSantriPrintPage').then((m) => ({ default: m.KartuSantriPrintPage })));
@@ -105,8 +106,12 @@ function AdminShell() {
   };
 
   const [activePage, setActivePage] = useState<PageKey>(() => {
-    if (session?.role === 'admin' && String(session?.admin_type || '').toLowerCase() === 'pmb') {
+    const adminType = String(session?.admin_type || '').toLowerCase();
+    if (session?.role === 'admin' && adminType === 'pmb') {
       return 'pmb';
+    }
+    if (session?.role === 'keamanan' || (session?.role === 'admin' && adminType === 'keamanan')) {
+      return 'pelanggaran';
     }
     return 'dashboard';
   });
@@ -174,6 +179,7 @@ function AdminShell() {
     nilai: 'nilai',
     'hak-akses': 'hak_akses',
     pmb: 'pmb',
+    pelanggaran: 'pelanggaran',
   };
   const safePage = activePage === 'account' || canView(pagePermissionKeys[activePage] ?? activePage) ? activePage : 'dashboard';
 
@@ -239,6 +245,7 @@ function AdminShell() {
         {safePage === 'hak-akses' && isItAdmin ? <HakAksesPage /> : null}
         {safePage === 'account' ? <AccountPage /> : null}
         {safePage === 'pmb' ? <PmbAdminPage initialTab={pmbTab} onTabChange={setPmbTab} /> : null}
+        {safePage === 'pelanggaran' ? <PelanggaranPage /> : null}
       </Suspense>
     </AdminLayout>
   );

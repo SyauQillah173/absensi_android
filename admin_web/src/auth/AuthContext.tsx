@@ -9,6 +9,7 @@ interface AuthContextValue {
   isMainAdmin: boolean;
   isTreasurer: boolean;
   isPmbAdmin: boolean;
+  isKeamanan: boolean;
   isGuru: boolean;
   isKepalaSekolah: boolean;
   pmbVisibleToPengurus: boolean;
@@ -129,6 +130,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const isKepalaSekolah = session?.role === 'admin' && ['madrasah', 'absensi', 'kepala_madrasah', 'kepala_sekolah', 'monitoring', 'kepala'].includes(adminType);
     // 5. Admin PMB (Panitia Penerimaan Santri Baru)
     const isPmbAdmin = session?.role === 'admin' && ['pmb', 'admin_pmb'].includes(adminType);
+    // 6. Pengurus Keamanan: Kedisiplinan & Pelanggaran Santri
+    const isKeamanan = session?.role === 'keamanan' || (session?.role === 'admin' && ['keamanan', 'pengurus_keamanan', 'tatib', 'ketertiban'].includes(adminType));
     
     const byKey = (session?.permissions && typeof session.permissions === 'object'
       ? (session.permissions.by_key as ApiRecord | undefined)
@@ -168,6 +171,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (isPmbAdmin) {
         return ['dashboard', 'pmb'].includes(menuKey);
       }
+      if (isKeamanan) {
+        return ['dashboard', 'pelanggaran', 'pelanggaran_menu', 'kesiswaan', 'buku_induk', 'account'].includes(menuKey);
+      }
       const permission = byKey[menuKey];
       if (permission && typeof permission === 'object') {
         const row = permission as ApiRecord;
@@ -186,6 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isMainAdmin,
       isTreasurer,
       isPmbAdmin,
+      isKeamanan: Boolean(isKeamanan),
       isGuru,
       isKepalaSekolah,
       pmbVisibleToPengurus,

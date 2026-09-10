@@ -89,7 +89,8 @@ export type PageKey =
   | "nilai"
   | "hak-akses"
   | "account"
-  | "pmb";
+  | "pmb"
+  | "pelanggaran";
 
 export interface MenuItem {
   key: string;
@@ -184,6 +185,12 @@ const allMenu: MenuItem[] = [
 
   { key: "nilai", label: "Nilai & Hafalan", icon: ListChecks, page: "nilai" },
   {
+    key: "pelanggaran_menu",
+    label: "Kedisiplinan & Pelanggaran",
+    icon: ShieldAlert,
+    page: "pelanggaran",
+  },
+  {
     key: "keuangan_menu",
     label: "Keuangan & Kas",
     icon: WalletCards,
@@ -244,6 +251,8 @@ const menuPermissionKeys: Record<string, string> = {
   account: "dashboard",
   pmb_menu: "pmb",
   pmb: "pmb",
+  pelanggaran_menu: "pelanggaran",
+  pelanggaran: "pelanggaran",
 };
 
 export function AdminLayout({
@@ -255,7 +264,7 @@ export function AdminLayout({
   onNavigate,
   children,
 }: AdminLayoutProps) {
-  const { session, logout, canView, isGuru, isTreasurer, isKepalaSekolah, isItAdmin, isPmbAdmin } = useAuth();
+  const { session, logout, canView, isGuru, isTreasurer, isKepalaSekolah, isItAdmin, isPmbAdmin, isKeamanan } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -440,41 +449,66 @@ export function AdminLayout({
 
   const menu = useMemo<MenuItem[]>(() => {
     // 1. Role Guru: Khusus KBM (Dashboard, Input Presensi, Nilai - Tanpa Rekap)
+    // Sesuai aturan: Input presensi madin, sholat, dan ngaji HANYA muncul jika ustadz sudah diatur/dijadwalkan oleh admin
     if (isGuru) {
-      const guruAbsensiChildren: NonNullable<MenuItem['children']> = [
-        { label: "Input Presensi Madin", page: "absensi", absensiTab: "madin-input", icon: ClipboardCheck }
-      ];
+      const guruAbsensiChildren: NonNullable<MenuItem['children']> = [];
+
+      // Presensi Madin hanya muncul jika ustadz punya jadwal mengajar aktif
+      if (session?.hak_akses?.absen_madin === true) {
+        guruAbsensiChildren.push({
+          label: "Input Presensi Madin",
+          page: "absensi",
+          absensiTab: "madin-input",
+          icon: ClipboardCheck,
+        });
+      }
 
       // Absen Sholat hanya muncul jika diizinkan / ditugaskan oleh admin
       if (session?.hak_akses?.absen_sholat === true) {
-        guruAbsensiChildren.push({ label: "Input Presensi Sholat", page: "absensi", absensiTab: "sholat", icon: Clock3 });
+        guruAbsensiChildren.push({
+          label: "Input Presensi Sholat",
+          page: "absensi",
+          absensiTab: "sholat",
+          icon: Clock3,
+        });
       }
 
       // Absen Ngaji hanya muncul jika diizinkan / ditugaskan oleh admin
       if (session?.hak_akses?.absen_ngaji === true) {
-        guruAbsensiChildren.push({ label: "Input Presensi Ngaji", page: "absensi", absensiTab: "ngaji", icon: BookOpen });
+        guruAbsensiChildren.push({
+          label: "Input Presensi Ngaji",
+          page: "absensi",
+          absensiTab: "ngaji",
+          icon: BookOpen,
+        });
       }
 
-      return [
+      const guruMenu: MenuItem[] = [
         {
           key: "dashboard",
           label: "Dashboard",
           icon: Home,
           page: "dashboard",
         },
-        {
+      ];
+
+      if (guruAbsensiChildren.length > 0) {
+        guruMenu.push({
           key: "absensi_menu",
           label: "Presensi & Absensi",
           icon: CalendarCheck,
           children: guruAbsensiChildren,
-        },
-        {
-          key: "nilai",
-          label: "Nilai & Hafalan",
-          icon: ListChecks,
-          page: "nilai",
-        },
-      ];
+        });
+      }
+
+      guruMenu.push({
+        key: "nilai",
+        label: "Nilai & Hafalan",
+        icon: ListChecks,
+        page: "nilai",
+      });
+
+      return guruMenu;
     }
 
     // 2. Role Bendahara: Khusus Transaksi & Kas Keuangan
@@ -582,6 +616,40 @@ export function AdminLayout({
       ];
     }
 
+    // 3.6 Role Pengurus Keamanan: Khusus Kedisiplinan & Pelanggaran Santri, Data Kamar & Siswa
+    if (isKeamanan) {
+      return [
+        {
+          key: "dashboard",
+          label: "Dashboard Keamanan",
+          icon: Home,
+          page: "dashboard" as PageKey,
+        },
+        {
+          key: "pelanggaran_menu",
+          label: "Kedisiplinan & Pelanggaran",
+          icon: ShieldAlert,
+          page: "pelanggaran" as PageKey,
+        },
+        {
+          key: "kesiswaan",
+          label: "Data Santri & Asrama",
+          icon: UsersRound,
+          children: [
+            { label: "Data Siswa/Santri", page: "master" as PageKey, masterSection: "siswa", icon: UserCheck },
+            { label: "Data Kamar Pondok", page: "master" as PageKey, masterSection: "pondok", icon: BedDouble },
+          ],
+        },
+        {
+          key: "pengaturan_sistem",
+          label: "Pengaturan & Akun",
+          icon: Settings,
+          children: [
+            { label: "Pengaturan Akun", page: "account" as PageKey, icon: UserCog },
+          ],
+        },
+      ];
+    }
 
     // 4. Role Admin Utama & Pengurus: Full Access, tapi menu dengan itOnly HANYA untuk Admin IT
     return allMenu
@@ -598,7 +666,7 @@ export function AdminLayout({
       .filter((item) =>
         canView(menuPermissionKeys[item.key] ?? item.key),
       );
-  }, [canView, isGuru, isTreasurer, isKepalaSekolah, isItAdmin]);
+  }, [canView, isGuru, isTreasurer, isKepalaSekolah, isItAdmin, isPmbAdmin, isKeamanan, session?.hak_akses]);
 
   const collapsed = mobileOpen ? false : sidebarCollapsed;
 
