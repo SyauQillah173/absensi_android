@@ -64,7 +64,7 @@ class ItSystemControlController extends Controller
 
         // Ambil daftar guru untuk dropdown pilihan override
         $teachers = User::where('role', 'guru')
-            ->select('id', 'name', 'username', 'email')
+            ->select('id', 'name', 'email', 'kode_guru')
             ->orderBy('name')
             ->get();
 

@@ -382,7 +382,7 @@ export function ItSystemMasterControlSection() {
                   <option value="">-- Pilih Guru --</option>
                   {attendanceData?.teachers?.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.name} ({t.username || t.email || `ID: ${t.id}`})
+                      {t.name} ({t.kode_guru ? `Kode: ${t.kode_guru}` : t.email || `ID: ${t.id}`})
                     </option>
                   ))}
                 </select>

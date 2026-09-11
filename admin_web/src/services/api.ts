@@ -163,8 +163,9 @@ export interface ItGuruAttendanceOverride {
   teacher?: {
     id: number;
     name: string;
-    username: string;
-    email: string;
+    username?: string;
+    email?: string;
+    kode_guru?: string;
   };
   jadwal?: {
     id: number;
@@ -181,7 +182,7 @@ export interface ItGuruAttendanceOverride {
 export interface ItAttendanceSettingsResponse {
   global: ItGlobalAttendanceConfig;
   overrides: ItGuruAttendanceOverride[];
-  teachers: Array<{ id: number; name: string; username: string; email: string }>;
+  teachers: Array<{ id: number; name: string; username?: string; email?: string; kode_guru?: string }>;
   jadwals: Array<{
     id: number;
     teacher_id: number;

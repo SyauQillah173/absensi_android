@@ -132,7 +132,7 @@ class ItNotificationEngineService
             // Cari user guru
             $teacher = $j->teacher;
             if (!$teacher && !empty($j->guru)) {
-                $teacher = User::where('name', $j->guru)->orWhere('username', $j->guru)->first();
+                $teacher = User::where('name', $j->guru)->orWhere('kode_guru', $j->guru)->first();
             }
 
             if (!$teacher) {

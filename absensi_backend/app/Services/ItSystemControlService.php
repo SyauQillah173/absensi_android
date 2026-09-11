@@ -54,7 +54,7 @@ class ItSystemControlService
      */
     public function getGuruOverrides(): Collection
     {
-        return ItGuruAttendanceOverride::with(['teacher:id,name,username,email,no_hp,role', 'jadwal.mapel', 'jadwal.kelas'])
+        return ItGuruAttendanceOverride::with(['teacher:id,name,email,no_hp,role,kode_guru', 'jadwal.mapel', 'jadwal.kelas'])
             ->orderByDesc('id')
             ->get();
     }
@@ -86,7 +86,7 @@ class ItSystemControlService
             $override = ItGuruAttendanceOverride::create($payload);
         }
 
-        return $override->load(['teacher:id,name,username,email', 'jadwal.mapel', 'jadwal.kelas']);
+        return $override->load(['teacher:id,name,email,kode_guru', 'jadwal.mapel', 'jadwal.kelas']);
     }
 
     /**
@@ -123,7 +123,7 @@ class ItSystemControlService
         $override->updated_by = $userId ?: auth()->id();
         $override->save();
 
-        return $override->load(['teacher:id,name,username,email', 'jadwal.mapel', 'jadwal.kelas']);
+        return $override->load(['teacher:id,name,email,kode_guru', 'jadwal.mapel', 'jadwal.kelas']);
     }
 
     /**
