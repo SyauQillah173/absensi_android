@@ -22,6 +22,7 @@ import {
   Zap
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { ToastNotification, type ToastType } from './ToastNotification';
 import {
   api,
   type ItAttendanceSettingsResponse,
@@ -35,6 +36,32 @@ export function ItSystemMasterControlSection() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  // Floating Toast State (Pojok Kanan Atas)
+  const [toast, setToast] = useState<{
+    show: boolean;
+    message: string;
+    type: ToastType;
+    title?: string;
+  } | null>(null);
+
+  const showToast = (text: string, type: ToastType = 'success', title?: string) => {
+    setMessage({ text, type: type === 'warning' ? 'info' : type });
+    setToast({
+      show: true,
+      message: text,
+      type,
+      title: title || (type === 'success' ? 'Berhasil Disimpan!' : type === 'error' ? 'Gagal Disimpan' : 'Informasi Sistem'),
+    });
+  };
+
+  useEffect(() => {
+    if (!toast?.show) return;
+    const timer = setTimeout(() => {
+      setToast(null);
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   // Data State
   const [attendanceData, setAttendanceData] = useState<ItAttendanceSettingsResponse | null>(null);
@@ -124,7 +151,9 @@ export function ItSystemMasterControlSection() {
       } else {
         await loadNotificationSettings();
       }
-      setMessage({ text: 'Data master kontrol IT berhasil disegarkan.', type: 'info' });
+      showToast('Data master kontrol IT berhasil disegarkan.', 'info', 'Data Diperbarui');
+    } catch (err: any) {
+      showToast(err.message || 'Gagal menyegarkan data.', 'error', 'Gagal Refresh');
     } finally {
       setRefreshing(false);
     }
@@ -139,11 +168,11 @@ export function ItSystemMasterControlSection() {
       const res = await api.saveItGlobalAttendance(globalForm);
       if (res.data) {
         setGlobalForm(res.data);
-        setMessage({ text: 'Konfigurasi default presensi guru berhasil diperbarui!', type: 'success' });
+        showToast('Konfigurasi default presensi guru berhasil diperbarui!', 'success', 'Pengaturan Berhasil Disimpan!');
         await loadAttendanceSettings();
       }
     } catch (err: any) {
-      setMessage({ text: err.message || 'Gagal menyimpan pengaturan global.', type: 'error' });
+      showToast(err.message || 'Gagal menyimpan pengaturan global.', 'error', 'Gagal Menyimpan Pengaturan');
     } finally {
       setSavingGlobal(false);
     }
@@ -187,7 +216,7 @@ export function ItSystemMasterControlSection() {
   const handleSaveOverride = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!overrideForm.teacher_id) {
-      alert('Silakan pilih guru terlebih dahulu.');
+      showToast('Silakan pilih guru terlebih dahulu.', 'warning', 'Perhatian');
       return;
     }
 
@@ -206,14 +235,15 @@ export function ItSystemMasterControlSection() {
         notes: overrideForm.notes || null,
       });
 
-      setMessage({
-        text: `Aturan khusus untuk guru berhasil ${editingOverride ? 'diperbarui' : 'ditambahkan'}!`,
-        type: 'success',
-      });
+      showToast(
+        `Aturan khusus presensi guru berhasil ${editingOverride ? 'diperbarui' : 'ditambahkan'}!`,
+        'success',
+        'Override Berhasil Disimpan!'
+      );
       setIsFormActive(false);
       await loadAttendanceSettings();
     } catch (err: any) {
-      setMessage({ text: err.message || 'Gagal menyimpan aturan override.', type: 'error' });
+      showToast(err.message || 'Gagal menyimpan aturan override.', 'error', 'Gagal Menyimpan Override');
     } finally {
       setSavingOverride(false);
     }
@@ -224,10 +254,10 @@ export function ItSystemMasterControlSection() {
     if (!confirm(`Hapus aturan khusus presensi untuk guru "${teacherName}"?`)) return;
     try {
       await api.deleteItGuruOverride(id);
-      setMessage({ text: 'Aturan khusus berhasil dihapus.', type: 'info' });
+      showToast('Aturan khusus guru berhasil dihapus.', 'info', 'Aturan Dihapus');
       await loadAttendanceSettings();
     } catch (err: any) {
-      setMessage({ text: err.message || 'Gagal menghapus aturan.', type: 'error' });
+      showToast(err.message || 'Gagal menghapus aturan.', 'error', 'Gagal Menghapus');
     }
   };
 
@@ -235,9 +265,14 @@ export function ItSystemMasterControlSection() {
   const handleToggleForce = async (id: number, type: 'force_open' | 'force_locked') => {
     try {
       await api.toggleItForceStatus(id, type);
+      showToast(
+        type === 'force_open' ? 'Mode Buka Paksa presensi berhasil diubah!' : 'Mode Kunci Paksa presensi berhasil diubah!',
+        'success',
+        'Status Kontrol Diperbarui'
+      );
       await loadAttendanceSettings();
     } catch (err: any) {
-      alert(err.message || 'Gagal mengubah status kontrol darurat.');
+      showToast(err.message || 'Gagal mengubah status kontrol darurat.', 'error', 'Gagal Mengubah Status');
     }
   };
 
@@ -248,10 +283,10 @@ export function ItSystemMasterControlSection() {
     setMessage(null);
     try {
       await api.saveItNotificationSettings('wali_billing', notificationData.wali_billing);
-      setMessage({ text: 'Pengaturan otomatisasi notifikasi SPP wali berhasil disimpan!', type: 'success' });
+      showToast('Pengaturan otomatisasi notifikasi SPP wali berhasil disimpan!', 'success', 'Konfigurasi SPP Disimpan!');
       await loadNotificationSettings();
     } catch (err: any) {
-      setMessage({ text: err.message || 'Gagal menyimpan konfigurasi notifikasi SPP.', type: 'error' });
+      showToast(err.message || 'Gagal menyimpan konfigurasi notifikasi SPP.', 'error', 'Gagal Menyimpan');
     } finally {
       setSavingNotification(null);
     }
@@ -264,10 +299,10 @@ export function ItSystemMasterControlSection() {
     setMessage(null);
     try {
       await api.saveItNotificationSettings('guru_deadline', notificationData.guru_deadline);
-      setMessage({ text: 'Pengaturan peringatan presensi guru berhasil disimpan!', type: 'success' });
+      showToast('Pengaturan peringatan presensi guru berhasil disimpan!', 'success', 'Konfigurasi Guru Disimpan!');
       await loadNotificationSettings();
     } catch (err: any) {
-      setMessage({ text: err.message || 'Gagal menyimpan konfigurasi peringatan guru.', type: 'error' });
+      showToast(err.message || 'Gagal menyimpan konfigurasi peringatan guru.', 'error', 'Gagal Menyimpan');
     } finally {
       setSavingNotification(null);
     }
@@ -285,13 +320,14 @@ export function ItSystemMasterControlSection() {
     setMessage(null);
     try {
       const res = await api.triggerItWaliBillingReminder(false);
-      setMessage({
-        text: res.message || 'Notifikasi pengingat SPP berhasil dikirimkan ke wali santri yang belum lunas.',
-        type: 'success',
-      });
+      showToast(
+        res.message || 'Notifikasi pengingat SPP berhasil dikirimkan ke wali santri yang belum lunas.',
+        'success',
+        'Broadcast Berhasil Terkirim!'
+      );
       await loadNotificationSettings();
     } catch (err: any) {
-      setMessage({ text: err.message || 'Gagal mengirimkan notifikasi pengingat SPP.', type: 'error' });
+      showToast(err.message || 'Gagal mengirimkan notifikasi pengingat SPP.', 'error', 'Gagal Mengirim');
     } finally {
       setTriggeringNotification(null);
     }
@@ -307,13 +343,14 @@ export function ItSystemMasterControlSection() {
     setMessage(null);
     try {
       const res = await api.triggerItGuruReminder(true);
-      setMessage({
-        text: res.message || 'Peringatan presensi terkirim ke guru yang jadwalnya belum lengkap hari ini.',
-        type: 'success',
-      });
+      showToast(
+        res.message || 'Peringatan presensi terkirim ke guru yang jadwalnya belum lengkap hari ini.',
+        'success',
+        'Peringatan Berhasil Terkirim!'
+      );
       await loadNotificationSettings();
     } catch (err: any) {
-      setMessage({ text: err.message || 'Gagal mengirimkan peringatan presensi guru.', type: 'error' });
+      showToast(err.message || 'Gagal mengirimkan peringatan presensi guru.', 'error', 'Gagal Mengirim');
     } finally {
       setTriggeringNotification(null);
     }
@@ -326,6 +363,14 @@ export function ItSystemMasterControlSection() {
   if (isFormActive) {
     return (
       <div className="w-full flex-1">
+        {/* Floating Toast Notification (Pojok Kanan Atas) */}
+        <ToastNotification
+          show={Boolean(toast?.show)}
+          type={toast?.type || 'success'}
+          title={toast?.title}
+          message={toast?.message || ''}
+          onClose={() => setToast(null)}
+        />
         <div className="flex w-full flex-col overflow-hidden bg-white shadow-sm ring-1 ring-slate-200 sm:rounded-3xl">
           {/* Header Card Form Konsisten */}
           <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
@@ -599,6 +644,15 @@ export function ItSystemMasterControlSection() {
   // =========================================================================
   return (
     <div className="space-y-6">
+      {/* Floating Toast Notification (Pojok Kanan Atas) */}
+      <ToastNotification
+        show={Boolean(toast?.show)}
+        type={toast?.type || 'success'}
+        title={toast?.title}
+        message={toast?.message || ''}
+        onClose={() => setToast(null)}
+      />
+
       {/* Hero Header Responsif */}
       <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-5 sm:p-7 text-white shadow-xl border border-indigo-500/20">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
