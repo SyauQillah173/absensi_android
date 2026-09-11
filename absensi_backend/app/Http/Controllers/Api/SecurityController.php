@@ -369,11 +369,17 @@ class SecurityController extends Controller
             ApiAccessToken::whereIn('id', $tokenIds)->delete();
         }
 
-        app(AuditLogService::class)->record($request, 'security', 'admin_force_logout', $request->user(), $targetUser, [
-            'target_user_id'   => $targetUser->id,
-            'target_user_name' => $targetUser->name,
-            'sessions_killed'  => $count,
-        ]);
+        app(AuditLogService::class)->record(
+            request: $request,
+            module: 'security',
+            action: 'admin_force_logout',
+            entity: $targetUser,
+            metadata: [
+                'target_user_id'   => $targetUser->id,
+                'target_user_name' => $targetUser->name,
+                'sessions_killed'  => $count,
+            ]
+        );
 
         return response()->json([
             'success' => true,
