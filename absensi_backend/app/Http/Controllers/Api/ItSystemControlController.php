@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Jadwal;
 use App\Models\PaymentBill;
-use App\Models\Teacher;
+use App\Models\User;
 use App\Services\ItNotificationEngineService;
 use App\Services\ItSystemControlService;
 use Carbon\Carbon;
@@ -63,7 +63,8 @@ class ItSystemControlController extends Controller
         $overrides = $this->controlService->getGuruOverrides();
 
         // Ambil daftar guru untuk dropdown pilihan override
-        $teachers = Teacher::select('id', 'name', 'username', 'email')
+        $teachers = User::where('role', 'guru')
+            ->select('id', 'name', 'username', 'email')
             ->orderBy('name')
             ->get();
 
@@ -122,7 +123,7 @@ class ItSystemControlController extends Controller
 
         $validated = $request->validate([
             'id'                => 'nullable|integer',
-            'teacher_id'        => 'required|integer|exists:teachers,id',
+            'teacher_id'        => 'required|integer|exists:users,id',
             'jadwal_id'         => 'nullable|integer|exists:jadwals,id',
             'open_lead_minutes' => 'nullable|integer|min:0|max:1440',
             'custom_open_hour'  => ['nullable', 'regex:/^([01][0-9]|2[0-3]):[0-5][0-9]$/'],
