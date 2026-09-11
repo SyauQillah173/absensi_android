@@ -2164,6 +2164,20 @@ export function ItSystemMasterControlSection() {
                           const cur = helpdeskForm.template_message || helpdeskForm.message_template || '';
                           setHelpdeskForm({
                             ...helpdeskForm,
+                            template_message: cur + ' {nis}',
+                            message_template: cur + ' {nis}',
+                          });
+                        }}
+                        className="px-2 py-0.5 rounded-md bg-teal-50 hover:bg-teal-100 text-[11px] font-bold text-teal-700 border border-teal-200 cursor-pointer"
+                      >
+                        + {'{nis}'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cur = helpdeskForm.template_message || helpdeskForm.message_template || '';
+                          setHelpdeskForm({
+                            ...helpdeskForm,
                             template_message: cur + ' {role}',
                             message_template: cur + ' {role}',
                           });
@@ -2221,8 +2235,14 @@ export function ItSystemMasterControlSection() {
                     <div className="bg-white rounded-2xl p-3.5 shadow-xs border border-slate-200 space-y-1.5 max-w-[95%] ml-auto">
                       <p className="text-[11px] font-mono text-slate-800 whitespace-pre-wrap leading-relaxed">
                         {(helpdeskForm.template_message || helpdeskForm.message_template || '')
-                          .replace(/\{nama\}/g, 'Ahmad Fauzi (Santri)')
-                          .replace(/\{role\}/g, 'Wali Santri')}
+                          .replace(/\[Nama Anda\]/gi, 'Ahmad Fauzi (Santri)')
+                          .replace(/\[Nama \/ Identitas Anda\]/gi, 'Ahmad Fauzi (Santri)')
+                          .replace(/\{nama\}/gi, 'Ahmad Fauzi (Santri)')
+                          .replace(/\[NIS Anda\]/gi, '2026001')
+                          .replace(/\[Data Akun\]/gi, '2026001')
+                          .replace(/\{nis\}/gi, '2026001')
+                          .replace(/\[Wali Santri \/ Guru \/ Petugas\]/gi, 'Wali Santri')
+                          .replace(/\{role\}/gi, 'Wali Santri')}
                       </p>
                       <div className="flex items-center justify-end gap-1 text-[9px] text-slate-400">
                         <span>12:00</span>

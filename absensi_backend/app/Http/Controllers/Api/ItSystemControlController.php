@@ -411,7 +411,7 @@ class ItSystemControlController extends Controller
             'whatsapp_number'     => '6285731998591',
             'contact_person_name' => 'Abdullah SyauQillah (Admin IT)',
             'contact_role'        => 'Penanggung Jawab Sistem IT',
-            'template_message'    => "Assalamu'alaikum Admin, saya membutuhkan bantuan untuk reset kata sandi akun sistem Qomaruddin.\n\nNama/Identitas: [Nama Anda]\nRole: [Wali Santri / Guru / Petugas]\nNIS / No HP: [Data Akun]\n\nMohon bantuannya untuk reset kata sandi ke kata sandi default. Terima kasih.",
+            'template_message'    => "Assalamu'alaikum Admin, saya membutuhkan bantuan untuk reset kata sandi akun sistem Qomaruddin.\n\nNama: [Nama Anda]\nNIS / No. Akun: [NIS Anda]\nPeran: [Wali Santri / Guru / Petugas]\n\nMohon bantuannya untuk verifikasi dan reset kata sandi ke kata sandi default. Terima kasih.",
         ]);
 
         return response()->json([

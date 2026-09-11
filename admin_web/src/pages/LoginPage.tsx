@@ -31,8 +31,13 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
   const [copiedMsg, setCopiedMsg] = useState(false);
 
   const openForgotModal = async () => {
-    if (identifier.trim() && !forgotName) {
-      setForgotName(identifier.trim());
+    if (identifier.trim()) {
+      const trimmed = identifier.trim();
+      if (/^\d+$/.test(trimmed)) {
+        if (!forgotContact) setForgotContact(trimmed);
+      } else {
+        if (!forgotName) setForgotName(trimmed);
+      }
     }
     setShowForgotModal(true);
     if (!helpdeskInfo) {
@@ -47,10 +52,10 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
           whatsapp_number: '6285731998591',
           contact_person_name: 'Abdullah SyauQillah (Admin IT)',
           contact_role: 'Penanggung Jawab Sistem IT',
-          template_message: "Assalamu'alaikum Admin Pesantren Qomaruddin, saya {nama} ({role}) lupa kata sandi akun saya. Mohon bantuannya untuk reset kata sandi ke bawaan. Terima kasih.",
+          template_message: "Assalamu'alaikum Admin, saya membutuhkan bantuan untuk reset kata sandi akun sistem Qomaruddin.\n\nNama: [Nama Anda]\nNIS / No. Akun: [NIS Anda]\nPeran: [Wali Santri / Guru / Petugas]\n\nMohon bantuannya untuk verifikasi akun dan reset kata sandi ke kata sandi default. Terima kasih.",
           pic_name: 'Abdullah SyauQillah (Admin IT)',
           contact_type: 'it_master',
-          message_template: "Assalamu'alaikum Admin Pesantren Qomaruddin, saya {nama} ({role}) lupa kata sandi akun saya. Mohon bantuannya untuk reset kata sandi ke bawaan. Terima kasih.",
+          message_template: "Assalamu'alaikum Admin, saya membutuhkan bantuan untuk reset kata sandi akun sistem Qomaruddin.\n\nNama: [Nama Anda]\nNIS / No. Akun: [NIS Anda]\nPeran: [Wali Santri / Guru / Petugas]\n\nMohon bantuannya untuk verifikasi akun dan reset kata sandi ke kata sandi default. Terima kasih.",
           is_active: true,
         });
       } finally {
@@ -63,17 +68,19 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
     let msg =
       helpdeskInfo?.template_message ||
       helpdeskInfo?.message_template ||
-      "Assalamu'alaikum Admin, saya membutuhkan bantuan untuk reset kata sandi akun sistem Qomaruddin.\n\nNama/Identitas: [Nama Anda]\nRole: [Wali Santri / Guru / Petugas]\nNIS / No HP: [Data Akun]\n\nMohon bantuannya untuk reset kata sandi ke kata sandi default. Terima kasih.";
+      "Assalamu'alaikum Admin, saya membutuhkan bantuan untuk reset kata sandi akun sistem Qomaruddin.\n\nNama: [Nama Anda]\nNIS / No. Akun: [NIS Anda]\nPeran: [Wali Santri / Guru / Petugas]\n\nMohon bantuannya untuk verifikasi akun dan reset kata sandi ke kata sandi default. Terima kasih.";
 
-    const nameVal = forgotName.trim() || '[Nama Anda]';
+    const nameVal = forgotName.trim() || '[Nama Santri / Pengguna]';
     const roleVal = forgotRole;
-    const contactVal = forgotContact.trim() || (forgotName.trim() ? '-' : '[Data Akun]');
+    const contactVal = forgotContact.trim() || '[NIS Belum Diisi]';
 
     // 1. Cerdaskan penggantian semua variasi placeholder Nama / Identitas
     msg = msg
       .replace(/\[Nama Anda\]/gi, nameVal)
       .replace(/\[Nama \/ Identitas Anda\]/gi, nameVal)
       .replace(/\[Nama\/Identitas Anda\]/gi, nameVal)
+      .replace(/\[Nama Santri \/ Pengguna\]/gi, nameVal)
+      .replace(/\[Nama Santri\]/gi, nameVal)
       .replace(/\[Nama\]/gi, nameVal)
       .replace(/\[Identitas Anda\]/gi, nameVal)
       .replace(/\[Identitas\]/gi, nameVal)
@@ -93,10 +100,15 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
     // 3. Cerdaskan penggantian semua variasi placeholder NIS / No HP / Data Akun
     msg = msg
       .replace(/\[Data Akun\]/gi, contactVal)
+      .replace(/\[NIS Anda\]/gi, contactVal)
+      .replace(/\[NIS Santri\]/gi, contactVal)
       .replace(/\[NIS \/ No HP\]/gi, contactVal)
       .replace(/\[NIS\/No HP\]/gi, contactVal)
-      .replace(/\{kontak\}/gi, contactVal)
+      .replace(/\[NIS \/ No\. Akun\]/gi, contactVal)
+      .replace(/\[NIS\/No\. Akun\]/gi, contactVal)
+      .replace(/\[NIS\]/gi, contactVal)
       .replace(/\{nis\}/gi, contactVal)
+      .replace(/\{kontak\}/gi, contactVal)
       .replace(/\{no_hp\}/gi, contactVal);
 
     return msg;
@@ -384,7 +396,7 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
                   <div className="space-y-3">
                     <div>
                       <label className="block text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                        1. Nama / Identitas Anda:
+                        1. Nama Santri / Pengguna:
                       </label>
                       <input
                         type="text"
@@ -396,16 +408,25 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                        2. NIS / No. WhatsApp (Opsional):
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                          2. NIS Santri / No. Induk Akun:
+                        </label>
+                        <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded-md border border-teal-200/50">
+                          Sangat Dianjurkan
+                        </span>
+                      </div>
                       <input
                         type="text"
                         value={forgotContact}
                         onChange={(e) => setForgotContact(e.target.value)}
-                        placeholder="Contoh: 2026001 / 081234567890"
+                        placeholder="Contoh: 2026001 / NIS Santri"
                         className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3.5 py-2.5 text-xs font-bold text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] outline-hidden transition-all"
                       />
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 font-medium leading-relaxed flex items-center gap-1">
+                        <span>💡</span>
+                        <span>Cantumkan NIS agar Admin IT tidak keliru jika ada nama santri yang sama / kembar.</span>
+                      </p>
                     </div>
 
                     <div>
