@@ -219,6 +219,13 @@ class SecurityController extends Controller
      */
     public function changePasswordSecure(Request $request)
     {
+        if ($request->has('password') && !$request->has('new_password')) {
+            $request->merge([
+                'new_password' => $request->input('password'),
+                'new_password_confirmation' => $request->input('password_confirmation'),
+            ]);
+        }
+
         $validated = $request->validate([
             'current_password'          => 'required|string',
             'new_password'              => 'required|string|min:6|different:current_password',

@@ -539,12 +539,12 @@ class UserManagementController extends Controller
                 unset($validated['password']);
             } else {
                 $validated['password'] = Hash::make($plainPassword);
-                $validated['password_current_encrypted'] = null;
+                $validated['password_current_encrypted'] = Crypt::encryptString($plainPassword);
                 if ($createMode) {
                     $validated['password_default_encrypted'] = Crypt::encryptString($plainPassword);
                     $validated['password_changed_at'] = null;
                 } else {
-                    $validated['password_default_encrypted'] = $existingUser?->password_default_encrypted;
+                    $validated['password_default_encrypted'] = $existingUser?->password_default_encrypted ?: Crypt::encryptString($plainPassword);
                     $validated['password_changed_at'] = now();
                 }
             }

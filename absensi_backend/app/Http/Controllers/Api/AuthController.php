@@ -458,9 +458,17 @@ class AuthController extends Controller
             $updates['password_default_encrypted'] = Crypt::encryptString($plainPassword);
         }
 
-        if (empty($user->password_current_encrypted)) {
-            $updates['password_current_encrypted'] = Crypt::encryptString($plainPassword);
-        }
+        try {
+            $currentDecrypted = null;
+            if (!empty($user->password_current_encrypted)) {
+                try {
+                    $currentDecrypted = Crypt::decryptString($user->password_current_encrypted);
+                } catch (\Throwable) {}
+            }
+            if ($currentDecrypted !== $plainPassword) {
+                $updates['password_current_encrypted'] = Crypt::encryptString($plainPassword);
+            }
+        } catch (\Throwable) {}
 
         if (!empty($updates)) {
             $user->forceFill($updates)->save();

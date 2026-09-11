@@ -27,9 +27,13 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
   const [loadingHelpdesk, setLoadingHelpdesk] = useState(false);
   const [forgotName, setForgotName] = useState('');
   const [forgotRole, setForgotRole] = useState('Wali Santri');
+  const [forgotContact, setForgotContact] = useState('');
   const [copiedMsg, setCopiedMsg] = useState(false);
 
   const openForgotModal = async () => {
+    if (identifier.trim() && !forgotName) {
+      setForgotName(identifier.trim());
+    }
     setShowForgotModal(true);
     if (!helpdeskInfo) {
       setLoadingHelpdesk(true);
@@ -56,16 +60,47 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
   };
 
   const compiledMessage = useMemo(() => {
-    const template =
+    let msg =
       helpdeskInfo?.template_message ||
       helpdeskInfo?.message_template ||
-      "Assalamu'alaikum Admin Pesantren Qomaruddin, saya {nama} ({role}) lupa kata sandi akun saya. Mohon bantuannya untuk reset kata sandi ke bawaan. Terima kasih.";
-    const cleanName = forgotName.trim() || '[Nama / Identitas Anda]';
-    return template
-      .replace(/\{nama\}/g, cleanName)
-      .replace(/\{role\}/g, forgotRole)
-      .replace(/\{identitas\}/g, cleanName);
-  }, [helpdeskInfo, forgotName, forgotRole]);
+      "Assalamu'alaikum Admin, saya membutuhkan bantuan untuk reset kata sandi akun sistem Qomaruddin.\n\nNama/Identitas: [Nama Anda]\nRole: [Wali Santri / Guru / Petugas]\nNIS / No HP: [Data Akun]\n\nMohon bantuannya untuk reset kata sandi ke kata sandi default. Terima kasih.";
+
+    const nameVal = forgotName.trim() || '[Nama Anda]';
+    const roleVal = forgotRole;
+    const contactVal = forgotContact.trim() || (forgotName.trim() ? '-' : '[Data Akun]');
+
+    // 1. Cerdaskan penggantian semua variasi placeholder Nama / Identitas
+    msg = msg
+      .replace(/\[Nama Anda\]/gi, nameVal)
+      .replace(/\[Nama \/ Identitas Anda\]/gi, nameVal)
+      .replace(/\[Nama\/Identitas Anda\]/gi, nameVal)
+      .replace(/\[Nama\]/gi, nameVal)
+      .replace(/\[Identitas Anda\]/gi, nameVal)
+      .replace(/\[Identitas\]/gi, nameVal)
+      .replace(/\{nama\}/gi, nameVal)
+      .replace(/\{name\}/gi, nameVal)
+      .replace(/\{identitas\}/gi, nameVal);
+
+    // 2. Cerdaskan penggantian semua variasi placeholder Role / Peran
+    msg = msg
+      .replace(/\[Wali Santri \/ Guru \/ Petugas\]/gi, roleVal)
+      .replace(/\[Wali Santri\/Guru\/Petugas\]/gi, roleVal)
+      .replace(/\[Role\]/gi, roleVal)
+      .replace(/\[Peran\]/gi, roleVal)
+      .replace(/\{role\}/gi, roleVal)
+      .replace(/\{peran\}/gi, roleVal);
+
+    // 3. Cerdaskan penggantian semua variasi placeholder NIS / No HP / Data Akun
+    msg = msg
+      .replace(/\[Data Akun\]/gi, contactVal)
+      .replace(/\[NIS \/ No HP\]/gi, contactVal)
+      .replace(/\[NIS\/No HP\]/gi, contactVal)
+      .replace(/\{kontak\}/gi, contactVal)
+      .replace(/\{nis\}/gi, contactVal)
+      .replace(/\{no_hp\}/gi, contactVal);
+
+    return msg;
+  }, [helpdeskInfo, forgotName, forgotRole, forgotContact]);
 
   const cleanWaNumber = useMemo(() => {
     let num = (helpdeskInfo?.whatsapp_number || '6285731998591').replace(/\D/g, '');
@@ -157,13 +192,10 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
                 value={identifier}
                 onChange={(event) => setIdentifier(event.target.value)}
                 autoComplete="username"
-                placeholder="Nama / Email / Kode Guru / NIS Santri"
+                placeholder="Nama / Email / Kode Guru / NIS"
                 required
               />
             </div>
-            <p className="text-[10px] text-[#7B8794] dark:text-slate-400 px-1.5 -mt-1 font-medium">
-              💡 <span className="font-semibold text-slate-700 dark:text-slate-300">Wali Santri:</span> Masukkan <strong>Nama Santri</strong> atau <strong>NIS Santri</strong> (Password default: <code className="font-bold text-[#138F81] dark:text-[#2DD4BF] bg-teal-50 dark:bg-teal-950/60 px-1 py-0.2 rounded">wali123</code>)
-            </p>
 
             {/* PASSWORD INPUT */}
             <div
@@ -352,20 +384,33 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
                   <div className="space-y-3">
                     <div>
                       <label className="block text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                        1. Nama / NIS / Identitas Anda:
+                        1. Nama / Identitas Anda:
                       </label>
                       <input
                         type="text"
                         value={forgotName}
                         onChange={(e) => setForgotName(e.target.value)}
-                        placeholder="Contoh: Muhammad / 123456 / Ustadz Hasan"
+                        placeholder="Contoh: Adinda nur / Ustadz Hasan"
                         className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3.5 py-2.5 text-xs font-bold text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] outline-hidden transition-all"
                       />
                     </div>
 
                     <div>
                       <label className="block text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
-                        2. Peran / Status Akun:
+                        2. NIS / No. WhatsApp (Opsional):
+                      </label>
+                      <input
+                        type="text"
+                        value={forgotContact}
+                        onChange={(e) => setForgotContact(e.target.value)}
+                        placeholder="Contoh: 2026001 / 081234567890"
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3.5 py-2.5 text-xs font-bold text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] outline-hidden transition-all"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                        3. Peran / Status Akun:
                       </label>
                       <div className="grid grid-cols-3 gap-2">
                         {['Wali Santri', 'Guru', 'Petugas'].map((r) => (
