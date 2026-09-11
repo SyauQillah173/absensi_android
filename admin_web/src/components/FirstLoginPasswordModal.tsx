@@ -75,8 +75,8 @@ export function FirstLoginPasswordModal({
       try {
         await api.changePasswordSecure({
           current_password: currentPassword,
-          new_password: newPassword,
-          new_password_confirmation: confirmPassword,
+          password: newPassword,
+          password_confirmation: confirmPassword,
           logout_others: false,
         });
       } catch {
