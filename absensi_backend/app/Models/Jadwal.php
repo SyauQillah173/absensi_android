@@ -21,6 +21,16 @@ class Jadwal extends Model
         return $this->belongsTo(MataPelajaran::class, 'mapel_id');
     }
 
+    public function mapel()
+    {
+        return $this->belongsTo(MataPelajaran::class, 'mapel_id');
+    }
+
+    public function kelas()
+    {
+        return $this->belongsTo(SchoolClass::class, 'class_id');
+    }
+
     public function teacher()
     {
         return $this->belongsTo(User::class, 'teacher_id');

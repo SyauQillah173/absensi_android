@@ -124,7 +124,7 @@ class ItSystemControlController extends Controller
         $validated = $request->validate([
             'id'                => 'nullable|integer',
             'teacher_id'        => 'required|integer|exists:users,id',
-            'jadwal_id'         => 'nullable|integer|exists:jadwals,id',
+            'jadwal_id'         => 'nullable|integer|exists:jadwal,id',
             'open_lead_minutes' => 'nullable|integer|min:0|max:1440',
             'custom_open_hour'  => ['nullable', 'regex:/^([01][0-9]|2[0-3]):[0-5][0-9]$/'],
             'close_hour'        => ['nullable', 'regex:/^([01][0-9]|2[0-3]):[0-5][0-9]$/'],
@@ -205,7 +205,7 @@ class ItSystemControlController extends Controller
 
         $totalUnpaidAmount = PaymentBill::where(function ($q) {
             $q->where('status', '!=', 'Lunas')->orWhereNull('status');
-        })->sum('total_amount');
+        })->sum('amount');
 
         return response()->json([
             'success' => true,
