@@ -35,6 +35,7 @@ use App\Http\Controllers\Api\PmbController;
 use App\Http\Controllers\Api\PushNotificationController;
 use App\Http\Controllers\Api\ReferenceController;
 use App\Http\Controllers\Api\RegionController;
+use App\Http\Controllers\Api\SecurityController;
 use App\Http\Controllers\Api\SiswaController;
 use App\Http\Controllers\Api\UserManagementController;
 use App\Http\Controllers\Api\UserProfileController;
@@ -115,6 +116,20 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
     Route::delete('notifications/clear-all', [NotificationController::class, 'clearAll']);
     Route::patch('notifications/{notification}/read', [NotificationController::class, 'markRead']);
     Route::delete('notifications/{notification}', [NotificationController::class, 'destroy']);
+
+    // 🛡️ Fitur Keamanan Multi-Device & Sesi Login Kelas Atas
+    Route::prefix('security')->group(function () {
+        Route::get('active-sessions', [SecurityController::class, 'activeSessions']);
+        Route::get('login-history', [SecurityController::class, 'loginHistory']);
+        Route::post('revoke-session/{id}', [SecurityController::class, 'revokeSession']);
+        Route::post('logout-other-devices', [SecurityController::class, 'logoutOtherDevices']);
+        Route::post('logout-all-devices', [SecurityController::class, 'logoutAllDevices']);
+        Route::post('change-password-secure', [SecurityController::class, 'changePasswordSecure']);
+
+        // Khusus Admin IT: Global Live Audit Sesi & Force Logout
+        Route::get('admin/all-logins', [SecurityController::class, 'adminAllLogins']);
+        Route::post('admin/force-logout-user/{userId}', [SecurityController::class, 'adminForceLogoutUser']);
+    });
 
     Route::middleware('role:admin,wali')->group(function () {
         Route::get('pembayaran/rekap-siswa', [PembayaranController::class, 'studentRekap'])

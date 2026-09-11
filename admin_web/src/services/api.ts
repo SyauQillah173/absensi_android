@@ -110,6 +110,38 @@ export interface ImportResult {
   data: ApiRecord[];
 }
 
+export interface ActiveSessionItem {
+  id: number;
+  device_type: 'mobile' | 'desktop' | 'tablet' | string;
+  device_name: string;
+  platform: string;
+  browser: string;
+  ip_address: string;
+  location: string;
+  is_current: boolean;
+  created_at: string;
+  last_used_at?: string;
+  expires_at?: string;
+}
+
+export interface LoginHistoryItem {
+  id: number;
+  user_id?: number;
+  user_name?: string;
+  role?: string;
+  device_type: string;
+  device_name: string;
+  platform: string;
+  browser: string;
+  ip_address: string;
+  location: string;
+  status: 'active' | 'revoked' | 'logged_out' | string;
+  login_at: string;
+  logout_at?: string | null;
+  last_active_at?: string | null;
+  is_active_token?: boolean;
+}
+
 const storageKey = 'qomaruddin_admin_session';
 const importBatchSize = 100;
 
@@ -1352,6 +1384,56 @@ export const api = {
   deleteKepalaMadrasahAccess(id: number) {
     return request<ApiRecord>(`/kepala-madrasah-access/${id}`, {
       method: 'DELETE',
+    });
+  },
+
+  // 🛡️ Fitur Keamanan Multi-Device & Session Management
+  getActiveSessions() {
+    return request<ActiveSessionItem[]>('/security/active-sessions');
+  },
+  getLoginHistory() {
+    return request<LoginHistoryItem[]>('/security/login-history');
+  },
+  revokeSession(tokenId: number) {
+    return request<ApiRecord>(`/security/revoke-session/${tokenId}`, {
+      method: 'POST',
+    });
+  },
+  logoutOtherDevices() {
+    return request<ApiRecord>('/security/logout-other-devices', {
+      method: 'POST',
+    });
+  },
+  logoutAllDevices() {
+    return request<ApiRecord>('/security/logout-all-devices', {
+      method: 'POST',
+    });
+  },
+  changePasswordSecure(payload: {
+    current_password: string;
+    password: string;
+    password_confirmation: string;
+    logout_others?: boolean;
+  }) {
+    return request<ApiRecord>('/security/change-password-secure', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  // Khusus Admin IT: Global Audit Seluruh Login & Force Logout Pengguna
+  getAdminAllLogins(params?: {
+    search?: string;
+    role?: string;
+    status?: string;
+    device_type?: string;
+    page?: number;
+    per_page?: number;
+  }) {
+    return request<LoginHistoryItem[]>('/security/admin/all-logins', {}, params);
+  },
+  adminForceLogoutUser(userId: number) {
+    return request<ApiRecord>(`/security/admin/force-logout-user/${userId}`, {
+      method: 'POST',
     });
   }
 };

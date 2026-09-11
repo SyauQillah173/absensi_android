@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ApiAccessToken;
+use App\Models\LoginHistory;
 use App\Models\Siswa;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Services\DeviceDetectorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
@@ -74,16 +76,53 @@ class AuthController extends Controller
         $this->captureOperationalPassword($user, $request->password);
         $plainToken = Str::random(80);
 
-        ApiAccessToken::create([
+        // Deteksi perangkat, browser, OS, IP, dan perkiraan lokasi
+        $deviceInfo = DeviceDetectorService::detect($request);
+
+        $accessToken = ApiAccessToken::create([
             'user_id' => $user->id,
-            'name' => $request->input('device_name', 'mobile'),
+            'name' => $request->input('device_name', $deviceInfo['device_name'] ?: 'mobile'),
             'token_hash' => hash('sha256', $plainToken),
+            'device_type' => $deviceInfo['device_type'],
+            'device_name' => $deviceInfo['device_name'],
+            'platform' => $deviceInfo['platform'],
+            'browser' => $deviceInfo['browser'],
+            'ip_address' => $deviceInfo['ip_address'],
+            'location' => $deviceInfo['location'],
+            'is_revoked' => false,
+            'last_used_at' => now(),
             'expires_at' => now()->addDays(30),
         ]);
+
+        // Rekam riwayat login ke login_histories
+        try {
+            LoginHistory::create([
+                'user_id' => $user->id,
+                'token_id' => $accessToken->id,
+                'user_name' => $user->name,
+                'role' => $user->role,
+                'device_type' => $deviceInfo['device_type'],
+                'device_name' => $deviceInfo['device_name'],
+                'platform' => $deviceInfo['platform'],
+                'browser' => $deviceInfo['browser'],
+                'ip_address' => $deviceInfo['ip_address'],
+                'location' => $deviceInfo['location'],
+                'user_agent' => $deviceInfo['user_agent'],
+                'status' => 'active',
+                'login_at' => now(),
+                'last_active_at' => now(),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::warning('Gagal mencatat login history: ' . $e->getMessage());
+        }
+
         app(AuditLogService::class)->record($request, 'auth', 'login', $user, null, [
             'user_id' => $user->id,
             'role' => $user->role,
-            'device_name' => $request->input('device_name', 'mobile'),
+            'device_type' => $deviceInfo['device_type'],
+            'device_name' => $deviceInfo['device_name'],
+            'ip' => $deviceInfo['ip_address'],
+            'location' => $deviceInfo['location'],
         ]);
 
         $responseData = [
@@ -162,6 +201,16 @@ class AuthController extends Controller
     {
         $accessToken = $request->attributes->get('api_access_token');
         if ($accessToken instanceof ApiAccessToken) {
+            try {
+                LoginHistory::where('token_id', $accessToken->id)
+                    ->where('status', 'active')
+                    ->update([
+                        'status' => 'logged_out',
+                        'logout_at' => now(),
+                    ]);
+            } catch (\Throwable $e) {
+                // ignore
+            }
             $accessToken->delete();
         }
         app(AuditLogService::class)->record($request, 'auth', 'logout', $request->user(), null, [

@@ -1,6 +1,7 @@
-import { Camera, CheckCircle2, KeyRound, RefreshCw, Save, ShieldCheck, Trash2, UserRound } from 'lucide-react';
+import { Camera, CheckCircle2, KeyRound, RefreshCw, Save, Shield, ShieldCheck, Trash2, UserRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { SecuritySessionsSection } from '../components/SecuritySessionsSection';
 import { StatusBadge } from '../components/StatusBadge';
 import { api, type ApiRecord } from '../services/api';
 import { getRoleDisplayName } from '../utils/roleHelper';
@@ -39,6 +40,7 @@ export function AccountPage() {
     new_password_confirmation: ''
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile');
   const [isSaving, setIsSaving] = useState(false);
   const [isPasswordSaving, setIsPasswordSaving] = useState(false);
   const [isPhotoSaving, setIsPhotoSaving] = useState(false);
@@ -187,23 +189,65 @@ export function AccountPage() {
         </div>
       </div>
 
-      {toast && (
-        <div className="fixed top-5 right-5 z-[99999] flex items-center gap-3.5 rounded-2xl bg-white p-4 shadow-2xl border border-emerald-200 shadow-emerald-900/15 transition-all animate-in fade-in slide-in-from-top-4 duration-300 max-w-sm">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
-            <CheckCircle2 size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-black text-slate-800">Berhasil Disimpan!</p>
-            <p className="text-xs text-slate-500">{toast}</p>
-          </div>
-        </div>
-      )}
+      {/* 🌟 TAB NAVIGASI AKUN SAYA */}
+      <div className="flex items-center gap-2 border-b border-slate-200/80 pb-3 flex-wrap">
+        <button
+          type="button"
+          onClick={() => setActiveTab('profile')}
+          className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl font-black text-xs sm:text-sm transition-all cursor-pointer ${
+            activeTab === 'profile'
+              ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25'
+              : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200/70'
+          }`}
+        >
+          <UserRound size={16} />
+          <span>Data Diri & Profil</span>
+        </button>
 
-      {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
+        <button
+          type="button"
+          onClick={() => setActiveTab('security')}
+          className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl font-black text-xs sm:text-sm transition-all cursor-pointer ${
+            activeTab === 'security'
+              ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25'
+              : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200/70'
+          }`}
+        >
+          <Shield size={16} />
+          <span>Keamanan & Sesi Perangkat</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+              activeTab === 'security'
+                ? 'bg-[#FFDC80] text-[#0D7A6F]'
+                : 'bg-teal-100 text-teal-800'
+            }`}
+          >
+            Fitur Baru
+          </span>
+        </button>
+      </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="q-panel p-4 sm:p-6">
-          <div className="mb-5 flex flex-wrap items-center gap-4">
+      {activeTab === 'security' ? (
+        <SecuritySessionsSection userEmail={form.email || session?.email} userName={form.name || session?.name} />
+      ) : (
+        <>
+          {toast && (
+            <div className="fixed top-5 right-5 z-[99999] flex items-center gap-3.5 rounded-2xl bg-white p-4 shadow-2xl border border-emerald-200 shadow-emerald-900/15 transition-all animate-in fade-in slide-in-from-top-4 duration-300 max-w-sm">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
+                <CheckCircle2 size={24} />
+              </div>
+              <div>
+                <p className="text-sm font-black text-slate-800">Berhasil Disimpan!</p>
+                <p className="text-xs text-slate-500">{toast}</p>
+              </div>
+            </div>
+          )}
+
+          {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
+
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <section className="q-panel p-4 sm:p-6">
+              <div className="mb-5 flex flex-wrap items-center gap-4">
             <div className="grid h-20 w-20 place-items-center overflow-hidden rounded-[24px] bg-[#E8F7F3] text-[#138F81]">
               {photoUrl ? <img src={photoUrl} alt="Foto profil" className="h-full w-full object-cover" /> : <UserRound size={34} />}
             </div>
@@ -302,6 +346,8 @@ export function AccountPage() {
           </section>
         </aside>
       </div>
+        </>
+      )}
     </div>
   );
 }

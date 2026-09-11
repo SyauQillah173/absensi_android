@@ -26,13 +26,14 @@ class AuthenticateApiToken
 
         if (
             !$accessToken ||
+            $accessToken->is_revoked ||
             ($accessToken->expires_at && $accessToken->expires_at->isPast()) ||
             !$accessToken->user ||
             (($accessToken->user->status ?? 'Aktif') !== 'Aktif')
         ) {
             return response()->json([
                 'success' => false,
-                'message' => 'Sesi login tidak valid atau sudah kedaluwarsa. Silakan login ulang.',
+                'message' => 'Sesi login telah dikeluarkan atau kedaluwarsa. Silakan login kembali demi keamanan akun.',
             ], 401);
         }
 
