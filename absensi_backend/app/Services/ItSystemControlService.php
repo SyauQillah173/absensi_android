@@ -256,4 +256,150 @@ class ItSystemControlService
             'is_late'          => $isLate,
         ];
     }
+
+    /**
+     * Mengambil konfigurasi notifikasi SPP wali santri
+     */
+    public function getWaliBillingNotificationConfig(): array
+    {
+        $raw = ItSystemControl::getByKey('wali_billing_notification', [
+            'schedule_day'        => 10,
+            'schedule_time'       => '07:00',
+            'is_active'           => true,
+            'title_template'      => '📢 Pengingat Tagihan SPP & Administrasi Santri',
+            'message_template'    => 'Assalamu\'alaikum Wr. Wb. Bapak/Ibu Wali dari {nama_santri}, mengingatkan bahwa kewajiban administrasi santri telah memasuki tanggal pembayaran ({tanggal_pembayaran}). Mohon untuk menyelesaikan tagihan tertunggak sebesar {total_tagihan}. Syukron katsir.',
+            'only_unpaid'         => true,
+        ]);
+
+        $day = (int) ($raw['scheduled_day_of_month'] ?? $raw['schedule_day'] ?? 10);
+        $hour = (string) ($raw['scheduled_hour'] ?? $raw['schedule_time'] ?? '07:00');
+        $isActive = (bool) ($raw['is_enabled'] ?? $raw['is_active'] ?? true);
+        $title = (string) ($raw['template_title'] ?? $raw['title_template'] ?? '📢 Pengingat Tagihan SPP & Administrasi Santri');
+        $body = (string) ($raw['template_body'] ?? $raw['message_template'] ?? 'Assalamu\'alaikum Wr. Wb. Bapak/Ibu Wali dari {nama_santri}, mohon segera menyelesaikan tagihan SPP tertunggak sebesar {total_tunggakan}.');
+
+        return [
+            'is_enabled'             => $isActive,
+            'scheduled_day_of_month' => $day,
+            'scheduled_hour'         => $hour,
+            'template_title'         => $title,
+            'template_body'          => $body,
+            'auto_push_wa'           => (bool) ($raw['auto_push_wa'] ?? true),
+            'last_run_at'            => $raw['last_run_at'] ?? null,
+            // Aliases
+            'schedule_day'           => $day,
+            'schedule_time'          => $hour,
+            'is_active'              => $isActive,
+            'title_template'         => $title,
+            'message_template'       => $body,
+            'only_unpaid'            => true,
+        ];
+    }
+
+    /**
+     * Simpan konfigurasi notifikasi SPP wali santri
+     */
+    public function saveWaliBillingNotificationConfig(array $data, ?int $userId = null): array
+    {
+        $current = $this->getWaliBillingNotificationConfig();
+        $day = isset($data['scheduled_day_of_month']) ? (int) $data['scheduled_day_of_month'] : (int) ($data['schedule_day'] ?? $current['scheduled_day_of_month']);
+        $hour = isset($data['scheduled_hour']) ? (string) $data['scheduled_hour'] : (string) ($data['schedule_time'] ?? $current['scheduled_hour']);
+        $isActive = isset($data['is_enabled']) ? (bool) $data['is_enabled'] : (bool) ($data['is_active'] ?? $current['is_enabled']);
+        $title = isset($data['template_title']) ? (string) $data['template_title'] : (string) ($data['title_template'] ?? $current['template_title']);
+        $body = isset($data['template_body']) ? (string) $data['template_body'] : (string) ($data['message_template'] ?? $current['template_body']);
+
+        $updated = [
+            'is_enabled'             => $isActive,
+            'scheduled_day_of_month' => $day,
+            'scheduled_hour'         => $hour,
+            'template_title'         => $title,
+            'template_body'          => $body,
+            'auto_push_wa'           => (bool) ($data['auto_push_wa'] ?? $current['auto_push_wa'] ?? true),
+            'last_run_at'            => $current['last_run_at'] ?? null,
+            // Aliases
+            'schedule_day'           => $day,
+            'schedule_time'          => $hour,
+            'is_active'              => $isActive,
+            'title_template'         => $title,
+            'message_template'       => $body,
+            'only_unpaid'            => true,
+        ];
+
+        ItSystemControl::setByKey(
+            'wali_billing_notification',
+            $updated,
+            'Pengaturan jadwal dan pesan otomatis notifikasi tagihan SPP bulanan wali santri',
+            $userId
+        );
+
+        return $updated;
+    }
+
+    /**
+     * Mengambil konfigurasi notifikasi tenggat waktu presensi guru
+     */
+    public function getGuruDeadlineNotificationConfig(): array
+    {
+        $raw = ItSystemControl::getByKey('guru_deadline_notification', [
+            'warning_lead_hours'  => 1,
+            'is_active'           => true,
+            'title_template'      => '⚠️ Peringatan Batas Waktu Presensi KBM',
+            'message_template'    => 'Yth. {nama_guru}, presensi kelas {nama_kelas} ({nama_mapel}) belum diisi. Batas waktu input presensi akan ditutup pada pukul {jam_tutup} WIB.',
+        ]);
+
+        $leadHours = (int) ($raw['warning_lead_hours'] ?? 1);
+        $minutes = isset($raw['warning_minutes_before_close']) ? (int) $raw['warning_minutes_before_close'] : ($leadHours * 60);
+        $isActive = (bool) ($raw['is_enabled'] ?? $raw['is_active'] ?? true);
+        $title = (string) ($raw['template_title'] ?? $raw['title_template'] ?? '⚠️ Peringatan Batas Waktu Presensi KBM');
+        $body = (string) ($raw['template_body'] ?? $raw['message_template'] ?? 'Yth. {nama_guru}, presensi kelas {mapel} ({kelas}) belum diisi. Batas waktu input presensi akan ditutup pada pukul {jam_tutup} WIB.');
+
+        return [
+            'is_enabled'                   => $isActive,
+            'warning_minutes_before_close' => $minutes,
+            'warning_lead_hours'           => $leadHours,
+            'template_title'               => $title,
+            'template_body'                => $body,
+            'auto_push_wa'                 => (bool) ($raw['auto_push_wa'] ?? true),
+            'last_run_at'                  => $raw['last_run_at'] ?? null,
+            // Aliases
+            'is_active'                    => $isActive,
+            'title_template'               => $title,
+            'message_template'             => $body,
+        ];
+    }
+
+    /**
+     * Simpan konfigurasi notifikasi tenggat presensi guru
+     */
+    public function saveGuruDeadlineNotificationConfig(array $data, ?int $userId = null): array
+    {
+        $current = $this->getGuruDeadlineNotificationConfig();
+        $minutes = isset($data['warning_minutes_before_close']) ? (int) $data['warning_minutes_before_close'] : (int) ($current['warning_minutes_before_close'] ?? 60);
+        $leadHours = (int) ceil($minutes / 60);
+        $isActive = isset($data['is_enabled']) ? (bool) $data['is_enabled'] : (bool) ($data['is_active'] ?? $current['is_enabled']);
+        $title = isset($data['template_title']) ? (string) $data['template_title'] : (string) ($data['title_template'] ?? $current['template_title']);
+        $body = isset($data['template_body']) ? (string) $data['template_body'] : (string) ($data['message_template'] ?? $current['template_body']);
+
+        $updated = [
+            'is_enabled'                   => $isActive,
+            'warning_minutes_before_close' => $minutes,
+            'warning_lead_hours'           => $leadHours,
+            'template_title'               => $title,
+            'template_body'                => $body,
+            'auto_push_wa'                 => (bool) ($data['auto_push_wa'] ?? $current['auto_push_wa'] ?? true),
+            'last_run_at'                  => $current['last_run_at'] ?? null,
+            // Aliases
+            'is_active'                    => $isActive,
+            'title_template'               => $title,
+            'message_template'             => $body,
+        ];
+
+        ItSystemControl::setByKey(
+            'guru_deadline_notification',
+            $updated,
+            'Pengaturan notifikasi pengingat tenggat batas waktu pengisian absensi guru',
+            $userId
+        );
+
+        return $updated;
+    }
 }

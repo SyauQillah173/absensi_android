@@ -1,4 +1,5 @@
 import {
+  ArrowLeft,
   BookMarked,
   BookOpenCheck,
   Check,
@@ -19,7 +20,6 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ModalForm } from './ModalForm';
 import { StatCard } from './StatCard';
 import { StatusBadge } from './StatusBadge';
 import { api, type ApiRecord } from '../services/api';
@@ -251,6 +251,186 @@ export function KepalaMadrasahCmsSection() {
       setError(err?.message || 'Gagal mencabut hak akses.');
     }
   };
+
+  // 🌟 JIKA FORM BUKA: TAMPILKAN INLINE FULL-CARD FORM (KONSISTEN DENGAN MASTER DATA)
+  if (isModalOpen) {
+    return (
+      <div className="w-full flex-1 animate-fadeIn">
+        <div className="flex w-full flex-col overflow-hidden bg-white shadow-sm ring-1 ring-slate-200 sm:rounded-3xl">
+          {/* Header Card Form Konsisten */}
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
+                title="Kembali ke Daftar"
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-extrabold text-[#2D3436]">
+                    {modalMode === 'add' ? 'Tunjuk Kepala Madrasah / Pejabat Baru' : 'Edit Pengaturan Hak Akses Pejabat'}
+                  </h2>
+                  <span className="rounded-xl bg-[#E8F7F3] px-2.5 py-0.5 text-xs font-black text-[#138F81] border border-teal-200">
+                    CMS Monitoring Madrasah
+                  </span>
+                </div>
+                <p className="text-sm font-semibold text-[#636E72] mt-0.5">
+                  Atur izin monitoring presensi santri (Madin, Sholat, Ngaji) untuk pejabat bersangkutan.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              className="grid h-10 w-10 place-items-center rounded-full bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors cursor-pointer"
+              title="Tutup Form"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Form Content */}
+          <form id="kepala-form" onSubmit={handleSaveModal} className="p-6 sm:p-8 space-y-6">
+            {modalMode === 'add' && (
+              <div className="space-y-2">
+                <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                  Pilih Akun Ustadz / Guru / Admin: <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={formUserId}
+                  onChange={(e) => handleUserSelectChange(Number(e.target.value))}
+                  required
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-800 focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] outline-none"
+                >
+                  <option value="">-- Pilih Akun --</option>
+                  {availableUsers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.email}) - {u.role === 'admin' ? `Admin (${u.admin_type || 'Umum'})` : 'Guru'}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500">Pilih akun yang akan ditunjuk sebagai pejabat monitoring.</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                  Nama Pejabat: <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formNama}
+                  onChange={(e) => setFormNama(e.target.value)}
+                  placeholder="Contoh: Ust. Imam Bashori, M.Pd"
+                  required
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-800 focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] outline-none"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                  Jabatan / Unit Madrasah: <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formJabatan}
+                  onChange={(e) => setFormJabatan(e.target.value)}
+                  placeholder="Contoh: Kepala Madrasah Diniyah (Madin) / Kepala Pondok"
+                  required
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-800 focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Checkboxes Modul Monitoring */}
+            <div className="rounded-2xl bg-slate-50 p-5 border border-slate-200/80 space-y-4">
+              <p className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                Modul Presensi yang Berhak Dipantau:
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <label className="flex items-start gap-3 p-3.5 rounded-xl bg-white border border-slate-200 cursor-pointer shadow-xs">
+                  <input
+                    type="checkbox"
+                    checked={formMadin}
+                    onChange={(e) => setFormMadin(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded text-[#138F81] focus:ring-[#138F81]"
+                  />
+                  <div className="text-xs">
+                    <span className="font-extrabold text-slate-800 block">📖 Presensi KBM Madin</span>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Rekap & log kehadiran kelas Diniyah.</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 p-3.5 rounded-xl bg-white border border-slate-200 cursor-pointer shadow-xs">
+                  <input
+                    type="checkbox"
+                    checked={formSholat}
+                    onChange={(e) => setFormSholat(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded text-[#138F81] focus:ring-[#138F81]"
+                  />
+                  <div className="text-xs">
+                    <span className="font-extrabold text-slate-800 block">🕌 Presensi Jama'ah Sholat</span>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Rekap sholat santri per kamar asrama.</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 p-3.5 rounded-xl bg-white border border-slate-200 cursor-pointer shadow-xs">
+                  <input
+                    type="checkbox"
+                    checked={formNgaji}
+                    onChange={(e) => setFormNgaji(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded text-[#138F81] focus:ring-[#138F81]"
+                  />
+                  <div className="text-xs">
+                    <span className="font-extrabold text-slate-800 block">📚 Presensi Ngaji Kitab</span>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Rekap pengajian kitab kuning santri.</p>
+                  </div>
+                </label>
+              </div>
+
+              <div className="pt-2 border-t border-slate-200">
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={formActive}
+                    onChange={(e) => setFormActive(e.target.checked)}
+                    className="h-4 w-4 rounded text-[#138F81] focus:ring-[#138F81]"
+                  />
+                  <span className="text-xs font-bold text-slate-700">Status Hak Akses Aktif</span>
+                </label>
+              </div>
+            </div>
+          </form>
+
+          {/* Footer Action Buttons Konsisten */}
+          <div className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              className="rounded-2xl bg-white px-6 py-2.5 text-sm font-bold text-[#636E72] shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              form="kepala-form"
+              disabled={isSavingModal}
+              className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-8 py-2.5 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors disabled:opacity-70 cursor-pointer"
+            >
+              <Save size={16} />
+              {isSavingModal ? 'Menyimpan...' : 'Simpan Pengaturan Pejabat'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -656,143 +836,6 @@ export function KepalaMadrasahCmsSection() {
         )}
       </section>
 
-      {/* MODAL FORM TAMBAH / EDIT KEPALA MADRASAH */}
-      {isModalOpen && (
-        <ModalForm
-          onClose={() => setIsModalOpen(false)}
-          title={modalMode === 'add' ? 'Tunjuk Kepala Madrasah / Pejabat' : 'Edit Pengaturan Pejabat'}
-        >
-          <form onSubmit={handleSaveModal} className="space-y-4">
-            <p className="text-xs font-medium text-slate-500 -mt-2 mb-3">
-              Atur izin monitoring presensi santri untuk pejabat bersangkutan.
-            </p>
-          {modalMode === 'add' && (
-            <div>
-              <label className="block text-xs font-extrabold text-slate-700 mb-1.5">
-                Pilih Akun Ustadz / Guru / Admin <span className="text-rose-500">*</span>
-              </label>
-              <select
-                value={formUserId}
-                onChange={(e) => handleUserSelectChange(Number(e.target.value))}
-                required
-                className="w-full rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] outline-none"
-              >
-                <option value="">-- Pilih Akun --</option>
-                {availableUsers.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} ({u.email}) - {u.role === 'admin' ? `Admin (${u.admin_type || 'Umum'})` : 'Guru'}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-xs font-extrabold text-slate-700 mb-1.5">
-              Nama Pejabat <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formNama}
-              onChange={(e) => setFormNama(e.target.value)}
-              placeholder="Contoh: Ust. Imam Bashori, M.Pd"
-              required
-              className="w-full rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-extrabold text-slate-700 mb-1.5">
-              Jabatan / Unit Madrasah <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formJabatan}
-              onChange={(e) => setFormJabatan(e.target.value)}
-              placeholder="Contoh: Kepala Madrasah Diniyah (Madin) / Kepala Pondok"
-              required
-              className="w-full rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] outline-none"
-            />
-          </div>
-
-          {/* CHECKBOXES MODUL MONITORING */}
-          <div className="rounded-2xl bg-slate-50 p-4 border border-slate-200/80 space-y-3">
-            <p className="text-xs font-black text-slate-800 uppercase tracking-wider">
-              Modul Absensi yang Dipantau:
-            </p>
-
-            <label className="flex items-center gap-3 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={formMadin}
-                onChange={(e) => setFormMadin(e.target.checked)}
-                className="h-4 w-4 rounded text-[#138F81] focus:ring-[#138F81]"
-              />
-              <div className="text-xs">
-                <span className="font-extrabold text-slate-800">📖 Presensi KBM Madin</span>
-                <p className="text-[11px] text-slate-500">Melihat rekap & log kehadiran kelas Diniyah.</p>
-              </div>
-            </label>
-
-            <label className="flex items-center gap-3 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={formSholat}
-                onChange={(e) => setFormSholat(e.target.checked)}
-                className="h-4 w-4 rounded text-[#138F81] focus:ring-[#138F81]"
-              />
-              <div className="text-xs">
-                <span className="font-extrabold text-slate-800">🕌 Presensi Jama'ah Sholat</span>
-                <p className="text-[11px] text-slate-500">Melihat rekap & log sholat santri per kamar asrama.</p>
-              </div>
-            </label>
-
-            <label className="flex items-center gap-3 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={formNgaji}
-                onChange={(e) => setFormNgaji(e.target.checked)}
-                className="h-4 w-4 rounded text-[#138F81] focus:ring-[#138F81]"
-              />
-              <div className="text-xs">
-                <span className="font-extrabold text-slate-800">📚 Presensi Ngaji Kitab</span>
-                <p className="text-[11px] text-slate-500">Melihat rekap & log pengajian kitab kuning santri.</p>
-              </div>
-            </label>
-
-            <div className="pt-2 border-t border-slate-200">
-              <label className="flex items-center gap-3 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={formActive}
-                  onChange={(e) => setFormActive(e.target.checked)}
-                  className="h-4 w-4 rounded text-[#138F81] focus:ring-[#138F81]"
-                />
-                <span className="text-xs font-bold text-slate-700">Status Akses Aktif</span>
-              </label>
-            </div>
-          </div>
-
-          <div className="pt-3 flex items-center justify-end gap-2.5">
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2.5 rounded-2xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all"
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              disabled={isSavingModal}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#138F81] text-white text-xs font-black hover:bg-[#0D7A6F] transition-all shadow-md shadow-[#138F81]/20 cursor-pointer disabled:opacity-50"
-            >
-              <Save size={15} />
-              <span>{isSavingModal ? 'Menyimpan...' : 'Simpan Pengaturan'}</span>
-            </button>
-          </div>
-        </form>
-      </ModalForm>
-      )}
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import {
   AlertCircle,
   AlertTriangle,
+  ArrowLeft,
   Bell,
-  Calendar,
   CheckCircle2,
   Clock,
   DollarSign,
@@ -49,8 +49,8 @@ export function ItSystemMasterControlSection() {
     late_tolerance_minutes: 60,
   });
 
-  // Modal State: Override Guru
-  const [overrideModalOpen, setOverrideModalOpen] = useState(false);
+  // INLINE Form State: Override Guru (Tidak lagi modal popup, melainkan inline view konsisten)
+  const [isFormActive, setIsFormActive] = useState(false);
   const [editingOverride, setEditingOverride] = useState<ItGuruAttendanceOverride | null>(null);
   const [overrideForm, setOverrideForm] = useState<{
     teacher_id: number | '';
@@ -149,8 +149,8 @@ export function ItSystemMasterControlSection() {
     }
   };
 
-  // Buka Modal Tambah/Edit Override
-  const openAddOverrideModal = () => {
+  // Buka Form Tambah Override (Inline, non-popup)
+  const openAddOverrideForm = () => {
     setEditingOverride(null);
     setOverrideForm({
       teacher_id: '',
@@ -163,10 +163,11 @@ export function ItSystemMasterControlSection() {
       is_force_locked: false,
       notes: '',
     });
-    setOverrideModalOpen(true);
+    setIsFormActive(true);
   };
 
-  const openEditOverrideModal = (override: ItGuruAttendanceOverride) => {
+  // Buka Form Edit Override (Inline, non-popup)
+  const openEditOverrideForm = (override: ItGuruAttendanceOverride) => {
     setEditingOverride(override);
     setOverrideForm({
       teacher_id: override.teacher_id,
@@ -179,7 +180,7 @@ export function ItSystemMasterControlSection() {
       is_force_locked: Boolean(override.is_force_locked),
       notes: override.notes || '',
     });
-    setOverrideModalOpen(true);
+    setIsFormActive(true);
   };
 
   // Simpan Override Guru
@@ -209,7 +210,7 @@ export function ItSystemMasterControlSection() {
         text: `Aturan khusus untuk guru berhasil ${editingOverride ? 'diperbarui' : 'ditambahkan'}!`,
         type: 'success',
       });
-      setOverrideModalOpen(false);
+      setIsFormActive(false);
       await loadAttendanceSettings();
     } catch (err: any) {
       setMessage({ text: err.message || 'Gagal menyimpan aturan override.', type: 'error' });
@@ -318,6 +319,284 @@ export function ItSystemMasterControlSection() {
     }
   };
 
+  // =========================================================================
+  // 🌟 JIKA FORM ACTIVE: TAMPILKAN INLINE FORM CARD (KONSISTEN DENGAN MASTER DATA)
+  // TIDAK ADA POPUP/MODAL LAGI!
+  // =========================================================================
+  if (isFormActive) {
+    return (
+      <div className="w-full flex-1">
+        <div className="flex w-full flex-col overflow-hidden bg-white shadow-sm ring-1 ring-slate-200 sm:rounded-3xl">
+          {/* Header Card Form Konsisten */}
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setIsFormActive(false)}
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
+                title="Kembali ke Daftar"
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-extrabold text-[#2D3436]">
+                    {editingOverride ? 'Edit Aturan Khusus Presensi Guru' : 'Tambah Aturan Khusus Presensi Guru'}
+                  </h2>
+                  <span className="rounded-xl bg-[#E8F7F3] px-2.5 py-0.5 text-xs font-black text-[#138F81] border border-teal-200">
+                    Master IT Control
+                  </span>
+                </div>
+                <p className="text-sm font-semibold text-[#636E72] mt-0.5">
+                  Atur jam buka & jam tutup khusus untuk guru tertentu, atau gunakan kontrol darurat (Buka Paksa / Kunci Paksa).
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsFormActive(false)}
+              className="grid h-10 w-10 place-items-center rounded-full bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors cursor-pointer"
+              title="Tutup Form"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Form Content */}
+          <form id="guru-override-form" onSubmit={handleSaveOverride} className="p-6 sm:p-8 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* 1. Pilih Guru */}
+              <div className="space-y-2">
+                <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                  1. Pilih Guru Target: <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={overrideForm.teacher_id}
+                  onChange={(e) =>
+                    setOverrideForm({ ...overrideForm, teacher_id: e.target.value ? Number(e.target.value) : '' })
+                  }
+                  required
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-800 focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] outline-none"
+                >
+                  <option value="">-- Pilih Guru --</option>
+                  {attendanceData?.teachers?.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.username || t.email || `ID: ${t.id}`})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500">Pilih guru yang ingin diatur jam presensinya.</p>
+              </div>
+
+              {/* 2. Target Jadwal */}
+              <div className="space-y-2">
+                <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                  2. Target Jadwal (Opsional):
+                </label>
+                <select
+                  value={overrideForm.jadwal_id}
+                  onChange={(e) =>
+                    setOverrideForm({ ...overrideForm, jadwal_id: e.target.value ? Number(e.target.value) : '' })
+                  }
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-800 focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] outline-none"
+                >
+                  <option value="">⭐ Berlaku Untuk Seluruh Jadwal Mengajar Guru Ini</option>
+                  {attendanceData?.jadwals
+                    ?.filter((j) => !overrideForm.teacher_id || j.teacher_id === Number(overrideForm.teacher_id))
+                    ?.map((j) => (
+                      <option key={j.id} value={j.id}>
+                        {j.hari} {j.jam_mulai?.substring(0, 5)} - {j.mapel?.name || 'Mapel'} ({j.kelas?.name || 'Kelas'})
+                      </option>
+                    ))}
+                </select>
+                <p className="text-xs text-slate-500">
+                  Kosongkan jika ingin menerapkan aturan ini ke seluruh jadwal yang diampu guru.
+                </p>
+              </div>
+            </div>
+
+            {/* 3. Pengaturan Jam Buka Presensi */}
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+              <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                3. Aturan Waktu Buka Presensi Guru:
+              </label>
+
+              <div className="flex flex-wrap gap-6 text-sm font-bold">
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="open_mode"
+                    value="lead"
+                    checked={overrideForm.open_mode === 'lead'}
+                    onChange={() => setOverrideForm({ ...overrideForm, open_mode: 'lead' })}
+                    className="h-4 w-4 text-[#138F81] focus:ring-[#138F81]"
+                  />
+                  <span>H-X Menit Sebelum Jam Pelajaran Dimulai</span>
+                </label>
+
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="open_mode"
+                    value="custom_hour"
+                    checked={overrideForm.open_mode === 'custom_hour'}
+                    onChange={() => setOverrideForm({ ...overrideForm, open_mode: 'custom_hour' })}
+                    className="h-4 w-4 text-[#138F81] focus:ring-[#138F81]"
+                  />
+                  <span>Buka Tepat Jam Tertentu (Misal: 17:00 / 18:00 WIB)</span>
+                </label>
+              </div>
+
+              {overrideForm.open_mode === 'lead' ? (
+                <div className="max-w-xs relative">
+                  <input
+                    type="number"
+                    min={0}
+                    max={720}
+                    step={5}
+                    value={overrideForm.open_lead_minutes}
+                    onChange={(e) =>
+                      setOverrideForm({ ...overrideForm, open_lead_minutes: Number(e.target.value) })
+                    }
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold focus:border-[#138F81] outline-none"
+                  />
+                  <span className="absolute right-3.5 top-2.5 text-xs text-slate-500 font-bold">Menit Sebelumnya</span>
+                </div>
+              ) : (
+                <div className="max-w-xs">
+                  <input
+                    type="time"
+                    value={overrideForm.custom_open_hour}
+                    onChange={(e) => setOverrideForm({ ...overrideForm, custom_open_hour: e.target.value })}
+                    required={overrideForm.open_mode === 'custom_hour'}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold focus:border-[#138F81] outline-none"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Presensi akan terbuka tepat pada jam ini.</p>
+                </div>
+              )}
+            </div>
+
+            {/* 4. Pengaturan Jam Tutup Presensi */}
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+              <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                4. Batas Waktu Tutup Presensi Khusus Guru Ini:
+              </label>
+              <div className="max-w-xs">
+                <input
+                  type="time"
+                  value={overrideForm.close_hour}
+                  onChange={(e) => setOverrideForm({ ...overrideForm, close_hour: e.target.value })}
+                  required
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold focus:border-[#138F81] outline-none"
+                />
+              </div>
+              <p className="text-xs text-slate-500">
+                Admin IT bisa memajukan batas tutup (misal jadi 22:00) atau memperpanjangnya.
+              </p>
+            </div>
+
+            {/* 5. Kontrol Status Darurat Langsung (Bypass) */}
+            <div className="p-5 rounded-2xl bg-amber-50/80 border border-amber-200 space-y-3">
+              <div className="text-xs font-black text-amber-900 flex items-center gap-2 uppercase tracking-wider">
+                <Zap className="w-4 h-4 text-amber-600" />
+                5. KONTROL STATUS DARURAT LANGSUNG (INSTANT OVERRIDE):
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                <label className="flex items-start gap-3 p-3.5 rounded-xl bg-white border border-emerald-200 cursor-pointer shadow-xs">
+                  <input
+                    type="checkbox"
+                    checked={overrideForm.is_force_open}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setOverrideForm({
+                        ...overrideForm,
+                        is_force_open: checked,
+                        is_force_locked: checked ? false : overrideForm.is_force_locked,
+                      });
+                    }}
+                    className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4"
+                  />
+                  <div>
+                    <span className="text-xs font-black text-emerald-800 flex items-center gap-1.5">
+                      <Unlock className="w-3.5 h-3.5" /> Buka Paksa Sekarang (Force Open)
+                    </span>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      Membuka presensi guru ini seketika tanpa peduli batasan jam atau hari.
+                    </p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 p-3.5 rounded-xl bg-white border border-red-200 cursor-pointer shadow-xs">
+                  <input
+                    type="checkbox"
+                    checked={overrideForm.is_force_locked}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setOverrideForm({
+                        ...overrideForm,
+                        is_force_locked: checked,
+                        is_force_open: checked ? false : overrideForm.is_force_open,
+                      });
+                    }}
+                    className="mt-0.5 rounded text-red-600 focus:ring-red-500 h-4 w-4"
+                  />
+                  <div>
+                    <span className="text-xs font-black text-red-800 flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5" /> Kunci Paksa Sekarang (Force Locked)
+                    </span>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      Memblokir guru ini dari input absensi saat ini juga.
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* 6. Catatan Admin IT */}
+            <div className="space-y-2">
+              <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                6. Catatan / Alasan Admin IT (Opsional):
+              </label>
+              <input
+                type="text"
+                placeholder="Misal: Izin buka awal untuk persiapan acara maulid / ujian praktek"
+                value={overrideForm.notes}
+                onChange={(e) => setOverrideForm({ ...overrideForm, notes: e.target.value })}
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-800 focus:border-[#138F81] outline-none"
+              />
+            </div>
+          </form>
+
+          {/* Footer Action Buttons Konsisten */}
+          <div className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
+            <button
+              type="button"
+              onClick={() => setIsFormActive(false)}
+              disabled={savingOverride}
+              className="rounded-2xl bg-white px-6 py-2.5 text-sm font-bold text-[#636E72] shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              form="guru-override-form"
+              disabled={savingOverride}
+              className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] px-8 py-2.5 text-sm font-extrabold text-white shadow-lg shadow-[#138F81]/20 hover:bg-[#0E6A5F] transition-colors disabled:opacity-70 cursor-pointer"
+            >
+              <CheckCircle2 size={18} className={savingOverride ? 'animate-spin' : ''} />
+              {savingOverride ? 'Menyimpan...' : 'Simpan Aturan Khusus Guru'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // VIEW UTAMA CMS (JIKA TIDAK SEDANG EDIT/TAMBAH OVERRIDE)
+  // =========================================================================
   return (
     <div className="space-y-6">
       {/* Hero Header */}
@@ -348,7 +627,7 @@ export function ItSystemMasterControlSection() {
             <button
               onClick={handleRefresh}
               disabled={refreshing || loading}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-xs font-semibold text-white shadow transition disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-xs font-semibold text-white shadow transition disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               Segarkan
@@ -382,7 +661,7 @@ export function ItSystemMasterControlSection() {
           <span className="font-medium">{message.text}</span>
           <button
             onClick={() => setMessage(null)}
-            className="ml-auto text-xs opacity-70 hover:opacity-100"
+            className="ml-auto text-xs opacity-70 hover:opacity-100 cursor-pointer"
           >
             ✕
           </button>
@@ -393,16 +672,16 @@ export function ItSystemMasterControlSection() {
       <div className="flex gap-2 border-b border-slate-200">
         <button
           onClick={() => setActiveTab('attendance')}
-          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all ${
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
             activeTab === 'attendance'
-              ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+              ? 'border-[#138F81] text-[#138F81] bg-teal-50/50'
               : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
           }`}
         >
           <Clock className="w-4 h-4" />
           ⏰ Kontrol Jam Presensi Guru (Global & By-Guru)
           {attendanceData?.overrides?.length ? (
-            <span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 text-indigo-700">
+            <span className="px-2 py-0.5 rounded-full text-xs bg-teal-100 text-teal-800">
               {attendanceData.overrides.length} Override
             </span>
           ) : null}
@@ -410,9 +689,9 @@ export function ItSystemMasterControlSection() {
 
         <button
           onClick={() => setActiveTab('notifications')}
-          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all ${
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
             activeTab === 'notifications'
-              ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+              ? 'border-[#138F81] text-[#138F81] bg-teal-50/50'
               : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
           }`}
         >
@@ -467,7 +746,7 @@ export function ItSystemMasterControlSection() {
                       onChange={(e) =>
                         setGlobalForm({ ...globalForm, default_open_lead_minutes: Number(e.target.value) })
                       }
-                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-[#138F81] focus:outline-none focus:ring-2 focus:ring-teal-100"
                     />
                     <span className="absolute right-3 top-2.5 text-xs text-slate-500 font-medium">Menit</span>
                   </div>
@@ -487,7 +766,7 @@ export function ItSystemMasterControlSection() {
                     type="time"
                     value={globalForm.default_close_hour}
                     onChange={(e) => setGlobalForm({ ...globalForm, default_close_hour: e.target.value })}
-                    className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-[#138F81] focus:outline-none focus:ring-2 focus:ring-teal-100"
                     required
                   />
                   <p className="text-[11px] text-slate-500">
@@ -508,7 +787,7 @@ export function ItSystemMasterControlSection() {
                         onChange={(e) => setGlobalForm({ ...globalForm, auto_lock_enabled: e.target.checked })}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#138F81]"></div>
                       <span className="ml-3 text-xs font-medium text-slate-700">
                         {globalForm.auto_lock_enabled ? 'Aktif (Terkunci Ketat)' : 'Nonaktif (Bebas)'}
                       </span>
@@ -534,7 +813,7 @@ export function ItSystemMasterControlSection() {
                         }
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#138F81]"></div>
                       <span className="ml-3 text-xs font-medium text-slate-700">
                         {globalForm.allow_late_submission ? 'Boleh (Diberi Flag Terlambat)' : 'Dilarang'}
                       </span>
@@ -550,7 +829,7 @@ export function ItSystemMasterControlSection() {
                 <button
                   type="submit"
                   disabled={savingGlobal}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-sm font-semibold shadow-md transition disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] active:scale-95 text-white text-sm font-extrabold shadow-md shadow-[#138F81]/20 transition disabled:opacity-50 cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4" />
                   {savingGlobal ? 'Menyimpan...' : 'Simpan Konfigurasi Presensi Global'}
@@ -578,8 +857,9 @@ export function ItSystemMasterControlSection() {
               </div>
 
               <button
-                onClick={openAddOverrideModal}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 active:scale-95 text-white text-xs font-semibold shadow transition"
+                type="button"
+                onClick={openAddOverrideForm}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] active:scale-95 text-white text-xs font-black shadow-md shadow-[#138F81]/20 transition cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 + Tambah Aturan Khusus Guru
@@ -680,7 +960,7 @@ export function ItSystemMasterControlSection() {
                             type="button"
                             onClick={() => handleToggleForce(item.id, 'force_open')}
                             title={item.is_force_open ? 'Nonaktifkan Buka Paksa' : 'Buka Paksa Presensi Guru Ini Sekarang'}
-                            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition inline-flex items-center gap-1 ${
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition inline-flex items-center gap-1 cursor-pointer ${
                               item.is_force_open
                                 ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                                 : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-300'
@@ -695,7 +975,7 @@ export function ItSystemMasterControlSection() {
                             type="button"
                             onClick={() => handleToggleForce(item.id, 'force_locked')}
                             title={item.is_force_locked ? 'Lepas Kunci Paksa' : 'Kunci Paksa Presensi Guru Ini Sekarang'}
-                            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition inline-flex items-center gap-1 ${
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition inline-flex items-center gap-1 cursor-pointer ${
                               item.is_force_locked
                                 ? 'bg-red-600 text-white hover:bg-red-700'
                                 : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-300'
@@ -708,8 +988,8 @@ export function ItSystemMasterControlSection() {
                           {/* Edit Button */}
                           <button
                             type="button"
-                            onClick={() => openEditOverrideModal(item)}
-                            className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 transition"
+                            onClick={() => openEditOverrideForm(item)}
+                            className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 transition cursor-pointer"
                             title="Edit Aturan"
                           >
                             <Edit3 className="w-4 h-4" />
@@ -719,7 +999,7 @@ export function ItSystemMasterControlSection() {
                           <button
                             type="button"
                             onClick={() => handleDeleteOverride(item.id, item.teacher?.name || 'Guru')}
-                            className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 transition"
+                            className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 transition cursor-pointer"
                             title="Hapus Aturan"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -824,7 +1104,7 @@ export function ItSystemMasterControlSection() {
                             },
                           })
                         }
-                        className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                        className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-[#138F81] focus:outline-none font-bold"
                       />
                       <span className="absolute right-3 top-2 text-xs text-slate-500 font-medium">Tiap Bulan</span>
                     </div>
@@ -843,7 +1123,7 @@ export function ItSystemMasterControlSection() {
                           wali_billing: { ...notificationData.wali_billing, scheduled_hour: e.target.value },
                         })
                       }
-                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-[#138F81] focus:outline-none font-bold"
                     />
                     <p className="text-[11px] text-slate-500">Default: Pukul 07:00 pagi WIB.</p>
                   </div>
@@ -864,7 +1144,7 @@ export function ItSystemMasterControlSection() {
                           wali_billing: { ...notificationData.wali_billing, template_title: e.target.value },
                         })
                       }
-                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-[#138F81] focus:outline-none font-semibold"
                     />
                   </div>
 
@@ -881,7 +1161,7 @@ export function ItSystemMasterControlSection() {
                           wali_billing: { ...notificationData.wali_billing, template_body: e.target.value },
                         })
                       }
-                      className="w-full rounded-xl border border-slate-300 p-3 text-sm font-mono focus:border-indigo-500 focus:outline-none"
+                      className="w-full rounded-xl border border-slate-300 p-3 text-sm font-mono focus:border-[#138F81] focus:outline-none"
                     />
                   </div>
                 </div>
@@ -897,7 +1177,7 @@ export function ItSystemMasterControlSection() {
                       type="button"
                       onClick={handleTriggerWaliBroadcast}
                       disabled={triggeringNotification === 'wali'}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 active:scale-95 text-white text-xs font-bold shadow transition disabled:opacity-50"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-amber-600 hover:bg-amber-500 active:scale-95 text-white text-xs font-bold shadow transition disabled:opacity-50 cursor-pointer"
                     >
                       <Send className="w-3.5 h-3.5" />
                       {triggeringNotification === 'wali'
@@ -909,7 +1189,7 @@ export function ItSystemMasterControlSection() {
                       type="button"
                       onClick={handleSaveWaliNotification}
                       disabled={savingNotification === 'wali'}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold shadow transition disabled:opacity-50"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] active:scale-95 text-white text-xs font-bold shadow-md shadow-[#138F81]/20 transition disabled:opacity-50 cursor-pointer"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
                       {savingNotification === 'wali' ? 'Menyimpan...' : 'Simpan Pengaturan SPP'}
@@ -961,7 +1241,7 @@ export function ItSystemMasterControlSection() {
                           }
                           className="sr-only peer"
                         />
-                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#138F81]"></div>
                         <span className="ml-3 text-xs font-semibold text-slate-800">
                           {notificationData.guru_deadline.is_enabled ? 'Aktif Otomatis' : 'Nonaktif'}
                         </span>
@@ -990,7 +1270,7 @@ export function ItSystemMasterControlSection() {
                             },
                           })
                         }
-                        className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                        className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-[#138F81] focus:outline-none font-bold"
                       />
                       <span className="absolute right-3 top-2 text-xs text-slate-500 font-medium">Menit Sebelumnya</span>
                     </div>
@@ -1015,7 +1295,7 @@ export function ItSystemMasterControlSection() {
                           guru_deadline: { ...notificationData.guru_deadline, template_title: e.target.value },
                         })
                       }
-                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-[#138F81] focus:outline-none font-semibold"
                     />
                   </div>
 
@@ -1032,7 +1312,7 @@ export function ItSystemMasterControlSection() {
                           guru_deadline: { ...notificationData.guru_deadline, template_body: e.target.value },
                         })
                       }
-                      className="w-full rounded-xl border border-slate-300 p-3 text-sm font-mono focus:border-indigo-500 focus:outline-none"
+                      className="w-full rounded-xl border border-slate-300 p-3 text-sm font-mono focus:border-[#138F81] focus:outline-none"
                     />
                   </div>
                 </div>
@@ -1048,7 +1328,7 @@ export function ItSystemMasterControlSection() {
                       type="button"
                       onClick={handleTriggerGuruBroadcast}
                       disabled={triggeringNotification === 'guru'}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 active:scale-95 text-white text-xs font-bold shadow transition disabled:opacity-50"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-500 active:scale-95 text-white text-xs font-bold shadow transition disabled:opacity-50 cursor-pointer"
                     >
                       <Zap className="w-3.5 h-3.5" />
                       {triggeringNotification === 'guru'
@@ -1060,7 +1340,7 @@ export function ItSystemMasterControlSection() {
                       type="button"
                       onClick={handleSaveGuruNotification}
                       disabled={savingNotification === 'guru'}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs font-bold shadow transition disabled:opacity-50"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] active:scale-95 text-white text-xs font-bold shadow-md shadow-[#138F81]/20 transition disabled:opacity-50 cursor-pointer"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
                       {savingNotification === 'guru' ? 'Menyimpan...' : 'Simpan Pengaturan Peringatan'}
@@ -1069,237 +1349,6 @@ export function ItSystemMasterControlSection() {
                 </div>
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL DIALOG: TAMBAH / EDIT OVERRIDE KHUSUS GURU */}
-      {/* ========================================================================= */}
-      {overrideModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="relative w-full max-w-xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-slate-900 to-indigo-950 text-white">
-              <div className="flex items-center gap-2.5">
-                <Sliders className="w-5 h-5 text-indigo-400" />
-                <h3 className="text-base font-bold">
-                  {editingOverride ? 'Edit Aturan Khusus Guru' : 'Tambah Aturan Khusus Guru'}
-                </h3>
-              </div>
-              <button
-                onClick={() => setOverrideModalOpen(false)}
-                className="text-slate-400 hover:text-white transition p-1"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <form onSubmit={handleSaveOverride} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
-              {/* 1. Pilih Guru */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700">Pilih Guru Target: *</label>
-                <select
-                  value={overrideForm.teacher_id}
-                  onChange={(e) =>
-                    setOverrideForm({ ...overrideForm, teacher_id: e.target.value ? Number(e.target.value) : '' })
-                  }
-                  required
-                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-indigo-500 focus:outline-none"
-                >
-                  <option value="">-- Pilih Guru --</option>
-                  {attendanceData?.teachers?.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} ({t.username || t.email || `ID: ${t.id}`})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 2. Pilih Jadwal (Opsional) */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700">
-                  Target Jadwal (Opsional):
-                </label>
-                <select
-                  value={overrideForm.jadwal_id}
-                  onChange={(e) =>
-                    setOverrideForm({ ...overrideForm, jadwal_id: e.target.value ? Number(e.target.value) : '' })
-                  }
-                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-indigo-500 focus:outline-none"
-                >
-                  <option value="">⭐ Berlaku Untuk Seluruh Jadwal Guru Ini</option>
-                  {attendanceData?.jadwals
-                    ?.filter((j) => !overrideForm.teacher_id || j.teacher_id === Number(overrideForm.teacher_id))
-                    ?.map((j) => (
-                      <option key={j.id} value={j.id}>
-                        {j.hari} {j.jam_mulai?.substring(0, 5)} - {j.mapel?.name || 'Mapel'} ({j.kelas?.name || 'Kelas'})
-                      </option>
-                    ))}
-                </select>
-                <p className="text-[11px] text-slate-500">
-                  Kosongkan jika aturan ini ingin diterapkan ke semua jadwal mengajar guru tersebut.
-                </p>
-              </div>
-
-              {/* 3. Pengaturan Jam Buka */}
-              <div className="space-y-2 p-4 rounded-xl bg-slate-50 border border-slate-200">
-                <label className="block text-xs font-bold text-slate-800">
-                  Aturan Jam Buka Presensi Guru:
-                </label>
-                <div className="flex gap-4 text-xs font-semibold">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="open_mode"
-                      value="lead"
-                      checked={overrideForm.open_mode === 'lead'}
-                      onChange={() => setOverrideForm({ ...overrideForm, open_mode: 'lead' })}
-                      className="text-indigo-600"
-                    />
-                    <span>H-X Menit Sebelum Pelajaran</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="open_mode"
-                      value="custom_hour"
-                      checked={overrideForm.open_mode === 'custom_hour'}
-                      onChange={() => setOverrideForm({ ...overrideForm, open_mode: 'custom_hour' })}
-                      className="text-indigo-600"
-                    />
-                    <span>Jam Tertentu (Misal 17:00 / 18:00)</span>
-                  </label>
-                </div>
-
-                {overrideForm.open_mode === 'lead' ? (
-                  <div className="mt-2 relative">
-                    <input
-                      type="number"
-                      min={0}
-                      max={720}
-                      step={5}
-                      value={overrideForm.open_lead_minutes}
-                      onChange={(e) =>
-                        setOverrideForm({ ...overrideForm, open_lead_minutes: Number(e.target.value) })
-                      }
-                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                    />
-                    <span className="absolute right-3 top-2 text-xs text-slate-500 font-medium">Menit Sebelumnya</span>
-                  </div>
-                ) : (
-                  <div className="mt-2">
-                    <input
-                      type="time"
-                      value={overrideForm.custom_open_hour}
-                      onChange={(e) => setOverrideForm({ ...overrideForm, custom_open_hour: e.target.value })}
-                      required={overrideForm.open_mode === 'custom_hour'}
-                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                    />
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Presensi akan otomatis terbuka tepat pada jam ini (misal 17:00 atau 18:00).
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* 4. Pengaturan Jam Tutup */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700">
-                  Batas Jam Tutup Presensi Khusus Guru Ini:
-                </label>
-                <input
-                  type="time"
-                  value={overrideForm.close_hour}
-                  onChange={(e) => setOverrideForm({ ...overrideForm, close_hour: e.target.value })}
-                  required
-                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                />
-                <p className="text-[11px] text-slate-500">
-                  Admin IT bisa memajukan batas tutup (misal 22:00) atau memperpanjangnya.
-                </p>
-              </div>
-
-              {/* 5. Kontrol Darurat Langsung */}
-              <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 space-y-2.5">
-                <div className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                  <Zap className="w-4 h-4 text-amber-600" />
-                  KONTROL STATUS DARURAT LANGSUNG (BYPASS):
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={overrideForm.is_force_open}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setOverrideForm({
-                          ...overrideForm,
-                          is_force_open: checked,
-                          is_force_locked: checked ? false : overrideForm.is_force_locked,
-                        });
-                      }}
-                      className="rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4"
-                    />
-                    <span className="text-xs font-semibold text-emerald-800">
-                      🔓 Buka Paksa Sekarang (Force Open) &bull; Membuka absensi guru ini seketika tanpa peduli jam.
-                    </span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={overrideForm.is_force_locked}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setOverrideForm({
-                          ...overrideForm,
-                          is_force_locked: checked,
-                          is_force_open: checked ? false : overrideForm.is_force_open,
-                        });
-                      }}
-                      className="rounded text-red-600 focus:ring-red-500 h-4 w-4"
-                    />
-                    <span className="text-xs font-semibold text-red-800">
-                      🔒 Kunci Paksa Sekarang (Force Locked) &bull; Memblokir guru ini dari input absensi seketika.
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              {/* 6. Catatan Admin IT */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700">Catatan / Alasan (Opsional):</label>
-                <input
-                  type="text"
-                  placeholder="Misal: Izin buka awal untuk persiapan acara maulid"
-                  value={overrideForm.notes}
-                  onChange={(e) => setOverrideForm({ ...overrideForm, notes: e.target.value })}
-                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                />
-              </div>
-
-              {/* Modal Actions */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setOverrideModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingOverride}
-                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-xs font-bold text-white shadow transition disabled:opacity-50"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  {savingOverride ? 'Menyimpan...' : 'Simpan Aturan Guru'}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
