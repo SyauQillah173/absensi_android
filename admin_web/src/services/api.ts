@@ -233,6 +233,37 @@ export interface ItNotificationSettingsResponse {
   server_time: string;
 }
 
+export interface ItHelpdeskConfig {
+  whatsapp_number: string;
+  contact_person_name: string;
+  contact_role: string;
+  template_message: string;
+}
+
+export interface ItVaultUser {
+  id: number;
+  name: string;
+  email: string | null;
+  role: string;
+  admin_type: string | null;
+  kode_guru: string | null;
+  nis: string | null;
+  no_hp: string | null;
+  status: string;
+  password_plain: string;
+  password_masked: string;
+  has_custom_password: boolean;
+  password_changed_at: string | null;
+  created_at: string | null;
+}
+
+export interface ItVaultResponse {
+  users: ItVaultUser[];
+  total: number;
+  current_page: number;
+  last_page: number;
+}
+
 const storageKey = 'qomaruddin_admin_session';
 const importBatchSize = 100;
 
@@ -1574,6 +1605,25 @@ export const api = {
     return request<ApiRecord>('/it-control/notifications/trigger-guru', {
       method: 'POST',
       body: JSON.stringify({ force }),
+    });
+  },
+
+  // 📞 Public Helpdesk Info (Lupa Password)
+  getHelpdeskInfo() {
+    return request<ItHelpdeskConfig>('/auth/helpdesk-info');
+  },
+
+  // 🔐 Vault Sandi Pengguna & Helpdesk Setting (Khusus Admin IT)
+  getItCredentialsVault(params?: { role?: string; search?: string; page?: number }) {
+    return request<ItVaultResponse>('/it-control/credentials-vault', {}, params);
+  },
+  getItHelpdeskSettings() {
+    return request<ItHelpdeskConfig>('/it-control/helpdesk-settings');
+  },
+  saveItHelpdeskSettings(payload: ItHelpdeskConfig) {
+    return request<ItHelpdeskConfig>('/it-control/helpdesk-settings', {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
   }
 };

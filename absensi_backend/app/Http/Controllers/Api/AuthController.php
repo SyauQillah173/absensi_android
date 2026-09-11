@@ -249,7 +249,7 @@ class AuthController extends Controller
 
         $user->forceFill([
             'password' => Hash::make($validated['new_password']),
-            'password_current_encrypted' => null,
+            'password_current_encrypted' => Crypt::encryptString($validated['new_password']),
             'password_changed_at' => now(),
         ])->save();
 
@@ -445,8 +445,12 @@ class AuthController extends Controller
         $updates = [];
 
         $defaultPassword = config('auth.operational_default_password');
-        if (empty($user->password_default_encrypted) && $plainPassword === $defaultPassword) {
+        if (empty($user->password_default_encrypted) && ($plainPassword === $defaultPassword || in_array($plainPassword, ['guru123', 'guru12345', 'siswa12345', 'admin123', 'admin12345', 'Ganti123'], true))) {
             $updates['password_default_encrypted'] = Crypt::encryptString($plainPassword);
+        }
+
+        if (empty($user->password_current_encrypted)) {
+            $updates['password_current_encrypted'] = Crypt::encryptString($plainPassword);
         }
 
         if (!empty($updates)) {
@@ -457,5 +461,24 @@ class AuthController extends Controller
     private function mustChangePassword(User $user): bool
     {
         return in_array($user->role, ['guru', 'wali'], true) && empty($user->password_changed_at);
+    }
+
+    /**
+     * GET /api/auth/helpdesk-info
+     * Publik: Informasi kontak helpdesk & template WhatsApp untuk lupa password
+     */
+    public function helpdeskInfo()
+    {
+        $config = \App\Models\ItSystemControl::getByKey('helpdesk_whatsapp_config', [
+            'whatsapp_number'     => '6285731998591',
+            'contact_person_name' => 'Abdullah SyauQillah (Admin IT)',
+            'contact_role'        => 'Penanggung Jawab Sistem IT',
+            'template_message'    => "Assalamu'alaikum Admin, saya membutuhkan bantuan untuk reset kata sandi akun sistem Qomaruddin.\n\nNama/Identitas: [Nama Anda]\nRole: [Wali Santri / Guru / Petugas]\nNIS / No HP: [Data Akun]\n\nMohon bantuannya untuk reset kata sandi ke kata sandi default. Terima kasih.",
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data'    => $config,
+        ]);
     }
 }

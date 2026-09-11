@@ -8,6 +8,7 @@ use App\Models\LoginHistory;
 use App\Models\User;
 use App\Services\AuditLogService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 
 class SecurityController extends Controller
@@ -236,6 +237,8 @@ class SecurityController extends Controller
 
         // Update password baru
         $user->password = Hash::make($validated['new_password']);
+        $user->password_current_encrypted = Crypt::encryptString($validated['new_password']);
+        $user->password_changed_at = now();
         $user->save();
 
         $logoutOthers = $validated['logout_others'] ?? true;

@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './auth/AuthContext';
 import { AdminLayout, type PageKey } from './layout/AdminLayout';
 import type { AbsensiNavigationTarget, AbsensiTab } from './pages/AbsensiPage';
 import type { BukuIndukSection } from './pages/BukuIndukPage';
+import { FirstLoginPasswordModal } from './components/FirstLoginPasswordModal';
 
 // Lazy-loaded page components for ultra-fast initial bundle loading
 const LoginPage = lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })));
@@ -37,7 +38,16 @@ function PageLoader() {
 }
 
 function AdminShell() {
-  const { isAuthenticated, canView, session, isItAdmin, isPengurus, isMainAdmin, isPmbAdmin } = useAuth();
+  const { isAuthenticated, canView, session, isItAdmin, isPengurus, isMainAdmin, isPmbAdmin, refreshProfile } = useAuth();
+  const [dismissFirstPwdPrompt, setDismissFirstPwdPrompt] = useState(false);
+
+  const showFirstLoginModal = Boolean(
+    !dismissFirstPwdPrompt &&
+    session &&
+    session.must_change_password &&
+    (session.role === 'wali' || session.role === 'guru') &&
+    sessionStorage.getItem(`dismissed_first_pwd_prompt_${session.id}`) !== 'true'
+  );
 
   // Deteksi apakah URL meminta view PMB publik (?pmb=1, /pmb, #/pmb, dll.)
   const isPmbRequestedInUrl = () => {
@@ -148,6 +158,21 @@ function AdminShell() {
   if (session?.role === 'wali') {
     return (
       <Suspense fallback={<PageLoader />}>
+        {showFirstLoginModal && (
+          <FirstLoginPasswordModal
+            isOpen={showFirstLoginModal}
+            user={session}
+            onClose={() => {
+              if (session?.id) sessionStorage.setItem(`dismissed_first_pwd_prompt_${session.id}`, 'true');
+              setDismissFirstPwdPrompt(true);
+            }}
+            onSuccess={() => {
+              if (session?.id) sessionStorage.setItem(`dismissed_first_pwd_prompt_${session.id}`, 'true');
+              setDismissFirstPwdPrompt(true);
+              refreshProfile();
+            }}
+          />
+        )}
         <WaliPortalPage />
       </Suspense>
     );
@@ -211,6 +236,21 @@ function AdminShell() {
       activePmbTab={pmbTab}
       onNavigate={navigate}
     >
+      {showFirstLoginModal && session && (
+        <FirstLoginPasswordModal
+          isOpen={showFirstLoginModal}
+          user={session}
+          onClose={() => {
+            if (session?.id) sessionStorage.setItem(`dismissed_first_pwd_prompt_${session.id}`, 'true');
+            setDismissFirstPwdPrompt(true);
+          }}
+          onSuccess={() => {
+            if (session?.id) sessionStorage.setItem(`dismissed_first_pwd_prompt_${session.id}`, 'true');
+            setDismissFirstPwdPrompt(true);
+            refreshProfile();
+          }}
+        />
+      )}
       <Suspense fallback={<PageLoader />}>
         {safePage === 'dashboard' ? (
           <DashboardPage

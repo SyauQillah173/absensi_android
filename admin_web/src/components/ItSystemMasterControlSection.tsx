@@ -3,16 +3,26 @@ import {
   AlertTriangle,
   ArrowLeft,
   Bell,
+  Check,
   CheckCircle2,
   Clock,
+  Copy,
   DollarSign,
   Edit3,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  HelpCircle,
+  KeyRound,
   Lock,
   MessageSquare,
+  Phone,
   Plus,
   RefreshCw,
+  Search,
   Send,
   Shield,
+  ShieldCheck,
   Sliders,
   Sparkles,
   Trash2,
@@ -28,11 +38,13 @@ import {
   type ItAttendanceSettingsResponse,
   type ItGlobalAttendanceConfig,
   type ItGuruAttendanceOverride,
-  type ItNotificationSettingsResponse
+  type ItNotificationSettingsResponse,
+  type ItHelpdeskConfig,
+  type ItVaultUser
 } from '../services/api';
 
 export function ItSystemMasterControlSection() {
-  const [activeTab, setActiveTab] = useState<'attendance' | 'notifications'>('attendance');
+  const [activeTab, setActiveTab] = useState<'attendance' | 'notifications' | 'vault' | 'helpdesk'>('attendance');
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -107,6 +119,31 @@ export function ItSystemMasterControlSection() {
   const [savingNotification, setSavingNotification] = useState<'wali' | 'guru' | null>(null);
   const [triggeringNotification, setTriggeringNotification] = useState<'wali' | 'guru' | null>(null);
 
+  // Vault Kredensial State (Khusus Master IT)
+  const [vaultUsers, setVaultUsers] = useState<ItVaultUser[]>([]);
+  const [vaultLoading, setVaultLoading] = useState(false);
+  const [vaultSearch, setVaultSearch] = useState('');
+  const [vaultRole, setVaultRole] = useState<'all' | 'guru' | 'wali' | 'admin' | 'petugas' | 'keamanan'>('all');
+  const [vaultPagination, setVaultPagination] = useState({
+    current_page: 1,
+    last_page: 1,
+    total: 0,
+    per_page: 15,
+  });
+  const [revealedPasswords, setRevealedPasswords] = useState<Record<number, boolean>>({});
+  const [copiedUserId, setCopiedUserId] = useState<number | null>(null);
+
+  // Helpdesk & WhatsApp Lupa Password State
+  const [helpdeskForm, setHelpdeskForm] = useState<ItHelpdeskConfig>({
+    whatsapp_number: '6285731998591',
+    pic_name: 'Abdullah SyauQillah (Admin IT)',
+    contact_type: 'it_master',
+    message_template: "Assalamu'alaikum Admin Pesantren Qomaruddin, saya {nama} ({role}) lupa kata sandi akun saya. Mohon bantuannya untuk reset kata sandi ke bawaan. Terima kasih.",
+    is_active: true,
+  });
+  const [loadingHelpdesk, setLoadingHelpdesk] = useState(false);
+  const [savingHelpdesk, setSavingHelpdesk] = useState(false);
+
   // Fetch Attendance Settings
   const loadAttendanceSettings = async () => {
     try {
@@ -134,6 +171,80 @@ export function ItSystemMasterControlSection() {
     }
   };
 
+  // Fetch Credentials Vault (Khusus IT)
+  const loadVault = async (page = 1, search = vaultSearch, role = vaultRole) => {
+    setVaultLoading(true);
+    try {
+      const res = await api.getItCredentialsVault({
+        page,
+        search: search.trim() || undefined,
+        role: role === 'all' ? undefined : role,
+      });
+      if (res.data) {
+        setVaultUsers(res.data.users);
+        setVaultPagination({
+          current_page: res.data.pagination.current_page,
+          last_page: res.data.pagination.last_page,
+          total: res.data.pagination.total,
+          per_page: res.data.pagination.per_page,
+        });
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Gagal memuat vault kredensial.', 'error', 'Gagal Memuat Vault');
+    } finally {
+      setVaultLoading(false);
+    }
+  };
+
+  const togglePasswordReveal = (userId: number) => {
+    setRevealedPasswords((prev) => ({
+      ...prev,
+      [userId]: !prev[userId],
+    }));
+  };
+
+  const handleCopyPassword = async (userId: number, plainPwd: string) => {
+    try {
+      await navigator.clipboard.writeText(plainPwd);
+      setCopiedUserId(userId);
+      setTimeout(() => setCopiedUserId(null), 2500);
+      showToast('Kata sandi berhasil disalin ke clipboard!', 'success', 'Sandi Tersalin');
+    } catch {
+      // clipboard fallback
+    }
+  };
+
+  // Fetch Helpdesk Settings
+  const loadHelpdeskSettings = async () => {
+    setLoadingHelpdesk(true);
+    try {
+      const res = await api.getItHelpdeskSettings();
+      if (res.data) {
+        setHelpdeskForm(res.data);
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Gagal memuat pengaturan helpdesk.', 'error', 'Gagal Memuat Helpdesk');
+    } finally {
+      setLoadingHelpdesk(false);
+    }
+  };
+
+  const handleSaveHelpdesk = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingHelpdesk(true);
+    try {
+      const res = await api.saveItHelpdeskSettings(helpdeskForm);
+      if (res.data) {
+        setHelpdeskForm(res.data);
+      }
+      showToast('Pengaturan Kontak WhatsApp Helpdesk & Template Pesan berhasil disimpan!', 'success', 'Helpdesk Disimpan!');
+    } catch (err: any) {
+      showToast(err.message || 'Gagal menyimpan pengaturan helpdesk.', 'error', 'Gagal Menyimpan');
+    } finally {
+      setSavingHelpdesk(false);
+    }
+  };
+
   // Initial Load
   useEffect(() => {
     setLoading(true);
@@ -142,14 +253,27 @@ export function ItSystemMasterControlSection() {
     });
   }, []);
 
+  // Effect on Tab Change
+  useEffect(() => {
+    if (activeTab === 'vault') {
+      loadVault(1, vaultSearch, vaultRole);
+    } else if (activeTab === 'helpdesk') {
+      loadHelpdeskSettings();
+    }
+  }, [activeTab]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     setMessage(null);
     try {
       if (activeTab === 'attendance') {
         await loadAttendanceSettings();
-      } else {
+      } else if (activeTab === 'notifications') {
         await loadNotificationSettings();
+      } else if (activeTab === 'vault') {
+        await loadVault(vaultPagination.current_page, vaultSearch, vaultRole);
+      } else if (activeTab === 'helpdesk') {
+        await loadHelpdeskSettings();
       }
       showToast('Data master kontrol IT berhasil disegarkan.', 'info', 'Data Diperbarui');
     } catch (err: any) {
@@ -722,12 +846,12 @@ export function ItSystemMasterControlSection() {
         </div>
       )}
 
-      {/* Sub-Navigation Tabs Responsif (Grid 1 col on mobile, 2 col on tablet/desktop) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200">
+      {/* Sub-Navigation Tabs Responsif (Grid 1 col on mobile, 2 col on tablet, 4 col on desktop) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200">
         <button
           type="button"
           onClick={() => setActiveTab('attendance')}
-          className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+          className={`flex items-center justify-between gap-3 px-3.5 py-3 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
             activeTab === 'attendance'
               ? 'bg-white text-[#138F81] shadow-sm ring-1 ring-slate-200 font-black'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -737,11 +861,11 @@ export function ItSystemMasterControlSection() {
             <div className={`p-2 rounded-lg shrink-0 ${activeTab === 'attendance' ? 'bg-teal-50 text-[#138F81]' : 'bg-slate-200/60 text-slate-500'}`}>
               <Clock className="w-4 h-4" />
             </div>
-            <span className="truncate">Kontrol Jam Presensi Guru</span>
+            <span className="truncate">Presensi Guru</span>
           </div>
           {attendanceData?.overrides?.length ? (
             <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-teal-100 text-teal-800 shrink-0">
-              {attendanceData.overrides.length} Override
+              {attendanceData.overrides.length}
             </span>
           ) : null}
         </button>
@@ -749,7 +873,7 @@ export function ItSystemMasterControlSection() {
         <button
           type="button"
           onClick={() => setActiveTab('notifications')}
-          className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+          className={`flex items-center justify-between gap-3 px-3.5 py-3 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
             activeTab === 'notifications'
               ? 'bg-white text-[#138F81] shadow-sm ring-1 ring-slate-200 font-black'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -759,13 +883,53 @@ export function ItSystemMasterControlSection() {
             <div className={`p-2 rounded-lg shrink-0 ${activeTab === 'notifications' ? 'bg-amber-50 text-amber-600' : 'bg-slate-200/60 text-slate-500'}`}>
               <Bell className="w-4 h-4" />
             </div>
-            <span className="truncate">Smart Notification Engine</span>
+            <span className="truncate">Notifikasi SPP & Guru</span>
           </div>
           {notificationData?.stats?.unpaid_students_count ? (
             <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 shrink-0">
-              {notificationData.stats.unpaid_students_count} Penunggak
+              {notificationData.stats.unpaid_students_count}
             </span>
           ) : null}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('vault')}
+          className={`flex items-center justify-between gap-3 px-3.5 py-3 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+            activeTab === 'vault'
+              ? 'bg-white text-[#138F81] shadow-sm ring-1 ring-slate-200 font-black'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+          }`}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className={`p-2 rounded-lg shrink-0 ${activeTab === 'vault' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200/60 text-slate-500'}`}>
+              <KeyRound className="w-4 h-4" />
+            </div>
+            <span className="truncate">Vault Sandi Pengguna</span>
+          </div>
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-800 shrink-0">
+            Khusus IT
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('helpdesk')}
+          className={`flex items-center justify-between gap-3 px-3.5 py-3 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+            activeTab === 'helpdesk'
+              ? 'bg-white text-[#138F81] shadow-sm ring-1 ring-slate-200 font-black'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+          }`}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className={`p-2 rounded-lg shrink-0 ${activeTab === 'helpdesk' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-200/60 text-slate-500'}`}>
+              <MessageSquare className="w-4 h-4" />
+            </div>
+            <span className="truncate">WhatsApp Lupa Sandi</span>
+          </div>
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 shrink-0">
+            Helpdesk
+          </span>
         </button>
       </div>
 
@@ -1520,6 +1684,549 @@ export function ItSystemMasterControlSection() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB C: VAULT KREDENSIAL & KATA SANDI PENGGUNA (KHUSUS MASTER IT) */}
+      {/* ========================================================================= */}
+      {activeTab === 'vault' && (
+        <div className="space-y-6">
+          {/* Header Card & Security Notice */}
+          <div className="rounded-2xl sm:rounded-3xl bg-white border border-slate-200 shadow-sm p-5 sm:p-6 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+              <div className="flex items-start gap-3">
+                <div className="p-3 rounded-2xl bg-indigo-50 text-indigo-700 shrink-0 border border-indigo-200/60">
+                  <KeyRound className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-lg font-black text-slate-900">
+                      Vault Kredensial & Sandi Akun Pengguna
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-200">
+                      AES-256 Reversible Encryption
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-200">
+                      Khusus Master IT
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1 leading-relaxed">
+                    Sistem enkripsi dua arah memungkinkan Admin IT melihat kata sandi asli akun guru, wali santri, dan petugas untuk keperluan audit dan investigasi kendala login.
+                    Secara default kata sandi disamarkan dengan tanda bintang (••••••••••••). Klik ikon mata untuk melihat kata sandi asli.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0 self-start md:self-center">
+                <button
+                  type="button"
+                  onClick={() => loadVault(vaultPagination.current_page, vaultSearch, vaultRole)}
+                  disabled={vaultLoading}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${vaultLoading ? 'animate-spin' : ''}`} />
+                  <span>Muat Ulang Vault</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-1">
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={vaultSearch}
+                  onChange={(e) => setVaultSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      loadVault(1, vaultSearch, vaultRole);
+                    }
+                  }}
+                  placeholder="Cari nama, email, username, NIS, atau kode guru..."
+                  className="w-full pl-10 pr-24 py-2.5 rounded-2xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-800 focus:bg-white focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] outline-hidden transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => loadVault(1, vaultSearch, vaultRole)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 bg-[#138F81] text-white text-[11px] font-extrabold rounded-xl hover:bg-[#0d7367] transition cursor-pointer"
+                >
+                  Cari
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+                {(
+                  [
+                    { id: 'all', label: 'Semua Role' },
+                    { id: 'guru', label: 'Guru' },
+                    { id: 'wali', label: 'Wali Santri' },
+                    { id: 'admin', label: 'Admin' },
+                    { id: 'petugas', label: 'Petugas' },
+                    { id: 'keamanan', label: 'Keamanan' },
+                  ] as const
+                ).map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => {
+                      setVaultRole(r.id);
+                      loadVault(1, vaultSearch, r.id);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
+                      vaultRole === r.id
+                        ? 'bg-[#138F81] text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Table / List Pengguna */}
+          <div className="rounded-2xl sm:rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+            {vaultLoading ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs font-bold text-slate-500 animate-pulse">
+                  Mendekripsi dan memuat vault kata sandi...
+                </span>
+              </div>
+            ) : vaultUsers.length === 0 ? (
+              <div className="p-12 text-center text-slate-500 space-y-2">
+                <ShieldCheck className="w-12 h-12 mx-auto text-slate-300" />
+                <p className="font-bold text-sm text-slate-700">Tidak ada data pengguna yang ditemukan</p>
+                <p className="text-xs">Coba sesuaikan kata kunci pencarian atau filter peran akun.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-black text-slate-600 uppercase tracking-wider">
+                      <th className="py-3.5 px-4">Nama & Identitas Pengguna</th>
+                      <th className="py-3.5 px-4">Peran (Role)</th>
+                      <th className="py-3.5 px-4">Status Kata Sandi</th>
+                      <th className="py-3.5 px-4 min-w-[240px]">Kata Sandi Aktif (Live Vault)</th>
+                      <th className="py-3.5 px-4 text-right">Terakhir Diperbarui</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {vaultUsers.map((u) => {
+                      const isRevealed = Boolean(revealedPasswords[u.id]);
+                      const isCopied = copiedUserId === u.id;
+
+                      const roleBadgeColor =
+                        u.role === 'guru'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          : u.role === 'wali'
+                          ? 'bg-sky-50 text-sky-800 border-sky-200'
+                          : u.role === 'admin'
+                          ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                          : 'bg-amber-50 text-amber-800 border-amber-200';
+
+                      return (
+                        <tr key={u.id} className="hover:bg-slate-50/60 transition-colors">
+                          {/* Nama & Identitas */}
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-black text-slate-700 text-xs shrink-0">
+                                {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-extrabold text-slate-900 text-xs truncate max-w-[200px]">
+                                  {u.name}
+                                </p>
+                                <p className="text-[11px] text-slate-500 font-mono truncate max-w-[200px]">
+                                  {u.email || u.kode_guru || u.nis || `ID: ${u.id}`}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Role */}
+                          <td className="py-3.5 px-4">
+                            <span
+                              className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${roleBadgeColor}`}
+                            >
+                              {u.role}
+                              {u.admin_type ? ` (${u.admin_type})` : ''}
+                            </span>
+                          </td>
+
+                          {/* Status Sandi */}
+                          <td className="py-3.5 px-4">
+                            {u.has_custom_password ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                <CheckCircle2 className="w-3 h-3" />
+                                <span>Sandi Kustom</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                <AlertTriangle className="w-3 h-3" />
+                                <span>Sandi Default</span>
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Kata Sandi dengan Masking & Toggle Mata */}
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`px-3 py-1.5 rounded-xl border font-mono text-xs font-bold transition-all flex items-center gap-2 ${
+                                  isRevealed
+                                    ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 text-amber-950 dark:text-amber-200 shadow-inner'
+                                    : 'bg-slate-100 border-slate-200 text-slate-500'
+                                }`}
+                              >
+                                <Lock className="w-3 h-3 text-slate-400 shrink-0" />
+                                <span className={isRevealed ? 'tracking-wider font-extrabold' : 'tracking-widest'}>
+                                  {isRevealed ? u.password_plain : u.password_masked}
+                                </span>
+                              </div>
+
+                              {/* Toggle Mata (Eye / EyeOff) */}
+                              <button
+                                type="button"
+                                onClick={() => togglePasswordReveal(u.id)}
+                                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition cursor-pointer"
+                                title={isRevealed ? 'Sembunyikan Sandi' : 'Lihat Sandi Asli (Khusus IT)'}
+                              >
+                                {isRevealed ? <EyeOff className="w-4 h-4 text-amber-600" /> : <Eye className="w-4 h-4" />}
+                              </button>
+
+                              {/* Salin Sandi */}
+                              <button
+                                type="button"
+                                onClick={() => handleCopyPassword(u.id, u.password_plain)}
+                                className="p-1.5 rounded-lg bg-slate-100 hover:bg-teal-50 hover:text-[#138F81] text-slate-600 transition cursor-pointer"
+                                title="Salin Kata Sandi ke Clipboard"
+                              >
+                                {isCopied ? (
+                                  <Check className="w-4 h-4 text-emerald-600" />
+                                ) : (
+                                  <Copy className="w-4 h-4" />
+                                )}
+                              </button>
+                            </div>
+                          </td>
+
+                          {/* Terakhir Diperbarui */}
+                          <td className="py-3.5 px-4 text-right text-slate-500 font-mono text-[11px]">
+                            {u.password_changed_at || '-'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {vaultPagination.last_page > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-200">
+                <span className="text-xs font-semibold text-slate-500">
+                  Menampilkan halaman <strong className="text-slate-800">{vaultPagination.current_page}</strong> dari{' '}
+                  <strong className="text-slate-800">{vaultPagination.last_page}</strong> (Total {vaultPagination.total}{' '}
+                  pengguna)
+                </span>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={vaultPagination.current_page <= 1 || vaultLoading}
+                    onClick={() => loadVault(vaultPagination.current_page - 1, vaultSearch, vaultRole)}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition cursor-pointer"
+                  >
+                    Sebelumnya
+                  </button>
+                  <button
+                    type="button"
+                    disabled={vaultPagination.current_page >= vaultPagination.last_page || vaultLoading}
+                    onClick={() => loadVault(vaultPagination.current_page + 1, vaultSearch, vaultRole)}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition cursor-pointer"
+                  >
+                    Selanjutnya
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB D: KONTAK HELPDESK & WHATSAPP LUPA PASSWORD */}
+      {/* ========================================================================= */}
+      {activeTab === 'helpdesk' && (
+        <div className="space-y-6">
+          <div className="rounded-2xl sm:rounded-3xl bg-white border border-slate-200 shadow-sm p-5 sm:p-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+              <div className="flex items-start gap-3">
+                <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-700 shrink-0 border border-emerald-200/60">
+                  <MessageSquare className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                    Pengaturan Bantuan Lupa Kata Sandi (WhatsApp Helpdesk)
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-100 text-teal-800 border border-teal-200">
+                      Smart Dynamic Routing
+                    </span>
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1 leading-relaxed">
+                    Atur nomor WhatsApp dan PIC resmi yang akan dituju saat guru atau wali santri mengeklik tombol "Lupa Password?" di halaman login.
+                    Anda dapat mengarahkan ke nomor Admin IT (default) atau mengalihkannya ke Admin Pengurus Pesantren secara cerdas kapan saja.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={loadHelpdeskSettings}
+                disabled={loadingHelpdesk}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold transition cursor-pointer self-start md:self-center"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingHelpdesk ? 'animate-spin' : ''}`} />
+                <span>Segarkan</span>
+              </button>
+            </div>
+
+            {/* Form & Live Preview */}
+            <form onSubmit={handleSaveHelpdesk} className="pt-5 space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Form Input (7 cols) */}
+                <div className="lg:col-span-7 space-y-5">
+                  {/* 1. Tipe Penanggung Jawab */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                      1. Penanggung Jawab Layanan Reset Sandi:
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label
+                        className={`flex items-start gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                          helpdeskForm.contact_type === 'it_master'
+                            ? 'bg-indigo-50/60 border-indigo-300 ring-2 ring-indigo-500/20'
+                            : 'bg-white border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="contact_type"
+                          checked={helpdeskForm.contact_type === 'it_master'}
+                          onChange={() =>
+                            setHelpdeskForm({
+                              ...helpdeskForm,
+                              contact_type: 'it_master',
+                              pic_name: 'Abdullah SyauQillah (Admin IT)',
+                              whatsapp_number: '6285731998591',
+                            })
+                          }
+                          className="mt-1 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <div>
+                          <p className="text-xs font-black text-slate-800">Admin IT (Master IT)</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Diarahkan ke penanggung jawab teknis sistem IT (Abdullah SyauQillah).
+                          </p>
+                        </div>
+                      </label>
+
+                      <label
+                        className={`flex items-start gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                          helpdeskForm.contact_type === 'pengurus'
+                            ? 'bg-emerald-50/60 border-emerald-300 ring-2 ring-emerald-500/20'
+                            : 'bg-white border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="contact_type"
+                          checked={helpdeskForm.contact_type === 'pengurus'}
+                          onChange={() =>
+                            setHelpdeskForm({
+                              ...helpdeskForm,
+                              contact_type: 'pengurus',
+                              pic_name: 'Admin Pengurus Pesantren',
+                            })
+                          }
+                          className="mt-1 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <div>
+                          <p className="text-xs font-black text-slate-800">Admin Pengurus Pesantren</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Diarahkan ke kantor sekretariat / pengurus harian pesantren.
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* 2. Nomor WhatsApp & Nama PIC */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                        2. Nomor WhatsApp Tujuan: <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="text"
+                          value={helpdeskForm.whatsapp_number}
+                          onChange={(e) =>
+                            setHelpdeskForm({ ...helpdeskForm, whatsapp_number: e.target.value })
+                          }
+                          placeholder="6285731998591"
+                          required
+                          className="w-full pl-10 pr-3.5 py-2.5 rounded-2xl border border-slate-200 bg-white text-xs font-bold text-slate-800 focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] outline-hidden font-mono"
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-500">Format: 628xxx atau 08xxx (otomatis dinormalisasi).</p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                        3. Nama PIC / Layanan: <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={helpdeskForm.pic_name}
+                        onChange={(e) =>
+                          setHelpdeskForm({ ...helpdeskForm, pic_name: e.target.value })
+                        }
+                        placeholder="Contoh: Abdullah SyauQillah (Admin IT)"
+                        required
+                        className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 bg-white text-xs font-bold text-slate-800 focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] outline-hidden"
+                      />
+                      <p className="text-[11px] text-slate-500">Nama yang tampil sebagai penanggung jawab helpdesk.</p>
+                    </div>
+                  </div>
+
+                  {/* 4. Template Pesan WhatsApp */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                        4. Template Pesan WhatsApp:
+                      </label>
+                      <span className="text-[11px] text-slate-500">
+                        Variabel: <code className="bg-slate-100 px-1 py-0.5 rounded font-bold text-teal-700">{`{nama}`}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-bold text-teal-700">{`{role}`}</code>
+                      </span>
+                    </div>
+                    <textarea
+                      rows={4}
+                      value={helpdeskForm.message_template}
+                      onChange={(e) =>
+                        setHelpdeskForm({ ...helpdeskForm, message_template: e.target.value })
+                      }
+                      className="w-full p-3 rounded-2xl border border-slate-200 bg-white text-xs font-mono text-slate-800 focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] outline-hidden leading-relaxed"
+                    />
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[11px] font-semibold text-slate-500">Sisipkan Tag Cepat:</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setHelpdeskForm({
+                            ...helpdeskForm,
+                            message_template: helpdeskForm.message_template + ' {nama}',
+                          })
+                        }
+                        className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-[11px] font-bold text-slate-700 cursor-pointer"
+                      >
+                        + {'{nama}'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setHelpdeskForm({
+                            ...helpdeskForm,
+                            message_template: helpdeskForm.message_template + ' {role}',
+                          })
+                        }
+                        className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-[11px] font-bold text-slate-700 cursor-pointer"
+                      >
+                        + {'{role}'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 5. Status Aktif Switch */}
+                  <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <div>
+                      <p className="text-xs font-extrabold text-slate-800">
+                        Status Layanan Bantuan Lupa Sandi
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Aktifkan opsi & link bantuan WhatsApp pada form login portal.
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={helpdeskForm.is_active}
+                        onChange={(e) =>
+                          setHelpdeskForm({ ...helpdeskForm, is_active: e.target.checked })
+                        }
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:width-5 after:transition-all peer-checked:bg-[#138F81]"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Live Mockup WhatsApp Preview (5 cols) */}
+                <div className="lg:col-span-5 space-y-3">
+                  <span className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                    Live Mockup WhatsApp Pengguna:
+                  </span>
+                  <div className="rounded-3xl border border-slate-300 bg-[#EFEAE2] p-4 shadow-inner space-y-3 text-xs">
+                    <div className="bg-[#075E54] text-white p-3 rounded-2xl flex items-center gap-2.5 shadow-sm">
+                      <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-black">
+                        PQ
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-extrabold text-xs leading-tight truncate">
+                          {helpdeskForm.pic_name || 'Admin Pesantren'}
+                        </p>
+                        <p className="text-[10px] text-emerald-200">Online • Helpdesk Resmi</p>
+                      </div>
+                    </div>
+
+                    {/* Chat Bubble */}
+                    <div className="bg-white rounded-2xl p-3.5 shadow-xs border border-slate-200 space-y-1.5 max-w-[95%] ml-auto">
+                      <p className="text-[11px] font-mono text-slate-800 whitespace-pre-wrap leading-relaxed">
+                        {helpdeskForm.message_template
+                          .replace(/\{nama\}/g, 'Ahmad Fauzi (Santri)')
+                          .replace(/\{role\}/g, 'Wali Santri')}
+                      </p>
+                      <div className="flex items-center justify-end gap-1 text-[9px] text-slate-400">
+                        <span>12:00</span>
+                        <Check className="w-3 h-3 text-sky-500" />
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-semibold leading-relaxed">
+                      ℹ️ Preview di atas menyimulasikan pesan WhatsApp yang akan langsung terisi saat pengguna mengklik "Kirim ke WhatsApp" di halaman login.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-4 border-t border-slate-200">
+                <button
+                  type="submit"
+                  disabled={savingHelpdesk}
+                  className="inline-flex items-center justify-center gap-2 px-8 py-3 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] active:scale-95 text-white font-extrabold text-xs shadow-lg shadow-[#138F81]/20 transition disabled:opacity-50 cursor-pointer"
+                >
+                  <Sparkles className={`w-4 h-4 ${savingHelpdesk ? 'animate-spin' : ''}`} />
+                  <span>{savingHelpdesk ? 'Menyimpan Konfigurasi...' : 'Simpan Pengaturan Helpdesk'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

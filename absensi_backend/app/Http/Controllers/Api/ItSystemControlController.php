@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ItSystemControl;
 use App\Models\Jadwal;
 use App\Models\PaymentBill;
 use App\Models\User;
@@ -11,6 +12,7 @@ use App\Services\ItSystemControlService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 
 class ItSystemControlController extends Controller
@@ -313,6 +315,137 @@ class ItSystemControlController extends Controller
             'success' => true,
             'message' => "Pengingat presensi terkirim ke {$teachersCount} guru untuk {$classesCount} jadwal hari ini.",
             'data'    => $result,
+        ]);
+    }
+
+    /**
+     * GET /api/it-control/credentials-vault
+     * Khusus Master Admin IT: Menampilkan vault kredensial login seluruh pengguna
+     */
+    public function getCredentialsVault(Request $request): JsonResponse
+    {
+        $this->authorizeItAdmin($request);
+
+        $role = $request->input('role', 'all');
+        $search = trim((string) $request->input('search', ''));
+
+        $query = User::query();
+
+        if ($role !== 'all' && !empty($role)) {
+            $query->where('role', $role);
+        }
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'ilike', "%{$search}%")
+                  ->orWhere('email', 'ilike', "%{$search}%")
+                  ->orWhere('kode_guru', 'ilike', "%{$search}%")
+                  ->orWhere('nis', 'ilike', "%{$search}%")
+                  ->orWhere('no_hp', 'ilike', "%{$search}%");
+            });
+        }
+
+        $users = $query->orderBy('role', 'asc')
+            ->orderBy('name', 'asc')
+            ->paginate(60);
+
+        $items = collect($users->items())->map(function ($user) {
+            $pwd = null;
+            if (!empty($user->password_current_encrypted)) {
+                try {
+                    $pwd = Crypt::decryptString($user->password_current_encrypted);
+                } catch (\Throwable $e) {}
+            }
+            if (!$pwd && !empty($user->password_default_encrypted)) {
+                try {
+                    $pwd = Crypt::decryptString($user->password_default_encrypted);
+                } catch (\Throwable $e) {}
+            }
+            if (!$pwd) {
+                $pwd = match ($user->role) {
+                    'guru'  => 'guru12345',
+                    'wali'  => 'siswa12345',
+                    'admin' => 'admin123',
+                    default => 'siswa12345',
+                };
+            }
+
+            return [
+                'id'                  => $user->id,
+                'name'                => $user->name,
+                'email'               => $user->email,
+                'role'                => $user->role,
+                'admin_type'          => $user->admin_type,
+                'kode_guru'           => $user->kode_guru,
+                'nis'                 => $user->nis,
+                'no_hp'               => $user->no_hp,
+                'status'              => $user->status ?? 'Aktif',
+                'password_plain'      => $pwd,
+                'password_masked'     => str_repeat('•', max(8, strlen((string) $pwd))),
+                'has_custom_password' => !empty($user->password_changed_at),
+                'password_changed_at' => $user->password_changed_at ? Carbon::parse($user->password_changed_at)->format('d/m/Y H:i') : null,
+                'created_at'          => $user->created_at ? $user->created_at->format('d/m/Y H:i') : null,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'users'        => $items,
+                'total'        => $users->total(),
+                'current_page' => $users->currentPage(),
+                'last_page'    => $users->lastPage(),
+            ],
+        ]);
+    }
+
+    /**
+     * GET /api/it-control/helpdesk-settings
+     * Khusus Master Admin IT: Mengambil konfigurasi nomor WA & template lupa password
+     */
+    public function getHelpdeskSettings(Request $request): JsonResponse
+    {
+        $this->authorizeItAdmin($request);
+
+        $config = ItSystemControl::getByKey('helpdesk_whatsapp_config', [
+            'whatsapp_number'     => '6285731998591',
+            'contact_person_name' => 'Abdullah SyauQillah (Admin IT)',
+            'contact_role'        => 'Penanggung Jawab Sistem IT',
+            'template_message'    => "Assalamu'alaikum Admin, saya membutuhkan bantuan untuk reset kata sandi akun sistem Qomaruddin.\n\nNama/Identitas: [Nama Anda]\nRole: [Wali Santri / Guru / Petugas]\nNIS / No HP: [Data Akun]\n\nMohon bantuannya untuk reset kata sandi ke kata sandi default. Terima kasih.",
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data'    => $config,
+        ]);
+    }
+
+    /**
+     * POST /api/it-control/helpdesk-settings
+     * Khusus Master Admin IT: Menyimpan konfigurasi nomor WA & template lupa password
+     */
+    public function saveHelpdeskSettings(Request $request): JsonResponse
+    {
+        $this->authorizeItAdmin($request);
+
+        $validated = $request->validate([
+            'whatsapp_number'     => 'required|string|max:30',
+            'contact_person_name' => 'required|string|max:100',
+            'contact_role'        => 'required|string|max:100',
+            'template_message'    => 'required|string|max:1000',
+        ]);
+
+        $updated = ItSystemControl::setByKey(
+            'helpdesk_whatsapp_config',
+            $validated,
+            'Pengaturan nomor WhatsApp dan template pesan bantuan reset password akun',
+            $request->user()->id
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pengaturan kontak WhatsApp helpdesk berhasil disimpan.',
+            'data'    => $updated->value,
         ]);
     }
 }

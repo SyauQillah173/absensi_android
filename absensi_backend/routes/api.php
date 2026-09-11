@@ -80,6 +80,7 @@ Route::get('captcha', fn() => app('captcha')->create('default', true));
 Route::middleware('throttle:30,1')->group(function () {
     Route::post('login', [AuthController::class, 'login']);
     Route::post('change-password', [AuthController::class, 'changePassword']);
+    Route::get('auth/helpdesk-info', [AuthController::class, 'helpdeskInfo']);
 });
 
 // PMB (Penerimaan Santri Baru) & Profil Pesantren - Public Endpoints
@@ -144,6 +145,11 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::post('notification-settings', [ItSystemControlController::class, 'saveNotificationSettings']);
         Route::post('notifications/trigger-wali', [ItSystemControlController::class, 'triggerWaliBillingReminder']);
         Route::post('notifications/trigger-guru', [ItSystemControlController::class, 'triggerGuruReminder']);
+
+        // 🔐 Vault Sandi Pengguna & Kontak Helpdesk Lupa Password (Khusus Admin IT)
+        Route::get('credentials-vault', [ItSystemControlController::class, 'getCredentialsVault']);
+        Route::get('helpdesk-settings', [ItSystemControlController::class, 'getHelpdeskSettings']);
+        Route::post('helpdesk-settings', [ItSystemControlController::class, 'saveHelpdeskSettings']);
     });
 
     Route::middleware('role:admin,wali')->group(function () {

@@ -1,8 +1,9 @@
-import { ArrowRight, Eye, EyeOff, LockKeyhole, UserRound } from 'lucide-react';
-import { FormEvent, useState } from 'react';
+import { ArrowRight, Check, Copy, ExternalLink, Eye, EyeOff, HelpCircle, LockKeyhole, MessageSquare, ShieldCheck, UserRound, X } from 'lucide-react';
+import { FormEvent, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { CloudflareTurnstile } from '../components/CloudflareTurnstile';
+import { api, type ItHelpdeskConfig } from '../services/api';
 import qomaruddinLogo from '../assets/logo-qomaruddin.png';
 
 interface LoginPageProps {
@@ -19,6 +20,66 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // Lupa Password Modal States
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [helpdeskInfo, setHelpdeskInfo] = useState<ItHelpdeskConfig | null>(null);
+  const [loadingHelpdesk, setLoadingHelpdesk] = useState(false);
+  const [forgotName, setForgotName] = useState('');
+  const [forgotRole, setForgotRole] = useState('Wali Santri');
+  const [copiedMsg, setCopiedMsg] = useState(false);
+
+  const openForgotModal = async () => {
+    setShowForgotModal(true);
+    if (!helpdeskInfo) {
+      setLoadingHelpdesk(true);
+      try {
+        const info = await api.getHelpdeskInfo();
+        setHelpdeskInfo(info);
+      } catch {
+        setHelpdeskInfo({
+          whatsapp_number: '6285731998591',
+          pic_name: 'Abdullah SyauQillah (Admin IT)',
+          contact_type: 'it_master',
+          message_template: "Assalamu'alaikum Admin Pesantren Qomaruddin, saya {nama} ({role}) lupa kata sandi akun saya. Mohon bantuannya untuk reset kata sandi ke bawaan. Terima kasih.",
+          is_active: true,
+        });
+      } finally {
+        setLoadingHelpdesk(false);
+      }
+    }
+  };
+
+  const compiledMessage = useMemo(() => {
+    const template =
+      helpdeskInfo?.message_template ||
+      "Assalamu'alaikum Admin Pesantren Qomaruddin, saya {nama} ({role}) lupa kata sandi akun saya. Mohon bantuannya untuk reset kata sandi ke bawaan. Terima kasih.";
+    const cleanName = forgotName.trim() || '[Nama / Identitas Anda]';
+    return template
+      .replace(/\{nama\}/g, cleanName)
+      .replace(/\{role\}/g, forgotRole)
+      .replace(/\{identitas\}/g, cleanName);
+  }, [helpdeskInfo, forgotName, forgotRole]);
+
+  const cleanWaNumber = useMemo(() => {
+    let num = (helpdeskInfo?.whatsapp_number || '6285731998591').replace(/\D/g, '');
+    if (num.startsWith('0')) {
+      num = '62' + num.slice(1);
+    }
+    return num;
+  }, [helpdeskInfo]);
+
+  const waHref = `https://wa.me/${cleanWaNumber}?text=${encodeURIComponent(compiledMessage)}`;
+
+  const handleCopyMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(compiledMessage);
+      setCopiedMsg(true);
+      setTimeout(() => setCopiedMsg(false), 2500);
+    } catch {
+      // ignore clipboard error
+    }
+  };
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -125,7 +186,7 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
               </button>
             </div>
 
-            {/* REMEMBER ME & HELPER */}
+            {/* REMEMBER ME & LUPA PASSWORD */}
             <div className="flex items-center justify-between text-xs font-semibold text-[#7B8794] dark:text-slate-400 px-1 pt-0.5">
               <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
                 <input
@@ -137,9 +198,14 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
                 <span className="text-[11px]">Remember me</span>
               </label>
 
-              <span className="text-[#9AA5B1] dark:text-slate-500 text-[10px]">
-                Yayasan Qomaruddin
-              </span>
+              <button
+                type="button"
+                onClick={openForgotModal}
+                className="text-[#138F81] dark:text-[#2DD4BF] hover:text-[#0c6b61] hover:underline text-[11px] font-bold transition-all cursor-pointer inline-flex items-center gap-1"
+              >
+                <HelpCircle size={12} />
+                <span>Lupa Password?</span>
+              </button>
             </div>
 
             {/* ERROR MESSAGE */}
@@ -218,6 +284,152 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
           </div>
         </div>
       </div>
+
+      {/* MODAL LUPA PASSWORD (WHATSAPP SMART HELPDESK) */}
+      {showForgotModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-200">
+          <div
+            className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden transition-all text-left"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-br from-[#138F81] to-[#0A564D] p-5 sm:p-6 text-white relative">
+              <button
+                onClick={() => setShowForgotModal(false)}
+                type="button"
+                className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                title="Tutup"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center shadow-inner shrink-0">
+                  <MessageSquare className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-teal-400/25 border border-teal-300/30 text-[10px] font-black uppercase tracking-wider text-teal-100 mb-0.5">
+                    Helpdesk Resmi Pesantren
+                  </span>
+                  <h3 className="text-lg font-black text-white leading-tight">
+                    Bantuan Lupa Kata Sandi
+                  </h3>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 sm:p-6 space-y-4 text-xs">
+              <div className="rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200/70 dark:border-teal-800/50 p-3.5 flex items-start gap-2.5">
+                <ShieldCheck className="w-5 h-5 text-[#138F81] shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-slate-800 dark:text-slate-100">
+                    Layanan Reset Sandi via WhatsApp
+                  </p>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5 leading-relaxed">
+                    Pengurus / Admin IT Pesantren akan memverifikasi identitas Anda dan mereset kata sandi ke sandi bawaan default.
+                  </p>
+                </div>
+              </div>
+
+              {loadingHelpdesk ? (
+                <div className="flex flex-col items-center justify-center py-6 gap-2 text-slate-500">
+                  <div className="w-6 h-6 border-2 border-[#138F81] border-t-transparent rounded-full animate-spin" />
+                  <span className="text-[11px] font-semibold">Memuat kontak helpdesk...</span>
+                </div>
+              ) : (
+                <>
+                  {/* Form identitas opsional agar pesan otomatis terisi */}
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                        1. Nama / NIS / Identitas Anda:
+                      </label>
+                      <input
+                        type="text"
+                        value={forgotName}
+                        onChange={(e) => setForgotName(e.target.value)}
+                        placeholder="Contoh: Muhammad / 123456 / Ustadz Hasan"
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3.5 py-2.5 text-xs font-bold text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] outline-hidden transition-all"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                        2. Peran / Status Akun:
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {['Wali Santri', 'Guru', 'Petugas'].map((r) => (
+                          <button
+                            key={r}
+                            type="button"
+                            onClick={() => setForgotRole(r)}
+                            className={`py-2 px-2 rounded-xl text-[11px] font-bold text-center border transition-all cursor-pointer ${
+                              forgotRole === r
+                                ? 'bg-[#138F81] text-white border-[#138F81] shadow-xs'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-transparent hover:bg-slate-200'
+                            }`}
+                          >
+                            {r}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Preview Bubble Pesan WA */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                          Pesan Otomatis WhatsApp:
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleCopyMessage}
+                          className="text-[11px] font-bold text-[#138F81] dark:text-[#2DD4BF] hover:underline inline-flex items-center gap-1 cursor-pointer"
+                        >
+                          {copiedMsg ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                          <span>{copiedMsg ? 'Tersalin!' : 'Salin Pesan'}</span>
+                        </button>
+                      </div>
+                      <div className="rounded-xl bg-[#EFEAE2] dark:bg-slate-800 border border-[#D1D7DB] dark:border-slate-700 p-3 text-[11px] font-mono text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed shadow-inner max-h-32 overflow-y-auto">
+                        {compiledMessage}
+                      </div>
+                    </div>
+
+                    {/* Info PIC */}
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-1">
+                      <span>Penanggung Jawab:</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-300">
+                        {helpdeskInfo?.pic_name || 'Admin IT'} ({cleanWaNumber})
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+                    <a
+                      href={waHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xs text-center flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all"
+                    >
+                      <ExternalLink size={15} />
+                      <span>KIRIM KE WHATSAPP</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotModal(false)}
+                      className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer"
+                    >
+                      Tutup
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

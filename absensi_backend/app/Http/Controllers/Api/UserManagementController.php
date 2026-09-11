@@ -295,7 +295,7 @@ class UserManagementController extends Controller
         $user->forceFill([
             'password' => Hash::make($plainPassword),
             'password_default_encrypted' => Crypt::encryptString($plainPassword),
-            'password_current_encrypted' => null,
+            'password_current_encrypted' => Crypt::encryptString($plainPassword),
             'password_changed_at' => null,
         ])->save();
 
