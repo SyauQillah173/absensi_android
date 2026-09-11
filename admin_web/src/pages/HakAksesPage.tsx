@@ -1,8 +1,9 @@
-import { Activity, Eye, EyeOff, GraduationCap, RefreshCw, Save, ShieldAlert, ShieldCheck, Sparkles, UserCog, UsersRound } from 'lucide-react';
+import { Activity, Eye, EyeOff, GraduationCap, RefreshCw, Save, ShieldAlert, ShieldCheck, Sliders, Sparkles, UserCog, UsersRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { AdminSecurityAuditSection } from '../components/AdminSecurityAuditSection';
 import { DataTable, type DataColumn } from '../components/DataTable';
+import { ItSystemMasterControlSection } from '../components/ItSystemMasterControlSection';
 import { KepalaMadrasahCmsSection } from '../components/KepalaMadrasahCmsSection';
 import { SegmentedTabs } from '../components/SegmentedTabs';
 import { StatCard } from '../components/StatCard';
@@ -129,7 +130,7 @@ function ToggleCell({ checked, disabled, onChange }: { checked: boolean; disable
 
 export function HakAksesPage() {
   const { pmbVisibleToPengurus, setPmbVisibleToPengurus } = useAuth();
-  const [subTab, setSubTab] = useState<'audit_keamanan' | 'kepala_madrasah' | 'rbac'>('audit_keamanan');
+  const [subTab, setSubTab] = useState<'it_master_control' | 'audit_keamanan' | 'kepala_madrasah' | 'rbac'>('it_master_control');
   const [isTogglingPmb, setIsTogglingPmb] = useState(false);
   const [roles, setRoles] = useState<string[]>([]);
   const [rows, setRows] = useState<PermissionRow[]>([]);
@@ -224,33 +225,28 @@ export function HakAksesPage() {
 
   return (
     <div className="space-y-6">
-      {/* 🌟 HEADER CARD HAK AKSES & CMS */}
-      <div className="q-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-[#E1EFF7] text-[#138F81] border border-teal-100 flex items-center justify-center shrink-0 shadow-xs">
-            {subTab === 'audit_keamanan' ? (
-              <ShieldAlert className="w-6 h-6 sm:w-7 sm:h-7 text-rose-600" />
-            ) : subTab === 'kepala_madrasah' ? (
-              <GraduationCap className="w-6 h-6 sm:w-7 sm:h-7" />
-            ) : (
-              <ShieldCheck className="w-6 h-6 sm:w-7 sm:h-7" />
-            )}
+      {/* Header Halaman Hak Akses */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-2xl bg-[#138F81] text-white flex items-center justify-center shadow-md shadow-[#138F81]/20">
+            <UserCog size={26} />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#636E72]">
-                Pengaturan Sistem & Hak Akses
-              </span>
+            <div className="flex items-center gap-2 flex-wrap">
               <span
                 className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
-                  subTab === 'audit_keamanan'
+                  subTab === 'it_master_control'
+                    ? 'bg-indigo-100 text-indigo-800 border-indigo-200'
+                    : subTab === 'audit_keamanan'
                     ? 'bg-rose-100 text-rose-800 border-rose-200'
                     : subTab === 'kepala_madrasah'
                     ? 'bg-[#FFDC80] text-[#0D7A6F] border-amber-300'
                     : 'bg-[#FFDC80] text-[#0D7A6F] border-amber-300'
                 }`}
               >
-                {subTab === 'audit_keamanan'
+                {subTab === 'it_master_control'
+                  ? 'CMS Master Kontrol IT'
+                  : subTab === 'audit_keamanan'
                   ? 'Pusat Keamanan & Audit IT'
                   : subTab === 'kepala_madrasah'
                   ? 'CMS Monitoring Madrasah'
@@ -258,14 +254,18 @@ export function HakAksesPage() {
               </span>
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-[#2D3436] tracking-tight">
-              {subTab === 'audit_keamanan'
+              {subTab === 'it_master_control'
+                ? 'CMS Master Kontrol Sistem & Smart Notification'
+                : subTab === 'audit_keamanan'
                 ? 'Audit Keamanan & Live Login Monitoring'
                 : subTab === 'kepala_madrasah'
                 ? 'CMS Monitoring Kepala Madrasah & Pondok'
                 : 'Role dan Permission Matriks'}
             </h1>
             <p className="text-xs sm:text-sm font-medium text-[#636E72] mt-0.5">
-              {subTab === 'audit_keamanan'
+              {subTab === 'it_master_control'
+                ? 'Pusat kendali IT: bebas atur batas jam presensi guru (global & per-guru), force buka/kunci darurat, serta otomatisasi notifikasi tagihan SPP & peringatan deadline.'
+                : subTab === 'audit_keamanan'
                 ? 'Pantau seluruh sesi login pengguna (HP, Laptop, IP, dan Lokasi) secara live dan putus sesi mencurigakan seketika.'
                 : subTab === 'kepala_madrasah'
                 ? 'Atur modul presensi santri (Madin, Sholat, Ngaji) yang boleh dipantau oleh masing-masing Kepala Madrasah.'
@@ -293,6 +293,28 @@ export function HakAksesPage() {
 
       {/* 🌟 TAB NAVIGASI HAK AKSES & CMS */}
       <div className="flex items-center gap-2 border-b border-slate-200/80 pb-3 flex-wrap">
+        <button
+          type="button"
+          onClick={() => setSubTab('it_master_control')}
+          className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl font-black text-xs sm:text-sm transition-all cursor-pointer ${
+            subTab === 'it_master_control'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25'
+              : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200/70'
+          }`}
+        >
+          <Sliders size={16} />
+          <span>CMS Master Kontrol Sistem IT</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+              subTab === 'it_master_control'
+                ? 'bg-amber-400 text-slate-900'
+                : 'bg-indigo-100 text-indigo-800'
+            }`}
+          >
+            Fitur Master IT
+          </span>
+        </button>
+
         <button
           type="button"
           onClick={() => setSubTab('audit_keamanan')}
@@ -333,7 +355,7 @@ export function HakAksesPage() {
                 : 'bg-teal-100 text-teal-800'
             }`}
           >
-            Fitur Cerdas Baru
+            Fitur Cerdas
           </span>
         </button>
 
@@ -351,7 +373,9 @@ export function HakAksesPage() {
         </button>
       </div>
 
-      {subTab === 'audit_keamanan' ? (
+      {subTab === 'it_master_control' ? (
+        <ItSystemMasterControlSection />
+      ) : subTab === 'audit_keamanan' ? (
         <AdminSecurityAuditSection />
       ) : subTab === 'kepala_madrasah' ? (
         <KepalaMadrasahCmsSection />

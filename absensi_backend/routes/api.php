@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\BoardingController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DocumentSettingController;
 use App\Http\Controllers\Api\HafalanController;
+use App\Http\Controllers\Api\ItSystemControlController;
 use App\Http\Controllers\Api\JadwalController;
 use App\Http\Controllers\Api\KegiatanController;
 use App\Http\Controllers\Api\KelompokBelajarController;
@@ -129,6 +130,20 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         // Khusus Admin IT: Global Live Audit Sesi & Force Logout
         Route::get('admin/all-logins', [SecurityController::class, 'adminAllLogins']);
         Route::post('admin/force-logout-user/{userId}', [SecurityController::class, 'adminForceLogoutUser']);
+    });
+
+    // 🎛️ CMS Master Kontrol Sistem & Smart Notification Engine (Khusus Admin IT)
+    Route::prefix('it-control')->group(function () {
+        Route::get('attendance-settings', [ItSystemControlController::class, 'getAttendanceSettings']);
+        Route::post('attendance-settings/global', [ItSystemControlController::class, 'saveGlobalAttendanceSettings']);
+        Route::post('attendance-settings/override', [ItSystemControlController::class, 'saveGuruOverride']);
+        Route::delete('attendance-settings/override/{id}', [ItSystemControlController::class, 'deleteGuruOverride']);
+        Route::post('attendance-settings/override/{id}/toggle-force', [ItSystemControlController::class, 'toggleForceStatus']);
+
+        Route::get('notification-settings', [ItSystemControlController::class, 'getNotificationSettings']);
+        Route::post('notification-settings', [ItSystemControlController::class, 'saveNotificationSettings']);
+        Route::post('notifications/trigger-wali', [ItSystemControlController::class, 'triggerWaliBillingReminder']);
+        Route::post('notifications/trigger-guru', [ItSystemControlController::class, 'triggerGuruReminder']);
     });
 
     Route::middleware('role:admin,wali')->group(function () {

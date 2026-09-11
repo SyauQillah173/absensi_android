@@ -142,6 +142,91 @@ export interface LoginHistoryItem {
   is_active_token?: boolean;
 }
 
+export interface ItGlobalAttendanceConfig {
+  default_open_lead_minutes: number;
+  default_close_hour: string;
+  auto_lock_enabled: boolean;
+  allow_late_submission: boolean;
+  late_tolerance_minutes: number;
+}
+
+export interface ItGuruAttendanceOverride {
+  id: number;
+  teacher_id: number;
+  jadwal_id: number | null;
+  open_lead_minutes: number | null;
+  custom_open_hour: string | null;
+  close_hour: string | null;
+  is_force_open: boolean;
+  is_force_locked: boolean;
+  notes: string | null;
+  teacher?: {
+    id: number;
+    name: string;
+    username: string;
+    email: string;
+  };
+  jadwal?: {
+    id: number;
+    mapel?: { id: number; name: string };
+    kelas?: { id: number; name: string };
+    hari?: string;
+    jam_mulai?: string;
+    jam_selesai?: string;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ItAttendanceSettingsResponse {
+  global: ItGlobalAttendanceConfig;
+  overrides: ItGuruAttendanceOverride[];
+  teachers: Array<{ id: number; name: string; username: string; email: string }>;
+  jadwals: Array<{
+    id: number;
+    teacher_id: number;
+    mapel_id: number;
+    kelas_id: number;
+    hari: string;
+    jam_mulai: string;
+    jam_selesai: string;
+    mapel?: { id: number; name: string };
+    kelas?: { id: number; name: string };
+    teacher?: { id: number; name: string };
+  }>;
+  server_time: string;
+}
+
+export interface ItWaliBillingConfig {
+  is_enabled: boolean;
+  scheduled_day_of_month: number;
+  scheduled_hour: string;
+  template_title: string;
+  template_body: string;
+  auto_push_wa: boolean;
+  last_run_at: string | null;
+}
+
+export interface ItGuruDeadlineConfig {
+  is_enabled: boolean;
+  warning_minutes_before_close: number;
+  template_title: string;
+  template_body: string;
+  auto_push_wa: boolean;
+  last_run_at: string | null;
+}
+
+export interface ItNotificationSettingsResponse {
+  wali_billing: ItWaliBillingConfig;
+  guru_deadline: ItGuruDeadlineConfig;
+  stats: {
+    unpaid_bills_count: number;
+    unpaid_students_count: number;
+    total_unpaid_amount: number;
+  };
+  server_time: string;
+}
+
 const storageKey = 'qomaruddin_admin_session';
 const importBatchSize = 100;
 
@@ -1434,6 +1519,55 @@ export const api = {
   adminForceLogoutUser(userId: number) {
     return request<ApiRecord>(`/security/admin/force-logout-user/${userId}`, {
       method: 'POST',
+    });
+  },
+
+  // 🎛️ CMS Master Kontrol Sistem & Smart Notification Engine (Khusus Admin IT)
+  getItAttendanceSettings() {
+    return request<ItAttendanceSettingsResponse>('/it-control/attendance-settings');
+  },
+  saveItGlobalAttendance(payload: Partial<ItGlobalAttendanceConfig>) {
+    return request<ItGlobalAttendanceConfig>('/it-control/attendance-settings/global', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  saveItGuruOverride(payload: Partial<ItGuruAttendanceOverride>) {
+    return request<ItGuruAttendanceOverride>('/it-control/attendance-settings/override', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteItGuruOverride(id: number) {
+    return request<ApiRecord>(`/it-control/attendance-settings/override/${id}`, {
+      method: 'DELETE',
+    });
+  },
+  toggleItForceStatus(id: number, type: 'force_open' | 'force_locked') {
+    return request<ItGuruAttendanceOverride>(`/it-control/attendance-settings/override/${id}/toggle-force`, {
+      method: 'POST',
+      body: JSON.stringify({ type }),
+    });
+  },
+  getItNotificationSettings() {
+    return request<ItNotificationSettingsResponse>('/it-control/notification-settings');
+  },
+  saveItNotificationSettings(target: 'wali_billing' | 'guru_deadline', config: Record<string, any>) {
+    return request<ApiRecord>('/it-control/notification-settings', {
+      method: 'POST',
+      body: JSON.stringify({ target, config }),
+    });
+  },
+  triggerItWaliBillingReminder(forceAll = false) {
+    return request<ApiRecord>('/it-control/notifications/trigger-wali', {
+      method: 'POST',
+      body: JSON.stringify({ force_all: forceAll }),
+    });
+  },
+  triggerItGuruReminder(force = false) {
+    return request<ApiRecord>('/it-control/notifications/trigger-guru', {
+      method: 'POST',
+      body: JSON.stringify({ force }),
     });
   }
 };

@@ -49,42 +49,42 @@ class GuruAttendanceStatusService
             return $this->payload('locked', false, "Absensi belum dibuka. Jadwal hari {$label}.", $label);
         }
 
-        // Check activation window (1 hour before jam_mulai)
-        if ($jadwal->jam_mulai) {
-            $start = $this->scheduleTimeForToday((string) $jadwal->jam_mulai, $now);
-            $activationStart = $start->copy()->subHour();
+        // 1. Cek evaluasi jam buka & tutup dinamis dari CMS IT Control
+        $itControlService = app(\App\Services\ItSystemControlService::class);
+        $window = $itControlService->resolveWindowForJadwal($jadwal, $now);
 
-            if ($now->lt($activationStart)) {
-                return $this->payload(
-                    'upcoming',
-                    false,
-                    "Jadwal akan aktif pada pukul {$activationStart->format('H:i')} (1 jam sebelum jam pelajaran dimulai).",
-                    $label
-                );
-            }
+        // Jika Admin IT mengaktifkan Buka Paksa (Force Open) untuk guru ini
+        if ($window['is_force_open']) {
+            return $this->payload('aktif', true, $window['reason'] ?: 'Presensi dibuka khusus oleh Admin IT.', $label, false);
         }
 
-        // Check completion & late tolerance cutoff (until 23:00)
-        $isLate = false;
-        if ($jadwal->jam_selesai) {
-            $end = $this->scheduleTimeForToday((string) $jadwal->jam_selesai, $now);
-            $cutoff = $this->scheduleTimeForToday('23:00:00', $now);
-
-            if ($now->gt($cutoff)) {
-                return $this->payload(
-                    'locked',
-                    false,
-                    'Waktu input presensi guru untuk jadwal ini telah ditutup pukul 23:00. Silakan hubungi Admin Utama.',
-                    $label
-                );
-            }
-
-            if ($now->gt($end)) {
-                $isLate = true;
-            }
+        // Jika Admin IT mengaktifkan Kunci Paksa (Force Lock) untuk guru ini
+        if ($window['is_force_locked']) {
+            return $this->payload('locked', false, $window['reason'] ?: 'Presensi dikunci khusus oleh Admin IT.', $label, false);
         }
 
-        return $this->payload('aktif', true, $isLate ? 'Terlambat input presensi' : null, $label, $isLate);
+        if ($scheduledDay && $scheduledDay !== $this->todayLabel($now)) {
+            return $this->payload('locked', false, "Absensi belum dibuka. Jadwal hari {$label}.", $label);
+        }
+
+        // Jika di luar jendela aktif (belum buka atau sudah lewat jam tutup)
+        if (!$window['can_absen']) {
+            return $this->payload(
+                $window['status'],
+                false,
+                $window['reason'],
+                $label,
+                $window['is_late'] ?? false
+            );
+        }
+
+        return $this->payload(
+            'aktif',
+            true,
+            $window['reason'] ?? ($window['is_late'] ? 'Terlambat input presensi' : null),
+            $label,
+            $window['is_late'] ?? false
+        );
     }
 
     public function assertOpenForGuru(Jadwal $jadwal, ?Carbon $date = null, bool $offlineSync = false): ?string
@@ -99,6 +99,19 @@ class GuruAttendanceStatusService
         $user = request()->user();
         if ($user && $user->role === 'admin') {
             return null;
+        }
+
+        $itControlService = app(\App\Services\ItSystemControlService::class);
+        $window = $itControlService->resolveWindowForJadwal($jadwal, $now);
+
+        // Jika Admin IT membuka paksa (Force Open), bypass validasi hari dan jam
+        if ($window['is_force_open']) {
+            return null;
+        }
+
+        // Jika Admin IT mengunci paksa (Force Lock)
+        if ($window['is_force_locked']) {
+            return $window['reason'] ?: 'Presensi dikunci khusus oleh Admin IT.';
         }
 
         if ($scheduledDay && $scheduledDay !== $dayLabel) {
