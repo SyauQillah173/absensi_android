@@ -144,7 +144,7 @@ class ItNotificationEngineService
             $jamTutup = $window['close_time_label'] ?: '23:00';
 
             $mapelName = $j->mapel->nama ?? $j->mapel->name ?? 'Mata Pelajaran';
-            $kelasName = $j->kelas->name ?? $j->kelas->nama ?? 'Kelas';
+            $kelasName = $j->kelas->name ?? $j->kelas->nama ?? $j->sifir ?? 'Kelas';
 
             $title = str_replace(
                 ['{nama_guru}', '{nama_kelas}', '{nama_mapel}', '{jam_tutup}'],
@@ -199,10 +199,12 @@ class ItNotificationEngineService
         }
 
         return [
-            'success'    => true,
-            'sent_count' => $sentCount,
-            'timestamp'  => $now->toIso8601String(),
-            'details'    => $details,
+            'success'           => true,
+            'sent_count'        => $sentCount,
+            'teachers_notified' => $sentCount,
+            'classes_checked'   => count($schedules),
+            'timestamp'         => $now->toIso8601String(),
+            'details'           => $details,
         ];
     }
 
@@ -322,6 +324,7 @@ class ItNotificationEngineService
         return [
             'success'               => true,
             'sent_count'            => $sentCount,
+            'parents_notified'      => $sentCount,
             'total_unpaid_amount'   => $totalUnpaidCalculated,
             'total_unpaid_currency' => 'Rp ' . number_format($totalUnpaidCalculated, 0, ',', '.'),
             'timestamp'             => $now->toIso8601String(),

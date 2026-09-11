@@ -406,7 +406,7 @@ export function ItSystemMasterControlSection() {
                     ?.filter((j) => !overrideForm.teacher_id || j.teacher_id === Number(overrideForm.teacher_id))
                     ?.map((j) => (
                       <option key={j.id} value={j.id}>
-                        {j.hari} {j.jam_mulai?.substring(0, 5)} - {j.mapel?.name || 'Mapel'} ({j.kelas?.name || 'Kelas'})
+                        {j.hari} {j.jam_mulai?.substring(0, 5)} - {j.mapel?.name || j.mapel?.nama || 'Mapel'} ({j.kelas?.name || j.sifir || 'Kelas'})
                       </option>
                     ))}
                 </select>
@@ -910,7 +910,7 @@ export function ItSystemMasterControlSection() {
                               <div className="text-xs text-slate-500">
                                 {item.jadwal ? (
                                   <span className="inline-flex items-center gap-1 text-indigo-600 font-medium">
-                                    Jadwal: {item.jadwal.mapel?.name || 'Mapel'} ({item.jadwal.kelas?.name || 'Kelas'}) &bull; {item.jadwal.hari} {item.jadwal.jam_mulai}
+                                    Jadwal: {item.jadwal.mapel?.name || item.jadwal.mapel?.nama || 'Mapel'} ({item.jadwal.kelas?.name || item.jadwal.sifir || 'Kelas'}) &bull; {item.jadwal.hari} {item.jadwal.jam_mulai}
                                   </span>
                                 ) : (
                                   <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
@@ -1033,7 +1033,7 @@ export function ItSystemMasterControlSection() {
                             </p>
                             <p className="text-xs text-slate-500 mt-1">
                               {item.jadwal
-                                ? `${item.jadwal.mapel?.name || 'Mapel'} (${item.jadwal.kelas?.name || 'Kelas'}) • ${item.jadwal.hari} ${item.jadwal.jam_mulai}`
+                                  ? `${item.jadwal.mapel?.name || item.jadwal.mapel?.nama || 'Mapel'} (${item.jadwal.kelas?.name || item.jadwal.sifir || 'Kelas'}) • ${item.jadwal.hari} ${item.jadwal.jam_mulai}`
                                 : '⭐ Seluruh Jadwal Mengajar'}
                             </p>
                           </div>

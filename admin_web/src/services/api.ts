@@ -169,8 +169,9 @@ export interface ItGuruAttendanceOverride {
   };
   jadwal?: {
     id: number;
-    mapel?: { id: number; name: string };
-    kelas?: { id: number; name: string };
+    mapel?: { id: number; name?: string; nama?: string };
+    kelas?: { id: number; name?: string };
+    sifir?: string;
     hari?: string;
     jam_mulai?: string;
     jam_selesai?: string;
@@ -185,15 +186,19 @@ export interface ItAttendanceSettingsResponse {
   teachers: Array<{ id: number; name: string; username?: string; email?: string; kode_guru?: string }>;
   jadwals: Array<{
     id: number;
-    teacher_id: number;
-    mapel_id: number;
-    kelas_id: number;
-    hari: string;
-    jam_mulai: string;
-    jam_selesai: string;
-    mapel?: { id: number; name: string };
-    kelas?: { id: number; name: string };
-    teacher?: { id: number; name: string };
+    teacher_id?: number;
+    guru?: string;
+    mapel_id?: number;
+    class_id?: number;
+    kelas_id?: number;
+    sifir?: string;
+    hari?: string;
+    jam_mulai?: string;
+    jam_selesai?: string;
+    status?: string;
+    mapel?: { id: number; name?: string; nama?: string };
+    kelas?: { id: number; name?: string };
+    teacher?: { id: number; name?: string; kode_guru?: string };
   }>;
   server_time: string;
 }

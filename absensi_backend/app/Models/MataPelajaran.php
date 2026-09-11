@@ -10,6 +10,13 @@ class MataPelajaran extends Model
 
     protected $fillable = ['nama', 'kode', 'status'];
 
+    protected $appends = ['name'];
+
+    public function getNameAttribute(): ?string
+    {
+        return $this->attributes['nama'] ?? null;
+    }
+
     public function jadwal()
     {
         return $this->hasMany(Jadwal::class, 'mapel_id');

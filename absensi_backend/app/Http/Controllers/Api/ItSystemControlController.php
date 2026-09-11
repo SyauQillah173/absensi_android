@@ -69,12 +69,42 @@ class ItSystemControlController extends Controller
             ->get();
 
         // Ambil daftar jadwal aktif untuk opsi spesifik jadwal
-        $jadwals = Jadwal::with(['mapel:id,name', 'kelas:id,name', 'teacher:id,name'])
-            ->select('id', 'teacher_id', 'mapel_id', 'kelas_id', 'hari', 'jam_mulai', 'jam_selesai', 'status')
+        $jadwals = Jadwal::with(['mapel', 'kelas', 'teacher:id,name,email,kode_guru'])
+            ->select('id', 'teacher_id', 'guru', 'mapel_id', 'class_id', 'sifir', 'hari', 'jam_mulai', 'jam_selesai', 'status')
             ->where('status', 'Aktif')
             ->orderBy('hari')
             ->orderBy('jam_mulai')
-            ->get();
+            ->get()
+            ->map(function ($j) {
+                return [
+                    'id'          => $j->id,
+                    'teacher_id'  => $j->teacher_id,
+                    'guru'        => $j->guru ?: ($j->teacher?->name),
+                    'mapel_id'    => $j->mapel_id,
+                    'class_id'    => $j->class_id,
+                    'kelas_id'    => $j->class_id, // Alias untuk kompatibilitas
+                    'sifir'       => $j->sifir ?: ($j->kelas?->name),
+                    'hari'        => $j->hari,
+                    'jam_mulai'   => $j->jam_mulai,
+                    'jam_selesai' => $j->jam_selesai,
+                    'status'      => $j->status,
+                    'mapel'       => $j->mapel ? [
+                        'id'   => $j->mapel->id,
+                        'name' => $j->mapel->nama ?? $j->mapel->name ?? '',
+                        'nama' => $j->mapel->nama ?? $j->mapel->name ?? '',
+                    ] : null,
+                    'kelas'       => $j->kelas ? [
+                        'id'   => $j->kelas->id,
+                        'name' => $j->kelas->name ?? '',
+                    ] : ($j->sifir ? ['id' => $j->class_id, 'name' => $j->sifir] : null),
+                    'teacher'     => $j->teacher ? [
+                        'id'        => $j->teacher->id,
+                        'name'      => $j->teacher->name,
+                        'kode_guru' => $j->teacher->kode_guru,
+                        'email'     => $j->teacher->email,
+                    ] : null,
+                ];
+            });
 
         return response()->json([
             'success' => true,
@@ -135,7 +165,6 @@ class ItSystemControlController extends Controller
 
         $override = $this->controlService->saveGuruOverride(
             $validated,
-            $validated['id'] ?? null,
             $request->user()->id
         );
 
@@ -258,10 +287,11 @@ class ItSystemControlController extends Controller
 
         $forceAll = $request->boolean('force_all', false);
         $result = $this->notificationEngine->sendWaliBillingReminders($forceAll);
+        $parentsCount = $result['parents_notified'] ?? $result['sent_count'] ?? 0;
 
         return response()->json([
             'success' => true,
-            'message' => "Pengingat SPP terkirim ke {$result['parents_notified']} wali santri yang memiliki tunggakan.",
+            'message' => "Pengingat SPP terkirim ke {$parentsCount} wali santri yang memiliki tunggakan.",
             'data'    => $result,
         ]);
     }
@@ -276,10 +306,12 @@ class ItSystemControlController extends Controller
 
         $force = $request->boolean('force', false);
         $result = $this->notificationEngine->sendGuruAttendanceReminders($force);
+        $teachersCount = $result['teachers_notified'] ?? $result['sent_count'] ?? 0;
+        $classesCount = $result['classes_checked'] ?? count($result['details'] ?? []);
 
         return response()->json([
             'success' => true,
-            'message' => "Pengingat presensi terkirim ke {$result['teachers_notified']} guru untuk {$result['classes_checked']} jadwal hari ini.",
+            'message' => "Pengingat presensi terkirim ke {$teachersCount} guru untuk {$classesCount} jadwal hari ini.",
             'data'    => $result,
         ]);
     }
