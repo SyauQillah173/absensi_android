@@ -267,11 +267,11 @@ export function KepalaMadrasahCmsSection() {
                   CMS Pengaturan Monitoring Kepala Madrasah & Pondok
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#138F81] text-white uppercase tracking-wider">
-                  Admin Pengurus & IT
+                  Khusus Admin IT
                 </span>
               </div>
               <p className="text-xs sm:text-sm font-medium text-slate-600 mt-1 max-w-3xl leading-relaxed">
-                Fitur cerdas ini memungkinkan Admin mengatur modul presensi santri mana saja yang boleh dipantau oleh masing-masing Kepala Madrasah secara fleksibel.
+                Fitur cerdas ini memungkinkan Admin IT mengatur modul presensi santri mana saja yang boleh dipantau oleh masing-masing Kepala Madrasah secara fleksibel.
                 Cukup centang atau hilangkan centang modul di bawah, perubahan langsung aktif seketika tanpa perlu mengubah kodingan program!
               </p>
               <div className="mt-2.5 flex items-center gap-3 text-xs font-bold text-[#138F81] flex-wrap">

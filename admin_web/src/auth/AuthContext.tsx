@@ -140,9 +140,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const canView = (menuKey: string) => {
       if (!menuKey) return true;
 
-      // 🔒 Menu Hak Akses & CMS Monitoring: Terbuka untuk Admin IT dan Admin Pengurus
+      // 🔒 Menu Hak Akses & CMS Monitoring: Khusus Admin IT Saja!
       if (menuKey === 'hak_akses' || menuKey === 'hak-akses') {
-        return Boolean(isItAdmin || isPengurus || isMainAdmin);
+        return Boolean(isItAdmin);
       }
 
       // 🔒 Modul PMB (Penerimaan Santri Baru):

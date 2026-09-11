@@ -686,7 +686,7 @@ export function AdminLayout({
       .map((item) => {
         if (item.children) {
           const filteredChildren = item.children.filter((child) => {
-            if (child.itOnly && !(isItAdmin || (child.page === "hak-akses" && isPengurus))) return false;
+            if (child.itOnly && !isItAdmin) return false;
             return true;
           });
           return { ...item, children: filteredChildren };

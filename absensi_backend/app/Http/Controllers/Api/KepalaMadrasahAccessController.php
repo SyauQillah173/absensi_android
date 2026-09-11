@@ -11,11 +11,33 @@ use Illuminate\Http\Request;
 class KepalaMadrasahAccessController extends Controller
 {
     /**
+     * Pastikan hanya Admin IT yang dapat mengakses CMS Kepala Madrasah
+     */
+    protected function authorizeItAdmin(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401, 'Unauthenticated');
+        }
+        $adminType = strtolower((string) ($user->admin_type ?? ''));
+        $role = strtolower((string) ($user->role ?? ''));
+
+        $isIt = in_array($adminType, ['it', 'admin_it', 'developer', 'dev'], true) ||
+                ($role === 'admin' && in_array($adminType, ['it', 'admin_it'], true));
+
+        if (!$isIt) {
+            abort(403, 'Akses ditolak: Pengaturan CMS ini khusus untuk Admin IT.');
+        }
+    }
+
+    /**
      * GET /api/kepala-madrasah-access
      * Menampilkan daftar konfigurasi CMS Monitoring Kepala Madrasah & daftar ustadz yang tersedia
      */
-    public function index()
+    public function index(Request $request)
     {
+        $this->authorizeItAdmin($request);
+
         $records = KepalaMadrasahAccess::with([
             'user:id,name,email,role,admin_type,status,foto_profil,kode_guru'
         ])->orderBy('id')->get();
@@ -41,6 +63,7 @@ class KepalaMadrasahAccessController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeItAdmin($request);
         $validated = $request->validate([
             'user_id' => 'required|integer|exists:users,id',
             'nama_pejabat' => 'nullable|string|max:255',
@@ -87,6 +110,7 @@ class KepalaMadrasahAccessController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $this->authorizeItAdmin($request);
         $record = KepalaMadrasahAccess::findOrFail($id);
 
         $validated = $request->validate([
@@ -116,6 +140,7 @@ class KepalaMadrasahAccessController extends Controller
      */
     public function destroy(Request $request, $id)
     {
+        $this->authorizeItAdmin($request);
         $record = KepalaMadrasahAccess::findOrFail($id);
         $record->delete();
 
