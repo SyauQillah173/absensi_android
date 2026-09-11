@@ -140,9 +140,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const canView = (menuKey: string) => {
       if (!menuKey) return true;
 
-      // 🔒 Menu Hak Akses & Role User: KHUSUS HANYA untuk Admin IT (Bang Nobita)
+      // 🔒 Menu Hak Akses & CMS Monitoring: Terbuka untuk Admin IT dan Admin Pengurus
       if (menuKey === 'hak_akses' || menuKey === 'hak-akses') {
-        return Boolean(isItAdmin);
+        return Boolean(isItAdmin || isPengurus || isMainAdmin);
       }
 
       // 🔒 Modul PMB (Penerimaan Santri Baru):

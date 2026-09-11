@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\HafalanController;
 use App\Http\Controllers\Api\JadwalController;
 use App\Http\Controllers\Api\KegiatanController;
 use App\Http\Controllers\Api\KelompokBelajarController;
+use App\Http\Controllers\Api\KepalaMadrasahAccessController;
 use App\Http\Controllers\Api\MataPelajaranController;
 use App\Http\Controllers\Api\MateriController;
 use App\Http\Controllers\Api\NilaiController;
@@ -378,6 +379,12 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::post('users/{user}/reset-password', [UserManagementController::class, 'resetPassword']);
         Route::put('users/{user}', [UserManagementController::class, 'update']);
         Route::delete('users/{user}', [UserManagementController::class, 'destroy']);
+
+        // CMS MONITORING KEPALA MADRASAH
+        Route::get('kepala-madrasah-access', [KepalaMadrasahAccessController::class, 'index']);
+        Route::post('kepala-madrasah-access', [KepalaMadrasahAccessController::class, 'store']);
+        Route::put('kepala-madrasah-access/{id}', [KepalaMadrasahAccessController::class, 'update']);
+        Route::delete('kepala-madrasah-access/{id}', [KepalaMadrasahAccessController::class, 'destroy']);
 
         Route::get('payment-types', [PaymentTypeController::class, 'index'])->middleware('permission:keuangan,view');
         Route::post('payment-types', [PaymentTypeController::class, 'store'])->middleware('permission:keuangan,create');

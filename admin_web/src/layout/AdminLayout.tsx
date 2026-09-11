@@ -225,7 +225,7 @@ const allMenu: MenuItem[] = [
       { label: "Pengaturan Semester & TA", page: "master", masterSection: "akademik", icon: CalendarRange },
       { label: "Profil Identitas Lembaga", page: "master", masterSection: "referensi", icon: Landmark },
       { label: "Pengaturan WhatsApp Bot", page: "whatsapp", icon: MessageSquare, itOnly: true },
-      { label: "Hak Akses & Role User", page: "hak-akses", icon: Shield, itOnly: true },
+      { label: "Hak Akses & CMS Monitoring", page: "hak-akses", icon: Shield, itOnly: true },
       { label: "Pengaturan Akun", page: "account", icon: UserCog },
     ],
   },
@@ -264,7 +264,7 @@ export function AdminLayout({
   onNavigate,
   children,
 }: AdminLayoutProps) {
-  const { session, logout, canView, isGuru, isTreasurer, isKepalaSekolah, isItAdmin, isPmbAdmin, isKeamanan } = useAuth();
+  const { session, logout, canView, isGuru, isTreasurer, isKepalaSekolah, isItAdmin, isPengurus, isPmbAdmin, isKeamanan } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -564,8 +564,31 @@ export function AdminLayout({
       ];
     }
 
-    // 3. Role Kepala Sekolah / Madrasah: Khusus Monitoring Pemantauan (Tanpa Rekap Ruwet)
+    // 3. Role Kepala Sekolah / Madrasah: Khusus Monitoring Pemantauan Dinamis Berbasis CMS
     if (isKepalaSekolah) {
+      const canMadin = session?.monitoring_access?.madin ?? true;
+      const canSholat = session?.monitoring_access?.sholat ?? true;
+      const canNgaji = session?.monitoring_access?.ngaji ?? true;
+
+      const monitoringChildren: NonNullable<MenuItem['children']> = [
+        { label: "Log Realtime Live", page: "absensi", absensiTab: "log-realtime", icon: Activity },
+      ];
+
+      if (canMadin) {
+        monitoringChildren.push({ label: "Monitoring KBM Madin", page: "absensi", absensiTab: "madin-input", icon: ClipboardCheck });
+        monitoringChildren.push({ label: "Rekapitulasi KBM Madin", page: "absensi", absensiTab: "madin", icon: ChartColumn });
+      }
+
+      if (canSholat) {
+        monitoringChildren.push({ label: "Monitoring Sholat Jamaah", page: "absensi", absensiTab: "sholat", icon: Clock3 });
+        monitoringChildren.push({ label: "Rekapitulasi Sholat", page: "absensi", absensiTab: "rekap-sholat", icon: Landmark });
+      }
+
+      if (canNgaji) {
+        monitoringChildren.push({ label: "Monitoring Ngaji Kitab", page: "absensi", absensiTab: "ngaji", icon: BookOpen });
+        monitoringChildren.push({ label: "Rekapitulasi Ngaji", page: "absensi", absensiTab: "rekap-ngaji", icon: BookMarked });
+      }
+
       return [
         {
           key: "dashboard",
@@ -574,11 +597,18 @@ export function AdminLayout({
           page: "dashboard",
         },
         {
-          key: "absensi",
+          key: "absensi_menu",
           label: "Pemantauan Presensi",
           icon: CalendarCheck,
-          page: "absensi",
-          absensiTab: "log-realtime",
+          children: monitoringChildren,
+        },
+        {
+          key: "pengaturan_sistem",
+          label: "Pengaturan & Akun",
+          icon: Settings,
+          children: [
+            { label: "Pengaturan Akun", page: "account" as PageKey, icon: UserCog },
+          ],
         },
       ];
     }
@@ -656,7 +686,7 @@ export function AdminLayout({
       .map((item) => {
         if (item.children) {
           const filteredChildren = item.children.filter((child) => {
-            if (child.itOnly && !isItAdmin) return false;
+            if (child.itOnly && !(isItAdmin || (child.page === "hak-akses" && isPengurus))) return false;
             return true;
           });
           return { ...item, children: filteredChildren };
@@ -666,7 +696,7 @@ export function AdminLayout({
       .filter((item) =>
         canView(menuPermissionKeys[item.key] ?? item.key),
       );
-  }, [canView, isGuru, isTreasurer, isKepalaSekolah, isItAdmin, isPmbAdmin, isKeamanan, session?.hak_akses]);
+  }, [canView, isGuru, isTreasurer, isKepalaSekolah, isItAdmin, isPengurus, isPmbAdmin, isKeamanan, session?.hak_akses, session?.monitoring_access]);
 
   const collapsed = mobileOpen ? false : sidebarCollapsed;
 

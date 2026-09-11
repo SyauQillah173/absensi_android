@@ -3,11 +3,13 @@ import {
   AlertTriangle,
   BarChart3,
   BookMarked,
+  BookOpen,
   BookOpenCheck,
   CalendarCheck,
   Check,
   CheckCircle2,
   ClipboardList,
+  Clock3,
   Download,
   Edit3,
   Landmark,
@@ -157,10 +159,40 @@ function statusTone(status: PrayerStatus | MadinStatus | string): 'success' | 'w
 export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabChange }: AbsensiPageProps) {
   const { session, isGuru, isKepalaSekolah, isMainAdmin } = useAuth();
 
+  const monitoringAccess = session?.monitoring_access;
+  const canMadin = !isKepalaSekolah || (monitoringAccess ? Boolean(monitoringAccess.madin) : true);
+  const canSholat = !isKepalaSekolah || (monitoringAccess ? Boolean(monitoringAccess.sholat) : true);
+  const canNgaji = !isKepalaSekolah || (monitoringAccess ? Boolean(monitoringAccess.ngaji) : true);
+
+  const resolveDefaultKepalaTab = useCallback((): AbsensiTab => {
+    if (canMadin && !canSholat && !canNgaji) return 'madin';
+    if (!canMadin && canSholat) return 'rekap-sholat';
+    if (!canMadin && canNgaji) return 'rekap-ngaji';
+    return 'log-realtime';
+  }, [canMadin, canSholat, canNgaji]);
+
+  const resolveDefaultGuruTab = useCallback((): AbsensiTab => {
+    if (initialTab && ['madin-input', 'sholat', 'ngaji'].includes(initialTab)) {
+      if (initialTab === 'madin-input' && session?.hak_akses?.absen_madin) return 'madin-input';
+      if (initialTab === 'sholat' && session?.hak_akses?.absen_sholat) return 'sholat';
+      if (initialTab === 'ngaji' && session?.hak_akses?.absen_ngaji) return 'ngaji';
+      return initialTab;
+    }
+    if (session?.hak_akses?.absen_madin) return 'madin-input';
+    if (session?.hak_akses?.absen_sholat) return 'sholat';
+    if (session?.hak_akses?.absen_ngaji) return 'ngaji';
+    return 'madin-input';
+  }, [initialTab, session?.hak_akses]);
+
   const [activeTab, setActiveTab] = useState<AbsensiTab>(() => {
     if (initialTarget?.tab) return initialTarget.tab;
-    if (isGuru) return 'madin-input';
-    if (isKepalaSekolah) return 'log-realtime';
+    if (isGuru) return resolveDefaultGuruTab();
+    if (isKepalaSekolah) {
+      if (initialTab === 'madin' && canMadin) return 'madin';
+      if (initialTab === 'rekap-sholat' && canSholat) return 'rekap-sholat';
+      if (initialTab === 'rekap-ngaji' && canNgaji) return 'rekap-ngaji';
+      return resolveDefaultKepalaTab();
+    }
     return initialTab;
   });
 
@@ -173,15 +205,29 @@ export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabC
     if (initialTarget?.tab) {
       setActiveTab(initialTarget.tab);
     } else if (initialTab) {
-      if (isGuru && !['madin-input', 'sholat', 'ngaji'].includes(initialTab)) {
-        setActiveTab('madin-input');
-      } else if (isKepalaSekolah && !['log-realtime', 'madin', 'rekap-madin', 'rekap-sholat', 'rekap-ngaji'].includes(initialTab)) {
-        setActiveTab('log-realtime');
+      if (isGuru) {
+        if (['madin-input', 'sholat', 'ngaji'].includes(initialTab)) {
+          setActiveTab(initialTab);
+        } else {
+          setActiveTab(resolveDefaultGuruTab());
+        }
+      } else if (isKepalaSekolah) {
+        if (initialTab === 'madin' || initialTab === 'rekap-madin') {
+          setActiveTab(canMadin ? 'madin' : resolveDefaultKepalaTab());
+        } else if (initialTab === 'rekap-sholat') {
+          setActiveTab(canSholat ? 'rekap-sholat' : resolveDefaultKepalaTab());
+        } else if (initialTab === 'rekap-ngaji') {
+          setActiveTab(canNgaji ? 'rekap-ngaji' : resolveDefaultKepalaTab());
+        } else if (initialTab === 'log-realtime') {
+          setActiveTab('log-realtime');
+        } else {
+          setActiveTab(resolveDefaultKepalaTab());
+        }
       } else {
         setActiveTab(initialTab);
       }
     }
-  }, [initialTab, initialTarget, isGuru, isKepalaSekolah]);
+  }, [canMadin, canNgaji, canSholat, initialTab, initialTarget, isGuru, isKepalaSekolah, resolveDefaultGuruTab, resolveDefaultKepalaTab]);
 
   const currentTab = activeTab === 'rekap-madin' ? 'madin' : activeTab;
 
@@ -279,13 +325,97 @@ export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabC
       </div>
 
       {currentTab === 'log-realtime' ? <RealtimeAttendanceLog /> : null}
-      {currentTab === 'madin-input' ? <MadinInput initialTarget={initialTarget} /> : null}
-      {currentTab === 'sholat' ? <PrayerInput /> : null}
-      {currentTab === 'ngaji' ? <NgajiKitabSection initialSection="input" /> : null}
-      {currentTab === 'rekap-ngaji' ? <NgajiKitabSection initialSection="rekap" /> : null}
+      {currentTab === 'madin-input' ? (
+        isGuru && session?.hak_akses?.absen_madin === false ? (
+          <div className="q-card bg-white rounded-3xl p-8 sm:p-12 text-center space-y-3 border border-slate-200 shadow-sm animate-fadeIn">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-inner">
+              <CalendarCheck size={28} />
+            </div>
+            <h3 className="text-base font-black text-slate-800">Jadwal KBM Madin Belum Diatur</h3>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
+              Admin belum mengatur atau menugaskan jadwal mengajar Madrasah Diniyah untuk akun Anda. Menu ini akan aktif otomatis setelah admin mengatur jadwal mengajar Anda di Master Jadwal Pelajaran.
+            </p>
+          </div>
+        ) : (
+          <MadinInput initialTarget={initialTarget} />
+        )
+      ) : null}
+      {currentTab === 'sholat' ? (
+        isGuru && session?.hak_akses?.absen_sholat === false ? (
+          <div className="q-card bg-white rounded-3xl p-8 sm:p-12 text-center space-y-3 border border-slate-200 shadow-sm animate-fadeIn">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-inner">
+              <Clock3 size={28} />
+            </div>
+            <h3 className="text-base font-black text-slate-800">Penugasan Absensi Sholat Belum Diatur</h3>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
+              Admin belum mengaktifkan penugasan presensi jamaah sholat untuk akun Anda. Menu ini akan aktif otomatis setelah admin memberikan izin penugasan sholat per kamar / komplek asrama.
+            </p>
+          </div>
+        ) : (
+          <PrayerInput />
+        )
+      ) : null}
+      {currentTab === 'ngaji' ? (
+        isGuru && session?.hak_akses?.absen_ngaji === false ? (
+          <div className="q-card bg-white rounded-3xl p-8 sm:p-12 text-center space-y-3 border border-slate-200 shadow-sm animate-fadeIn">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-inner">
+              <BookOpen size={28} />
+            </div>
+            <h3 className="text-base font-black text-slate-800">Jadwal Ngaji Kitab Belum Diatur</h3>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
+              Admin belum mengatur jadwal pengajian kitab kuning untuk akun Anda. Menu ini akan aktif otomatis setelah admin mengaitkan akun Anda dengan jadwal halaqah ngaji kitab pondok.
+            </p>
+          </div>
+        ) : (
+          <NgajiKitabSection initialSection="input" />
+        )
+      ) : null}
+      {currentTab === 'rekap-ngaji' ? (
+        isKepalaSekolah && !canNgaji ? (
+          <div className="q-card bg-white rounded-3xl p-8 sm:p-12 text-center space-y-3 border border-slate-200 shadow-sm animate-fadeIn">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-inner">
+              <BookMarked size={28} />
+            </div>
+            <h3 className="text-base font-black text-slate-800">Akses Monitoring Ngaji Dibatasi</h3>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
+              Berdasarkan konfigurasi CMS Admin, akun Anda tidak ditugaskan untuk memantau presensi Ngaji Kitab.
+            </p>
+          </div>
+        ) : (
+          <NgajiKitabSection initialSection="rekap" />
+        )
+      ) : null}
       {currentTab === 'jadwal-ngaji' ? <NgajiKitabSection initialSection="master" /> : null}
-      {currentTab === 'rekap-sholat' ? <PrayerRekap /> : null}
-      {currentTab === 'madin' ? <MadinRekap /> : null}
+      {currentTab === 'rekap-sholat' ? (
+        isKepalaSekolah && !canSholat ? (
+          <div className="q-card bg-white rounded-3xl p-8 sm:p-12 text-center space-y-3 border border-slate-200 shadow-sm animate-fadeIn">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-inner">
+              <Landmark size={28} />
+            </div>
+            <h3 className="text-base font-black text-slate-800">Akses Monitoring Sholat Dibatasi</h3>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
+              Berdasarkan konfigurasi CMS Admin, akun Anda tidak ditugaskan untuk memantau presensi Jama'ah Sholat.
+            </p>
+          </div>
+        ) : (
+          <PrayerRekap />
+        )
+      ) : null}
+      {currentTab === 'madin' ? (
+        isKepalaSekolah && !canMadin ? (
+          <div className="q-card bg-white rounded-3xl p-8 sm:p-12 text-center space-y-3 border border-slate-200 shadow-sm animate-fadeIn">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-inner">
+              <BarChart3 size={28} />
+            </div>
+            <h3 className="text-base font-black text-slate-800">Akses Monitoring Madin Dibatasi</h3>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
+              Berdasarkan konfigurasi CMS Admin, akun Anda tidak ditugaskan untuk memantau presensi KBM Madin.
+            </p>
+          </div>
+        ) : (
+          <MadinRekap />
+        )
+      ) : null}
       {currentTab === 'jenis-sholat' ? <PrayerTypeCms /> : null}
     </div>
   );

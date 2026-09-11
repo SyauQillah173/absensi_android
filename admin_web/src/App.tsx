@@ -37,7 +37,7 @@ function PageLoader() {
 }
 
 function AdminShell() {
-  const { isAuthenticated, canView, session, isItAdmin, isPmbAdmin } = useAuth();
+  const { isAuthenticated, canView, session, isItAdmin, isPengurus, isMainAdmin, isPmbAdmin } = useAuth();
 
   // Deteksi apakah URL meminta view PMB publik (?pmb=1, /pmb, #/pmb, dll.)
   const isPmbRequestedInUrl = () => {
@@ -242,7 +242,7 @@ function AdminShell() {
         ) : null}
         {(safePage === 'mapel' || safePage === 'jadwal') ? <JadwalPelajaranPage /> : null}
         {safePage === 'nilai' ? <NilaiHafalanPage /> : null}
-        {safePage === 'hak-akses' && isItAdmin ? <HakAksesPage /> : null}
+        {safePage === 'hak-akses' && (isItAdmin || isPengurus || isMainAdmin) ? <HakAksesPage /> : null}
         {safePage === 'account' ? <AccountPage /> : null}
         {safePage === 'pmb' ? <PmbAdminPage initialTab={pmbTab} onTabChange={setPmbTab} /> : null}
         {safePage === 'pelanggaran' ? <PelanggaranPage /> : null}

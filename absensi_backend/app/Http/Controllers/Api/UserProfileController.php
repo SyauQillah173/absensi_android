@@ -41,18 +41,34 @@ class UserProfileController extends Controller
                 'foto_url' => $this->profilePhotoUrl($user),
                 'permissions' => app(PermissionService::class)->permissionsForUser($user),
                 'hak_akses' => $user->role === 'guru' ? [
-                    'absen_madin' => \App\Models\Jadwal::where(function ($q) use ($user) {
-                        $q->where('guru_id', $user->id)
-                          ->orWhere('guru', $user->name);
-                    })->exists(),
+                    'absen_madin' => \App\Models\Jadwal::where('status', 'Aktif')
+                        ->where(function ($q) use ($user) {
+                            $q->where('teacher_id', $user->id)
+                              ->orWhereRaw('lower(trim(guru)) = ?', [strtolower(trim($user->name))]);
+                            if (!empty($user->kode_guru)) {
+                                $q->orWhereRaw('lower(trim(guru)) = ?', [strtolower(trim($user->kode_guru))]);
+                            }
+                        })->exists(),
                     'absen_sholat' => \App\Models\GuruAbsensiSholatAccess::where('user_id', $user->id)
                         ->where('is_active', true)
+                        ->where('can_input', true)
                         ->exists(),
                     'absen_ngaji' => \App\Models\NgajiSchedule::where('status', 'Aktif')
                         ->where('teacher_id', $user->id)
                         ->exists(),
                     'nilai' => true,
                 ] : null,
+                'monitoring_access' => (function () use ($user) {
+                    $kmAccess = \App\Models\KepalaMadrasahAccess::where('user_id', $user->id)->first();
+                    $isKepala = in_array($user->admin_type, ['madrasah', 'absensi', 'kepala_madrasah', 'kepala_sekolah', 'monitoring', 'kepala'], true) || $user->role === 'kepala_sekolah' || !empty($kmAccess);
+                    if (!$isKepala) return null;
+                    return [
+                        'madin' => $kmAccess ? (bool) $kmAccess->can_monitor_madin : true,
+                        'sholat' => $kmAccess ? (bool) $kmAccess->can_monitor_sholat : true,
+                        'ngaji' => $kmAccess ? (bool) $kmAccess->can_monitor_ngaji : true,
+                        'jabatan' => $kmAccess ? $kmAccess->jabatan : 'Kepala Madrasah',
+                    ];
+                })(),
             ],
         ]);
     }

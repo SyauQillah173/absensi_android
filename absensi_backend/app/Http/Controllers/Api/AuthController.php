@@ -101,13 +101,18 @@ class AuthController extends Controller
 
         // Jika role guru → sertakan hak akses absensi yang dinamis sesuai penugasan jadwal admin
         if ($user->role === 'guru') {
-            $canMadin = \App\Models\Jadwal::where(function ($q) use ($user) {
-                $q->where('guru_id', $user->id)
-                  ->orWhere('guru', $user->name);
-            })->exists();
+            $canMadin = \App\Models\Jadwal::where('status', 'Aktif')
+                ->where(function ($q) use ($user) {
+                    $q->where('teacher_id', $user->id)
+                      ->orWhereRaw('lower(trim(guru)) = ?', [strtolower(trim($user->name))]);
+                    if (!empty($user->kode_guru)) {
+                        $q->orWhereRaw('lower(trim(guru)) = ?', [strtolower(trim($user->kode_guru))]);
+                    }
+                })->exists();
 
             $canSholat = \App\Models\GuruAbsensiSholatAccess::where('user_id', $user->id)
                 ->where('is_active', true)
+                ->where('can_input', true)
                 ->exists();
 
             $canNgaji = \App\Models\NgajiSchedule::where('status', 'Aktif')
@@ -119,6 +124,19 @@ class AuthController extends Controller
                 'absen_sholat' => $canSholat,
                 'absen_ngaji' => $canNgaji,
                 'nilai' => true,
+            ];
+        }
+
+        // Jika akun memiliki akses Kepala Madrasah / Monitoring -> sertakan konfigurasi CMS monitoring
+        $kmAccess = \App\Models\KepalaMadrasahAccess::where('user_id', $user->id)->first();
+        $isKepala = in_array($user->admin_type, ['madrasah', 'absensi', 'kepala_madrasah', 'kepala_sekolah', 'monitoring', 'kepala'], true) || $user->role === 'kepala_sekolah' || !empty($kmAccess);
+
+        if ($isKepala) {
+            $responseData['monitoring_access'] = [
+                'madin' => $kmAccess ? (bool) $kmAccess->can_monitor_madin : true,
+                'sholat' => $kmAccess ? (bool) $kmAccess->can_monitor_sholat : true,
+                'ngaji' => $kmAccess ? (bool) $kmAccess->can_monitor_ngaji : true,
+                'jabatan' => $kmAccess ? $kmAccess->jabatan : 'Kepala Madrasah',
             ];
         }
 

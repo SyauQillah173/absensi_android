@@ -46,8 +46,24 @@ export function KepalaSekolahDashboardView({
   onRefresh,
   onOpenAttendance,
 }: KepalaSekolahDashboardViewProps) {
-  const [filterType, setFilterType] = useState<'all' | 'madin' | 'ngaji' | 'sholat'>('all');
+  const access = session?.monitoring_access;
+  const canMadin = access ? Boolean(access.madin) : true;
+  const canNgaji = access ? Boolean(access.ngaji) : true;
+  const canSholat = access ? Boolean(access.sholat) : true;
+
+  const defaultFilter = useMemo<'all' | 'madin' | 'ngaji' | 'sholat'>(() => {
+    if (canMadin && !canNgaji && !canSholat) return 'madin';
+    if (!canMadin && canNgaji && !canSholat) return 'ngaji';
+    if (!canMadin && !canNgaji && canSholat) return 'sholat';
+    return 'all';
+  }, [canMadin, canNgaji, canSholat]);
+
+  const [filterType, setFilterType] = useState<'all' | 'madin' | 'ngaji' | 'sholat'>(defaultFilter);
   const [currentTime, setCurrentTime] = useState<string>('');
+
+  useEffect(() => {
+    setFilterType(defaultFilter);
+  }, [defaultFilter]);
 
   useEffect(() => {
     const updateTime = () => {
@@ -76,72 +92,78 @@ export function KepalaSekolahDashboardView({
   const totalPutri = Number(statistik?.total_siswa_putri ?? 409);
   const totalGuru = Number(statistik?.total_guru ?? 91);
 
-  // Parse Live Feed Activities
+  // Parse Live Feed Activities according to CMS permissions
   const activities = useMemo<ActivityItem[]>(() => {
     const items: ActivityItem[] = [];
 
-    // 1. Madin Activities
-    const madinList = Array.isArray(absensi?.per_kelas) ? (absensi.per_kelas as ApiRecord[]) : [];
-    for (const m of madinList) {
-      const ts = m.created_at ? new Date(String(m.created_at)).getTime() : 0;
-      items.push({
-        ...m,
-        category: 'madin',
-        title: `KBM ${String(m.kelas ?? 'Kelas')} • ${String(m.mapel ?? 'Mata Pelajaran')}`,
-        subtitle: `Jadwal KBM Diniyah/Madin`,
-        creator: String(m.diinput_oleh ?? 'Ustadz Pengajar'),
-        time: String(m.waktu ?? (m.created_at ? new Date(String(m.created_at)).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-')),
-        hadir: Number(m.hadir ?? 0),
-        izin: Number(m.izin ?? 0),
-        sakit: Number(m.sakit ?? 0),
-        alfa: Number(m.alfa ?? 0),
-        total: Number(m.total ?? 0),
-        rawTimestamp: isNaN(ts) ? 0 : ts,
-      });
+    // 1. Madin Activities (hanya jika diizinkan oleh CMS)
+    if (canMadin) {
+      const madinList = Array.isArray(absensi?.per_kelas) ? (absensi.per_kelas as ApiRecord[]) : [];
+      for (const m of madinList) {
+        const ts = m.created_at ? new Date(String(m.created_at)).getTime() : 0;
+        items.push({
+          ...m,
+          category: 'madin',
+          title: `KBM ${String(m.kelas ?? 'Kelas')} • ${String(m.mapel ?? 'Mata Pelajaran')}`,
+          subtitle: `Jadwal KBM Diniyah/Madin`,
+          creator: String(m.diinput_oleh ?? 'Ustadz Pengajar'),
+          time: String(m.waktu ?? (m.created_at ? new Date(String(m.created_at)).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-')),
+          hadir: Number(m.hadir ?? 0),
+          izin: Number(m.izin ?? 0),
+          sakit: Number(m.sakit ?? 0),
+          alfa: Number(m.alfa ?? 0),
+          total: Number(m.total ?? 0),
+          rawTimestamp: isNaN(ts) ? 0 : ts,
+        });
+      }
     }
 
-    // 2. Ngaji Activities
-    const ngajiList = Array.isArray(ngaji?.aktivitas) ? (ngaji.aktivitas as ApiRecord[]) : [];
-    for (const n of ngajiList) {
-      const ts = n.created_at ? new Date(String(n.created_at)).getTime() : 0;
-      items.push({
-        ...n,
-        category: 'ngaji',
-        title: `Halaqoh Ngaji Kitab • ${String(n.kitab ?? n.sesi ?? 'Kitab Santri')}`,
-        subtitle: `Sesi: ${String(n.sesi ?? 'Ngaji Kitab')}`,
-        creator: String(n.pengajar ?? n.diinput_oleh ?? 'Ustadz Pembina'),
-        time: String(n.waktu ?? (n.created_at ? new Date(String(n.created_at)).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-')),
-        hadir: Number(n.hadir ?? 0),
-        izin: Number(n.izin ?? 0),
-        sakit: Number(n.sakit ?? 0),
-        alfa: Number(n.alfa ?? 0),
-        total: Number(n.total ?? 0),
-        rawTimestamp: isNaN(ts) ? 0 : ts,
-      });
+    // 2. Ngaji Activities (hanya jika diizinkan oleh CMS)
+    if (canNgaji) {
+      const ngajiList = Array.isArray(ngaji?.aktivitas) ? (ngaji.aktivitas as ApiRecord[]) : [];
+      for (const n of ngajiList) {
+        const ts = n.created_at ? new Date(String(n.created_at)).getTime() : 0;
+        items.push({
+          ...n,
+          category: 'ngaji',
+          title: `Halaqoh Ngaji Kitab • ${String(n.kitab ?? n.sesi ?? 'Kitab Santri')}`,
+          subtitle: `Sesi: ${String(n.sesi ?? 'Ngaji Kitab')}`,
+          creator: String(n.pengajar ?? n.diinput_oleh ?? 'Ustadz Pembina'),
+          time: String(n.waktu ?? (n.created_at ? new Date(String(n.created_at)).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-')),
+          hadir: Number(n.hadir ?? 0),
+          izin: Number(n.izin ?? 0),
+          sakit: Number(n.sakit ?? 0),
+          alfa: Number(n.alfa ?? 0),
+          total: Number(n.total ?? 0),
+          rawTimestamp: isNaN(ts) ? 0 : ts,
+        });
+      }
     }
 
-    // 3. Sholat Activities
-    const sholatList = Array.isArray(sholat?.aktivitas) ? (sholat.aktivitas as ApiRecord[]) : [];
-    for (const s of sholatList) {
-      const ts = s.created_at ? new Date(String(s.created_at)).getTime() : 0;
-      items.push({
-        ...s,
-        category: 'sholat',
-        title: `Jama'ah Sholat ${String(s.jenis_sholat ?? 'Fardhu')} • ${String(s.komplek ?? 'Komplek Asrama')}`,
-        subtitle: s.kamar ? `Kamar: ${String(s.kamar)}` : 'Asrama Santri',
-        creator: String(s.diinput_oleh ?? 'Ustadz / Pengurus Asrama'),
-        time: String(s.waktu ?? (s.created_at ? new Date(String(s.created_at)).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-')),
-        hadir: Number(s.hadir ?? s.masuk ?? 0),
-        izin: Number(s.izin ?? 0),
-        sakit: Number(s.sakit ?? 0),
-        alfa: Number(s.alfa ?? s.belum ?? 0),
-        total: Number(s.total ?? 0),
-        rawTimestamp: isNaN(ts) ? 0 : ts,
-      });
+    // 3. Sholat Activities (hanya jika diizinkan oleh CMS)
+    if (canSholat) {
+      const sholatList = Array.isArray(sholat?.aktivitas) ? (sholat.aktivitas as ApiRecord[]) : [];
+      for (const s of sholatList) {
+        const ts = s.created_at ? new Date(String(s.created_at)).getTime() : 0;
+        items.push({
+          ...s,
+          category: 'sholat',
+          title: `Jama'ah Sholat ${String(s.jenis_sholat ?? 'Fardhu')} • ${String(s.komplek ?? 'Komplek Asrama')}`,
+          subtitle: s.kamar ? `Kamar: ${String(s.kamar)}` : 'Asrama Santri',
+          creator: String(s.diinput_oleh ?? 'Ustadz / Pengurus Asrama'),
+          time: String(s.waktu ?? (s.created_at ? new Date(String(s.created_at)).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-')),
+          hadir: Number(s.hadir ?? s.masuk ?? 0),
+          izin: Number(s.izin ?? 0),
+          sakit: Number(s.sakit ?? 0),
+          alfa: Number(s.alfa ?? s.belum ?? 0),
+          total: Number(s.total ?? 0),
+          rawTimestamp: isNaN(ts) ? 0 : ts,
+        });
+      }
     }
 
     return items.sort((a, b) => b.rawTimestamp - a.rawTimestamp);
-  }, [absensi, ngaji, sholat]);
+  }, [absensi, canMadin, canNgaji, canSholat, ngaji, sholat]);
 
   const filteredActivities = useMemo(() => {
     if (filterType === 'all') return activities;
@@ -169,9 +191,17 @@ export function KepalaSekolahDashboardView({
 
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-[#FFDC80] text-xs font-black uppercase tracking-wider">
-              <Radio size={14} className="animate-pulse text-[#FFDC80]" />
-              <span>Portal Pemantauan & Monitoring Santri</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-[#FFDC80] text-xs font-black uppercase tracking-wider">
+                <Radio size={14} className="animate-pulse text-[#FFDC80]" />
+                <span>Portal Pemantauan & Monitoring Santri</span>
+              </div>
+              {access?.jabatan && (
+                <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#FFDC80]/20 border border-[#FFDC80]/40 text-[#FFDC80] text-xs font-black">
+                  <GraduationCap size={14} />
+                  <span>{access.jabatan}</span>
+                </div>
+              )}
             </div>
 
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white leading-tight">
@@ -311,52 +341,60 @@ export function KepalaSekolahDashboardView({
             </p>
           </div>
 
-          {/* Clean Big Filter Pills */}
+          {/* Clean Big Filter Pills (Disesuaikan dengan Hak CMS) */}
           <div className="flex items-center gap-1.5 flex-wrap bg-slate-100 p-1.5 rounded-2xl">
-            <button
-              type="button"
-              onClick={() => setFilterType('all')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all ${
-                filterType === 'all'
-                  ? 'bg-white text-[#138F81] shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Semua ({activities.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterType('madin')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all ${
-                filterType === 'madin'
-                  ? 'bg-white text-[#138F81] shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              🕌 KBM Madin
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterType('ngaji')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all ${
-                filterType === 'ngaji'
-                  ? 'bg-white text-[#138F81] shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              📖 Ngaji Kitab
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterType('sholat')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all ${
-                filterType === 'sholat'
-                  ? 'bg-white text-[#138F81] shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              🕋 Sholat Jama'ah
-            </button>
+            {[canMadin, canNgaji, canSholat].filter(Boolean).length > 1 && (
+              <button
+                type="button"
+                onClick={() => setFilterType('all')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all ${
+                  filterType === 'all'
+                    ? 'bg-white text-[#138F81] shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Semua ({activities.length})
+              </button>
+            )}
+            {canMadin && (
+              <button
+                type="button"
+                onClick={() => setFilterType('madin')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all ${
+                  filterType === 'madin'
+                    ? 'bg-white text-[#138F81] shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                🕌 KBM Madin
+              </button>
+            )}
+            {canNgaji && (
+              <button
+                type="button"
+                onClick={() => setFilterType('ngaji')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all ${
+                  filterType === 'ngaji'
+                    ? 'bg-white text-[#138F81] shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                📖 Ngaji Kitab
+              </button>
+            )}
+            {canSholat && (
+              <button
+                type="button"
+                onClick={() => setFilterType('sholat')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all ${
+                  filterType === 'sholat'
+                    ? 'bg-white text-[#138F81] shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                🕋 Sholat Jama'ah
+              </button>
+            )}
           </div>
         </div>
 
@@ -442,13 +480,23 @@ export function KepalaSekolahDashboardView({
           )}
         </div>
 
-        {/* Footer Shortcut to Full Log */}
+        {/* Footer Shortcut to Allowed Monitoring Screen */}
         {onOpenAttendance && (
           <div className="pt-2 text-center">
             <button
               type="button"
-              onClick={() => onOpenAttendance({ tab: 'log-realtime' })}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#138F81]/10 text-[#138F81] font-black text-xs hover:bg-[#138F81]/20 transition-all"
+              onClick={() => {
+                if (canMadin && !canSholat && !canNgaji) {
+                  onOpenAttendance({ tab: 'madin' });
+                } else if (!canMadin && canSholat) {
+                  onOpenAttendance({ tab: 'rekap-sholat' });
+                } else if (!canMadin && canNgaji) {
+                  onOpenAttendance({ tab: 'rekap-ngaji' });
+                } else {
+                  onOpenAttendance({ tab: 'log-realtime' });
+                }
+              }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#138F81]/10 text-[#138F81] font-black text-xs hover:bg-[#138F81]/20 transition-all cursor-pointer"
             >
               <Eye size={15} />
               <span>Buka Halaman Pemantauan Presensi Lengkap</span>

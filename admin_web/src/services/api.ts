@@ -31,6 +31,12 @@ export interface UserSession {
     absen_ngaji?: boolean;
     nilai?: boolean;
   };
+  monitoring_access?: {
+    madin: boolean;
+    sholat: boolean;
+    ngaji: boolean;
+    jabatan?: string;
+  };
   must_change_password?: boolean;
   pmb_visible_to_pengurus?: boolean;
 }
@@ -174,6 +180,7 @@ function sessionFromData(data: ApiRecord, token: string): UserSession {
     permissions: data.permissions && typeof data.permissions === 'object' ? (data.permissions as ApiRecord) : undefined,
     anak: Array.isArray(data.anak) ? (data.anak as ApiRecord[]) : undefined,
     hak_akses: data.hak_akses && typeof data.hak_akses === 'object' ? (data.hak_akses as UserSession['hak_akses']) : undefined,
+    monitoring_access: data.monitoring_access && typeof data.monitoring_access === 'object' ? (data.monitoring_access as UserSession['monitoring_access']) : undefined,
     must_change_password: Boolean(data.must_change_password),
     token
   };
@@ -364,6 +371,7 @@ export const api = {
         admin_type: session.admin_type ?? null,
         anak: session.anak ?? (Array.isArray(profileData.anak) ? (profileData.anak as ApiRecord[]) : undefined),
         hak_akses: session.hak_akses ?? (profileData.hak_akses && typeof profileData.hak_akses === 'object' ? (profileData.hak_akses as UserSession['hak_akses']) : undefined),
+        monitoring_access: session.monitoring_access ?? (profileData.monitoring_access && typeof profileData.monitoring_access === 'object' ? (profileData.monitoring_access as UserSession['monitoring_access']) : undefined),
       };
       writeSession(enriched);
       return enriched;
@@ -388,6 +396,7 @@ export const api = {
       ...sessionFromData(data, current.token),
       admin_type: current.admin_type ?? (data.admin_type ? String(data.admin_type) : null),
       hak_akses: (data.hak_akses && typeof data.hak_akses === 'object' ? (data.hak_akses as UserSession['hak_akses']) : current.hak_akses),
+      monitoring_access: (data.monitoring_access && typeof data.monitoring_access === 'object' ? (data.monitoring_access as UserSession['monitoring_access']) : current.monitoring_access),
     };
     writeSession(next);
     return next;
@@ -1309,5 +1318,40 @@ export const api = {
   },
   getWaliPelanggaran(siswaId: number) {
     return request<ApiRecord>(`/wali/pelanggaran/${siswaId}`);
+  },
+  getKepalaMadrasahAccess() {
+    return request<{ data: ApiRecord[]; available_users: ApiRecord[] }>('/kepala-madrasah-access');
+  },
+  saveKepalaMadrasahAccess(payload: {
+    user_id: number;
+    nama_pejabat?: string;
+    jabatan: string;
+    can_monitor_madin?: boolean;
+    can_monitor_sholat?: boolean;
+    can_monitor_ngaji?: boolean;
+    is_active?: boolean;
+  }) {
+    return request<ApiRecord>('/kepala-madrasah-access', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  updateKepalaMadrasahAccess(id: number, payload: Partial<{
+    nama_pejabat: string;
+    jabatan: string;
+    can_monitor_madin: boolean;
+    can_monitor_sholat: boolean;
+    can_monitor_ngaji: boolean;
+    is_active: boolean;
+  }>) {
+    return request<ApiRecord>(`/kepala-madrasah-access/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteKepalaMadrasahAccess(id: number) {
+    return request<ApiRecord>(`/kepala-madrasah-access/${id}`, {
+      method: 'DELETE',
+    });
   }
 };

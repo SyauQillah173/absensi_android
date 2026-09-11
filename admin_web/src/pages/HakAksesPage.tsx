@@ -1,7 +1,8 @@
-import { Eye, EyeOff, RefreshCw, Save, ShieldCheck, Sparkles, UserCog, UsersRound } from 'lucide-react';
+import { Eye, EyeOff, GraduationCap, RefreshCw, Save, ShieldCheck, Sparkles, UserCog, UsersRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { DataTable, type DataColumn } from '../components/DataTable';
+import { KepalaMadrasahCmsSection } from '../components/KepalaMadrasahCmsSection';
 import { SegmentedTabs } from '../components/SegmentedTabs';
 import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
@@ -127,6 +128,7 @@ function ToggleCell({ checked, disabled, onChange }: { checked: boolean; disable
 
 export function HakAksesPage() {
   const { pmbVisibleToPengurus, setPmbVisibleToPengurus } = useAuth();
+  const [subTab, setSubTab] = useState<'kepala_madrasah' | 'rbac'>('kepala_madrasah');
   const [isTogglingPmb, setIsTogglingPmb] = useState(false);
   const [roles, setRoles] = useState<string[]>([]);
   const [rows, setRows] = useState<PermissionRow[]>([]);
@@ -221,47 +223,116 @@ export function HakAksesPage() {
 
   return (
     <div className="space-y-6">
-      {/* 🌟 HEADER CARD HAK AKSES */}
+      {/* 🌟 HEADER CARD HAK AKSES & CMS */}
       <div className="q-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-[#E1EFF7] text-[#138F81] border border-teal-100 flex items-center justify-center shrink-0 shadow-xs">
-            <ShieldCheck className="w-6 h-6 sm:w-7 sm:h-7" />
+            {subTab === 'kepala_madrasah' ? (
+              <GraduationCap className="w-6 h-6 sm:w-7 sm:h-7" />
+            ) : (
+              <ShieldCheck className="w-6 h-6 sm:w-7 sm:h-7" />
+            )}
           </div>
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-[#636E72]">
-                Pengaturan Sistem
+                Pengaturan Sistem & Hak Akses
               </span>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#FFDC80] text-[#0D7A6F] border border-amber-300">
-                RBAC Security
+                {subTab === 'kepala_madrasah' ? 'CMS Monitoring Madrasah' : 'RBAC Security'}
               </span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-[#2D3436] tracking-tight">Role dan Permission</h1>
-            <p className="text-xs sm:text-sm font-medium text-[#636E72] mt-0.5">Admin utama full akses, admin lain dan guru/wali mengikuti permission backend.</p>
+            <h1 className="text-xl sm:text-2xl font-black text-[#2D3436] tracking-tight">
+              {subTab === 'kepala_madrasah'
+                ? 'CMS Monitoring Kepala Madrasah & Pondok'
+                : 'Role dan Permission Matriks'}
+            </h1>
+            <p className="text-xs sm:text-sm font-medium text-[#636E72] mt-0.5">
+              {subTab === 'kepala_madrasah'
+                ? 'Atur modul presensi santri (Madin, Sholat, Ngaji) yang boleh dipantau oleh masing-masing Kepala Madrasah.'
+                : 'Admin utama full akses, admin lain dan guru/wali mengikuti permission backend.'}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white border border-slate-200/80 px-4 text-sm font-bold text-[#138F81] hover:bg-slate-50 transition-all cursor-pointer shadow-xs ${isLoading ? 'is-loading' : ''}`}
-            onClick={() => void load()}
-            type="button"
-            disabled={isLoading}
-          >
-            <RefreshCw className="q-refresh-icon" size={17} />
-            {isLoading ? 'Menyegarkan...' : 'Refresh'}
-          </button>
-        </div>
+
+        {subTab === 'rbac' && (
+          <div className="flex items-center gap-2">
+            <button
+              className={`q-refresh-button flex min-h-11 items-center gap-2 rounded-2xl bg-white border border-slate-200/80 px-4 text-sm font-bold text-[#138F81] hover:bg-slate-50 transition-all cursor-pointer shadow-xs ${
+                isLoading ? 'is-loading' : ''
+              }`}
+              onClick={() => void load()}
+              type="button"
+              disabled={isLoading}
+            >
+              <RefreshCw className="q-refresh-icon" size={17} />
+              {isLoading ? 'Menyegarkan...' : 'Refresh'}
+            </button>
+          </div>
+        )}
       </div>
 
-      {error ? <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">{error}</div> : null}
-      {notice ? <div className="rounded-2xl bg-[#E8F7F3] px-4 py-3 text-sm font-bold text-[#138F81]">{notice}</div> : null}
+      {/* 🌟 TAB NAVIGASI HAK AKSES & CMS */}
+      <div className="flex items-center gap-2 border-b border-slate-200/80 pb-3 flex-wrap">
+        <button
+          type="button"
+          onClick={() => setSubTab('kepala_madrasah')}
+          className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl font-black text-xs sm:text-sm transition-all cursor-pointer ${
+            subTab === 'kepala_madrasah'
+              ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25'
+              : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200/70'
+          }`}
+        >
+          <GraduationCap size={16} />
+          <span>CMS Monitoring Kepala Madrasah & Pondok</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+              subTab === 'kepala_madrasah'
+                ? 'bg-[#FFDC80] text-[#0D7A6F]'
+                : 'bg-teal-100 text-teal-800'
+            }`}
+          >
+            Fitur Cerdas Baru
+          </span>
+        </button>
 
-      {/* 🚀 PANEL KONTROL KHUSUS ADMIN IT: STATUS RILIS MODUL PMB KE PENGURUS */}
-      <div className={`p-5 sm:p-6 rounded-3xl border transition-all shadow-sm ${
-        pmbVisibleToPengurus
-          ? 'bg-gradient-to-r from-emerald-50/90 via-teal-50/50 to-white dark:from-emerald-950/30 dark:to-slate-900 border-emerald-300 dark:border-emerald-800'
-          : 'bg-gradient-to-r from-amber-50/90 via-orange-50/40 to-white dark:from-amber-950/30 dark:to-slate-900 border-amber-300 dark:border-amber-800'
-      }`}>
+        <button
+          type="button"
+          onClick={() => setSubTab('rbac')}
+          className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-2xl font-black text-xs sm:text-sm transition-all cursor-pointer ${
+            subTab === 'rbac'
+              ? 'bg-[#138F81] text-white shadow-md shadow-[#138F81]/25'
+              : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200/70'
+          }`}
+        >
+          <ShieldCheck size={16} />
+          <span>Role & Permission Matrix (RBAC)</span>
+        </button>
+      </div>
+
+      {subTab === 'kepala_madrasah' ? (
+        <KepalaMadrasahCmsSection />
+      ) : (
+        <>
+          {error ? (
+            <div className="rounded-2xl bg-[#FDECEC] px-4 py-3 text-sm font-bold text-[#D63031]">
+              {error}
+            </div>
+          ) : null}
+          {notice ? (
+            <div className="rounded-2xl bg-[#E8F7F3] px-4 py-3 text-sm font-bold text-[#138F81]">
+              {notice}
+            </div>
+          ) : null}
+
+          {/* 🚀 PANEL KONTROL KHUSUS ADMIN IT: STATUS RILIS MODUL PMB KE PENGURUS */}
+          <div
+            className={`p-5 sm:p-6 rounded-3xl border transition-all shadow-sm ${
+              pmbVisibleToPengurus
+                ? 'bg-gradient-to-r from-emerald-50/90 via-teal-50/50 to-white dark:from-emerald-950/30 dark:to-slate-900 border-emerald-300 dark:border-emerald-800'
+                : 'bg-gradient-to-r from-amber-50/90 via-orange-50/40 to-white dark:from-amber-950/30 dark:to-slate-900 border-amber-300 dark:border-amber-800'
+            }`}
+          >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
             <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 shadow-xs ${
@@ -396,7 +467,9 @@ export function HakAksesPage() {
           <Save size={17} /> {isSaving ? 'Menyimpan...' : 'Simpan Hak Akses'}
         </button>
       </section>
-    </div>
+    </>
+  )}
+</div>
   );
 }
 

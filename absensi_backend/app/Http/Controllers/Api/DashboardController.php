@@ -540,6 +540,7 @@ class DashboardController extends Controller
         $sholatAccess = GuruAbsensiSholatAccess::query()
             ->where('user_id', $guru->id)
             ->where('is_active', true)
+            ->where('can_input', true)
             ->get();
         $canSholat = $sholatAccess->isNotEmpty() || $guru->role === 'admin';
 
