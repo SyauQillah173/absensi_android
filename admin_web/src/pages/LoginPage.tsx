@@ -34,11 +34,16 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
     if (!helpdeskInfo) {
       setLoadingHelpdesk(true);
       try {
-        const info = await api.getHelpdeskInfo();
-        setHelpdeskInfo(info);
+        const res = await api.getHelpdeskInfo();
+        if (res.data) {
+          setHelpdeskInfo(res.data);
+        }
       } catch {
         setHelpdeskInfo({
           whatsapp_number: '6285731998591',
+          contact_person_name: 'Abdullah SyauQillah (Admin IT)',
+          contact_role: 'Penanggung Jawab Sistem IT',
+          template_message: "Assalamu'alaikum Admin Pesantren Qomaruddin, saya {nama} ({role}) lupa kata sandi akun saya. Mohon bantuannya untuk reset kata sandi ke bawaan. Terima kasih.",
           pic_name: 'Abdullah SyauQillah (Admin IT)',
           contact_type: 'it_master',
           message_template: "Assalamu'alaikum Admin Pesantren Qomaruddin, saya {nama} ({role}) lupa kata sandi akun saya. Mohon bantuannya untuk reset kata sandi ke bawaan. Terima kasih.",
@@ -52,6 +57,7 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
 
   const compiledMessage = useMemo(() => {
     const template =
+      helpdeskInfo?.template_message ||
       helpdeskInfo?.message_template ||
       "Assalamu'alaikum Admin Pesantren Qomaruddin, saya {nama} ({role}) lupa kata sandi akun saya. Mohon bantuannya untuk reset kata sandi ke bawaan. Terima kasih.";
     const cleanName = forgotName.trim() || '[Nama / Identitas Anda]';
@@ -400,7 +406,7 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
                     <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-1">
                       <span>Penanggung Jawab:</span>
                       <span className="font-bold text-slate-700 dark:text-slate-300">
-                        {helpdeskInfo?.pic_name || 'Admin IT'} ({cleanWaNumber})
+                        {helpdeskInfo?.contact_person_name || helpdeskInfo?.pic_name || 'Admin IT'} ({cleanWaNumber})
                       </span>
                     </div>
                   </div>

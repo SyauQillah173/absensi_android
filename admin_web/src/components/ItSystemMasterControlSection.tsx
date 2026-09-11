@@ -136,6 +136,9 @@ export function ItSystemMasterControlSection() {
   // Helpdesk & WhatsApp Lupa Password State
   const [helpdeskForm, setHelpdeskForm] = useState<ItHelpdeskConfig>({
     whatsapp_number: '6285731998591',
+    contact_person_name: 'Abdullah SyauQillah (Admin IT)',
+    contact_role: 'Penanggung Jawab Sistem IT',
+    template_message: "Assalamu'alaikum Admin Pesantren Qomaruddin, saya {nama} ({role}) lupa kata sandi akun saya. Mohon bantuannya untuk reset kata sandi ke bawaan. Terima kasih.",
     pic_name: 'Abdullah SyauQillah (Admin IT)',
     contact_type: 'it_master',
     message_template: "Assalamu'alaikum Admin Pesantren Qomaruddin, saya {nama} ({role}) lupa kata sandi akun saya. Mohon bantuannya untuk reset kata sandi ke bawaan. Terima kasih.",
@@ -182,11 +185,14 @@ export function ItSystemMasterControlSection() {
       });
       if (res.data) {
         setVaultUsers(res.data.users);
+        const curPage = res.data.current_page || res.data.pagination?.current_page || 1;
+        const lstPage = res.data.last_page || res.data.pagination?.last_page || 1;
+        const tot = res.data.total || res.data.pagination?.total || 0;
         setVaultPagination({
-          current_page: res.data.pagination.current_page,
-          last_page: res.data.pagination.last_page,
-          total: res.data.pagination.total,
-          per_page: res.data.pagination.per_page,
+          current_page: curPage,
+          last_page: lstPage,
+          total: tot,
+          per_page: 15,
         });
       }
     } catch (err: any) {
@@ -2022,6 +2028,8 @@ export function ItSystemMasterControlSection() {
                             setHelpdeskForm({
                               ...helpdeskForm,
                               contact_type: 'it_master',
+                              contact_role: 'Penanggung Jawab Sistem IT',
+                              contact_person_name: 'Abdullah SyauQillah (Admin IT)',
                               pic_name: 'Abdullah SyauQillah (Admin IT)',
                               whatsapp_number: '6285731998591',
                             })
@@ -2051,6 +2059,8 @@ export function ItSystemMasterControlSection() {
                             setHelpdeskForm({
                               ...helpdeskForm,
                               contact_type: 'pengurus',
+                              contact_role: 'Admin Pengurus Pesantren',
+                              contact_person_name: 'Admin Pengurus Pesantren',
                               pic_name: 'Admin Pengurus Pesantren',
                             })
                           }
@@ -2094,9 +2104,13 @@ export function ItSystemMasterControlSection() {
                       </label>
                       <input
                         type="text"
-                        value={helpdeskForm.pic_name}
+                        value={helpdeskForm.contact_person_name || helpdeskForm.pic_name || ''}
                         onChange={(e) =>
-                          setHelpdeskForm({ ...helpdeskForm, pic_name: e.target.value })
+                          setHelpdeskForm({
+                            ...helpdeskForm,
+                            contact_person_name: e.target.value,
+                            pic_name: e.target.value,
+                          })
                         }
                         placeholder="Contoh: Abdullah SyauQillah (Admin IT)"
                         required
@@ -2118,9 +2132,13 @@ export function ItSystemMasterControlSection() {
                     </div>
                     <textarea
                       rows={4}
-                      value={helpdeskForm.message_template}
+                      value={helpdeskForm.template_message || helpdeskForm.message_template || ''}
                       onChange={(e) =>
-                        setHelpdeskForm({ ...helpdeskForm, message_template: e.target.value })
+                        setHelpdeskForm({
+                          ...helpdeskForm,
+                          template_message: e.target.value,
+                          message_template: e.target.value,
+                        })
                       }
                       className="w-full p-3 rounded-2xl border border-slate-200 bg-white text-xs font-mono text-slate-800 focus:border-[#138F81] focus:ring-1 focus:ring-[#138F81] outline-hidden leading-relaxed"
                     />
@@ -2128,24 +2146,28 @@ export function ItSystemMasterControlSection() {
                       <span className="text-[11px] font-semibold text-slate-500">Sisipkan Tag Cepat:</span>
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
+                          const cur = helpdeskForm.template_message || helpdeskForm.message_template || '';
                           setHelpdeskForm({
                             ...helpdeskForm,
-                            message_template: helpdeskForm.message_template + ' {nama}',
-                          })
-                        }
+                            template_message: cur + ' {nama}',
+                            message_template: cur + ' {nama}',
+                          });
+                        }}
                         className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-[11px] font-bold text-slate-700 cursor-pointer"
                       >
                         + {'{nama}'}
                       </button>
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
+                          const cur = helpdeskForm.template_message || helpdeskForm.message_template || '';
                           setHelpdeskForm({
                             ...helpdeskForm,
-                            message_template: helpdeskForm.message_template + ' {role}',
-                          })
-                        }
+                            template_message: cur + ' {role}',
+                            message_template: cur + ' {role}',
+                          });
+                        }}
                         className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-[11px] font-bold text-slate-700 cursor-pointer"
                       >
                         + {'{role}'}
@@ -2166,7 +2188,7 @@ export function ItSystemMasterControlSection() {
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={helpdeskForm.is_active}
+                        checked={helpdeskForm.is_active !== false}
                         onChange={(e) =>
                           setHelpdeskForm({ ...helpdeskForm, is_active: e.target.checked })
                         }
@@ -2189,7 +2211,7 @@ export function ItSystemMasterControlSection() {
                       </div>
                       <div className="min-w-0">
                         <p className="font-extrabold text-xs leading-tight truncate">
-                          {helpdeskForm.pic_name || 'Admin Pesantren'}
+                          {helpdeskForm.contact_person_name || helpdeskForm.pic_name || 'Admin Pesantren'}
                         </p>
                         <p className="text-[10px] text-emerald-200">Online • Helpdesk Resmi</p>
                       </div>
@@ -2198,7 +2220,7 @@ export function ItSystemMasterControlSection() {
                     {/* Chat Bubble */}
                     <div className="bg-white rounded-2xl p-3.5 shadow-xs border border-slate-200 space-y-1.5 max-w-[95%] ml-auto">
                       <p className="text-[11px] font-mono text-slate-800 whitespace-pre-wrap leading-relaxed">
-                        {helpdeskForm.message_template
+                        {(helpdeskForm.template_message || helpdeskForm.message_template || '')
                           .replace(/\{nama\}/g, 'Ahmad Fauzi (Santri)')
                           .replace(/\{role\}/g, 'Wali Santri')}
                       </p>

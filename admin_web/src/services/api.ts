@@ -238,6 +238,11 @@ export interface ItHelpdeskConfig {
   contact_person_name: string;
   contact_role: string;
   template_message: string;
+  // Aliases for frontend convenience
+  pic_name?: string;
+  contact_type?: 'it_master' | 'pengurus';
+  message_template?: string;
+  is_active?: boolean;
 }
 
 export interface ItVaultUser {
@@ -262,6 +267,12 @@ export interface ItVaultResponse {
   total: number;
   current_page: number;
   last_page: number;
+  pagination?: {
+    current_page: number;
+    last_page: number;
+    total: number;
+    per_page: number;
+  };
 }
 
 const storageKey = 'qomaruddin_admin_session';
@@ -1609,21 +1620,48 @@ export const api = {
   },
 
   // 📞 Public Helpdesk Info (Lupa Password)
-  getHelpdeskInfo() {
-    return request<ItHelpdeskConfig>('/auth/helpdesk-info');
+  async getHelpdeskInfo() {
+    const res = await request<ItHelpdeskConfig>('/auth/helpdesk-info');
+    if (res.data) {
+      res.data.pic_name = res.data.contact_person_name || res.data.pic_name;
+      res.data.message_template = res.data.template_message || res.data.message_template;
+      res.data.is_active = res.data.is_active !== false;
+    }
+    return res;
   },
 
   // 🔐 Vault Sandi Pengguna & Helpdesk Setting (Khusus Admin IT)
-  getItCredentialsVault(params?: { role?: string; search?: string; page?: number }) {
-    return request<ItVaultResponse>('/it-control/credentials-vault', {}, params);
+  async getItCredentialsVault(params?: { role?: string; search?: string; page?: number }) {
+    const res = await request<ItVaultResponse>('/it-control/credentials-vault', {}, params);
+    if (res.data) {
+      res.data.pagination = {
+        current_page: res.data.current_page,
+        last_page: res.data.last_page,
+        total: res.data.total,
+        per_page: 15,
+      };
+    }
+    return res;
   },
-  getItHelpdeskSettings() {
-    return request<ItHelpdeskConfig>('/it-control/helpdesk-settings');
+  async getItHelpdeskSettings() {
+    const res = await request<ItHelpdeskConfig>('/it-control/helpdesk-settings');
+    if (res.data) {
+      res.data.pic_name = res.data.contact_person_name || res.data.pic_name;
+      res.data.message_template = res.data.template_message || res.data.message_template;
+      res.data.is_active = res.data.is_active !== false;
+    }
+    return res;
   },
   saveItHelpdeskSettings(payload: ItHelpdeskConfig) {
+    const bodyPayload = {
+      whatsapp_number: payload.whatsapp_number,
+      contact_person_name: payload.contact_person_name || payload.pic_name || 'Admin IT',
+      contact_role: payload.contact_role || (payload.contact_type === 'it_master' ? 'Penanggung Jawab Sistem IT' : 'Admin Pengurus Pesantren'),
+      template_message: payload.template_message || payload.message_template || '',
+    };
     return request<ItHelpdeskConfig>('/it-control/helpdesk-settings', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify(bodyPayload),
     });
   }
 };
