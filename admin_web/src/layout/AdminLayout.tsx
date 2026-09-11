@@ -508,6 +508,13 @@ export function AdminLayout({
         page: "nilai",
       });
 
+      guruMenu.push({
+        key: "account",
+        label: "Akun & Keamanan Sesi",
+        icon: UserCog,
+        page: "account" as PageKey,
+      });
+
       return guruMenu;
     }
 
@@ -556,11 +563,20 @@ export function AdminLayout({
                   { label: "Pengaturan Metode Bayar", page: "keuangan" as PageKey, financeTab: "methods", icon: CreditCard },
                   { label: "Pengaturan Periode Bayar", page: "keuangan" as PageKey, financeTab: "periods", icon: CalendarDays },
                   { label: "Rekening Bank & Struk", page: "keuangan" as PageKey, financeTab: "settings", icon: Building2 },
-                  { label: "Pengaturan Akun", page: "account" as PageKey, icon: UserCog },
+                  { label: "Pengaturan Akun & Keamanan", page: "account" as PageKey, icon: UserCog },
                 ],
               },
             ]
-          : []),
+          : [
+              {
+                key: "pengaturan_sistem",
+                label: "Pengaturan & Akun",
+                icon: Settings,
+                children: [
+                  { label: "Pengaturan Akun & Keamanan", page: "account" as PageKey, icon: UserCog },
+                ],
+              },
+            ]),
       ];
     }
 

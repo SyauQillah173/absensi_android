@@ -20,6 +20,7 @@ import {
   RefreshCw,
   Search,
   Send,
+  ShieldCheck,
   Upload,
   User,
   Wallet,
@@ -27,6 +28,7 @@ import {
 } from 'lucide-react';
 import React, { FormEvent, useEffect, useId, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { SecuritySessionsSection } from '../components/SecuritySessionsSection';
 import { ThemeToggle } from '../components/ThemeToggle';
 import qomaruddinLogo from '../assets/logo-qomaruddin.png';
 
@@ -361,17 +363,12 @@ export function PetugasAnggaranPortalPage() {
             {/* Profile Dropdown / Actions */}
             <div className="flex items-center gap-1 sm:gap-2">
               <button
-                onClick={() => {
-                  setPasswordStatus(null);
-                  setCurrentPassword('');
-                  setNewPassword('');
-                  setConfirmPassword('');
-                  setShowPasswordModal(true);
-                }}
-                title="Ganti Password"
-                className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                onClick={() => setShowPasswordModal(true)}
+                title="Keamanan & Sesi Login Akun"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100 dark:hover:bg-teal-900/60 border border-teal-200 dark:border-teal-800 transition-all cursor-pointer"
               >
-                <KeyRound size={17} />
+                <ShieldCheck size={16} />
+                <span className="hidden sm:inline">Keamanan & Sesi</span>
               </button>
 
               <button
@@ -1095,92 +1092,30 @@ export function PetugasAnggaranPortalPage() {
         </div>
       )}
 
-      {/* ================= MODAL GANTI PASSWORD ================= */}
+      {/* ================= MODAL KEAMANAN & SESI PERANGKAT ================= */}
       {showPasswordModal && (
         <div
           className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200"
           onClick={() => setShowPasswordModal(false)}
         >
           <div
-            className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4"
+            className="w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-7 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="flex items-center gap-2 text-slate-900 dark:text-white font-black text-base">
-                <KeyRound size={18} className="text-emerald-600" />
-                <span>Perbarui Password Akun</span>
+              <div className="flex items-center gap-2 text-slate-900 dark:text-white font-black text-base sm:text-lg">
+                <ShieldCheck size={22} className="text-emerald-600" />
+                <span>Keamanan Akun & Sesi Login Petugas</span>
               </div>
               <button
                 onClick={() => setShowPasswordModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
+                className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
-            {passwordStatus && (
-              <div className="p-2.5 rounded-xl bg-rose-50 text-rose-700 text-xs font-semibold">
-                {passwordStatus}
-              </div>
-            )}
-
-            <form onSubmit={handleChangePassword} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Password Saat Ini / Default
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Password saat ini"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Password Baru (Min 6 Karakter)
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Password baru"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Konfirmasi Password Baru
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Ulangi password baru"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div className="pt-2 flex gap-2">
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold cursor-pointer"
-                >
-                  Simpan Password
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowPasswordModal(false)}
-                  className="px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold cursor-pointer"
-                >
-                  Batal
-                </button>
-              </div>
-            </form>
+            <SecuritySessionsSection userEmail={session?.email} userName={session?.name} />
           </div>
         </div>
       )}

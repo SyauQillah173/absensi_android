@@ -69,8 +69,9 @@ import SearchableSelect from '../components/SearchableSelect';
 import { ToastNotification } from '../components/ToastNotification';
 import { ensurePushSubscribed, subscribeToPushNotifications, sendTestPushNotification, clearAppBadge } from '../utils/pushNotification';
 import qomaruddinLogo from '../assets/logo-qomaruddin.png';
+import { SecuritySessionsSection } from '../components/SecuritySessionsSection';
 
-type WaliTabKey = 'keuangan' | 'pelanggaran' | 'biodata' | 'nilai';
+type WaliTabKey = 'keuangan' | 'pelanggaran' | 'biodata' | 'nilai' | 'keamanan';
 type KeuanganSubTab = 'tagihan' | 'riwayat' | 'transfer';
 type NilaiSubTab = 'akademik' | 'hafalan';
 
@@ -1173,6 +1174,13 @@ export function WaliPortalPage() {
             },
             { key: 'biodata', label: 'Data Diri Santri', icon: User, badge: null, badgeColor: '' },
             { key: 'nilai', label: 'Nilai & Hafalan', icon: Award, badge: null, badgeColor: '' },
+            {
+              key: 'keamanan',
+              label: 'Keamanan & Sesi',
+              icon: ShieldCheck,
+              badge: 'Fitur Baru',
+              badgeColor: 'bg-[#FFDC80] text-[#0D7A6F] border border-amber-300 font-black',
+            },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.key;
@@ -3644,6 +3652,15 @@ export function WaliPortalPage() {
                     )
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* TAB 5: KEAMANAN & SESI PERANGKAT WALI */}
+            {/* ========================================================================= */}
+            {activeTab === 'keamanan' && (
+              <div className="space-y-4 sm:space-y-6">
+                <SecuritySessionsSection userEmail={session?.email} userName={session?.name} />
               </div>
             )}
           </>
