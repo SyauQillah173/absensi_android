@@ -974,7 +974,7 @@ export function WaliPortalPage() {
                   </span>
                 </h4>
                 <p className="text-xs text-[#636E72] font-medium mt-0.5 leading-relaxed">
-                  Akun Anda saat ini masih menggunakan kata sandi default (<code className="bg-[#E1EFF7] px-1.5 py-0.5 rounded font-mono font-bold text-[#138F81]">siswa12345</code>). Demi keamanan data santri dan tagihan, kami sarankan untuk mengganti kata sandi Anda.
+                  Akun Anda saat ini masih menggunakan kata sandi default (<code className="bg-[#E1EFF7] px-1.5 py-0.5 rounded font-mono font-bold text-[#138F81]">wali123</code>). Demi keamanan data santri dan tagihan, kami sarankan untuk mengganti kata sandi Anda.
                 </p>
               </div>
             </div>
@@ -3803,7 +3803,7 @@ function WaliChangePasswordModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const [currentPassword, setCurrentPassword] = useState('siswa12345');
+  const [currentPassword, setCurrentPassword] = useState('wali123');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -3885,12 +3885,12 @@ function WaliChangePasswordModal({
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="siswa12345"
+              placeholder="wali123"
               required
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-[#f8fafc] font-mono text-xs focus:ring-2 focus:ring-[#138F81]/30 outline-hidden"
             />
             <span className="text-[10px] text-[#636E72] font-semibold mt-1 block">
-              Default awal akun wali santri adalah: <code className="font-bold text-[#138F81]">siswa12345</code>
+              Default awal akun wali santri adalah: <code className="font-bold text-[#138F81]">wali123</code>
             </span>
           </div>
 

@@ -207,7 +207,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
           komplek_santri: s.komplek,
           kamar_santri: s.kamar,
           login_identifier: s.nama,
-          password_display: 'siswa12345',
+          password_display: 'wali123',
           password_display_label: 'Password Default',
           role: 'wali',
           no_hp: s.no_telepon_wali || s.no_whatsapp || s.no_hp || '-',
@@ -935,7 +935,7 @@ export function MasterDataPage({ variant }: MasterDataPageProps) {
       {resetTarget ? (
         <ConfirmDialog
           title="Reset Password ke Default?"
-          message={`Password akun ${text(resetTarget.name)} akan direset kembali ke password default sistem (${resetTarget.role === 'guru' ? 'guru12345' : resetTarget.role === 'wali' ? 'siswa12345' : 'admin12345'}).`}
+          message={`Password akun ${text(resetTarget.name)} akan direset kembali ke password default sistem (${resetTarget.role === 'guru' ? 'guru123' : resetTarget.role === 'wali' ? 'wali123' : 'admin12345'}).`}
           tone="warning"
           confirmLabel="Ya, Reset Password"
           isBusy={isSaving}
@@ -1145,8 +1145,13 @@ function ResetSuccessModal({ data, onClose }: { data: ApiRecord; onClose: () => 
   const [copied, setCopied] = useState(false);
   const name = text(data.name, 'Pengguna');
   const role = text(data.role, 'User').toUpperCase();
-  const loginId = text(data.email || data.name, '-');
-  const password = text(data.password || data.password_default || data.temporary_password, 'siswa12345');
+  const isWali = data.role === 'wali';
+  const loginId = text(
+    data.email ||
+    (data.nis_santri ? `${data.name} (NIS Santri: ${data.nis_santri})` : (data.nis ? `${data.name} (NIS: ${data.nis})` : data.name)),
+    '-'
+  );
+  const password = text(data.password || data.password_default || data.temporary_password, isWali ? 'wali123' : 'guru123');
   const phone = text(data.no_hp, '');
 
   const shareText = `*AKUN LOGIN PESANTREN QOMARUDDIN*\n` +
@@ -1583,7 +1588,7 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
         className: 'w-[160px]',
         render: (row) => (
           <span className="font-mono font-bold text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-lg">
-            {text(row.password_display, 'siswa12345')}
+            {text(row.password_display, 'wali123')}
           </span>
         )
       },

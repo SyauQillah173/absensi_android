@@ -131,22 +131,12 @@ class WaliAccountService
 
     private function createWaliAccount(array $guardian): User
     {
-        $slug = Str::slug($guardian['name'], '.');
-        $baseEmail = 'wali.' . ($slug !== '' ? $slug : 'santri');
-        $email = $baseEmail . '@absensi.local';
-        $suffix = 1;
-
-        while (User::query()->where('email', $email)->exists()) {
-            $email = $baseEmail . '.' . $suffix . '@absensi.local';
-            $suffix++;
-        }
-
         $nis = $this->generateUniqueCode('WLI', 'nis');
-        $defaultPassword = config('auth.operational_default_password');
+        $defaultPassword = 'wali123';
 
         return User::query()->create([
             'name' => $guardian['name'],
-            'email' => $email,
+            'email' => null, // Dikosongkan sesuai instruksi, agar diisi sendiri oleh wali
             'role' => 'wali',
             'nis' => $nis,
             'nisn' => null,

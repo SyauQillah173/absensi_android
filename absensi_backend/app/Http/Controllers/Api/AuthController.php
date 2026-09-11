@@ -143,7 +143,7 @@ class AuthController extends Controller
             $canMadin = \App\Models\Jadwal::where('status', 'Aktif')
                 ->where(function ($q) use ($user) {
                     $q->where('teacher_id', $user->id)
-                      ->orWhereRaw('lower(trim(guru)) = ?', [strtolower(trim($user->name))]);
+                        ->orWhereRaw('lower(trim(guru)) = ?', [strtolower(trim($user->name))]);
                     if (!empty($user->kode_guru)) {
                         $q->orWhereRaw('lower(trim(guru)) = ?', [strtolower(trim($user->kode_guru))]);
                     }
@@ -182,7 +182,7 @@ class AuthController extends Controller
         // Jika role wali → sertakan data anak (siswa yang terhubung)
         if ($user->role === 'wali') {
             $anak = Siswa::where('wali_id', $user->id)
-                ->orWhereHas('guardianProfile', fn ($query) => $query->where('user_id', $user->id))
+                ->orWhereHas('guardianProfile', fn($query) => $query->where('user_id', $user->id))
                 ->select('id', 'nama', 'kelas', 'class_id', 'nis', 'nisn', 'jenis_kelamin', 'status', 'komplek', 'kamar')
                 ->get();
             $responseData['anak'] = $anak;
@@ -267,7 +267,7 @@ class AuthController extends Controller
 
         if ($user->role === 'wali') {
             $responseData['anak'] = Siswa::where('wali_id', $user->id)
-                ->orWhereHas('guardianProfile', fn ($query) => $query->where('user_id', $user->id))
+                ->orWhereHas('guardianProfile', fn($query) => $query->where('user_id', $user->id))
                 ->select('id', 'nama', 'kelas', 'class_id', 'nis', 'nisn', 'jenis_kelamin', 'status', 'komplek', 'kamar')
                 ->get();
         }
@@ -293,18 +293,18 @@ class AuthController extends Controller
         $directUser = User::query()
             ->where(function ($q) use ($lowerId, $identifier, $compactName, $cleanPhone) {
                 $q->whereRaw('LOWER(email) = ?', [$lowerId])
-                  ->orWhere('email', 'like', "{$lowerId}@%")
-                  ->orWhereRaw('LOWER(name) = ?', [$lowerId])
-                  ->orWhereRaw('LOWER(REPLACE(name, \' \', \'\')) = ?', [$compactName])
-                  ->orWhereRaw('LOWER(kode_guru) = ?', [$lowerId])
-                  ->orWhere('nis', $identifier)
-                  ->orWhere('nisn', $identifier);
+                    ->orWhere('email', 'like', "{$lowerId}@%")
+                    ->orWhereRaw('LOWER(name) = ?', [$lowerId])
+                    ->orWhereRaw('LOWER(REPLACE(name, \' \', \'\')) = ?', [$compactName])
+                    ->orWhereRaw('LOWER(kode_guru) = ?', [$lowerId])
+                    ->orWhere('nis', $identifier)
+                    ->orWhere('nisn', $identifier);
 
                 if (strlen($cleanPhone) >= 8) {
                     $q->orWhere('no_hp', $identifier)
-                      ->orWhere('no_hp', $cleanPhone)
-                      ->orWhere('no_hp', '0' . substr($cleanPhone, 2))
-                      ->orWhere('no_hp', '62' . substr($cleanPhone, 1));
+                        ->orWhere('no_hp', $cleanPhone)
+                        ->orWhere('no_hp', '0' . substr($cleanPhone, 2))
+                        ->orWhere('no_hp', '62' . substr($cleanPhone, 1));
                 }
             })
             ->first();
@@ -320,7 +320,7 @@ class AuthController extends Controller
         $adminUser = User::where('role', 'admin')
             ->where(function ($q) use ($lowerId, $compactName) {
                 $q->whereRaw('LOWER(name) LIKE ?', ["%{$lowerId}%"])
-                  ->orWhereRaw('LOWER(REPLACE(name, \' \', \'\')) LIKE ?', ["%{$compactName}%"]);
+                    ->orWhereRaw('LOWER(REPLACE(name, \' \', \'\')) LIKE ?', ["%{$compactName}%"]);
             })
             ->first();
 
@@ -346,7 +346,7 @@ class AuthController extends Controller
                 $adminByType = User::where('role', 'admin')
                     ->where(function ($q) use ($adminType) {
                         $q->where('admin_type', $adminType)
-                          ->orWhere('admin_type', 'like', "{$adminType}%");
+                            ->orWhere('admin_type', 'like', "{$adminType}%");
                     })
                     ->first();
                 if ($adminByType) {
@@ -364,8 +364,8 @@ class AuthController extends Controller
         $guruUser = User::where('role', 'guru')
             ->where(function ($q) use ($lowerId, $compactName, $strippedGuruName) {
                 $q->whereRaw('LOWER(name) LIKE ?', ["%{$lowerId}%"])
-                  ->orWhereRaw('LOWER(kode_guru) = ?', [$lowerId])
-                  ->orWhereRaw('LOWER(REPLACE(name, \' \', \'\')) LIKE ?', ["%{$compactName}%"]);
+                    ->orWhereRaw('LOWER(kode_guru) = ?', [$lowerId])
+                    ->orWhereRaw('LOWER(REPLACE(name, \' \', \'\')) LIKE ?', ["%{$compactName}%"]);
 
                 if (strlen($strippedGuruName) >= 3) {
                     $q->orWhereRaw('LOWER(name) LIKE ?', ["%{$strippedGuruName}%"]);
@@ -396,9 +396,9 @@ class AuthController extends Controller
         $student = Siswa::with('wali')
             ->where(function ($q) use ($lowerId, $identifier, $compactName) {
                 $q->where('nis', $identifier)
-                  ->orWhere('nisn', $identifier)
-                  ->orWhereRaw('LOWER(nama) = ?', [$lowerId])
-                  ->orWhereRaw('LOWER(REPLACE(nama, \' \', \'\')) = ?', [$compactName]);
+                    ->orWhere('nisn', $identifier)
+                    ->orWhereRaw('LOWER(nama) = ?', [$lowerId])
+                    ->orWhereRaw('LOWER(REPLACE(nama, \' \', \'\')) = ?', [$compactName]);
             })
             ->first();
 
@@ -415,22 +415,31 @@ class AuthController extends Controller
                 $waliService = app(\App\Services\WaliAccountService::class);
                 $wali = $waliService->syncForStudent($student);
                 if (!$wali) {
-                    $slug = $student->nis ?: \Illuminate\Support\Str::slug($student->nama);
                     $wali = User::create([
                         'name' => $student->nama_wali ?: ('Wali ' . $student->nama),
-                        'email' => 'wali.' . $slug . '@wali.pondok.id',
+                        'email' => null, // KOSONGKAN EMAIL WALI
                         'role' => 'wali',
+                        'nis' => $student->nis,
                         'status' => 'Aktif',
-                        'password' => Hash::make('siswa12345'),
+                        'password' => Hash::make('wali123'),
+                        'password_default_encrypted' => Crypt::encryptString('wali123'),
+                        'password_current_encrypted' => Crypt::encryptString('wali123'),
                     ]);
                     $student->forceFill(['wali_id' => $wali->id])->save();
                 }
             }
 
-            // Jika login dengan password default 'siswa12345', pastikan hash sesuai
-            if ($password === 'siswa12345' && !Hash::check('siswa12345', $wali->password)) {
+            // Pastikan NIS santri tersimpan di akun wali agar bisa dicari langsung
+            if (empty($wali->nis) && !empty($student->nis)) {
+                $wali->forceFill(['nis' => $student->nis])->save();
+            }
+
+            // Jika login dengan password default 'wali123' atau 'siswa12345', pastikan hash sesuai
+            if (in_array($password, ['wali123', 'siswa12345'], true) && !Hash::check($password, $wali->password)) {
                 $wali->forceFill([
-                    'password' => Hash::make('siswa12345'),
+                    'password' => Hash::make('wali123'),
+                    'password_default_encrypted' => Crypt::encryptString('wali123'),
+                    'password_current_encrypted' => Crypt::encryptString('wali123'),
                 ])->save();
             }
 
@@ -445,7 +454,7 @@ class AuthController extends Controller
         $updates = [];
 
         $defaultPassword = config('auth.operational_default_password');
-        if (empty($user->password_default_encrypted) && ($plainPassword === $defaultPassword || in_array($plainPassword, ['guru123', 'guru12345', 'siswa12345', 'admin123', 'admin12345', 'Ganti123'], true))) {
+        if (empty($user->password_default_encrypted) && ($plainPassword === $defaultPassword || in_array($plainPassword, ['wali123', 'guru123', 'guru12345', 'siswa12345', 'admin123', 'admin12345', 'Ganti123'], true))) {
             $updates['password_default_encrypted'] = Crypt::encryptString($plainPassword);
         }
 
@@ -470,15 +479,15 @@ class AuthController extends Controller
     public function helpdeskInfo()
     {
         $config = \App\Models\ItSystemControl::getByKey('helpdesk_whatsapp_config', [
-            'whatsapp_number'     => '6285731998591',
+            'whatsapp_number' => '6285731998591',
             'contact_person_name' => 'Abdullah SyauQillah (Admin IT)',
-            'contact_role'        => 'Penanggung Jawab Sistem IT',
-            'template_message'    => "Assalamu'alaikum Admin, saya membutuhkan bantuan untuk reset kata sandi akun sistem Qomaruddin.\n\nNama/Identitas: [Nama Anda]\nRole: [Wali Santri / Guru / Petugas]\nNIS / No HP: [Data Akun]\n\nMohon bantuannya untuk reset kata sandi ke kata sandi default. Terima kasih.",
+            'contact_role' => 'Penanggung Jawab Sistem IT',
+            'template_message' => "Assalamu'alaikum Admin, saya membutuhkan bantuan untuk reset kata sandi akun sistem Qomaruddin.\n\nNama/Identitas: [Nama Anda]\nRole: [Wali Santri / Guru / Petugas]\nNIS / No HP: [Data Akun]\n\nMohon bantuannya untuk reset kata sandi ke kata sandi default. Terima kasih.",
         ]);
 
         return response()->json([
             'success' => true,
-            'data'    => $config,
+            'data' => $config,
         ]);
     }
 }

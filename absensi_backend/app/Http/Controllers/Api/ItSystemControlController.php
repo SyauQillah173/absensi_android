@@ -363,10 +363,10 @@ class ItSystemControlController extends Controller
             }
             if (!$pwd) {
                 $pwd = match ($user->role) {
-                    'guru'  => 'guru12345',
-                    'wali'  => 'siswa12345',
+                    'guru'  => 'guru123',
+                    'wali'  => 'wali123',
                     'admin' => 'admin123',
-                    default => 'siswa12345',
+                    default => 'wali123',
                 };
             }
 

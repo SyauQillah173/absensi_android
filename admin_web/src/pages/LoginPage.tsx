@@ -157,10 +157,13 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
                 value={identifier}
                 onChange={(event) => setIdentifier(event.target.value)}
                 autoComplete="username"
-                placeholder="Nama / Email / Kode Guru / NIS / No HP"
+                placeholder="Nama / Email / Kode Guru / NIS Santri"
                 required
               />
             </div>
+            <p className="text-[10px] text-[#7B8794] dark:text-slate-400 px-1.5 -mt-1 font-medium">
+              💡 <span className="font-semibold text-slate-700 dark:text-slate-300">Wali Santri:</span> Masukkan <strong>Nama Santri</strong> atau <strong>NIS Santri</strong> (Password default: <code className="font-bold text-[#138F81] dark:text-[#2DD4BF] bg-teal-50 dark:bg-teal-950/60 px-1 py-0.2 rounded">wali123</code>)
+            </p>
 
             {/* PASSWORD INPUT */}
             <div

@@ -34,7 +34,7 @@ export function FirstLoginPasswordModal({
 
   if (!isOpen) return null;
 
-  const defaultPasswordHint = user.role === 'guru' ? 'guru12345' : 'siswa12345';
+  const defaultPasswordHint = user.role === 'guru' ? 'guru123' : 'wali123';
 
   const handleDismiss = () => {
     if (user?.id) {

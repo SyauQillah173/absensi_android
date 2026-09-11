@@ -853,7 +853,7 @@ export async function exportRowsExcel(rows: ApiRecord[], fileName: string, title
       { key: 'kamar_santri', label: 'Kamar Asrama', width: 20, getValue: (r) => String(r.kamar_santri || r.kamar || '-') },
       { key: 'name', label: 'Nama Akun / Wali', width: 24, getValue: (r) => String(r.wali_nama || r.nama_wali || r.name || '-') },
       { key: 'email', label: 'Username / Identitas Login', width: 28, getValue: (r) => String(r.nama_santri || r.nama || r.nis_santri || r.nis || r.email || r.name || '-') },
-      { key: 'password_display', label: 'Kata Sandi Default', width: 22, getValue: (r) => String(r.password_display || (r.password_changed_at ? 'Sudah Diganti User' : 'siswa12345')) },
+      { key: 'password_display', label: 'Kata Sandi Default', width: 22, getValue: (r) => String(r.password_display || (r.password_changed_at ? 'Sudah Diganti User' : 'wali123')) },
       { key: 'password_display_label', label: 'Status Sandi', width: 20, getValue: (r) => String(r.password_display_label || (r.password_changed_at ? 'Password Privat' : 'Password Default')) },
       { key: 'no_hp', label: 'No. WhatsApp / HP', width: 18, getValue: (r) => String(r.no_telepon_wali || r.no_whatsapp || r.no_hp || '-') },
       { key: 'status', label: 'Status Akun', width: 14, getValue: (r) => String(r.status || 'Aktif') },

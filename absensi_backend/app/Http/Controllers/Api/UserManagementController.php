@@ -644,7 +644,7 @@ class UserManagementController extends Controller
     {
         $defaultFallback = match ($user->role) {
             'guru' => 'guru123',
-            'wali' => 'siswa12345',
+            'wali' => 'wali123',
             'admin' => 'admin12345',
             default => 'guru123',
         };
@@ -685,7 +685,7 @@ class UserManagementController extends Controller
     {
         return match ($user->role) {
             'guru' => 'guru123',
-            'wali' => 'siswa12345',
+            'wali' => 'wali123',
             'admin' => 'admin12345',
             default => 'guru123',
         };
