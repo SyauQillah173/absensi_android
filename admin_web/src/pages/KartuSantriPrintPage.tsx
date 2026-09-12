@@ -45,7 +45,11 @@ export type PaperLayoutMode = 'a4-sheet' | 'ktp-cr80';
 // =====================================================================
 // HELPER: GENERATE GAMBAR KTS KE FORMAT JPG TAJAM (300 DPI / 1012x638)
 // =====================================================================
-async function generateKtsJpg(student: ApiRecord, side: 'front' | 'back'): Promise<Blob> {
+async function generateKtsJpg(
+  student: ApiRecord,
+  side: 'front' | 'back',
+  qrPlacement: 'none' | 'front' | 'back' = 'front'
+): Promise<Blob> {
   const width = 1012;
   const height = 638;
   const canvas = document.createElement('canvas');
@@ -56,11 +60,10 @@ async function generateKtsJpg(student: ApiRecord, side: 'front' | 'back'): Promi
 
   const nama = text(student.nama, 'Nama Santri');
   const nis = text(student.nis, '-');
-  const ttl = `${text(student.tempat_lahir, '')}${student.tempat_lahir && student.tanggal_lahir ? ', ' : ''}${text(student.tanggal_lahir, '-')}`;
+  const ttl = `${text(student.tempat_lahir, 'Gresik')}${student.tempat_lahir && student.tanggal_lahir ? ', ' : ''}${text(student.tanggal_lahir, '-')}`;
   const kamar = text(student.kamar, '-');
   const komplek = text(student.komplek, '-');
-  const alamat = `${text(student.kecamatan, '')}${student.kecamatan && student.kota ? ', ' : ''}${text(student.kota, text(student.alamat, '-'))}`;
-  const wali = text(student.nama_wali, text(student.nama_ayah, '-'));
+  const alamat = text(student.alamat, `${text(student.kecamatan, '')} ${text(student.kota, 'Gresik')}`.trim());
   const isPutri = text(student.jenis_kelamin).includes('P') || text(student.jenis_kelamin).toUpperCase() === 'PEREMPUAN';
   const qrCodeValue = `QOMAR-${num(student.id)}-${nis}`;
 
@@ -75,96 +78,126 @@ async function generateKtsJpg(student: ApiRecord, side: 'front' | 'back'): Promi
     });
   };
 
+  // 1. Background Putih
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+
+  // 2. Background Pattern: Soft Islamic Honeycomb Pattern
+  ctx.strokeStyle = 'rgba(0, 143, 93, 0.04)';
+  ctx.lineWidth = 1;
+  const r = 16;
+  const h = r * Math.sqrt(3);
+  for (let py = -h; py < height + h * 2; py += h) {
+    for (let px = -r * 3; px < width + r * 3; px += r * 3) {
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 3) * i;
+        const hx = px + r * Math.cos(a);
+        const hy = py + r * Math.sin(a);
+        if (i === 0) ctx.moveTo(hx, hy);
+        else ctx.lineTo(hx, hy);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+  }
+
+  // 3. Ornamen Lengkungan Hijau Konsentris Khas Canva Pengurus (Sisi Kiri)
+  // Layer Luar: Hijau Emerald (#008f5d)
+  ctx.fillStyle = '#008f5d';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(220, 60, 285, 260, 225, 450);
+  ctx.bezierCurveTo(180, 550, 105, 605, 0, 638);
+  ctx.closePath();
+  ctx.fill();
+
+  // Layer Dalam: Hijau Mint Cerah (#10b981)
+  ctx.fillStyle = '#10b981';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(175, 60, 230, 240, 185, 430);
+  ctx.bezierCurveTo(145, 520, 75, 580, 0, 638);
+  ctx.closePath();
+  ctx.fill();
+
+  // Aksen Sudut Kiri Atas
+  ctx.fillStyle = '#008f5d';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(95, 0);
+  ctx.bezierCurveTo(70, 50, 30, 85, 0, 95);
+  ctx.closePath();
+  ctx.fill();
+
+  // Aksen Sudut Kanan Bawah
+  ctx.fillStyle = '#008f5d';
+  ctx.beginPath();
+  ctx.moveTo(width, height - 95);
+  ctx.bezierCurveTo(width - 30, height - 85, width - 70, height - 50, width - 95, height);
+  ctx.lineTo(width, height);
+  ctx.closePath();
+  ctx.fill();
+
+  // 4. Watermark Stempel Bundar Resmi di Kanan Bawah
+  ctx.strokeStyle = 'rgba(0, 143, 93, 0.13)';
+  ctx.lineWidth = 3.5;
+  const wCenterX = width - 110;
+  const wCenterY = height - 50;
+  ctx.beginPath();
+  ctx.arc(wCenterX, wCenterY, 175, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(wCenterX, wCenterY, 150, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(wCenterX, wCenterY, 105, 0, Math.PI * 2);
+  ctx.stroke();
+
   if (side === 'front') {
-    // 1. Background Putih Bersih
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, width, height);
-
-    // 2. Ornamen Watermark Kubah di Kanan Bawah
-    ctx.strokeStyle = 'rgba(11, 128, 98, 0.14)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(width - 80, height - 40, 180, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(width - 80, height - 40, 130, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // 3. Ornamen Lengkungan Hijau Sisi Kiri (Canva Green Waves)
-    // Layer 1: Hijau Toska Cerah
-    ctx.fillStyle = '#00A86B';
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.bezierCurveTo(190, 60, 290, 260, 210, 460);
-    ctx.bezierCurveTo(170, 560, 90, 610, 0, 638);
-    ctx.closePath();
-    ctx.fill();
-
-    // Layer 2: Hijau Emerald Elegan
-    ctx.fillStyle = '#0B8062';
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.bezierCurveTo(150, 60, 230, 240, 165, 440);
-    ctx.bezierCurveTo(130, 520, 60, 590, 0, 638);
-    ctx.closePath();
-    ctx.fill();
-
-    // Layer 3: Aksen Hijau Tua Dalam
-    ctx.fillStyle = '#065f46';
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.bezierCurveTo(105, 50, 165, 210, 105, 400);
-    ctx.bezierCurveTo(75, 500, 25, 570, 0, 610);
-    ctx.closePath();
-    ctx.fill();
-
-    // 4. Kop Surat di Kanan Atas
-    // Logo Resmi Qomaruddin
+    // KOP SISI DEPAN (KANAN ATAS)
+    // Logo Resmi Qomaruddin di paling kanan
     try {
       const logoImg = await loadImage(qomaruddinLogo);
-      ctx.drawImage(logoImg, width - 110, 22, 75, 75);
+      ctx.drawImage(logoImg, width - 118, 18, 86, 86);
     } catch {
       // safe fallback
     }
 
-    // Gambar Kaligrafi Arab Asli (Khat Tsuluts Resmi Qomaruddin)
+    // Gambar Kaligrafi Arab Asli (Khat Tsuluts)
     try {
       const kaligrafiImg = await loadImage(kaligrafiQomaruddin);
-      ctx.drawImage(kaligrafiImg, width - 365, 26, 240, 38);
+      ctx.drawImage(kaligrafiImg, width - 425, 20, 290, 44);
     } catch {
       ctx.textAlign = 'right';
-      ctx.fillStyle = '#0B8062';
-      ctx.font = 'bold 22px "Amiri", "Traditional Arabic", serif, sans-serif';
-      ctx.fillText('المعهد الإسلامي السلفي قمر الدين', width - 125, 46);
+      ctx.fillStyle = '#008f5d';
+      ctx.font = 'bold 24px "Amiri", "Traditional Arabic", serif, sans-serif';
+      ctx.fillText('المعهد الإسلامي السلفي قمر الدين', width - 135, 48);
     }
 
-    // Teks Kop Latin
+    // Teks Kop Sisi Depan
     ctx.textAlign = 'right';
-    ctx.fillStyle = '#0B8062';
-    ctx.font = '900 18px sans-serif';
-    ctx.letterSpacing = '0.5px';
-    ctx.fillText('PONDOK PESANTREN QOMARUDDIN', width - 125, 75);
+    ctx.fillStyle = '#008f5d';
+    ctx.font = '900 18.5px sans-serif';
+    ctx.letterSpacing = '0.4px';
+    ctx.fillText('PONDOK PESANTREN QOMARUDDIN', width - 135, 78);
 
-    ctx.fillStyle = '#64748b';
+    ctx.fillStyle = '#008f5d';
     ctx.font = 'bold 12.5px sans-serif';
     ctx.letterSpacing = '0px';
-    ctx.fillText('Sampurnan Bungah Gresik • NSP : 510035250011', width - 125, 96);
+    ctx.fillText('SampurnanBungahGresik-NSP : 511235250073', width - 135, 98);
     ctx.textAlign = 'left';
 
-    // 5. Pas Foto Santri
-    const photoX = 170;
-    const photoY = 145;
-    const photoW = 210;
-    const photoH = 280;
+    // PAS FOTO SANTRI (KIRI TENGAH)
+    const photoX = 135;
+    const photoY = 135;
+    const photoW = 205;
+    const photoH = 265;
 
-    // Background kotak foto hijau khas Canva
-    ctx.fillStyle = '#00A86B';
+    ctx.fillStyle = '#008f5d';
     ctx.beginPath();
-    ctx.roundRect(photoX, photoY, photoW, photoH, 24);
+    ctx.roundRect(photoX, photoY, photoW, photoH, 22);
     ctx.fill();
-    ctx.strokeStyle = '#0B8062';
-    ctx.lineWidth = 3;
-    ctx.stroke();
 
     let photoDrawn = false;
     if (student.foto_santri) {
@@ -172,7 +205,7 @@ async function generateKtsJpg(student: ApiRecord, side: 'front' | 'back'): Promi
         const photoImg = await loadImage(String(student.foto_santri));
         ctx.save();
         ctx.beginPath();
-        ctx.roundRect(photoX, photoY, photoW, photoH, 24);
+        ctx.roundRect(photoX, photoY, photoW, photoH, 22);
         ctx.clip();
         ctx.drawImage(photoImg, photoX, photoY, photoW, photoH);
         ctx.restore();
@@ -192,179 +225,140 @@ async function generateKtsJpg(student: ApiRecord, side: 'front' | 'back'): Promi
       ctx.textAlign = 'left';
     }
 
-    // 6. Biodata Santri
-    const bioX = 410;
-    ctx.fillStyle = '#065f46';
+    // BIODATA SANTRI (KANAN FOTO)
+    const bioX = 365;
+    ctx.fillStyle = '#008f5d';
     ctx.font = '900 32px sans-serif';
     ctx.fillText(nama, bioX, 185);
 
+    ctx.fillStyle = '#1e293b';
+    ctx.font = '600 19px sans-serif';
+    ctx.fillText(ttl, bioX, 224);
+
+    // Label Alamat
+    ctx.fillStyle = '#008f5d';
+    ctx.font = '900 18px sans-serif';
+    ctx.fillText('🏠 Alamat :', bioX, 270);
+
+    // Isi Alamat (Bisa multi baris)
     ctx.fillStyle = '#334155';
-    ctx.font = 'bold 19px sans-serif';
-    ctx.fillText(ttl, bioX, 222);
+    ctx.font = '500 16.5px sans-serif';
+    const words = alamat.split(' ');
+    let currentLine = '';
+    let lineY = 300;
+    for (let n = 0; n < words.length; n++) {
+      const testLine = currentLine + words[n] + ' ';
+      const metrics = ctx.measureText(testLine);
+      if (metrics.width > 420 && n > 0) {
+        ctx.fillText(currentLine, bioX, lineY);
+        currentLine = words[n] + ' ';
+        lineY += 25;
+        if (lineY > 375) {
+          currentLine = currentLine + '...';
+          break;
+        }
+      } else {
+        currentLine = testLine;
+      }
+    }
+    if (currentLine) {
+      ctx.fillText(currentLine, bioX, lineY);
+    }
 
-    // NIS & Kamar
-    ctx.fillStyle = '#0B8062';
-    ctx.font = 'bold 17px sans-serif';
-    ctx.fillText('NIS:', bioX, 258);
-    ctx.fillStyle = '#0f172a';
-    ctx.font = '900 19px monospace';
-    ctx.fillText(nis, bioX + 45, 258);
-
-    ctx.fillStyle = '#0B8062';
-    ctx.font = 'bold 17px sans-serif';
-    ctx.fillText('• Kamar: ' + kamar + ' (' + komplek + ')', bioX + 160, 258);
-
-    // Alamat
-    ctx.fillStyle = '#0B8062';
-    ctx.font = 'bold 17px sans-serif';
-    ctx.fillText('🏠 Alamat :', bioX, 298);
-
-    ctx.fillStyle = '#475569';
-    ctx.font = '500 16px sans-serif';
-    const displayAlamat = alamat.length > 55 ? alamat.slice(0, 52) + '...' : alamat;
-    ctx.fillText(displayAlamat, bioX, 326);
-
-    // 7. Pita KTS & Badge Website di Bawah Foto / Alamat
-    // Icon Bulat
-    ctx.fillStyle = '#00A86B';
+    // BRANDING FOOTER KTS (KIRI BAWAH)
+    // Icon Bulat Q
+    ctx.fillStyle = '#008f5d';
     ctx.beginPath();
-    ctx.arc(185, 475, 14, 0, Math.PI * 2);
+    ctx.arc(148, 470, 14, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#ffffff';
-    ctx.font = '900 14px sans-serif';
+    ctx.font = '900 15px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Q', 185, 480);
+    ctx.fillText('Q', 148, 476);
     ctx.textAlign = 'left';
 
-    ctx.fillStyle = '#065f46';
+    ctx.fillStyle = '#008f5d';
     ctx.font = '900 19px sans-serif';
     ctx.letterSpacing = '0.5px';
-    ctx.fillText('KARTU TANDA SANTRI', 210, 482);
+    ctx.fillText('KARTU TANDA SANTRI', 172, 477);
     ctx.letterSpacing = '0px';
 
-    // Badge Pill Website Hijau
-    ctx.fillStyle = '#00A86B';
+    // Badge Pill Website
+    ctx.fillStyle = '#008f5d';
     ctx.beginPath();
-    ctx.roundRect(210, 502, 210, 38, 19);
+    ctx.roundRect(172, 496, 210, 36, 18);
     ctx.fill();
-
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 16px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('www.qomaruddin.com', 315, 527);
+    ctx.fillText('www.qomaruddin.com', 277, 521);
     ctx.textAlign = 'left';
 
-    // 8. Barcode QR Code Absensi (Sesuai Permintaan Khusus Pengurus)
-    const qrSize = 185;
-    const qrX = width - qrSize - 55;
-    const qrY = 145;
+    // QR Code Presensi (Jika Diaktifkan di Sisi Depan)
+    if (qrPlacement === 'front') {
+      const qrSize = 135;
+      const qrX = width - qrSize - 45;
+      const qrY = height - qrSize - 55;
 
-    // Kotak Putih QR dengan Border Hijau
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.roundRect(qrX, qrY, qrSize, qrSize + 40, 20);
-    ctx.fill();
-    ctx.strokeStyle = '#0B8062';
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(qrX - 8, qrY - 8, qrSize + 16, qrSize + 36, 16);
+      ctx.fill();
+      ctx.strokeStyle = '#008f5d';
+      ctx.lineWidth = 2;
+      ctx.stroke();
 
-    try {
-      const qrDataUrl = await QRCode.toDataURL(qrCodeValue, {
-        width: 300,
-        margin: 1,
-        color: { dark: '#065f46', light: '#ffffff' }
-      });
-      const qrImg = await loadImage(qrDataUrl);
-      ctx.drawImage(qrImg, qrX + 10, qrY + 10, qrSize - 20, qrSize - 20);
-    } catch {
-      // safe fallback
+      try {
+        const qrDataUrl = await QRCode.toDataURL(qrCodeValue, {
+          width: 250,
+          margin: 1,
+          color: { dark: '#008f5d', light: '#ffffff' }
+        });
+        const qrImg = await loadImage(qrDataUrl);
+        ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+      } catch {
+        // safe fallback
+      }
+
+      ctx.fillStyle = '#008f5d';
+      ctx.font = '900 12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('SCAN PRESENSI', qrX + qrSize / 2, qrY + qrSize + 18);
+      ctx.textAlign = 'left';
     }
-
-    ctx.fillStyle = '#065f46';
-    ctx.font = '900 13px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('SCAN PRESENSI', qrX + qrSize / 2, qrY + qrSize + 26);
-    ctx.textAlign = 'left';
   } else {
-    // SISI BELAKANG (BACK CARD PERSIS SESUAI CANVA PENGURUS)
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, width, height);
-
-    // 1. Ornamen Sayap Lengkung Hijau Sisi Kiri & Kanan
-    // Sisi Kiri
-    ctx.fillStyle = '#00A86B';
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.bezierCurveTo(160, 80, 210, 250, 160, 440);
-    ctx.bezierCurveTo(120, 540, 60, 600, 0, 638);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.fillStyle = '#0B8062';
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.bezierCurveTo(110, 70, 150, 220, 120, 410);
-    ctx.bezierCurveTo(90, 490, 30, 570, 0, 620);
-    ctx.closePath();
-    ctx.fill();
-
-    // Sisi Kanan
-    ctx.fillStyle = '#00A86B';
-    ctx.beginPath();
-    ctx.moveTo(width, 0);
-    ctx.bezierCurveTo(width - 160, 80, width - 210, 250, width - 160, 440);
-    ctx.bezierCurveTo(width - 120, 540, width - 60, 600, width, 638);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.fillStyle = '#0B8062';
-    ctx.beginPath();
-    ctx.moveTo(width, 0);
-    ctx.bezierCurveTo(width - 110, 70, width - 150, 220, width - 120, 410);
-    ctx.bezierCurveTo(width - 90, 490, width - 30, 570, width, 620);
-    ctx.closePath();
-    ctx.fill();
-
-    // 2. Ornamen Watermark Kubah di Kanan Bawah
-    ctx.strokeStyle = 'rgba(11, 128, 98, 0.12)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(width - 90, height - 30, 160, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // 3. Kop Tengah Atas
-    // Gambar Kaligrafi Arab Asli di Tengah
+    // SISI BELAKANG KTS (100% PERSIS CANVA PENGURUS)
+    // KOP TENGAH ATAS
     try {
       const kaligrafiImg = await loadImage(kaligrafiQomaruddin);
-      ctx.drawImage(kaligrafiImg, width / 2 - 130, 26, 260, 42);
+      ctx.drawImage(kaligrafiImg, width / 2 - 150, 24, 300, 46);
     } catch {
       ctx.textAlign = 'center';
-      ctx.fillStyle = '#0B8062';
+      ctx.fillStyle = '#008f5d';
       ctx.font = 'bold 24px "Amiri", "Traditional Arabic", serif, sans-serif';
       ctx.fillText('المعهد الإسلامي السلفي قمر الدين', width / 2, 58);
     }
 
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#0B8062';
-    ctx.font = '900 18px sans-serif';
+    ctx.fillStyle = '#008f5d';
+    ctx.font = '900 18.5px sans-serif';
     ctx.letterSpacing = '0.5px';
     ctx.fillText('PONDOK PESANTREN QOMARUDDIN', width / 2, 88);
 
-    ctx.fillStyle = '#64748b';
+    ctx.fillStyle = '#008f5d';
     ctx.font = 'bold 13px sans-serif';
     ctx.letterSpacing = '0px';
-    ctx.fillText('Sampurnan Bungah Gresik • NSP : 510035250011', width / 2, 110);
+    ctx.fillText('Sampurnan Bungah Gresik - NSP : 510035250011', width / 2, 110);
     ctx.textAlign = 'left';
 
-    // 4. Isi Ketentuan Tata Tertib (4 Butir Resmi Pengurus)
-    // Bullet Bulat Hijau Khas Canva
-    ctx.fillStyle = '#00A86B';
+    // TATA TERTIB RESMI PENGURUS
+    // Bullet Bulat Hijau Khas Canva di samping butir 1
+    ctx.fillStyle = '#008f5d';
     ctx.beginPath();
-    ctx.arc(175, 178, 14, 0, Math.PI * 2);
+    ctx.arc(165, 178, 16, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = '#1e293b';
-    ctx.font = '600 17.5px sans-serif';
     const rules = [
       'Kartu Tanda Santri wajib dibawa dan digunakan oleh pemiliknya selama berada di lingkungan pesantren.',
       'Kartu ini tidak boleh dipindahtangankan, dipalsukan, atau disalahgunakan.',
@@ -373,22 +367,54 @@ async function generateKtsJpg(student: ApiRecord, side: 'front' | 'back'): Promi
     ];
 
     let ruleY = 184;
-    rules.forEach((r, idx) => {
-      ctx.font = idx === 0 ? '700 17.5px sans-serif' : '500 17.5px sans-serif';
-      // Baris pertama rata dengan bullet di x = 205, baris berikutnya di x = 205
-      ctx.fillText(r, 205, ruleY);
+    rules.forEach((r) => {
+      ctx.font = '500 17.5px sans-serif';
+      ctx.fillText(r, 195, ruleY);
       ruleY += 46;
     });
 
-    // 5. Pengesahan Pengasuh di Kiri Bawah
+    // PENGESAHAN PEMANGKU DI KIRI BAWAH
     ctx.fillStyle = '#64748b';
     ctx.font = '500 15px sans-serif';
-    ctx.fillText('Pemangku,', 170, height - 120);
-    ctx.fillText('Pondok Pesantren Qomaruddin', 170, height - 95);
+    ctx.fillText('Pemangku,', 160, height - 120);
+    ctx.fillText('Pondok Pesantren Qomaruddin', 160, height - 95);
 
-    ctx.fillStyle = '#065f46';
+    ctx.fillStyle = '#0f172a';
     ctx.font = '900 19px sans-serif';
-    ctx.fillText('Dr. KH. M. Ala\'uddin, Lc., M.SEI.', 170, height - 65);
+    ctx.fillText("Dr. KH. M. Ala'uddin, Lc., M.SEI.", 160, height - 65);
+
+    // QR Code Presensi (Jika Diaktifkan di Sisi Belakang)
+    if (qrPlacement === 'back') {
+      const qrSize = 135;
+      const qrX = width - qrSize - 45;
+      const qrY = height - qrSize - 55;
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(qrX - 8, qrY - 8, qrSize + 16, qrSize + 36, 16);
+      ctx.fill();
+      ctx.strokeStyle = '#008f5d';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      try {
+        const qrDataUrl = await QRCode.toDataURL(qrCodeValue, {
+          width: 250,
+          margin: 1,
+          color: { dark: '#008f5d', light: '#ffffff' }
+        });
+        const qrImg = await loadImage(qrDataUrl);
+        ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+      } catch {
+        // safe fallback
+      }
+
+      ctx.fillStyle = '#008f5d';
+      ctx.font = '900 12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('SCAN PRESENSI', qrX + qrSize / 2, qrY + qrSize + 18);
+      ctx.textAlign = 'left';
+    }
   }
 
   return new Promise((resolve, reject) => {
@@ -432,6 +458,9 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
   // Pengaturan Cetak: Default A4 Sheet (Paling sering dipakai printer kantor/pesantren)
   const [printSide, setPrintSide] = useState<PrintSideMode>('both');
   const [paperLayout, setPaperLayout] = useState<PaperLayoutMode>('a4-sheet');
+
+  // Mode Penempatan QR Presensi: 'front' (Depan Kompak) | 'back' (Belakang) | 'none' (100% Persis Canva Pengurus Tanpa QR)
+  const [qrPlacement, setQrPlacement] = useState<'none' | 'front' | 'back'>('front');
 
   // State Modal Fullscreen Scan HP (KTS Digital Darurat)
   const [showMobileScanModal, setShowMobileScanModal] = useState(false);
@@ -550,7 +579,7 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
     if (!singleStudent) return;
     setIsDownloading(true);
     try {
-      const blob = await generateKtsJpg(singleStudent, side);
+      const blob = await generateKtsJpg(singleStudent, side, qrPlacement);
       const cleanName = text(singleStudent.nama).replace(/[^a-zA-Z0-9]/g, '_');
       const filename = `KTS_${side === 'front' ? 'DEPAN' : 'BELAKANG'}_${cleanName}_NIS${text(singleStudent.nis)}.jpg`;
       triggerDownload(blob, filename);
@@ -749,6 +778,20 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
                 <option value="ktp-cr80">💳 Ukuran KTP CR-80 (Printer PVC)</option>
               </select>
             </div>
+
+            {/* Posisi QR Presensi */}
+            <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
+              <span className="font-bold text-slate-500">QR Code:</span>
+              <select
+                value={qrPlacement}
+                onChange={(e) => setQrPlacement(e.target.value as 'none' | 'front' | 'back')}
+                className="font-black text-[#008f5d] outline-none bg-transparent cursor-pointer"
+              >
+                <option value="front">📱 Sisi Depan (Kompak Elegan)</option>
+                <option value="back">🔄 Sisi Belakang (Belakang Kartu)</option>
+                <option value="none">✨ 100% Persis Canva (Tanpa QR)</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -920,7 +963,7 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
                         SISI DEPAN (FRONT)
                       </span>
                       <div className="shadow-2xl rounded-[3.18mm] overflow-hidden border border-slate-300 transform scale-95 sm:scale-100 origin-center transition-transform">
-                        <KtsFrontCard student={singleStudent} />
+                        <KtsFrontCard student={singleStudent} qrPlacement={qrPlacement} />
                       </div>
                     </div>
                   )}
@@ -932,7 +975,7 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
                         SISI BELAKANG (BACK)
                       </span>
                       <div className="shadow-2xl rounded-[3.18mm] overflow-hidden border border-slate-300 transform scale-95 sm:scale-100 origin-center transition-transform">
-                        <KtsBackCard student={singleStudent} />
+                        <KtsBackCard student={singleStudent} qrPlacement={qrPlacement} />
                       </div>
                     </div>
                   )}
@@ -1156,12 +1199,12 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
             <div className="flex flex-wrap items-center justify-center gap-6">
               {(printSide === 'both' || printSide === 'front') && (
                 <div className="kts-card-wrapper border border-dashed border-slate-300">
-                  <KtsFrontCard student={printStudents[0]} />
+                  <KtsFrontCard student={printStudents[0]} qrPlacement={qrPlacement} />
                 </div>
               )}
               {(printSide === 'both' || printSide === 'back') && (
                 <div className="kts-card-wrapper border border-dashed border-slate-300">
-                  <KtsBackCard student={printStudents[0]} />
+                  <KtsBackCard student={printStudents[0]} qrPlacement={qrPlacement} />
                 </div>
               )}
             </div>
@@ -1176,12 +1219,12 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
               <React.Fragment key={text(student.id)}>
                 {(printSide === 'both' || printSide === 'front') && (
                   <div className="kts-card-wrapper">
-                    <KtsFrontCard student={student} />
+                    <KtsFrontCard student={student} qrPlacement={qrPlacement} />
                   </div>
                 )}
                 {(printSide === 'both' || printSide === 'back') && (
                   <div className="kts-card-wrapper">
-                    <KtsBackCard student={student} />
+                    <KtsBackCard student={student} qrPlacement={qrPlacement} />
                   </div>
                 )}
               </React.Fragment>
@@ -1194,12 +1237,12 @@ export function KartuSantriPrintPage({ onBack, initialSiswaId }: KartuSantriPrin
               <React.Fragment key={text(student.id)}>
                 {(printSide === 'both' || printSide === 'front') && (
                   <div className="kts-card-wrapper border border-dashed border-slate-300">
-                    <KtsFrontCard student={student} />
+                    <KtsFrontCard student={student} qrPlacement={qrPlacement} />
                   </div>
                 )}
                 {(printSide === 'both' || printSide === 'back') && (
                   <div className="kts-card-wrapper border border-dashed border-slate-300">
-                    <KtsBackCard student={student} />
+                    <KtsBackCard student={student} qrPlacement={qrPlacement} />
                   </div>
                 )}
               </React.Fragment>
@@ -1242,20 +1285,27 @@ function MobileQrDisplay({ value }: { value: string }) {
 // =====================================================================
 // SISI DEPAN KARTU TANDA SANTRI (KTS) RESMI
 // Dimensi: 85.6mm x 54mm (Ukuran KTP Standar Internasional ISO/IEC 7810 ID-1)
-// Desain: Deep Royal Emerald & Gold Security Card (Bersih & Elegan)
+// Desain: 100% Sesuai Master Canva Resmi Admin Pengurus Pondok Pesantren Qomaruddin
 // =====================================================================
-function KtsFrontCard({ student }: { student: ApiRecord }) {
+function KtsFrontCard({
+  student,
+  qrPlacement = 'front'
+}: {
+  student: ApiRecord;
+  qrPlacement?: 'none' | 'front' | 'back';
+}) {
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const qrCodeValue = `QOMAR-${num(student.id)}-${text(student.nis, '0')}`;
 
-  // Generate QR Code Beresolusi Tinggi (280px untuk ketajaman cetak ~360 DPI)
+  // Generate QR Code Beresolusi Tinggi untuk Presensi (Jika Diaktifkan)
   useEffect(() => {
+    if (qrPlacement !== 'front') return;
     let active = true;
     QRCode.toDataURL(qrCodeValue, {
-      width: 280,
+      width: 250,
       margin: 1,
       color: {
-        dark: '#065f46',
+        dark: '#008f5d',
         light: '#ffffff'
       },
       errorCorrectionLevel: 'M'
@@ -1268,7 +1318,7 @@ function KtsFrontCard({ student }: { student: ApiRecord }) {
     return () => {
       active = false;
     };
-  }, [qrCodeValue]);
+  }, [qrCodeValue, qrPlacement]);
 
   const nama = text(student.nama, 'Nama Santri');
   const nis = text(student.nis, '-');
@@ -1290,55 +1340,58 @@ function KtsFrontCard({ student }: { student: ApiRecord }) {
       }}
       className="relative text-slate-800 p-2 shadow-md border border-slate-200 flex flex-col justify-between overflow-hidden print:shadow-none select-none box-border font-sans"
     >
-      {/* 1. TEKSTUR POLA ISLAMI HALUS (ARABESQUE BACKGROUND) */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.05]" xmlns="http://www.w3.org/2000/svg">
+      {/* 1. TEKSTUR POLA EMBOSSED HONEYCOMB ISLAMI */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.07]" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <pattern id="kts-front-pat" width="28" height="28" patternUnits="userSpaceOnUse">
-            <path d="M14 0 L28 14 L14 28 L0 14 Z" fill="none" stroke="#065f46" strokeWidth="0.5" />
-            <circle cx="14" cy="14" r="7" fill="none" stroke="#065f46" strokeWidth="0.4" />
-            <circle cx="0" cy="0" r="4" fill="none" stroke="#065f46" strokeWidth="0.4" />
-            <circle cx="28" cy="0" r="4" fill="none" stroke="#065f46" strokeWidth="0.4" />
-            <circle cx="0" cy="28" r="4" fill="none" stroke="#065f46" strokeWidth="0.4" />
-            <circle cx="28" cy="28" r="4" fill="none" stroke="#065f46" strokeWidth="0.4" />
+          <pattern id="kts-front-hex-pat" width="14" height="24.25" patternUnits="userSpaceOnUse">
+            <path
+              d="M 7 0 L 14 4.04 L 14 12.12 L 7 16.17 L 0 12.12 L 0 4.04 Z M 0 20.21 L 7 24.25 L 14 20.21"
+              fill="none"
+              stroke="#008f5d"
+              strokeWidth="0.5"
+            />
           </pattern>
         </defs>
-        <rect width="100%" height="100%" fill="url(#kts-front-pat)" />
+        <rect width="100%" height="100%" fill="url(#kts-front-hex-pat)" />
       </svg>
 
-      {/* 2. WATERMARK KUBAH ARSITEKTUR PESANTREN DI KANAN BAWAH */}
-      <svg className="absolute right-0 bottom-0 w-[44mm] h-[36mm] pointer-events-none opacity-[0.14] text-[#065f46]" viewBox="0 0 200 160" fill="currentColor">
-        <circle cx="170" cy="130" r="60" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="4,4" />
-        <circle cx="170" cy="130" r="45" fill="none" stroke="currentColor" strokeWidth="2" />
-        <circle cx="170" cy="130" r="30" fill="none" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M130 160 C 130 115, 150 95, 170 80 C 190 95, 210 115, 210 160 Z" opacity="0.6" />
+      {/* 2. WATERMARK STEMPEL BUNDAR RESMI DI KANAN BAWAH */}
+      <svg className="absolute right-[-10mm] bottom-[-10mm] w-[50mm] h-[50mm] pointer-events-none opacity-[0.16] text-[#008f5d]" viewBox="0 0 200 200" fill="none" stroke="currentColor">
+        <circle cx="100" cy="100" r="85" strokeWidth="2.5" />
+        <circle cx="100" cy="100" r="75" strokeWidth="1.5" strokeDasharray="3,3" />
+        <circle cx="100" cy="100" r="55" strokeWidth="1.5" />
+        <circle cx="100" cy="100" r="35" strokeWidth="1" />
+        <path d="M70 120 C 70 85, 85 70, 100 60 C 115 70, 130 85, 130 120 Z" strokeWidth="1.5" fill="currentColor" fillOpacity="0.1" />
       </svg>
 
-      {/* 3. ORNAMEN KURVA HIJAU SISI KIRI (CANVA GREEN CURVED WINGS) */}
+      {/* 3. ORNAMEN KURVA HIJAU KONSENTRIS SISI KIRI KHAS CANVA */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 856 540" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {/* Layer 1: Hijau Toska Cerah */}
-        <path d="M 0 0 C 160 50, 240 220, 180 390 C 140 480, 80 520, 0 540 L 0 540 Z" fill="#00A86B" />
-        {/* Layer 2: Hijau Emerald Elegan */}
-        <path d="M 0 0 C 130 50, 190 200, 140 370 C 110 440, 50 500, 0 540 Z" fill="#0B8062" />
-        {/* Layer 3: Aksen Hijau Tua Dalam */}
-        <path d="M 0 0 C 90 40, 140 180, 90 340 C 60 420, 20 480, 0 520 Z" fill="#065f46" />
+        {/* Layer Luar: Hijau Emerald (#008f5d) */}
+        <path d="M 0 0 C 180 50, 240 220, 190 380 C 150 470, 90 515, 0 540 L 0 0 Z" fill="#008f5d" />
+        {/* Layer Dalam: Hijau Mint Cerah (#10b981) */}
+        <path d="M 0 0 C 145 50, 195 205, 155 365 C 125 435, 60 495, 0 540 L 0 0 Z" fill="#10b981" />
+        {/* Aksen Sudut Kiri Atas */}
+        <path d="M 0 0 L 80 0 C 60 40, 25 70, 0 80 Z" fill="#008f5d" />
+        {/* Aksen Sudut Kanan Bawah */}
+        <path d="M 856 460 C 830 470, 790 500, 775 540 L 856 540 Z" fill="#008f5d" />
       </svg>
 
-      {/* 4. KOP PESANTREN RESMI DI KANAN ATAS */}
-      <div className="relative z-10 flex items-center justify-end gap-2 pl-18 shrink-0">
+      {/* 4. KOP RESMI SISI DEPAN DI KANAN ATAS */}
+      <div className="relative z-10 flex items-center justify-end gap-2 pl-16 shrink-0">
         <div className="text-right leading-none flex flex-col items-end">
           <img
             src={kaligrafiQomaruddin}
             alt="المعهد الإسلامي السلفي قمر الدين"
             className="h-3.5 w-auto object-contain mb-0.5"
           />
-          <h4 className="font-black text-[7.2px] text-[#0B8062] tracking-tight uppercase mt-0.5">
+          <h4 className="font-black text-[7.5px] text-[#008f5d] tracking-tight uppercase mt-0.5">
             PONDOK PESANTREN QOMARUDDIN
           </h4>
-          <p className="text-[5px] text-slate-500 font-bold tracking-tight mt-0.5">
-            Sampurnan Bungah Gresik • NSP : 510035250011
+          <p className="text-[5.2px] text-[#008f5d] font-bold tracking-tight mt-0.5">
+            SampurnanBungahGresik-NSP : 511235250073
           </p>
         </div>
-        <div className="h-7.5 w-7.5 rounded-full bg-white p-0.5 border border-amber-400 shadow-2xs shrink-0 flex items-center justify-center">
+        <div className="h-8 w-8 rounded-full bg-white p-0.5 border border-amber-400 shadow-2xs shrink-0 flex items-center justify-center">
           <img
             src={qomaruddinLogo}
             alt="Logo Qomaruddin"
@@ -1347,10 +1400,10 @@ function KtsFrontCard({ student }: { student: ApiRecord }) {
         </div>
       </div>
 
-      {/* 5. BODY: PAS FOTO + BIODATA + QR CODE ABSENSI */}
+      {/* 5. BODY: PAS FOTO + BIODATA + OPSIONAL QR */}
       <div className="relative z-10 flex items-center gap-2 pl-14 my-auto">
         {/* Pas Foto Santri */}
-        <div className="w-[18.5mm] h-[24.5mm] rounded-xl border-1.5 border-[#0B8062] bg-[#00A86B] overflow-hidden shadow-xs flex items-center justify-center shrink-0">
+        <div className="w-[19mm] h-[25mm] rounded-2xl bg-[#008f5d] overflow-hidden shadow-xs flex items-center justify-center shrink-0 border border-[#008f5d]">
           {student.foto_santri ? (
             <img
               src={String(student.foto_santri)}
@@ -1369,58 +1422,60 @@ function KtsFrontCard({ student }: { student: ApiRecord }) {
 
         {/* Biodata Santri */}
         <div className="flex-1 min-w-0 pr-1 space-y-0.5">
-          <h3 className="font-black text-[10.5px] text-[#065f46] uppercase leading-tight truncate">
+          <h3 className="font-black text-[11.5px] text-[#008f5d] uppercase leading-tight truncate">
             {nama}
           </h3>
-          <p className="text-[6.5px] text-slate-600 font-semibold truncate">
+          <p className="text-[6.8px] text-slate-700 font-semibold truncate">
             {ttl}
           </p>
           <p className="text-[6.2px] text-slate-700 font-bold truncate">
-            <span className="text-[#0B8062]">NIS:</span> <span className="font-mono">{nis}</span> • <span className="text-[#0B8062]">Kamar:</span> {kamar} ({komplek})
+            <span className="text-[#008f5d]">NIS:</span> <span className="font-mono">{nis}</span> • <span className="text-[#008f5d]">Kamar:</span> {kamar} ({komplek})
           </p>
 
           {/* Alamat Santri */}
           <div className="pt-0.5">
-            <div className="flex items-center gap-0.5 text-[6px] font-black text-[#0B8062]">
+            <div className="flex items-center gap-0.5 text-[6.5px] font-black text-[#008f5d]">
               <Home size={7.5} />
               <span>Alamat :</span>
             </div>
-            <p className="text-[5.8px] text-slate-600 leading-tight line-clamp-2 max-w-[34mm] font-medium">
+            <p className="text-[5.8px] text-slate-600 leading-tight line-clamp-2 max-w-[38mm] font-medium">
               {alamat}
             </p>
           </div>
         </div>
 
-        {/* QR Code Absensi Santri (Fitur Baru Permintaan Pengurus) */}
-        <div className="shrink-0 flex flex-col items-center justify-center bg-white p-1 rounded-xl border border-teal-600/30 shadow-xs">
-          {qrDataUrl ? (
-            <img
-              src={qrDataUrl}
-              alt="QR Code Presensi"
-              className="w-[16mm] h-[16mm] object-contain"
-            />
-          ) : (
-            <div className="w-[16mm] h-[16mm] bg-white rounded flex items-center justify-center">
-              <span className="text-[6px] text-slate-400">QR</span>
-            </div>
-          )}
-          <span className="text-[4.8px] font-mono font-black text-[#065f46] tracking-wider uppercase mt-0.5">
-            SCAN PRESENSI
-          </span>
-        </div>
+        {/* QR Code Presensi di Depan (Jika Dipilih) */}
+        {qrPlacement === 'front' && (
+          <div className="shrink-0 flex flex-col items-center justify-center bg-white p-1 rounded-xl border border-teal-600/30 shadow-xs">
+            {qrDataUrl ? (
+              <img
+                src={qrDataUrl}
+                alt="QR Code Presensi"
+                className="w-[13.5mm] h-[13.5mm] object-contain"
+              />
+            ) : (
+              <div className="w-[13.5mm] h-[13.5mm] bg-white rounded flex items-center justify-center">
+                <span className="text-[5px] text-slate-400">QR</span>
+              </div>
+            )}
+            <span className="text-[4.5px] font-mono font-black text-[#008f5d] tracking-wider uppercase mt-0.5">
+              SCAN PRESENSI
+            </span>
+          </div>
+        )}
       </div>
 
       {/* 6. FOOTER: LOGO KTS + BADGE WEBSITE RESMI */}
-      <div className="relative z-10 flex items-center justify-between pl-14 pt-0.5 border-t border-slate-200 shrink-0">
+      <div className="relative z-10 flex items-center justify-between pl-14 pt-0.5 shrink-0">
         <div className="flex items-center gap-1">
-          <div className="w-3.5 h-3.5 rounded-full bg-[#00A86B] flex items-center justify-center text-[7.5px] text-white font-black">
+          <div className="w-3.5 h-3.5 rounded-full bg-[#008f5d] flex items-center justify-center text-[7.5px] text-white font-black">
             Q
           </div>
-          <span className="text-[6.5px] font-black tracking-wide text-[#065f46] uppercase">
+          <span className="text-[6.8px] font-black tracking-wide text-[#008f5d] uppercase">
             KARTU TANDA SANTRI
           </span>
         </div>
-        <div className="px-2 py-0.5 rounded-full bg-[#00A86B] text-white text-[5.5px] font-black tracking-wide shadow-2xs">
+        <div className="px-2.5 py-0.5 rounded-full bg-[#008f5d] text-white text-[5.8px] font-bold tracking-wide shadow-2xs">
           www.qomaruddin.com
         </div>
       </div>
@@ -1432,7 +1487,38 @@ function KtsFrontCard({ student }: { student: ApiRecord }) {
 // SISI BELAKANG KARTU TANDA SANTRI (KTS)
 // Dimensi: 85.6mm x 54mm (Tata Tertib & Ketentuan Resmi Pengurus)
 // =====================================================================
-function KtsBackCard({ student }: { student: ApiRecord }) {
+function KtsBackCard({
+  student,
+  qrPlacement = 'front'
+}: {
+  student: ApiRecord;
+  qrPlacement?: 'none' | 'front' | 'back';
+}) {
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const qrCodeValue = `QOMAR-${num(student.id)}-${text(student.nis, '0')}`;
+
+  useEffect(() => {
+    if (qrPlacement !== 'back') return;
+    let active = true;
+    QRCode.toDataURL(qrCodeValue, {
+      width: 250,
+      margin: 1,
+      color: {
+        dark: '#008f5d',
+        light: '#ffffff'
+      },
+      errorCorrectionLevel: 'M'
+    })
+      .then((url) => {
+        if (active) setQrDataUrl(url);
+      })
+      .catch((err) => console.error('Gagal generate QR Code KTS Back:', err));
+
+    return () => {
+      active = false;
+    };
+  }, [qrCodeValue, qrPlacement]);
+
   return (
     <div
       style={{
@@ -1445,33 +1531,36 @@ function KtsBackCard({ student }: { student: ApiRecord }) {
       }}
       className="relative text-slate-800 p-2.5 shadow-md border border-slate-200 flex flex-col justify-between overflow-hidden print:shadow-none select-none box-border font-sans"
     >
-      {/* 1. TEKSTUR POLA ISLAMI HALUS (ARABESQUE BACKGROUND) */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.05]" xmlns="http://www.w3.org/2000/svg">
+      {/* 1. TEKSTUR POLA EMBOSSED HONEYCOMB ISLAMI */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.07]" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <pattern id="kts-back-pat" width="28" height="28" patternUnits="userSpaceOnUse">
-            <path d="M14 0 L28 14 L14 28 L0 14 Z" fill="none" stroke="#065f46" strokeWidth="0.5" />
-            <circle cx="14" cy="14" r="7" fill="none" stroke="#065f46" strokeWidth="0.4" />
+          <pattern id="kts-back-hex-pat" width="14" height="24.25" patternUnits="userSpaceOnUse">
+            <path
+              d="M 7 0 L 14 4.04 L 14 12.12 L 7 16.17 L 0 12.12 L 0 4.04 Z M 0 20.21 L 7 24.25 L 14 20.21"
+              fill="none"
+              stroke="#008f5d"
+              strokeWidth="0.5"
+            />
           </pattern>
         </defs>
-        <rect width="100%" height="100%" fill="url(#kts-back-pat)" />
+        <rect width="100%" height="100%" fill="url(#kts-back-hex-pat)" />
       </svg>
 
-      {/* 2. WATERMARK KUBAH ARSITEKTUR PESANTREN DI KANAN BAWAH */}
-      <svg className="absolute right-0 bottom-0 w-[44mm] h-[36mm] pointer-events-none opacity-[0.14] text-[#065f46]" viewBox="0 0 200 160" fill="currentColor">
-        <circle cx="170" cy="130" r="60" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="4,4" />
-        <circle cx="170" cy="130" r="45" fill="none" stroke="currentColor" strokeWidth="2" />
-        <path d="M130 160 C 130 115, 150 95, 170 80 C 190 95, 210 115, 210 160 Z" opacity="0.6" />
+      {/* 2. WATERMARK STEMPEL BUNDAR RESMI DI KANAN BAWAH */}
+      <svg className="absolute right-[-10mm] bottom-[-10mm] w-[50mm] h-[50mm] pointer-events-none opacity-[0.16] text-[#008f5d]" viewBox="0 0 200 200" fill="none" stroke="currentColor">
+        <circle cx="100" cy="100" r="85" strokeWidth="2.5" />
+        <circle cx="100" cy="100" r="75" strokeWidth="1.5" strokeDasharray="3,3" />
+        <circle cx="100" cy="100" r="55" strokeWidth="1.5" />
+        <circle cx="100" cy="100" r="35" strokeWidth="1" />
+        <path d="M70 120 C 70 85, 85 70, 100 60 C 115 70, 130 85, 130 120 Z" strokeWidth="1.5" fill="currentColor" fillOpacity="0.1" />
       </svg>
 
-      {/* 3. ORNAMEN KURVA HIJAU DI SISI KIRI & KANAN (CANVA FRAMING) */}
+      {/* 3. ORNAMEN KURVA HIJAU KONSENTRIS SISI KIRI KHAS CANVA */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 856 540" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {/* Sayap Kiri Hijau */}
-        <path d="M 0 0 C 140 70, 190 220, 150 380 C 110 460, 60 510, 0 540 Z" fill="#00A86B" />
-        <path d="M 0 0 C 100 60, 140 200, 110 360 C 80 430, 30 490, 0 530 Z" fill="#0B8062" />
-
-        {/* Sayap Kanan Hijau */}
-        <path d="M 856 0 C 716 70, 666 220, 706 380 C 746 460, 796 510, 856 540 Z" fill="#00A86B" />
-        <path d="M 856 0 C 756 60, 716 200, 746 360 C 776 430, 826 490, 856 530 Z" fill="#0B8062" />
+        <path d="M 0 0 C 180 50, 240 220, 190 380 C 150 470, 90 515, 0 540 L 0 0 Z" fill="#008f5d" />
+        <path d="M 0 0 C 145 50, 195 205, 155 365 C 125 435, 60 495, 0 540 L 0 0 Z" fill="#10b981" />
+        <path d="M 0 0 L 80 0 C 60 40, 25 70, 0 80 Z" fill="#008f5d" />
+        <path d="M 856 460 C 830 470, 790 500, 775 540 L 856 540 Z" fill="#008f5d" />
       </svg>
 
       {/* 4. KOP RESMI PESANTREN DI TENGAH ATAS */}
@@ -1481,42 +1570,60 @@ function KtsBackCard({ student }: { student: ApiRecord }) {
           alt="المعهد الإسلامي السلفي قمر الدين"
           className="h-4 w-auto object-contain mx-auto mb-0.5"
         />
-        <h4 className="font-black text-[7.2px] text-[#0B8062] tracking-tight uppercase mt-0.5">
+        <h4 className="font-black text-[7.5px] text-[#008f5d] tracking-tight uppercase mt-0.5">
           PONDOK PESANTREN QOMARUDDIN
         </h4>
-        <p className="text-[5px] text-slate-500 font-bold tracking-tight mt-0.5">
-          Sampurnan Bungah Gresik • NSP : 510035250011
+        <p className="text-[5.2px] text-[#008f5d] font-bold tracking-tight mt-0.5">
+          Sampurnan Bungah Gresik - NSP : 510035250011
         </p>
       </div>
 
       {/* 5. ISI KETENTUAN TATA TERTIB RESMI (PERSIS DARI PENGURUS) */}
-      <div className="relative z-10 px-12 my-auto">
-        <div className="flex items-start gap-1.5">
-          {/* Bullet Bulat Hijau Khas Canva */}
-          <div className="w-2.5 h-2.5 rounded-full bg-[#00A86B] shrink-0 mt-0.5 shadow-xs" />
-          <div className="space-y-1 text-[5.8px] sm:text-[6px] text-slate-800 leading-snug font-medium">
-            <p className="font-semibold text-slate-900">
-              Kartu Tanda Santri wajib dibawa dan digunakan oleh pemiliknya selama berada di lingkungan pesantren.
-            </p>
-            <p>
-              Kartu ini tidak boleh dipindahtangankan, dipalsukan, atau disalahgunakan.
-            </p>
-            <p>
-              Setiap pelanggaran akan dikenakan sanksi sesuai tata tertib pesantren yang berlaku.
-            </p>
-            <p>
-              Kartu yang hilang atau ditemukan wajib segera dilaporkan atau dikembalikan kepada pihak Pondok Pesantren Qomaruddin.
-            </p>
-          </div>
+      <div className="relative z-10 pl-14 pr-6 my-auto flex items-start gap-2">
+        {/* Bullet Bulat Hijau Khas Canva di samping butir 1 */}
+        <div className="w-3.5 h-3.5 rounded-full bg-[#008f5d] shrink-0 mt-0.5 shadow-xs" />
+        <div className="space-y-1 text-[5.8px] sm:text-[6.1px] text-slate-800 leading-snug font-medium flex-1">
+          <p className="font-semibold text-slate-900">
+            Kartu Tanda Santri wajib dibawa dan digunakan oleh pemiliknya selama berada di lingkungan pesantren.
+          </p>
+          <p>
+            Kartu ini tidak boleh dipindahtangankan, dipalsukan, atau disalahgunakan.
+          </p>
+          <p>
+            Setiap pelanggaran akan dikenakan sanksi sesuai tata tertib pesantren yang berlaku.
+          </p>
+          <p>
+            Kartu yang hilang atau ditemukan wajib segera dilaporkan atau dikembalikan kepada pihak Pondok Pesantren Qomaruddin.
+          </p>
         </div>
+
+        {/* QR Code Presensi di Belakang (Jika Dipilih) */}
+        {qrPlacement === 'back' && (
+          <div className="shrink-0 flex flex-col items-center justify-center bg-white p-1 rounded-xl border border-teal-600/30 shadow-xs">
+            {qrDataUrl ? (
+              <img
+                src={qrDataUrl}
+                alt="QR Code Presensi"
+                className="w-[14mm] h-[14mm] object-contain"
+              />
+            ) : (
+              <div className="w-[14mm] h-[14mm] bg-white rounded flex items-center justify-center">
+                <span className="text-[5px] text-slate-400">QR</span>
+              </div>
+            )}
+            <span className="text-[4.5px] font-mono font-black text-[#008f5d] tracking-wider uppercase mt-0.5">
+              SCAN PRESENSI
+            </span>
+          </div>
+        )}
       </div>
 
       {/* 6. PENGESAHAN PENGASUH DI KIRI BAWAH */}
-      <div className="relative z-10 pl-12 pr-12 pt-0.5 shrink-0">
+      <div className="relative z-10 pl-14 pr-12 pt-0.5 shrink-0">
         <div className="text-left leading-tight text-[5.8px] text-slate-700">
           <p className="font-medium text-slate-500">Pemangku,</p>
           <p className="font-medium text-slate-500">Pondok Pesantren Qomaruddin</p>
-          <p className="font-black text-[#065f46] text-[6.5px] mt-1 tracking-tight">
+          <p className="font-black text-slate-900 text-[6.8px] mt-0.5 tracking-tight">
             Dr. KH. M. Ala'uddin, Lc., M.SEI.
           </p>
         </div>

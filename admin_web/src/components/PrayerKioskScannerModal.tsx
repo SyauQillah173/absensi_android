@@ -169,6 +169,18 @@ export function PrayerKioskScannerModal({
   const [manualInput, setManualInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Responsivitas Smartphone Mobile: Segmented Tab, Search Filter & Smart Auto-Scroll
+  const [mobileTab, setMobileTab] = useState<'unified' | 'camera' | 'logs'>('unified');
+  const [logSearch, setLogSearch] = useState('');
+  const [isScrolledToLogs, setIsScrolledToLogs] = useState(false);
+  const mainScrollRef = useRef<HTMLElement | null>(null);
+  const logsSectionRef = useRef<HTMLDivElement | null>(null);
+
+  const handleMainScroll = (e: React.UIEvent<HTMLElement>) => {
+    const top = e.currentTarget.scrollTop;
+    setIsScrolledToLogs(top > 140);
+  };
+
   // Refs
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -667,11 +679,11 @@ export function PrayerKioskScannerModal({
   return createPortal(
     <div
       ref={modalContainerRef}
-      className="fixed inset-0 z-[99999] bg-slate-950 flex flex-col justify-between overflow-hidden text-white font-sans select-none"
+      className="fixed inset-0 h-[100dvh] max-h-[100dvh] z-[99999] bg-slate-950 flex flex-col justify-between overflow-hidden text-white font-sans"
     >
       {/* 1. TOP BAR KIOSK POS (RESPONSIF MOBILE & DESKTOP) */}
-      <header className="px-3 sm:px-6 py-2.5 sm:py-3 bg-slate-900/95 border-b border-slate-800 backdrop-blur-md shrink-0">
-        {/* Mobile View Header (sm:hidden): Rapi 2 Baris, Tombol Tutup X Besar & Jelas */}
+      <header className="px-3 sm:px-6 py-2 sm:py-3 bg-slate-900/95 border-b border-slate-800 backdrop-blur-md shrink-0">
+        {/* Mobile View Header (sm:hidden): 3 Baris Rapi & Tombol Mode */}
         <div className="flex sm:hidden flex-col gap-2">
           {/* Baris 1 Mobile: Logo + Judul + Tombol Tutup X */}
           <div className="flex items-center justify-between">
@@ -684,7 +696,7 @@ export function PrayerKioskScannerModal({
                   <span>POS SCANNER SHOLAT</span>
                   <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                 </h1>
-                <p className="text-[10px] text-slate-400 font-semibold truncate max-w-[180px]">
+                <p className="text-[10px] text-slate-400 font-semibold truncate max-w-[170px]">
                   {posLocation}
                 </p>
               </div>
@@ -710,7 +722,7 @@ export function PrayerKioskScannerModal({
             <select
               value={selectedTypeId}
               onChange={(e) => setSelectedTypeId(Number(e.target.value))}
-              className="flex-1 min-w-[100px] rounded-xl border border-slate-700 bg-slate-800 px-2 py-1.5 text-xs font-extrabold text-amber-300 outline-none"
+              className="flex-1 min-w-[90px] rounded-xl border border-slate-700 bg-slate-800 px-2 py-1.5 text-xs font-extrabold text-amber-300 outline-none"
             >
               {types.map((t) => (
                 <option key={String(t.id)} value={Number(t.id)}>
@@ -760,6 +772,43 @@ export function PrayerKioskScannerModal({
               title={isMuted ? 'Suara Senyap' : 'Suara Aktif'}
             >
               {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+            </button>
+          </div>
+
+          {/* Baris 3 Mobile: Segmented Mode Switcher (Kamera vs Riwayat vs Terpadu) */}
+          <div className="flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60">
+            <button
+              type="button"
+              onClick={() => setMobileTab('unified')}
+              className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-black transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                mobileTab === 'unified'
+                  ? 'bg-teal-600 text-white shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <span>⚡ Terpadu</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileTab('camera')}
+              className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-black transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                mobileTab === 'camera'
+                  ? 'bg-teal-600 text-white shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <span>📷 Kamera</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileTab('logs')}
+              className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-black transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                mobileTab === 'logs'
+                  ? 'bg-teal-600 text-white shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <span>📋 Riwayat ({scanLogs.length})</span>
             </button>
           </div>
         </div>
@@ -873,10 +922,18 @@ export function PrayerKioskScannerModal({
         </div>
       </header>
 
-      {/* 2. BODY KIOSK: RESPONSIF MOBILE & DESKTOP (Scrollable di HP) */}
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 p-2.5 sm:p-4 overflow-y-auto lg:overflow-hidden overscroll-contain">
+      {/* 2. BODY KIOSK: RESPONSIF MOBILE & DESKTOP (Touch Friendly, Bebas Scroll Trap) */}
+      <main
+        ref={mainScrollRef}
+        onScroll={handleMainScroll}
+        className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 p-2.5 sm:p-4 overflow-y-auto q-scrollbar touch-pan-y scroll-smooth"
+      >
         {/* KOLOM KIRI (7 SPAN): KAMERA SCANNER + FRAME FOCUS */}
-        <div className="lg:col-span-7 flex flex-col justify-between rounded-3xl bg-slate-900 border border-slate-800 overflow-hidden relative shadow-2xl min-h-[280px] sm:min-h-[380px] lg:min-h-0">
+        <div
+          className={`lg:col-span-7 flex flex-col justify-between rounded-3xl bg-slate-900 border border-slate-800 overflow-hidden relative shadow-2xl ${
+            mobileTab === 'logs' ? 'hidden lg:flex' : 'flex'
+          } min-h-[220px] max-h-[35vh] sm:max-h-[46vh] lg:max-h-none lg:min-h-0`}
+        >
           {/* Petunjuk Arahkan KTS */}
           <div className="absolute top-2.5 left-2.5 right-2.5 z-20 flex items-center justify-between pointer-events-none">
             <div className="rounded-full bg-slate-950/85 backdrop-blur-md px-2.5 py-1 text-[11px] sm:text-xs font-black text-teal-300 border border-teal-500/30 shadow-md flex items-center gap-1.5">
@@ -897,7 +954,7 @@ export function PrayerKioskScannerModal({
           </div>
 
           {/* Area Video Kamera */}
-          <div className="relative flex-1 flex items-center justify-center bg-black overflow-hidden min-h-[220px] sm:min-h-[280px]">
+          <div className="relative flex-1 flex items-center justify-center bg-black overflow-hidden min-h-[160px] sm:min-h-[260px]">
             {cameraError ? (
               <div className="p-6 text-center max-w-md space-y-3">
                 <AlertCircle className="h-12 w-12 text-rose-400 mx-auto" />
@@ -925,7 +982,7 @@ export function PrayerKioskScannerModal({
 
                 {/* Target Frame Reticle Laser Hijau */}
                 <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-3">
-                  <div className="relative w-48 h-48 sm:w-72 sm:h-72 lg:w-80 lg:h-80 rounded-3xl border-2 border-dashed border-teal-400/70 flex items-center justify-center shadow-[0_0_50px_rgba(19,143,129,0.25)]">
+                  <div className="relative w-44 h-44 sm:w-68 sm:h-68 lg:w-76 lg:h-76 rounded-3xl border-2 border-dashed border-teal-400/70 flex items-center justify-center shadow-[0_0_50px_rgba(19,143,129,0.25)]">
                     {/* Corner Reticles */}
                     <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-teal-400 rounded-tl-xl" />
                     <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-teal-400 rounded-tr-xl" />
@@ -941,31 +998,36 @@ export function PrayerKioskScannerModal({
           </div>
 
           {/* Form Barcode Manual USB / Keyboard Standby */}
-          <div className="p-3 bg-slate-950/90 border-t border-slate-800 flex items-center gap-2">
-            <Search size={16} className="text-slate-500 ml-2 shrink-0" />
+          <div className="p-2 sm:p-3 bg-slate-950/90 border-t border-slate-800 flex items-center gap-2">
+            <Search size={15} className="text-slate-500 ml-1.5 shrink-0" />
             <form onSubmit={handleManualSubmit} className="flex-1 flex gap-2">
               <input
                 type="text"
                 value={manualInput}
                 onChange={(e) => setManualInput(e.target.value)}
-                placeholder="Pindai Pistol Barcode USB atau Ketik NIS Santri lalu Tekan Enter..."
-                className="flex-1 bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold text-white placeholder:text-slate-500 outline-none focus:border-teal-400"
+                placeholder="Scan Barcode USB atau Ketik NIS..."
+                className="flex-1 bg-slate-900 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-white placeholder:text-slate-500 outline-none focus:border-teal-400"
               />
               <button
                 type="submit"
-                className="rounded-xl bg-teal-600 hover:bg-teal-500 px-4 py-2 text-xs font-black text-white transition-colors cursor-pointer shrink-0"
+                className="rounded-xl bg-teal-600 hover:bg-teal-500 px-3 py-1.5 text-xs font-black text-white transition-colors cursor-pointer shrink-0"
               >
-                Scan Manual
+                Scan
               </button>
             </form>
           </div>
         </div>
 
         {/* KOLOM KANAN (5 SPAN): KARTU PROFIL SANTRI TERPAMPANG + LOG TERKINI */}
-        <div className="lg:col-span-5 flex flex-col gap-4 overflow-hidden">
+        <div
+          ref={logsSectionRef}
+          className={`lg:col-span-5 flex flex-col gap-3 sm:gap-4 ${
+            mobileTab === 'camera' ? 'hidden lg:flex' : 'flex'
+          }`}
+        >
           {/* KARTU PROFIL SANTRI TERPAMPANG INSTAN */}
-          <div className="rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/40 border-2 border-teal-500/40 p-5 shadow-xl relative overflow-hidden shrink-0">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+          <div className="rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/40 border-2 border-teal-500/40 p-4 sm:p-5 shadow-xl relative overflow-hidden shrink-0">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-3">
               <span className="text-xs font-black tracking-widest text-teal-400 uppercase flex items-center gap-1.5">
                 <Sparkles size={14} className="text-amber-400" />
                 <span>DATA SANTRI TERDETEKSI</span>
@@ -976,9 +1038,9 @@ export function PrayerKioskScannerModal({
             </div>
 
             {activeStudent ? (
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex flex-row items-center sm:items-start gap-3.5 animate-in fade-in zoom-in-95 duration-200">
                 {/* Foto Profil Santri */}
-                <div className="w-24 h-30 sm:w-28 sm:h-36 rounded-2xl border-2 border-amber-400/80 bg-slate-800 overflow-hidden shadow-lg flex items-center justify-center shrink-0">
+                <div className="w-20 h-24 sm:w-28 sm:h-36 rounded-2xl border-2 border-amber-400/80 bg-slate-800 overflow-hidden shadow-lg flex items-center justify-center shrink-0">
                   {activeStudent.foto ? (
                     <img
                       src={activeStudent.foto}
@@ -987,113 +1049,176 @@ export function PrayerKioskScannerModal({
                     />
                   ) : (
                     <div className="text-center p-2">
-                      <span className="text-4xl">👳‍♂️</span>
+                      <span className="text-3xl sm:text-4xl">👳‍♂️</span>
                     </div>
                   )}
                 </div>
 
                 {/* Biodata Santri */}
-                <div className="flex-1 text-center sm:text-left min-w-0 space-y-1">
+                <div className="flex-1 min-w-0 space-y-1">
                   <span className="inline-flex items-center gap-1 rounded-md bg-teal-500/20 text-teal-300 text-[10px] font-black px-2 py-0.5 uppercase tracking-wider">
                     <CheckCircle2 size={12} className="text-emerald-400" />
                     {activeStudent.statusText}
                   </span>
 
-                  <h2 className="text-lg sm:text-xl font-black text-white uppercase tracking-tight truncate">
+                  <h2 className="text-base sm:text-xl font-black text-white uppercase tracking-tight truncate">
                     {activeStudent.nama}
                   </h2>
 
-                  <div className="text-xs space-y-1 text-slate-300 font-medium">
-                    <p className="font-mono text-amber-300 font-bold">
+                  <div className="text-xs space-y-0.5 text-slate-300 font-medium">
+                    <p className="font-mono text-amber-300 font-bold text-xs">
                       NIS: {activeStudent.nis}
                     </p>
-                    <p className="truncate text-slate-300">
+                    <p className="truncate text-slate-300 text-[11.5px]">
                       Kamar: <span className="text-white font-bold">{activeStudent.kamar}</span> ({activeStudent.komplek})
                     </p>
-                    <p className="flex items-center justify-center sm:justify-start gap-1 text-teal-200 text-xs font-bold pt-1">
-                      <Clock size={13} />
+                    <p className="flex items-center gap-1 text-teal-200 text-xs font-bold pt-0.5">
+                      <Clock size={12} />
                       <span>{activeStudent.waktu} WIB</span>
                     </p>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="py-8 text-center space-y-2">
-                <div className="h-12 w-12 rounded-2xl bg-slate-800 flex items-center justify-center mx-auto text-slate-500">
-                  <UserCheck size={24} />
+              <div className="py-5 sm:py-7 text-center space-y-2">
+                <div className="h-11 w-11 rounded-2xl bg-slate-800 flex items-center justify-center mx-auto text-slate-500">
+                  <UserCheck size={22} />
                 </div>
-                <p className="text-sm font-bold text-slate-400">
+                <p className="text-xs sm:text-sm font-bold text-slate-300">
                   Siap Memindai Kartu Tanda Santri...
                 </p>
-                <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                  Santri cukup mengarahkan barcode KTS ke kamera laptop/HP. Data langsung tercatat dan notifikasi otomatis terkirim ke Aplikasi Wali.
+                <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
+                  Arahkan barcode KTS ke kamera. Presensi otomatis tersimpan realtime ke server yayasan.
                 </p>
               </div>
             )}
           </div>
 
-          {/* RIWAYAT LIVE SCAN SANTRI (20 Terakhir) */}
-          <div className="flex-1 rounded-3xl bg-slate-900/90 border border-slate-800 p-4 flex flex-col overflow-hidden shadow-lg">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+          {/* RIWAYAT LIVE SCAN SANTRI (Dengan Filter Cari & Bebas Scroll Trap) */}
+          <div className="flex-1 rounded-3xl bg-slate-900/90 border border-slate-800 p-3.5 sm:p-4 flex flex-col shadow-lg min-h-[300px] lg:min-h-0">
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-800 shrink-0">
               <h3 className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-2">
                 <span>RIWAYAT SCAN POS INI</span>
-                <span className="rounded-full bg-teal-500/20 text-teal-300 px-2 py-0.2 text-[10px] font-black">
+                <span className="rounded-full bg-teal-500/20 text-teal-300 px-2 py-0.5 text-[10px] font-black">
                   {scanLogs.length} Santri
                 </span>
               </h3>
-              <span className="text-[11px] font-bold text-slate-400">
-                Otomatis Sync ke Server
+              <span className="text-[10.5px] font-bold text-slate-400">
+                Live Sinkron
               </span>
             </div>
 
-            <div className="flex-1 overflow-y-auto q-scrollbar divide-y divide-slate-800/60 pr-1 mt-2">
+            {/* Input Pencarian Cepat di Riwayat Santri */}
+            {scanLogs.length > 0 && (
+              <div className="relative flex items-center my-2 shrink-0">
+                <Search size={13} className="absolute left-3 text-slate-500 pointer-events-none" />
+                <input
+                  type="text"
+                  value={logSearch}
+                  onChange={(e) => setLogSearch(e.target.value)}
+                  placeholder="Cari nama atau NIS di riwayat..."
+                  className="w-full bg-slate-950/80 border border-slate-800 rounded-xl py-1.5 pl-8 pr-7 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-teal-500"
+                />
+                {logSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setLogSearch('')}
+                    className="absolute right-2.5 text-slate-500 hover:text-slate-300 text-xs font-bold"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* List Data Riwayat Santri (Bisa di-scroll mulus) */}
+            <div className="flex-1 overflow-y-auto q-scrollbar divide-y divide-slate-800/60 pr-1 mt-1 touch-pan-y min-h-[220px] max-h-[460px] lg:max-h-none">
               {scanLogs.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-center p-6 text-xs font-medium text-slate-500">
+                <div className="h-full min-h-[140px] flex items-center justify-center text-center p-6 text-xs font-medium text-slate-500">
                   Belum ada santri yang melakukan presensi pada sesi pos ini.
                 </div>
               ) : (
-                scanLogs.map((log) => (
-                  <div key={log.id} className="py-2.5 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-teal-900/40 border border-teal-600/40 flex items-center justify-center shrink-0 text-sm">
-                        {log.foto ? (
-                          <img src={log.foto} alt={log.nama} className="w-full h-full object-cover rounded-lg" />
-                        ) : (
-                          '👳'
-                        )}
+                scanLogs
+                  .filter((log) => {
+                    if (!logSearch.trim()) return true;
+                    const q = logSearch.trim().toLowerCase();
+                    return (
+                      log.nama.toLowerCase().includes(q) ||
+                      log.nis.toLowerCase().includes(q) ||
+                      log.kamar.toLowerCase().includes(q)
+                    );
+                  })
+                  .map((log) => (
+                    <div key={log.id} className="py-2.5 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-teal-900/40 border border-teal-600/40 flex items-center justify-center shrink-0 text-sm">
+                          {log.foto ? (
+                            <img src={log.foto} alt={log.nama} className="w-full h-full object-cover rounded-lg" />
+                          ) : (
+                            '👳'
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-200 truncate uppercase">
+                            {log.nama}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-mono truncate">
+                            NIS: {log.nis} • {log.kamar}
+                          </p>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-slate-200 truncate uppercase">
-                          {log.nama}
-                        </p>
-                        <p className="text-[10px] text-slate-400 font-mono">
-                          NIS: {log.nis} • {log.kamar}
-                        </p>
-                      </div>
-                    </div>
 
-                    <div className="text-right shrink-0">
-                      <span className="inline-block rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9.5px] font-black px-1.5 py-0.5">
-                        {log.waktu}
-                      </span>
+                      <div className="text-right shrink-0">
+                        <span className="inline-block rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-black px-2 py-0.5">
+                          {log.waktu}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  ))
               )}
             </div>
           </div>
         </div>
       </main>
 
-      {/* 3. FOOTER KIOSK STATUS */}
-      <footer className="px-4 py-2 bg-slate-900/90 border-t border-slate-800 text-xs font-medium text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2 shrink-0">
+      {/* 3. FLOATING ACTION BUTTON NAVIGASI DI HP */}
+      <div className="sm:hidden fixed bottom-14 right-3.5 z-40 flex flex-col items-end gap-2 pointer-events-auto">
+        {!isScrolledToLogs && mobileTab !== 'logs' ? (
+          <button
+            type="button"
+            onClick={() => {
+              logsSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+              setIsScrolledToLogs(true);
+            }}
+            className="rounded-full bg-teal-600 hover:bg-teal-500 text-white text-xs font-black px-3.5 py-2 shadow-xl border border-teal-400/50 flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+          >
+            <span>📋 Lihat Riwayat ({scanLogs.length})</span>
+            <span>⬇️</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              mainScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+              setIsScrolledToLogs(false);
+            }}
+            className="rounded-full bg-slate-800 hover:bg-slate-700 text-teal-300 text-xs font-black px-3.5 py-2 shadow-xl border border-slate-600 flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+          >
+            <span>📷 Ke Kamera</span>
+            <span>⬆️</span>
+          </button>
+        )}
+      </div>
+
+      {/* 4. FOOTER KIOSK STATUS */}
+      <footer className="px-4 py-2 bg-slate-900/90 border-t border-slate-800 text-xs font-medium text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-1.5 shrink-0">
         <div className="flex items-center gap-2">
           <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
           <span>Database Lokal: {isLoadingStudents ? 'Sinkronisasi santri...' : `${students.length} Santri Aktif Siap`}</span>
         </div>
 
-        <div className="text-[11px] text-slate-500">
-          💡 Catatan: Notifikasi presensi langsung terkirim ke Aplikasi Wali (PWA) tanpa membebani WhatsApp Gateway.
+        <div className="text-[11px] text-slate-500 truncate max-w-full">
+          💡 Catatan: Notifikasi presensi langsung terkirim ke Aplikasi Wali (PWA) realtime.
         </div>
       </footer>
     </div>,
