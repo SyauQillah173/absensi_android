@@ -25,7 +25,7 @@ class PermissionController extends Controller
         $adminType = strtolower((string) ($user?->admin_type ?? ''));
         $isIt = $user && $user->role === 'admin' && (
             in_array($adminType, ['it', 'superadmin'], true) ||
-            $user->email === 'syauqillah@absensi.com' ||
+            in_array(strtolower($user->email ?? ''), ['syauqillah@admin.com', 'syauqillah@absensi.com'], true) ||
             str_contains(strtolower($user->name), 'syauqillah')
         );
 

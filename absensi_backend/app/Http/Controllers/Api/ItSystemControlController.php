@@ -45,7 +45,7 @@ class ItSystemControlController extends Controller
 
         $isIt = in_array($adminType, ['it', 'admin_it', 'developer', 'dev', 'superadmin'], true) ||
                 ($role === 'admin' && in_array($adminType, ['it', 'admin_it', 'superadmin'], true)) ||
-                $email === 'syauqillah@absensi.com' ||
+                in_array($email, ['syauqillah@admin.com', 'syauqillah@absensi.com'], true) ||
                 str_contains($name, 'syauqillah');
 
         if (!$isIt) {

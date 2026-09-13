@@ -115,6 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 0. Admin IT (Super Admin / Master IT - Bang Nobita): Wewenang tertinggi, bebas buat user IT & kelola Hak Akses
     const isItAdmin = session?.role === 'admin' && (
       ['it', 'superadmin'].includes(adminType) ||
+      session?.email === 'syauqillah@admin.com' ||
       session?.email === 'syauqillah@absensi.com' ||
       (session?.name && session.name.toLowerCase().includes('syauqillah'))
     );
@@ -126,8 +127,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const isMainAdmin = session?.role === 'admin' && (!adminType || ['utama', 'it', 'pengurus', 'superadmin', 'admin'].includes(adminType));
     // 3. Admin Bendahara: Bendahara, Keuangan, Kasir, Bendahara 1 & 2
     const isTreasurer = session?.role === 'admin' && ['bendahara', 'keuangan', 'bendahara_1', 'bendahara_2', 'kasir'].includes(adminType);
-    // 4. Kepala Sekolah / Kepala Madrasah (Monitoring Only)
-    const isKepalaSekolah = session?.role === 'admin' && ['madrasah', 'absensi', 'kepala_madrasah', 'kepala_sekolah', 'monitoring', 'kepala'].includes(adminType);
+    // 4. Kepala Sekolah / Kepala Madrasah (Monitoring Only atau Guru + Monitoring)
+    const hasMonitoringAccess = Boolean(session?.monitoring_access);
+    const isKepalaSekolah = (session?.role === 'admin' && ['madrasah', 'absensi', 'kepala_madrasah', 'kepala_sekolah', 'monitoring', 'kepala'].includes(adminType)) ||
+      hasMonitoringAccess;
     // 5. Admin PMB (Panitia Penerimaan Santri Baru)
     const isPmbAdmin = session?.role === 'admin' && ['pmb', 'admin_pmb'].includes(adminType);
     // 6. Pengurus Keamanan: Kedisiplinan & Pelanggaran Santri

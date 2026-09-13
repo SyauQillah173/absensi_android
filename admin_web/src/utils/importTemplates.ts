@@ -280,7 +280,7 @@ function configFor(type: ImportTemplateType, master: TemplateMasterData): Templa
       hint: 'PETUNJUK: unit_sekolah dan status_sebagai bisa lebih dari satu, pisahkan dengan tanda |.',
       headers: guruHeaders,
       mandatoryHeaders: new Set(['name', 'kode_guru', 'phone', 'email', 'status', 'password']),
-      sampleRows: [["MTs Assa'adah 1|Aliyah Assa'adah", 'Ust. Contoh Guru', 'GRU099', '081234567890', 'gurucontoh@absensi.com', 'L', 'Bungah, Gresik', 'Aktif', 'guru|sertifikasi', passwordHint]],
+      sampleRows: [["MTs Assa'adah 1|Aliyah Assa'adah", 'Ust. Contoh Guru', 'GRU099', '081234567890', 'gurucontoh@guru.com', 'L', 'Bungah, Gresik', 'Aktif', 'guru|sertifikasi', passwordHint]],
       checks: [
         { label: 'cek_jk', sourceHeader: 'jenis_kelamin', masterColumn: 0, required: false },
         { label: 'cek_status', sourceHeader: 'status', masterColumn: 1, required: true }
@@ -295,7 +295,7 @@ function configFor(type: ImportTemplateType, master: TemplateMasterData): Templa
       hint: 'PETUNJUK: Kolom role boleh dikosongi, web akan mengunci sebagai admin saat import.',
       headers: userHeaders,
       mandatoryHeaders: new Set(['name', 'email', 'phone', 'role', 'password', 'status']),
-      sampleRows: [['Admin Baru', 'adminbaru@absensi.com', '081234567890', 'admin', passwordHint, 'Aktif']],
+      sampleRows: [['Admin Baru', 'adminbaru@admin.com', '081234567890', 'admin', passwordHint, 'Aktif']],
       checks: userChecks()
     };
   }
@@ -307,7 +307,7 @@ function configFor(type: ImportTemplateType, master: TemplateMasterData): Templa
       hint: 'PETUNJUK: Kolom role boleh dikosongi, web akan mengunci sebagai wali saat import.',
       headers: userHeaders,
       mandatoryHeaders: new Set(['name', 'email', 'phone', 'role', 'password', 'status']),
-      sampleRows: [['Wali Baru', 'walibaru@absensi.com', '081277788899', 'wali', passwordHint, 'Aktif']],
+      sampleRows: [['Wali Baru', 'walibaru@santri.com', '081277788899', 'wali', passwordHint, 'Aktif']],
       checks: userChecks()
     };
   }
@@ -319,8 +319,8 @@ function configFor(type: ImportTemplateType, master: TemplateMasterData): Templa
     headers: userHeaders,
     mandatoryHeaders: new Set(['name', 'email', 'phone', 'role', 'password', 'status']),
     sampleRows: [
-      ['Admin Baru', 'adminbaru@absensi.com', '081234567890', 'admin', passwordHint, 'Aktif'],
-      ['Wali Baru', 'walibaru@absensi.com', '081277788899', 'wali', passwordHint, 'Aktif']
+      ['Admin Baru', 'adminbaru@admin.com', '081234567890', 'admin', passwordHint, 'Aktif'],
+      ['Wali Baru', 'walibaru@santri.com', '081277788899', 'wali', passwordHint, 'Aktif']
     ],
     checks: userChecks()
   };

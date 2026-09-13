@@ -237,6 +237,7 @@ const menuPermissionKeys: Record<string, string> = {
   guru_menu: "buku_induk",
   akademik_menu: "mata_pelajaran",
   absensi_menu: "absensi",
+  monitoring_madrasah_menu: "absensi",
   absensi: "absensi",
   nilai: "nilai",
   keuangan_menu: "keuangan",
@@ -495,9 +496,41 @@ export function AdminLayout({
       if (guruAbsensiChildren.length > 0) {
         guruMenu.push({
           key: "absensi_menu",
-          label: "Presensi & Absensi",
+          label: "Presensi Mengajar",
           icon: CalendarCheck,
           children: guruAbsensiChildren,
+        });
+      }
+
+      // 🌟 DUAL ROLE KEPALA MADRASAH + GURU (UST. IMAM BASHORI & UST. ABD. WAJID)
+      // Jika ustadz memiliki wewenang Kepala Madrasah -> Munculkan menu Pemantauan Monitoring sesuai wewenangnya
+      if (session?.monitoring_access) {
+        const canMadin = session.monitoring_access.madin ?? true;
+        const canSholat = session.monitoring_access.sholat ?? true;
+        const canNgaji = session.monitoring_access.ngaji ?? true;
+        const monitoringChildren: NonNullable<MenuItem['children']> = [
+          { label: "Log Pemantauan Realtime", page: "absensi", absensiTab: "log-realtime", icon: Activity },
+        ];
+
+        if (canMadin) {
+          monitoringChildren.push({ label: "Rekap Presensi Madin", page: "absensi", absensiTab: "madin", icon: ChartColumn });
+        }
+        if (canSholat) {
+          monitoringChildren.push({ label: "Rekap Presensi Sholat", page: "absensi", absensiTab: "rekap-sholat", icon: TrendingUp });
+        }
+        if (canNgaji) {
+          monitoringChildren.push({ label: "Rekap Presensi Ngaji", page: "absensi", absensiTab: "rekap-ngaji", icon: FileText });
+        }
+
+        const jabatanClean = session.monitoring_access.jabatan
+          ? session.monitoring_access.jabatan.replace(/^kepala\s+/i, '')
+          : 'Madrasah';
+
+        guruMenu.push({
+          key: "monitoring_madrasah_menu",
+          label: `Monitoring ${jabatanClean}`,
+          icon: Activity,
+          children: monitoringChildren,
         });
       }
 

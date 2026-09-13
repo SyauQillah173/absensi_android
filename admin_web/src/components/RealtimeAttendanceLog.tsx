@@ -20,6 +20,7 @@ import { StatusBadge } from './StatusBadge';
 import { api, type ApiRecord } from '../services/api';
 import { exportRowsExcel } from '../utils/importTemplates';
 import { getTodayDateString } from '../utils/formatters';
+import { useAuth } from '../auth/AuthContext';
 
 export interface UnifiedAttendanceLog extends ApiRecord {
   id: string | number;
@@ -99,13 +100,32 @@ function normalizeStatus(status: string): string {
 }
 
 export function RealtimeAttendanceLog() {
+  const { session } = useAuth();
+  const monitoring = session?.monitoring_access;
+  const canMadin = monitoring ? Boolean(monitoring.madin) : true;
+  const canSholat = monitoring ? Boolean(monitoring.sholat) : true;
+  const canNgaji = monitoring ? Boolean(monitoring.ngaji) : true;
+
+  const defaultCategory = useMemo(() => {
+    if (monitoring) {
+      if (canMadin && !canSholat && !canNgaji) return 'Madin';
+      if (!canMadin && canSholat && !canNgaji) return 'Sholat';
+      if (!canMadin && !canSholat && canNgaji) return 'Ngaji';
+    }
+    return 'Semua';
+  }, [monitoring, canMadin, canSholat, canNgaji]);
+
   const [logs, setLogs] = useState<UnifiedAttendanceLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
+  const [selectedCategory, setSelectedCategory] = useState<string>(defaultCategory);
   const [selectedStatus, setSelectedStatus] = useState<string>('Semua');
   const [selectedDate, setSelectedDate] = useState<string>(getTodayDateString());
+
+  useEffect(() => {
+    setSelectedCategory(defaultCategory);
+  }, [defaultCategory]);
 
   const loadData = useCallback(async (silent = false) => {
     if (!silent) {
@@ -226,6 +246,13 @@ export function RealtimeAttendanceLog() {
 
   const filteredLogs = useMemo(() => {
     return logs.filter((item) => {
+      // Pembatasan izin: jangan tampilkan data di luar wewenang monitoring ustadz
+      if (monitoring) {
+        if (!canMadin && item.kategori === 'Madin') return false;
+        if (!canSholat && item.kategori === 'Sholat') return false;
+        if (!canNgaji && item.kategori === 'Ngaji') return false;
+      }
+
       const matchCat = selectedCategory === 'Semua' || item.kategori === selectedCategory;
       const matchStat = selectedStatus === 'Semua' || item.status === selectedStatus;
       if (!matchCat || !matchStat) return false;
@@ -240,7 +267,7 @@ export function RealtimeAttendanceLog() {
         item.pengabsen.toLowerCase().includes(q)
       );
     });
-  }, [logs, selectedCategory, selectedStatus, search]);
+  }, [logs, selectedCategory, selectedStatus, search, monitoring, canMadin, canSholat, canNgaji]);
 
   const stats = useMemo(() => {
     const total = filteredLogs.length;
@@ -435,10 +462,12 @@ export function RealtimeAttendanceLog() {
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
               >
-                <option value="Semua">Semua Kategori</option>
-                <option value="Madin">Madin / Diniyah</option>
-                <option value="Sholat">Jama'ah Sholat</option>
-                <option value="Ngaji">Ngaji Kitab</option>
+                {(!monitoring || ((canMadin ? 1 : 0) + (canSholat ? 1 : 0) + (canNgaji ? 1 : 0) > 1)) && (
+                  <option value="Semua">Semua Kategori</option>
+                )}
+                {canMadin && <option value="Madin">Madin / Diniyah</option>}
+                {canSholat && <option value="Sholat">Jama'ah Sholat</option>}
+                {canNgaji && <option value="Ngaji">Ngaji Kitab</option>}
               </select>
             </div>
 

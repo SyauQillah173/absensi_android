@@ -50,6 +50,23 @@ class DashboardController extends Controller
         }
 
         if ($actor && $actor->role === 'guru') {
+            if ($request->query('view') === 'monitoring') {
+                $kmAccess = \App\Models\KepalaMadrasahAccess::where('user_id', $actor->id)
+                    ->where('is_active', true)
+                    ->first();
+                if ($kmAccess) {
+                    $dashboardData = Cache::remember("monitoring_dashboard_{$actor->id}_{$today}", 30, fn () => $this->buildAdminDashboard($today));
+                    $res = $this->withPermissions($dashboardData, $actor);
+                    $res['monitoring_access'] = [
+                        'madin' => (bool) $kmAccess->can_monitor_madin,
+                        'sholat' => (bool) $kmAccess->can_monitor_sholat,
+                        'ngaji' => (bool) $kmAccess->can_monitor_ngaji,
+                        'jabatan' => $kmAccess->jabatan,
+                    ];
+                    return response()->json($res);
+                }
+            }
+
             $guruData = Cache::remember("guru_dashboard_{$actor->id}_{$today}", 30, fn () => $this->buildGuruDashboard($actor, $today));
             return response()->json($this->withPermissions($guruData, $actor));
         }
@@ -585,6 +602,15 @@ class DashboardController extends Controller
             ],
             'absensi_sholat' => $canSholat ? $this->buildGuruPrayerSummary($guru, $today) : null,
             'absensi_ngaji' => $canNgaji ? $this->buildGuruNgajiSummary($guru, $today) : null,
+            'monitoring_access' => (function () use ($guru) {
+                $km = \App\Models\KepalaMadrasahAccess::where('user_id', $guru->id)->where('is_active', true)->first();
+                return $km ? [
+                    'madin' => (bool) $km->can_monitor_madin,
+                    'sholat' => (bool) $km->can_monitor_sholat,
+                    'ngaji' => (bool) $km->can_monitor_ngaji,
+                    'jabatan' => $km->jabatan,
+                ] : null;
+            })(),
         ];
     }
 

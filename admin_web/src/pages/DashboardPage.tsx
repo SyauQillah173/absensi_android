@@ -1,4 +1,5 @@
 import {
+  Activity,
   BookMarked,
   BookOpen,
   BookOpenCheck,
@@ -153,6 +154,7 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance, onNavigateFinan
   const [payments, setPayments] = useState<ApiRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [guruViewMode, setGuruViewMode] = useState<'kbm' | 'monitoring'>('kbm');
 
   const load = useCallback(async (silent = false) => {
     if (!silent) {
@@ -160,8 +162,9 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance, onNavigateFinan
       setIsLoading(true);
     }
     try {
+      const isGuruDualRole = session?.role === 'guru' && Boolean(session?.monitoring_access);
       const [dashboardResult, paymentResult] = await Promise.all([
-        api.dashboard(),
+        api.dashboard(isGuruDualRole ? { view: 'monitoring' } : undefined),
         api.paymentToday().catch(() => ({ success: true, data: [] }))
       ]);
       setDashboard(dashboardResult);
@@ -175,7 +178,7 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance, onNavigateFinan
         setIsLoading(false);
       }
     }
-  }, [session?.id]);
+  }, [session?.id, session?.role, session?.monitoring_access]);
 
   useEffect(() => {
     void load();
@@ -337,23 +340,88 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance, onNavigateFinan
 
 
   if (session?.role === 'guru' || dashboard?.role === 'guru') {
+    const hasMonitoring = Boolean(session?.monitoring_access);
+    const jabatanClean = session?.monitoring_access?.jabatan
+      ? session.monitoring_access.jabatan.replace(/^kepala\s+/i, '')
+      : 'Madrasah';
+
     return (
       <div className="q-page-enter space-y-6">
-        <GuruDashboardView
-          session={session}
-          onNavigateToMadin={(target) => {
-            if (target) {
-              onOpenAttendance({
-                tab: 'madin-input',
-                classId: target.classId,
-                mapelId: target.mapelId,
-                jadwalId: target.jadwalId
-              });
-            } else {
-              onOpenAttendance({ tab: 'madin-input' });
-            }
-          }}
-        />
+        {hasMonitoring && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-gradient-to-r from-teal-900 via-[#138F81] to-emerald-800 rounded-3xl text-white shadow-md">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/30">
+                <GraduationCap className="w-5 h-5 text-amber-300" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400 text-teal-950">
+                    Dual Role Akun
+                  </span>
+                  <span className="text-xs text-teal-100 font-medium">
+                    {session?.monitoring_access?.jabatan || 'Kepala Madrasah'}
+                  </span>
+                </div>
+                <h3 className="text-sm sm:text-base font-black tracking-tight">
+                  Panel Terpadu Guru & Pemantauan {jabatanClean}
+                </h3>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 p-1 bg-black/25 backdrop-blur-md rounded-2xl border border-white/10 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setGuruViewMode('kbm')}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black transition-all ${
+                  guruViewMode === 'kbm'
+                    ? 'bg-white text-teal-900 shadow-sm'
+                    : 'text-teal-100 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <BookOpenCheck className="w-3.5 h-3.5" />
+                Presensi & KBM Mengajar
+              </button>
+              <button
+                type="button"
+                onClick={() => setGuruViewMode('monitoring')}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black transition-all ${
+                  guruViewMode === 'monitoring'
+                    ? 'bg-amber-400 text-teal-950 shadow-sm'
+                    : 'text-teal-100 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Activity className="w-3.5 h-3.5" />
+                Panel Monitoring {jabatanClean}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {hasMonitoring && guruViewMode === 'monitoring' ? (
+          <KepalaSekolahDashboardView
+            session={session}
+            dashboard={dashboard}
+            isLoading={isLoading}
+            onRefresh={() => void load()}
+            onOpenAttendance={onOpenAttendance}
+          />
+        ) : (
+          <GuruDashboardView
+            session={session}
+            onNavigateToMadin={(target) => {
+              if (target) {
+                onOpenAttendance({
+                  tab: 'madin-input',
+                  classId: target.classId,
+                  mapelId: target.mapelId,
+                  jadwalId: target.jadwalId
+                });
+              } else {
+                onOpenAttendance({ tab: 'madin-input' });
+              }
+            }}
+          />
+        )}
       </div>
     );
   }

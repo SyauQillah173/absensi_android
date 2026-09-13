@@ -62,7 +62,7 @@ class PmbController extends Controller
 
         $adminType = strtolower((string) ($user->admin_type ?? ''));
         $isIt = in_array($adminType, ['it', 'superadmin'], true) ||
-            $user->email === 'syauqillah@absensi.com' ||
+            in_array(strtolower($user->email ?? ''), ['syauqillah@admin.com', 'syauqillah@absensi.com'], true) ||
             str_contains(strtolower($user->name ?? ''), 'syauqillah');
 
         if ($isIt) {
@@ -88,7 +88,7 @@ class PmbController extends Controller
         $user = $request->user();
         $adminType = strtolower((string) ($user->admin_type ?? ''));
         $isIt = in_array($adminType, ['it', 'superadmin'], true) ||
-            $user->email === 'syauqillah@absensi.com' ||
+            in_array(strtolower($user->email ?? ''), ['syauqillah@admin.com', 'syauqillah@absensi.com'], true) ||
             str_contains(strtolower($user->name ?? ''), 'syauqillah');
 
         if (!$isIt) {
@@ -913,7 +913,7 @@ class PmbController extends Controller
             $waliUser = null;
             $createWali = $validated['create_wali_user'] ?? true;
             if ($createWali) {
-                $waliEmail = 'wali_' . strtolower($nis) . '@absensi.local';
+                $waliEmail = 'wali_' . strtolower($nis) . '@santri.com';
                 $defaultPass = 'siswa123';
 
                 $waliUser = User::firstOrCreate(

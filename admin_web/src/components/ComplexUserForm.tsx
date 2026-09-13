@@ -101,10 +101,16 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
     const name = String(form.name || '').trim().toLowerCase();
     if (!name) return;
     const cleanName = name
-      .replace(/^(mas|bapak|pak|ibu|ustadz|ustadzah|h\.|hj\.)\s+/i, '')
+      .replace(/^(mas|bapak|pak|ibu|ustadz|ustadzah|ust\.|h\.|hj\.)\s+/i, '')
       .replace(/[^a-z0-9]/g, '');
     if (cleanName) {
-      setForm(prev => ({ ...prev, email: `${cleanName}@absensi.com` }));
+      let domain = 'admin.com';
+      if (form.role === 'guru') {
+        domain = 'guru.com';
+      } else if (form.role === 'wali' || form.role === 'santri') {
+        domain = 'santri.com';
+      }
+      setForm(prev => ({ ...prev, email: `${cleanName}@${domain}` }));
     }
   };
 
@@ -284,7 +290,22 @@ export function ComplexUserForm({ initialData, readOnly = false, forcedRole, onC
                             </button>
                           )}
                         </div>
-                        <input type="text" className="q-input" name="email" value={String(form.email || '')} onChange={handleChange} required disabled={readOnly} placeholder="contoh: fahmi@absensi.com" />
+                        <input
+                          type="text"
+                          className="q-input"
+                          name="email"
+                          value={String(form.email || '')}
+                          onChange={handleChange}
+                          required
+                          disabled={readOnly}
+                          placeholder={
+                            form.role === 'guru'
+                              ? 'contoh: nama@guru.com'
+                              : form.role === 'wali' || form.role === 'santri'
+                              ? 'contoh: nama@santri.com'
+                              : 'contoh: nama@admin.com'
+                          }
+                        />
                       </label>
                       <label className="block">
                         <span className="mb-2 block text-sm font-bold text-[#636E72]">Nomor WhatsApp / HP</span>

@@ -186,7 +186,16 @@ export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabC
 
   const [activeTab, setActiveTab] = useState<AbsensiTab>(() => {
     if (initialTarget?.tab) return initialTarget.tab;
-    if (isGuru) return resolveDefaultGuruTab();
+    if (isGuru) {
+      if (['madin-input', 'sholat', 'ngaji'].includes(initialTab)) return initialTab;
+      if (monitoringAccess) {
+        if ((initialTab === 'madin' || initialTab === 'rekap-madin') && canMadin) return 'madin';
+        if (initialTab === 'rekap-sholat' && canSholat) return 'rekap-sholat';
+        if (initialTab === 'rekap-ngaji' && canNgaji) return 'rekap-ngaji';
+        if (initialTab === 'log-realtime') return 'log-realtime';
+      }
+      return resolveDefaultGuruTab();
+    }
     if (isKepalaSekolah) {
       if (initialTab === 'madin' && canMadin) return 'madin';
       if (initialTab === 'rekap-sholat' && canSholat) return 'rekap-sholat';
@@ -208,6 +217,18 @@ export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabC
       if (isGuru) {
         if (['madin-input', 'sholat', 'ngaji'].includes(initialTab)) {
           setActiveTab(initialTab);
+        } else if (monitoringAccess) {
+          if ((initialTab === 'madin' || initialTab === 'rekap-madin') && canMadin) {
+            setActiveTab('madin');
+          } else if (initialTab === 'rekap-sholat' && canSholat) {
+            setActiveTab('rekap-sholat');
+          } else if (initialTab === 'rekap-ngaji' && canNgaji) {
+            setActiveTab('rekap-ngaji');
+          } else if (initialTab === 'log-realtime') {
+            setActiveTab('log-realtime');
+          } else {
+            setActiveTab(resolveDefaultGuruTab());
+          }
         } else {
           setActiveTab(resolveDefaultGuruTab());
         }
@@ -227,7 +248,7 @@ export function AbsensiPage({ initialTab = 'log-realtime', initialTarget, onTabC
         setActiveTab(initialTab);
       }
     }
-  }, [canMadin, canNgaji, canSholat, initialTab, initialTarget, isGuru, isKepalaSekolah, resolveDefaultGuruTab, resolveDefaultKepalaTab]);
+  }, [canMadin, canNgaji, canSholat, initialTab, initialTarget, isGuru, isKepalaSekolah, monitoringAccess, resolveDefaultGuruTab, resolveDefaultKepalaTab]);
 
   const currentTab = activeTab === 'rekap-madin' ? 'madin' : activeTab;
 

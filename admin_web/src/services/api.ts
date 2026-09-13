@@ -590,8 +590,9 @@ export const api = {
   changePassword(data: { identifier: string; current_password: string; new_password: string; new_password_confirmation: string }) {
     return request<ApiRecord>('/change-password', { method: 'POST', body: JSON.stringify(data) });
   },
-  dashboard() {
-    return request<ApiRecord>('/dashboard');
+  dashboard(params?: { view?: string }) {
+    const q = params?.view ? `?view=${encodeURIComponent(params.view)}` : '';
+    return request<ApiRecord>(`/dashboard${q}`);
   },
   notifications() {
     return request<ApiRecord[]>('/notifications');

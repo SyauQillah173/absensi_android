@@ -23,6 +23,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('siswa') && DB::table('siswa')->count() >= 500) {
+            return;
+        }
+
         $jsonPath = database_path('data/santri_qomaruddin_real.json');
         if (!file_exists($jsonPath)) {
             return;
