@@ -31,6 +31,7 @@ import {
 import { api, type ApiRecord } from '../services/api';
 import { formatMoney, MoneyText } from './MoneyText';
 import { ModalForm } from './ModalForm';
+import { ComplexIncomeForm } from './ComplexIncomeForm';
 
 interface PemasukanLainPanelProps {
   rows: ApiRecord[];
@@ -398,6 +399,22 @@ export function PemasukanLainPanel({
     } finally {
       setIsDeleting(false);
     }
+  }
+
+  // JIKA EDITING PEMASUKAN DIBUKA, TAMPILKAN IN-PAGE FORM KONSISTEN SEPERTI MASTER DATA
+  if (editingRow !== null) {
+    return (
+      <ComplexIncomeForm
+        row={editingRow}
+        existingCategories={existingCategories}
+        onClose={() => setEditingRow(null)}
+        onSaved={async () => {
+          await onReload();
+          setEditingRow(null);
+          showToast('✅ Catatan pemasukan kas berhasil diperbarui!', 'success');
+        }}
+      />
+    );
   }
 
   return (
@@ -1082,20 +1099,6 @@ export function PemasukanLainPanel({
           </div>
         </div>
 
-      {/* 3. EDIT INCOME MODAL */}
-      {editingRow && (
-        <EditIncomeModal
-          row={editingRow}
-          onClose={() => setEditingRow(null)}
-          onSaved={async () => {
-            await onReload();
-            setEditingRow(null);
-            showToast('✅ Catatan pemasukan kas berhasil diperbarui!', 'success');
-          }}
-          existingCategories={existingCategories}
-        />
-      )}
-
       {/* 4. KWITANSI / BUKTI KAS MASUK MODAL */}
       {receiptRow && (
         <IncomeReceiptModal
@@ -1175,132 +1178,6 @@ export function PemasukanLainPanel({
         </ModalForm>
       )}
     </div>
-  );
-}
-
-// ==========================================
-// SUBCOMPONENT: EDIT INCOME MODAL
-// ==========================================
-function EditIncomeModal({
-  row,
-  onClose,
-  onSaved,
-  existingCategories,
-}: {
-  row: ApiRecord;
-  onClose: () => void;
-  onSaved: () => Promise<void>;
-  existingCategories: string[];
-}) {
-  const [judul, setJudul] = useState(str(row.judul, ''));
-  const [jumlah, setJumlah] = useState(String(row.jumlah ?? '0'));
-  const [tanggal, setTanggal] = useState(str(row.tanggal, new Date().toISOString().split('T')[0]));
-  const [kategori, setKategori] = useState(str(row.kategori, 'Infaq & Shodaqoh'));
-  const [sumberDana, setSumberDana] = useState(str(row.sumber_dana, 'Kas Tunai Bendahara'));
-  const [diterimaDari, setDiterimaDari] = useState(str(row.diterima_dari, ''));
-  const [keterangan, setKeterangan] = useState(str(row.keterangan, ''));
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSaving(true);
-    setError('');
-    try {
-      const payload = {
-        judul: judul.trim(),
-        jumlah: num(jumlah),
-        tanggal,
-        kategori,
-        sumber_dana: sumberDana,
-        diterima_dari: diterimaDari.trim() || null,
-        keterangan: keterangan.trim() || null,
-      };
-
-      await api.updatePemasukanLain(num(row.id), payload);
-      await onSaved();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Data pemasukan kas gagal diperbarui');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <ModalForm
-      title="Edit Catatan Pemasukan Kas"
-      onClose={onClose}
-      footer={
-        <div className="flex gap-2">
-          <button type="button" onClick={onClose} className="rounded-2xl bg-gray-100 px-4 py-2.5 text-xs font-bold text-gray-700">
-            Batal
-          </button>
-          <button
-            type="submit"
-            form="edit-pemasukan-form"
-            disabled={saving}
-            className="flex items-center gap-1.5 rounded-2xl bg-emerald-600 px-5 py-2.5 text-xs font-extrabold text-white hover:bg-emerald-700 disabled:opacity-50"
-          >
-            {saving ? <RefreshCw className="animate-spin" size={14} /> : <Check size={14} />}
-            {saving ? 'Menyimpan...' : 'Perbarui Pemasukan'}
-          </button>
-        </div>
-      }
-    >
-      <form id="edit-pemasukan-form" className="space-y-3.5" onSubmit={submit}>
-        <div>
-          <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Tanggal</label>
-          <input type="date" className="q-input font-bold" value={tanggal} onChange={(e) => setTanggal(e.target.value)} required />
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Judul / Uraian Kas Masuk</label>
-          <input type="text" className="q-input font-bold" value={judul} onChange={(e) => setJudul(e.target.value)} required />
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Nominal (Rp)</label>
-          <input
-            type="text"
-            className="q-input font-black text-emerald-600"
-            value={jumlah ? formatMoney(num(jumlah)).replace('Rp ', '') : ''}
-            onChange={(e) => setJumlah(e.target.value.replace(/\D/g, ''))}
-            required
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-2.5">
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Kategori</label>
-            <select className="q-input font-bold" value={kategori} onChange={(e) => setKategori(e.target.value)}>
-              {existingCategories.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Sumber Dana / Rekening</label>
-            <select className="q-input font-bold" value={sumberDana} onChange={(e) => setSumberDana(e.target.value)}>
-              {FUND_SOURCES.map((f) => (
-                <option key={f.id} value={f.id}>{f.id}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Diterima Dari / Donatur</label>
-          <input type="text" className="q-input font-medium" value={diterimaDari} onChange={(e) => setDiterimaDari(e.target.value)} />
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Catatan Tambahan</label>
-          <textarea className="q-input min-h-16 text-xs font-medium" value={keterangan} onChange={(e) => setKeterangan(e.target.value)} />
-        </div>
-
-        {error && <div className="rounded-2xl bg-rose-50 border border-rose-200 p-3 text-xs font-bold text-rose-700">{error}</div>}
-      </form>
-    </ModalForm>
   );
 }
 

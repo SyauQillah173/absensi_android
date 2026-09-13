@@ -1468,6 +1468,17 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  updatePelanggaranKategori(id: number, payload: ApiRecord) {
+    return request<ApiRecord>(`/pelanggaran/kategori/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+  deletePelanggaranKategori(id: number) {
+    return request<ApiRecord>(`/pelanggaran/kategori/${id}`, {
+      method: 'DELETE',
+    });
+  },
   getPelanggaranSettings() {
     return request<ApiRecord>('/pelanggaran/settings');
   },
