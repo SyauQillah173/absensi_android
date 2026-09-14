@@ -63,7 +63,7 @@ class SendWhatsAppMessageJob implements ShouldQueue
             'metadata' => array_merge($log->metadata ?? [], ['last_response' => $response]),
         ])->save();
 
-        if ($shouldRetry) {
+        if ($shouldRetry && $this->job) {
             $this->release(60);
         }
     }

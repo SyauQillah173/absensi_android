@@ -131,8 +131,13 @@ class WhatsAppNotificationService
         );
     }
 
-    public function queueManual(string $phoneNumber, string $message, ?int $createdBy = null): WhatsAppMessageLog
-    {
+    public function queueManual(
+        string $phoneNumber,
+        string $message,
+        ?int $createdBy = null,
+        string $module = 'pmb',
+        string $eventType = 'pmb_registration'
+    ): ?WhatsAppMessageLog {
         if (!Schema::hasTable('whatsapp_message_logs')) {
             throw new \RuntimeException('Tabel log WhatsApp belum tersedia. Jalankan migration terlebih dahulu.');
         }
@@ -140,8 +145,8 @@ class WhatsAppNotificationService
         $normalized = $this->phoneResolver->normalize($phoneNumber);
         $log = WhatsAppMessageLog::query()->create([
             'message_id' => (string) Str::uuid(),
-            'module' => 'manual',
-            'event_type' => 'manual',
+            'module' => $module,
+            'event_type' => $eventType,
             'phone_number' => $normalized ?: $phoneNumber,
             'message' => $message,
             'status' => $normalized ? 'pending' : 'failed',
@@ -241,10 +246,19 @@ class WhatsAppNotificationService
 
     private function dispatchLog(WhatsAppMessageLog $log): void
     {
-        if (config('queue.default') === 'sync' && !config('services.whatsapp_bot.dispatch_when_sync_queue')) {
-            return;
+        try {
+            // Eksekusi langsung (Sync) agar notifikasi PMB & WA langsung terkirim seketika tanpa perlu queue:work terpisah
+            SendWhatsAppMessageJob::dispatchSync($log->id);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Gagal mengirim WhatsApp log {$log->id} via sync, mencoba antrian queue: " . $e->getMessage());
+            try {
+                SendWhatsAppMessageJob::dispatch($log->id);
+            } catch (\Throwable $err) {
+                $log->forceFill([
+                    'status' => 'failed',
+                    'error_message' => $e->getMessage(),
+                ])->save();
+            }
         }
-
-        SendWhatsAppMessageJob::dispatch($log->id);
     }
 }

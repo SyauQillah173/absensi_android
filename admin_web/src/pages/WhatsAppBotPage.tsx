@@ -1042,13 +1042,17 @@ export function WhatsAppBotPage() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-right whitespace-nowrap">
-                          {isFailed ? (
+                          {isFailed || isPending ? (
                             <button
                               type="button"
                               onClick={() => handleRetryMessage(Number(m.id))}
-                              className="rounded-xl bg-slate-100 hover:bg-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700 transition cursor-pointer"
+                              className={`rounded-xl px-2.5 py-1 text-[11px] font-bold transition cursor-pointer ${
+                                isPending
+                                  ? 'bg-teal-50 hover:bg-teal-100 text-[#138F81] border border-teal-200'
+                                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                              }`}
                             >
-                              Kirim Ulang
+                              {isPending ? 'Kirim Sekarang' : 'Kirim Ulang'}
                             </button>
                           ) : (
                             <span className="text-slate-300">-</span>
