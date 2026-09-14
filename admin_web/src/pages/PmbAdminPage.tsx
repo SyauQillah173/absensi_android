@@ -221,6 +221,37 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
   // Toast
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // Delete PMB Registration state
+  const [deletingRegistrationId, setDeletingRegistrationId] = useState<number | null>(null);
+
+  const handleDeleteRegistration = async (item: RegistrationItem) => {
+    const confirmDelete = window.confirm(
+      `HAPUS PENDAFTAR SANTRI BARU?\n\n` +
+      `Apakah Anda yakin ingin menghapus data calon santri ${item.nama_lengkap} (${item.registration_number})?\n\n` +
+      `PERHATIAN:\n` +
+      `• Akun login pengguna & kredensial akan dihapus permanen.\n` +
+      `• Seluruh berkas foto, KK, dan bukti transfer di storage akan dihapus.\n` +
+      `• Data pendaftaran tidak dapat dikembalikan.\n\n` +
+      `Klik OK untuk menghapus.`
+    );
+    if (!confirmDelete) return;
+
+    try {
+      setDeletingRegistrationId(item.id);
+      await api.deletePmbRegistration(item.id);
+      showToast(`Data pendaftar ${item.nama_lengkap} (${item.registration_number}) berhasil dihapus.`);
+      if (detailItem?.id === item.id) {
+        setDetailItem(null);
+      }
+      loadRegistrations();
+      loadDashboard();
+    } catch (err: any) {
+      showToast(err?.message || 'Gagal menghapus data pendaftar.', 'error');
+    } finally {
+      setDeletingRegistrationId(null);
+    }
+  };
+
   useEffect(() => {
     if (initialTab) setActiveTab(initialTab);
   }, [initialTab]);
@@ -977,6 +1008,20 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
                                   <span>ACC Santri</span>
                                 </button>
                               )}
+
+                              {/* Tombol Hapus Pendaftar PMB */}
+                              <button
+                                onClick={() => handleDeleteRegistration(item)}
+                                disabled={deletingRegistrationId === item.id}
+                                className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors cursor-pointer disabled:opacity-50"
+                                title="Hapus Data Pendaftar, Berkas & Akun Login"
+                              >
+                                {deletingRegistrationId === item.id ? (
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                )}
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1511,7 +1556,21 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3">
+            <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => detailItem && handleDeleteRegistration(detailItem)}
+                disabled={deletingRegistrationId === detailItem?.id}
+                className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold border border-rose-200 flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {deletingRegistrationId === detailItem?.id ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>Hapus Pendaftar Ini</span>
+              </button>
+
               <button
                 onClick={() => setDetailItem(null)}
                 className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#2D3436] text-xs font-bold cursor-pointer"

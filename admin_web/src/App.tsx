@@ -27,6 +27,7 @@ const WaliPortalPage = lazy(() => import('./pages/WaliPortalPage').then((m) => (
 const PetugasAnggaranPortalPage = lazy(() => import('./pages/PetugasAnggaranPortalPage').then((m) => ({ default: m.PetugasAnggaranPortalPage })));
 const PmbAdminPage = lazy(() => import('./pages/PmbAdminPage').then((m) => ({ default: m.PmbAdminPage })));
 const PublicPmbLandingPage = lazy(() => import('./pages/PublicPmbLandingPage').then((m) => ({ default: m.PublicPmbLandingPage })));
+const PmbApplicantPortalPage = lazy(() => import('./pages/PmbApplicantPortalPage'));
 
 function PageLoader() {
   return (
@@ -150,6 +151,20 @@ function AdminShell() {
     return (
       <Suspense fallback={<PageLoader />}>
         <LoginPage onOpenPmb={handleOpenPmb} />
+      </Suspense>
+    );
+  }
+
+  // 3. Khusus Pendaftar PMB yang Login (Username/NIS: PMB-2026-xxxx)
+  // Tampilkan Portal Calon Santri PMB khusus, bukan Portal Wali Siswa Aktif
+  const isPmbApplicant =
+    String(session?.nis || '').toUpperCase().startsWith('PMB-') ||
+    String(session?.email || '').toLowerCase().includes('@pmb.');
+
+  if (isPmbApplicant) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <PmbApplicantPortalPage session={session} />
       </Suspense>
     );
   }

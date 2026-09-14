@@ -49,6 +49,18 @@ class PmbController extends Controller
     }
 
     /**
+     * Dapatkan URL Portal PMB Resmi Publik (Menolak localhost, selalu gunakan domain resmi)
+     */
+    private function getPmbPortalUrl(): string
+    {
+        $url = env('FRONTEND_URL') ?: config('app.url');
+        if (empty($url) || str_contains($url, 'localhost') || str_contains($url, '127.0.0.1')) {
+            $url = 'https://ppqomaruddin.itqom.net';
+        }
+        return rtrim($url, '/') . '/?pmb=1';
+    }
+
+    /**
      * 🛡️ Pastikan pengguna memiliki wewenang mengakses modul PMB.
      * Khusus Admin IT selalu memiliki akses penuh 100%.
      * Admin non-IT (seperti Pengurus) hanya diizinkan jika pmb_visible_to_pengurus bernilai true.
@@ -331,9 +343,9 @@ class PmbController extends Controller
         $randomPassword = 'QMR' . mt_rand(1000, 9999);
         $waliEmail = strtolower($regNumber) . '@pmb.qomaruddin.ponpes.id';
 
-        // Buat Akun Login Pengguna (Role: Wali)
+        // Buat Akun Login Pengguna (Role: Wali - Khusus Calon Santri Pendaftar)
         $user = User::create([
-            'name' => $validated['nama_wali'] ?? ($validated['nama_ayah'] ?? $validated['nama_lengkap']),
+            'name' => trim($validated['nama_lengkap']),
             'email' => $waliEmail,
             'nis' => $regNumber,
             'no_hp' => trim($validated['no_whatsapp_wali']),
@@ -385,7 +397,7 @@ class PmbController extends Controller
         ]);
 
         // Kirim Notifikasi Otomatis WhatsApp ke Nomor Wali Santri
-        $portalUrl = rtrim(config('app.url') ?: 'https://ppqomaruddin.itqom.net', '/') . '/?pmb=1';
+        $portalUrl = $this->getPmbPortalUrl();
         $waMessage = "*PENERIMAAN SANTRI BARU (PMB)*\n"
             . "*PONDOK PESANTREN QOMARUDDIN*\n"
             . "_Sampurnan, Bungah, Gresik, Jawa Timur (Sejak 1775 M)_\n"
@@ -516,6 +528,84 @@ class PmbController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => $results,
+        ]);
+    }
+
+    /**
+     * [PORTAL PENDAFTAR] Dapatkan Data Registrasi Calon Santri Sendiri
+     */
+    public function myApplicantRegistration(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $registration = PmbRegistration::with(['batch', 'siswa:id,nis,nama,kelas,kamar'])
+            ->where(function ($q) use ($user) {
+                if ($user->id) {
+                    $q->where('user_id', $user->id);
+                }
+                if ($user->nis) {
+                    $q->orWhere('registration_number', $user->nis);
+                }
+                if (!empty($user->no_hp)) {
+                    $q->orWhere('no_whatsapp_wali', $user->no_hp);
+                }
+            })
+            ->latest('id')
+            ->first();
+
+        if (!$registration) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Data pendaftaran PMB tidak ditemukan untuk akun login ini.',
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $registration,
+        ]);
+    }
+
+    /**
+     * [PORTAL PENDAFTAR] Upload Berkas Kelengkapan Calon Santri (Foto, KK, Ijazah, Bukti Bayar)
+     */
+    public function applicantUploadDocument(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $registration = PmbRegistration::where(function ($q) use ($user) {
+            if ($user->id) {
+                $q->where('user_id', $user->id);
+            }
+            if ($user->nis) {
+                $q->orWhere('registration_number', $user->nis);
+            }
+            if (!empty($user->no_hp)) {
+                $q->orWhere('no_whatsapp_wali', $user->no_hp);
+            }
+        })
+        ->latest('id')
+        ->firstOrFail();
+
+        $validated = $request->validate([
+            'type' => 'required|in:dokumen_foto,dokumen_kk,dokumen_ijazah,dokumen_bukti_bayar',
+            'file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ]);
+
+        $type = $validated['type'];
+        $file = $request->file('file');
+        $path = $file->store('pmb_dokumen', 'public');
+        $publicUrl = '/storage/' . $path;
+
+        $updateData = [$type => $publicUrl];
+        if ($type === 'dokumen_bukti_bayar' && $registration->payment_status === 'pending') {
+            $updateData['payment_notes'] = 'Bukti bayar telah diunggah oleh pendaftar. Menunggu verifikasi bendahara.';
+        }
+
+        $registration->update($updateData);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Berkas berhasil diunggah.',
+            'data' => $registration->fresh(['batch', 'siswa:id,nis,nama,kelas,kamar']),
         ]);
     }
 
@@ -670,7 +760,7 @@ class PmbController extends Controller
 
         // Kirim WhatsApp Audit / Instruksi Pelunasan jika diminta
         if (!empty($validated['send_wa']) && !empty($registration->no_whatsapp_wali)) {
-            $portalUrl = rtrim(config('app.url') ?: 'https://ppqomaruddin.itqom.net', '/') . '/?pmb=1';
+            $portalUrl = $this->getPmbPortalUrl();
             $statusLabel = match($registration->status) {
                 'reviewed' => 'SEDANG DIAUDIT / PERLU TINDAK LANJUT',
                 'accepted' => 'DITERIMA (ACC)',
@@ -816,7 +906,7 @@ class PmbController extends Controller
             }
         }
 
-        $portalUrl = rtrim(config('app.url') ?: 'https://ppqomaruddin.itqom.net', '/') . '/?pmb=1';
+        $portalUrl = $this->getPmbPortalUrl();
         $waMessage = "*PENERIMAAN SANTRI BARU (PMB)*\n"
             . "*PONDOK PESANTREN QOMARUDDIN*\n"
             . "_Sampurnan, Bungah, Gresik, Jawa Timur (Sejak 1775 M)_\n"
@@ -1010,7 +1100,7 @@ class PmbController extends Controller
             ]);
 
             // 8. Kirim Notifikasi WhatsApp Resmi Penerimaan / Kelulusan PMB ke Wali Santri
-            $portalUrl = rtrim(config('app.url') ?: 'https://ppqomaruddin.itqom.net', '/') . '/?pmb=1';
+            $portalUrl = $this->getPmbPortalUrl();
             $agendaInfo = PmbCmsSetting::getValue('agenda_kedatangan_info', 'Santri baru wajib diantar ke pondok sesuai kalender pesantren dan membawa berkas administrasi fisik.');
             
             $waAcceptMsg = "*PENGUMUMAN RESMI KELULUSAN & PENERIMAAN PMB*\n"
@@ -1026,6 +1116,11 @@ class PmbController extends Controller
                 . ($className ? "📚 *Kelas Madin*     : {$className}\n" : "")
                 . ($roomName ? "🏠 *Kamar / Asrama*  : {$roomName} ({$komplekName})\n" : "")
                 . "📅 *Tahun Masuk*     : {$batchTahun}\n\n"
+                . "🔐 *AKUN LOGIN RESMI PORTAL WALI SANTRI*:\n"
+                . "• Username / NIS: *{$nis}*\n"
+                . "• Password Default: *siswa123*\n"
+                . "• Link Login Portal: *https://ppqomaruddin.itqom.net*\n"
+                . "_(Akun ini digunakan untuk memantau keuangan, SPP, nilai madin, & riwayat santri)_\n\n"
                 . "📌 *INFORMASI KEDATANGAN & MASUK ASRAMA*:\n"
                 . "{$agendaInfo}\n\n"
                 . "Cetak Kartu Santri & Pantau Agenda Resmi:\n"
@@ -1383,5 +1478,52 @@ class PmbController extends Controller
             'status' => 'success',
             'message' => 'Berita / Agenda PMB berhasil dihapus.',
         ]);
+    }
+
+    /**
+     * [ADMIN] Hapus Data Pendaftar PMB beserta Berkas Dokumen & Akun Pengguna Terkait
+     */
+    public function deleteRegistration(Request $request, $id): JsonResponse
+    {
+        $this->checkPmbAccess($request);
+        $registration = PmbRegistration::findOrFail($id);
+
+        return DB::transaction(function () use ($registration) {
+            $regNumber = $registration->registration_number;
+            $nama = $registration->nama_lengkap;
+
+            // 1. Hapus berkas fisik jika ada di storage
+            $filesToDelete = array_filter([
+                $registration->dokumen_foto ? str_replace('/storage/', '', $registration->dokumen_foto) : null,
+                $registration->dokumen_kk ? str_replace('/storage/', '', $registration->dokumen_kk) : null,
+                $registration->dokumen_ijazah ? str_replace('/storage/', '', $registration->dokumen_ijazah) : null,
+            ]);
+
+            foreach ($filesToDelete as $file) {
+                if (Storage::disk('public')->exists($file)) {
+                    Storage::disk('public')->delete($file);
+                }
+            }
+
+            // 2. Hapus User Akun Pendaftar
+            if ($registration->user_id) {
+                User::where('id', $registration->user_id)->delete();
+            }
+            User::where('nis', $regNumber)->delete();
+
+            // 3. Hapus Log WhatsApp terkait pendaftar jika ada
+            \App\Models\WhatsAppMessageLog::where('phone_number', $registration->no_whatsapp_wali)
+                ->where('module', 'pmb')
+                ->where('message', 'like', "%{$regNumber}%")
+                ->delete();
+
+            // 4. Hapus data registrasi PMB
+            $registration->delete();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => "Data pendaftar {$nama} ({$regNumber}) dan akun login berhasil dihapus permanen.",
+            ]);
+        });
     }
 }

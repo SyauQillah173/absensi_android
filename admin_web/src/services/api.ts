@@ -1344,6 +1344,20 @@ export const api = {
       body: JSON.stringify(data),
     });
   },
+  deletePmbRegistration(id: number) {
+    return request<ApiRecord>(`/pmb/admin/registrations/${id}`, {
+      method: 'DELETE',
+    });
+  },
+  getPmbMyRegistration() {
+    return request<ApiRecord>('/pmb/applicant/my-registration');
+  },
+  uploadPmbApplicantDocument(type: string, file: File) {
+    const form = new FormData();
+    form.set('type', type);
+    form.set('file', file);
+    return uploadRequest<ApiRecord>('/pmb/applicant/upload-document', form);
+  },
   togglePmbStatus(data: { is_open?: boolean; closed_message?: string }) {
     return request<ApiRecord>('/pmb/admin/toggle-status', {
       method: 'POST',

@@ -119,6 +119,12 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
     Route::patch('notifications/{notification}/read', [NotificationController::class, 'markRead']);
     Route::delete('notifications/{notification}', [NotificationController::class, 'destroy']);
 
+    // 🎓 Portal Calon Santri PMB (Khusus Akun Pendaftar PMB)
+    Route::prefix('pmb/applicant')->group(function () {
+        Route::get('my-registration', [PmbController::class, 'myApplicantRegistration']);
+        Route::post('upload-document', [PmbController::class, 'applicantUploadDocument']);
+    });
+
     // 🛡️ Fitur Keamanan Multi-Device & Sesi Login Kelas Atas
     Route::prefix('security')->group(function () {
         Route::get('active-sessions', [SecurityController::class, 'activeSessions']);
@@ -463,6 +469,7 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
             Route::post('registrations/{id}/payment', [PmbController::class, 'updatePayment']);
             Route::post('registrations/{id}/resend-wa', [PmbController::class, 'resendWaNotification']);
             Route::post('registrations/{id}/convert-to-siswa', [PmbController::class, 'convertToSiswa']);
+            Route::delete('registrations/{id}', [PmbController::class, 'deleteRegistration']);
             Route::get('batches', [PmbController::class, 'getBatches']);
             Route::post('batches', [PmbController::class, 'storeBatch']);
             Route::put('batches/{id}', [PmbController::class, 'updateBatch']);

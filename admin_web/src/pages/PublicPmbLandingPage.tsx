@@ -1772,21 +1772,23 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
                 </p>
               </div>
 
-              {/* Form Search Input */}
+              {/* Form Search Input - Responsive Mobile & Desktop */}
               <form onSubmit={handleCheckStatus} className="max-w-xl mx-auto mb-6">
-                <div className="flex items-center gap-2 bg-[#F8FAFC] dark:bg-slate-900 p-2 rounded-2xl border-2 border-amber-200 dark:border-slate-700 focus-within:border-[#138F81] dark:focus-within:border-[#2DD4BF] shadow-xs transition-colors">
-                  <Search className="w-5 h-5 text-[#138F81] dark:text-[#2DD4BF] ml-3 shrink-0" />
-                  <input
-                    type="text"
-                    value={searchKeyword}
-                    onChange={(e) => setSearchKeyword(e.target.value)}
-                    placeholder="Ketik Nomor Registrasi atau No. WhatsApp..."
-                    className="flex-1 bg-transparent px-3 py-2 text-sm text-[#2D3436] dark:text-slate-100 placeholder-slate-400 outline-none font-medium"
-                  />
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-[#F8FAFC] dark:bg-slate-900 p-2 sm:p-2.5 rounded-2xl border-2 border-amber-200 dark:border-slate-700 focus-within:border-[#138F81] dark:focus-within:border-[#2DD4BF] shadow-xs transition-colors">
+                  <div className="flex items-center flex-1 min-w-0 px-2 sm:px-1">
+                    <Search className="w-5 h-5 text-[#138F81] dark:text-[#2DD4BF] shrink-0 mr-2" />
+                    <input
+                      type="text"
+                      value={searchKeyword}
+                      onChange={(e) => setSearchKeyword(e.target.value)}
+                      placeholder="Nomor Registrasi / No. WhatsApp..."
+                      className="w-full bg-transparent py-2 text-sm text-[#2D3436] dark:text-slate-100 placeholder-slate-400 outline-none font-medium min-w-0"
+                    />
+                  </div>
                   <button
                     type="submit"
                     disabled={isSearchingStatus}
-                    className="px-6 py-2.5 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white text-xs font-black shadow-md disabled:opacity-50 transition-all shrink-0 cursor-pointer"
+                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#138F81] hover:bg-[#0D7A6F] text-white text-xs font-black shadow-md disabled:opacity-50 transition-all shrink-0 cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     {isSearchingStatus ? 'Mencari...' : 'Lacak Status'}
                   </button>
@@ -2108,82 +2110,142 @@ export function PublicPmbLandingPage({ onOpenLogin, isLoggedIn = false, onBackTo
         </div>
       )}
 
-      {/* 🌟 MODAL CETAK KARTU RESMI PMB */}
+      {/* 🌟 MODAL CETAK KARTU RESMI PMB (ISO A4 CLEAN PRINT) */}
       {selectedCardToPrint && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white text-[#2D3436] rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl relative border-2 border-amber-300">
+          <style>{`
+            @media print {
+              body * {
+                visibility: hidden !important;
+              }
+              #pmb-landing-card-printable,
+              #pmb-landing-card-printable * {
+                visibility: visible !important;
+              }
+              #pmb-landing-card-printable {
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 24px !important;
+                background: #ffffff !important;
+                color: #111827 !important;
+                box-shadow: none !important;
+                border: 2px solid #0D7A6F !important;
+                border-radius: 8px !important;
+                z-index: 999999 !important;
+              }
+              .no-print, .no-print * {
+                display: none !important;
+                visibility: hidden !important;
+              }
+              @page {
+                size: A4 portrait;
+                margin: 12mm;
+              }
+            }
+          `}</style>
+
+          <div className="bg-white text-[#2D3436] rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl relative border-2 border-amber-300 max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setSelectedCardToPrint(null)}
-              className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              className="no-print absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
-            {/* Header Kartu Bukti Pendaftaran */}
-            <div className="border-b-2 border-amber-300 pb-4 mb-5 text-center flex flex-col items-center">
-              <div className="h-12 w-12 rounded-xl bg-white p-1 border border-amber-200 shadow-xs mb-2">
-                <img src={qomaruddinLogo} alt="Logo" className="h-full w-full object-contain" />
-              </div>
-              <div className="text-[11px] font-black uppercase tracking-widest text-[#138F81]">
-                {profilCms?.nama_pesantren ? profilCms.nama_pesantren.toUpperCase() : 'YAYASAN PONDOK PESANTREN QOMARUDDIN'}
-              </div>
-              <h3 className="text-lg font-black text-[#2D3436] mt-0.5">
-                KARTU BUKTI PENDAFTARAN PMB
-              </h3>
-              <p className="text-[11px] text-[#636E72] font-medium">
-                {profilCms?.alamat || 'Jl. Sampurnan No. 01 Bungah Gresik'} • {selectedCardToPrint.gelombang}
-              </p>
-            </div>
-
-            {/* Detail Kartu */}
-            <div className="space-y-2.5 text-xs mb-6 bg-[#F8FAFC] p-4 rounded-2xl border border-slate-200">
-              <div className="flex justify-between border-b border-slate-200 pb-2">
-                <span className="text-[#636E72] font-semibold">No. Registrasi:</span>
-                <span className="font-mono font-black text-[#138F81] text-sm">
-                  {selectedCardToPrint.registration_number}
-                </span>
-              </div>
-              <div className="flex justify-between border-b border-slate-200 pb-2">
-                <span className="text-[#636E72] font-semibold">Nama Calon Santri:</span>
-                <span className="font-black text-[#2D3436]">{selectedCardToPrint.nama_lengkap}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-200 pb-2">
-                <span className="text-[#636E72] font-semibold">Jenis Kelamin:</span>
-                <span className="font-bold text-[#2D3436]">
-                  {selectedCardToPrint.jenis_kelamin === 'L' ? 'Laki-laki (Putra)' : 'Perempuan (Putri)'}
-                </span>
-              </div>
-              <div className="flex justify-between border-b border-slate-200 pb-2">
-                <span className="text-[#636E72] font-semibold">Program Pendidikan:</span>
-                <span className="font-bold text-[#2D3436]">{selectedCardToPrint.pilihan_jenjang}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-200 pb-2">
-                <span className="text-[#636E72] font-semibold">Asrama Dipilih:</span>
-                <span className="font-bold text-[#2D3436]">{selectedCardToPrint.pilihan_asrama}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-200 pb-2">
-                <span className="text-[#636E72] font-semibold">Status Seleksi:</span>
-                <span className="font-black text-[#138F81]">{selectedCardToPrint.status_label}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-200 pb-2">
-                <span className="text-[#636E72] font-semibold">Status Pembayaran:</span>
-                <span className="font-black text-amber-700 uppercase">
-                  {selectedCardToPrint.payment_status} (Rp {Number(selectedCardToPrint.payment_amount || 0).toLocaleString('id-ID')})
-                </span>
-              </div>
-              {selectedCardToPrint.is_converted && (
-                <div className="flex justify-between border-b border-slate-200 pb-2 bg-emerald-50 p-2 rounded-xl border border-emerald-300">
-                  <span className="text-emerald-800 font-bold">NIS Resmi Pondok:</span>
-                  <span className="font-mono font-black text-emerald-900">{selectedCardToPrint.nis_resmi || '-'}</span>
+            {/* Target Area Cetak A4 */}
+            <div id="pmb-landing-card-printable" className="bg-white text-slate-900 space-y-5">
+              {/* Header Kartu Bukti Pendaftaran */}
+              <div className="border-b-2 border-slate-900 pb-4 text-center sm:text-left flex items-center gap-4">
+                <img src={qomaruddinLogo} alt="Logo" className="h-16 w-16 object-contain shrink-0" />
+                <div className="flex-1">
+                  <div className="text-[11px] font-black uppercase tracking-widest text-[#138F81]">
+                    {profilCms?.nama_pesantren ? profilCms.nama_pesantren.toUpperCase() : 'YAYASAN PONDOK PESANTREN QOMARUDDIN'}
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 mt-0.5">
+                    KARTU BUKTI PENDAFTARAN SANTRI BARU (PMB)
+                  </h3>
+                  <p className="text-[11px] text-slate-600 font-medium">
+                    {profilCms?.alamat || 'Jl. Sampurnan No. 01 Bungah Gresik'} • TA 2026/2027
+                  </p>
                 </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-[#636E72] font-semibold">Waktu Mendaftar:</span>
-                <span className="font-bold text-[#2D3436]">{selectedCardToPrint.tanggal_daftar}</span>
+                <div className="hidden sm:block text-right shrink-0">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Gelombang</span>
+                  <strong className="text-xs text-slate-800">{selectedCardToPrint.gelombang}</strong>
+                </div>
+              </div>
+
+              {/* Detail Kartu */}
+              <div className="space-y-2 text-xs text-slate-800">
+                <div className="flex justify-between border-b border-slate-200 pb-1.5">
+                  <span className="text-slate-500 font-semibold w-36">No. Registrasi:</span>
+                  <span className="font-mono font-black text-[#138F81] text-sm">
+                    {selectedCardToPrint.registration_number}
+                  </span>
+                </div>
+                <div className="flex justify-between border-b border-slate-200 pb-1.5">
+                  <span className="text-slate-500 font-semibold">Nama Calon Santri:</span>
+                  <span className="font-black text-slate-900 text-sm">{selectedCardToPrint.nama_lengkap}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-200 pb-1.5">
+                  <span className="text-slate-500 font-semibold">Jenis Kelamin:</span>
+                  <span className="font-bold text-slate-800">
+                    {selectedCardToPrint.jenis_kelamin === 'L' ? 'Laki-laki (Putra)' : 'Perempuan (Putri)'}
+                  </span>
+                </div>
+                <div className="flex justify-between border-b border-slate-200 pb-1.5">
+                  <span className="text-slate-500 font-semibold">Program Pendidikan:</span>
+                  <span className="font-bold text-slate-800">{selectedCardToPrint.pilihan_jenjang}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-200 pb-1.5">
+                  <span className="text-slate-500 font-semibold">Asrama Dipilih:</span>
+                  <span className="font-bold text-slate-800">{selectedCardToPrint.pilihan_asrama}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-200 pb-1.5">
+                  <span className="text-slate-500 font-semibold">Status Seleksi:</span>
+                  <span className="font-black text-[#138F81] uppercase">{selectedCardToPrint.status_label}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-200 pb-1.5">
+                  <span className="text-slate-500 font-semibold">Status Biaya Formulir:</span>
+                  <span className="font-black uppercase text-amber-800">
+                    {selectedCardToPrint.payment_status} (Rp {Number(selectedCardToPrint.payment_amount || 0).toLocaleString('id-ID')})
+                  </span>
+                </div>
+                {selectedCardToPrint.is_converted && (
+                  <div className="flex justify-between border-b border-slate-200 pb-1.5 bg-emerald-50 p-2 rounded-xl border border-emerald-300">
+                    <span className="text-emerald-800 font-bold">NIS Resmi Pondok:</span>
+                    <span className="font-mono font-black text-emerald-900">{selectedCardToPrint.nis_resmi || '-'}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-b border-slate-200 pb-1.5">
+                  <span className="text-slate-500 font-semibold">Waktu Mendaftar:</span>
+                  <span className="font-bold text-slate-800">{selectedCardToPrint.tanggal_daftar}</span>
+                </div>
+              </div>
+
+              {/* Tanda Tangan & Cap Panitia */}
+              <div className="border-t border-slate-300 pt-3 flex flex-col sm:flex-row items-end justify-between gap-4 text-xs">
+                <div className="text-[10px] text-slate-500 max-w-xs">
+                  <p className="font-bold text-slate-700 mb-0.5">Catatan:</p>
+                  <p>Harap kartu ini disimpan dan dibawa saat verifikasi berkas administrasi fisik di Sekretariat Pondok Pesantren Qomaruddin.</p>
+                </div>
+                <div className="text-center shrink-0">
+                  <p className="text-[10px] text-slate-600">Bungah, Gresik</p>
+                  <p className="text-[10px] font-bold text-slate-700">Panitia PMB Qomaruddin</p>
+                  <div className="h-10 flex items-center justify-center">
+                    <span className="text-[9px] font-mono text-emerald-800 border border-dashed border-emerald-500 px-2 py-0.5 rounded bg-emerald-50">
+                      TERVERIFIKASI SISTEM
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2.5">
+            {/* Modal Actions */}
+            <div className="no-print flex items-center justify-end gap-2.5 pt-6 border-t border-slate-100 mt-4">
               <button
                 onClick={() => setSelectedCardToPrint(null)}
                 className="px-4 py-2.5 rounded-xl text-xs font-bold text-[#636E72] hover:bg-slate-100 cursor-pointer"
