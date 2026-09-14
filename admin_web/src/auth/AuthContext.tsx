@@ -172,7 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return ['dashboard', 'keuangan'].includes(menuKey);
       }
       if (isPmbAdmin) {
-        return ['dashboard', 'pmb', 'whatsapp', 'whatsapp_bot'].includes(menuKey);
+        return ['dashboard', 'pmb'].includes(menuKey);
       }
       if (isKeamanan) {
         return ['dashboard', 'pelanggaran', 'pelanggaran_menu', 'kesiswaan', 'buku_induk', 'account'].includes(menuKey);
