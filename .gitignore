@@ -44,6 +44,10 @@ panduan_*.txt
 reset_*.bat
 reset_*.ps1
 reset_*.sh
+!import_spp_26_27.bat
+!import_spp_26_27.sh
+!reset_sistem_keuangan.bat
+!reset_sistem_keuangan.sh
 
 # Folder Asisten AI & Konfigurasi Pribadi
 .agents/
@@ -72,6 +76,7 @@ absensi_backend/database/data/*.json
 **/*.xlsx
 **/*.xls
 **/*.csv
+!PONPES QOMARAUDDIN 1747 (1).xlsx
 *.docx
 *.doc
 *.pdf
