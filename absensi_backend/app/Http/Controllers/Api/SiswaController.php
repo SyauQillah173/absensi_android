@@ -98,6 +98,72 @@ class SiswaController extends Controller
         ]);
     }
 
+    public function checkDuplicate(Request $request)
+    {
+        $nama = trim((string) $request->input('nama', ''));
+        if (empty($nama) || mb_strlen($nama) < 3) {
+            return response()->json(['success' => true, 'duplicates' => []]);
+        }
+
+        $jenisKelamin = $request->input('jenis_kelamin');
+        $excludeId = $request->input('exclude_id');
+
+        $duplicates = $this->findPotentialDuplicateStudents($nama, $jenisKelamin, $excludeId);
+
+        return response()->json([
+            'success' => true,
+            'duplicates' => $duplicates,
+        ]);
+    }
+
+    private function findPotentialDuplicateStudents(string $targetNama, ?string $jenisKelamin = null, $excludeId = null): array
+    {
+        $cleanTarget = strtolower(preg_replace('/[^a-zA-Z0-9\s]/', '', $targetNama));
+        $cleanTarget = preg_replace('/\s+/', ' ', trim($cleanTarget));
+
+        $students = Siswa::query()
+            ->where('status', 'Aktif')
+            ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))
+            ->when($jenisKelamin, fn($q) => $q->where('jenis_kelamin', $jenisKelamin))
+            ->select('id', 'nama', 'nis', 'kelas', 'komplek', 'kamar', 'jenis_kelamin', 'tanggal_lahir')
+            ->get();
+
+        $matches = [];
+        foreach ($students as $student) {
+            $studentName = strtolower(preg_replace('/[^a-zA-Z0-9\s]/', '', $student->nama));
+            $studentName = preg_replace('/\s+/', ' ', trim($studentName));
+
+            if ($cleanTarget === $studentName) {
+                $matches[] = [
+                    'id' => $student->id,
+                    'nama' => $student->nama,
+                    'nis' => $student->nis,
+                    'kelas' => $student->kelas,
+                    'komplek' => $student->komplek,
+                    'kamar' => $student->kamar,
+                    'similarity' => 100,
+                ];
+                continue;
+            }
+
+            similar_text($cleanTarget, $studentName, $percent);
+            if ($percent >= 85) {
+                $matches[] = [
+                    'id' => $student->id,
+                    'nama' => $student->nama,
+                    'nis' => $student->nis,
+                    'kelas' => $student->kelas,
+                    'komplek' => $student->komplek,
+                    'kamar' => $student->kamar,
+                    'similarity' => round($percent, 1),
+                ];
+            }
+        }
+
+        usort($matches, fn($a, $b) => $b['similarity'] <=> $a['similarity']);
+        return array_slice($matches, 0, 5);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -210,6 +276,20 @@ class SiswaController extends Controller
         $validated = $this->mirrorGuardianFromParent($validated);
         $validated = $this->normalizeStudentReferences($validated);
 
+        // Anti-Duplikat Guard: Cegah santri ganda tak disengaja
+        if (!$request->boolean('allow_duplicate')) {
+            $duplicates = $this->findPotentialDuplicateStudents($validated['nama'], $validated['jenis_kelamin'] ?? null);
+            if (!empty($duplicates) && $duplicates[0]['similarity'] >= 90) {
+                $top = $duplicates[0];
+                return response()->json([
+                    'success' => false,
+                    'message' => "Terdeteksi potensi data santri ganda: '{$top['nama']}' (NIS: {$top['nis']}, Kelas: {$top['kelas']}, Kemiripan {$top['similarity']}%). Jika Anda yakin ini santri yang berbeda, centang 'Konfirmasi santri ini berbeda'.",
+                    'duplicates' => $duplicates,
+                    'requires_confirmation' => true,
+                ], 422);
+            }
+        }
+
         $siswa = DB::transaction(function () use ($validated) {
             $siswa = Siswa::create($validated);
             $this->syncKelompokBelajar($siswa, $validated['kelas'] ?? null);
@@ -258,7 +338,7 @@ class SiswaController extends Controller
                 $payload['nis'] = date('y') . str_pad((string)($maxSiswaId + $index + 1), 4, '0', STR_PAD_LEFT);
             }
 
-            // Check if existing student matches by NIK, NISN, NIS, or (Nama + Tanggal Lahir)
+            // Check if existing student matches by NIK, NISN, NIS, or Smart Name Match
             $existingStudent = null;
             if (!empty($payload['nik'])) {
                 $existingStudent = Siswa::where('nik', $payload['nik'])->first();
@@ -269,10 +349,22 @@ class SiswaController extends Controller
             if (!$existingStudent && !empty($row['nis'])) {
                 $existingStudent = Siswa::where('nis', $row['nis'])->first();
             }
-            if (!$existingStudent && !empty($payload['nama']) && !empty($payload['tanggal_lahir'])) {
-                $existingStudent = Siswa::whereRaw('LOWER(TRIM(nama)) = ?', [strtolower(trim($payload['nama']))])
-                    ->where('tanggal_lahir', $payload['tanggal_lahir'])
-                    ->first();
+            if (!$existingStudent && !empty($payload['nama'])) {
+                $cleanNama = strtolower(preg_replace('/\s+/', ' ', trim($payload['nama'])));
+                
+                // 1. Cek nama sama persis dan tanggal lahir cocok (jika tgl lahir diisi)
+                if (!empty($payload['tanggal_lahir'])) {
+                    $existingStudent = Siswa::whereRaw("LOWER(TRIM(nama)) = ?", [$cleanNama])
+                        ->where('tanggal_lahir', $payload['tanggal_lahir'])
+                        ->first();
+                }
+
+                // 2. Cek nama sama persis dan jenis kelamin cocok (mencegah duplikat akibat ketiadaan tanggal lahir)
+                if (!$existingStudent) {
+                    $existingStudent = Siswa::whereRaw("LOWER(TRIM(nama)) = ?", [$cleanNama])
+                        ->when(!empty($payload['jenis_kelamin']), fn($q) => $q->where('jenis_kelamin', $payload['jenis_kelamin']))
+                        ->first();
+                }
             }
 
             $validator = Validator::make(

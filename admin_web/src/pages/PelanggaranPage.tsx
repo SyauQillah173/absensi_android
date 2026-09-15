@@ -42,6 +42,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { ComplexPelanggaranCategoryForm } from '../components/ComplexPelanggaranCategoryForm';
 import { ComplexPelanggaranForm } from '../components/ComplexPelanggaranForm';
+import { ComplexImportPelanggaranModal } from '../components/ComplexImportPelanggaranModal';
 import { ToastNotification } from '../components/ToastNotification';
 import { api, type ApiRecord } from '../services/api';
 import qomaruddinLogo from '../assets/logo-qomaruddin.png';
@@ -138,6 +139,8 @@ export function PelanggaranPage() {
   // Form In-Page States (Menggantikan Modal Popup Lama)
   const [activePelanggaranForm, setActivePelanggaranForm] = useState<PelanggaranItem | null | undefined>(undefined);
   const [activeCategoryForm, setActiveCategoryForm] = useState<PelanggaranCategoryItem | null | undefined>(undefined);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   // Modal 2: Settings Threshold
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -327,6 +330,44 @@ export function PelanggaranPage() {
     }
   };
 
+  // Export Excel
+  const handleExportExcel = async () => {
+    setExportingExcel(true);
+    try {
+      const filters: Record<string, any> = {};
+      if (filterTingkat && filterTingkat !== 'all') filters.tingkat = filterTingkat;
+      if (filterDenda && filterDenda !== 'all') filters.status_denda = filterDenda;
+      if (filterStartDate) filters.start_date = filterStartDate;
+      if (filterEndDate) filters.end_date = filterEndDate;
+      if (searchQuery) filters.search = searchQuery;
+
+      const blob = await api.exportPelanggaran(filters);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Laporan_Kedisiplinan_Santri_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      setToast({
+        show: true,
+        type: 'success',
+        title: 'Export Excel Berhasil',
+        message: 'File laporan pelanggaran santri berhasil diunduh.'
+      });
+    } catch (err) {
+      setToast({
+        show: true,
+        type: 'error',
+        title: 'Gagal Export Excel',
+        message: err instanceof Error ? err.message : 'Terjadi kesalahan saat mengunduh data.'
+      });
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
   // Santri Kritis List
   const santriKritisList = useMemo<CriticalStudentItem[]>(() => {
     return Array.isArray(stats?.santri_kritis) ? (stats?.santri_kritis as CriticalStudentItem[]) : [];
@@ -399,6 +440,27 @@ export function PelanggaranPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => void handleExportExcel()}
+              disabled={exportingExcel}
+              className="inline-flex items-center gap-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 px-4 py-3 text-xs sm:text-sm font-bold text-white transition backdrop-blur-md cursor-pointer disabled:opacity-50"
+              title="Export Laporan Rekap Pelanggaran ke Excel"
+            >
+              <Download size={16} className={exportingExcel ? 'animate-bounce' : ''} />
+              <span className="hidden sm:inline">{exportingExcel ? 'Mengunduh...' : 'Export Excel'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsImportModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 px-4 py-3 text-xs sm:text-sm font-bold text-white transition backdrop-blur-md cursor-pointer"
+              title="Import Data Pelanggaran via Excel/CSV"
+            >
+              <Upload size={16} />
+              <span className="hidden sm:inline">Import Excel</span>
+            </button>
+
             <button
               type="button"
               onClick={() => handleOpenCreateModal()}
@@ -1255,6 +1317,23 @@ export function PelanggaranPage() {
             <img src={previewPhotoUrl} alt="Bukti Foto" className="h-full w-full object-contain max-h-[80vh]" />
           </div>
         </div>
+      )}
+
+      {/* MODAL IMPORT PELANGGARAN */}
+      {isImportModalOpen && (
+        <ComplexImportPelanggaranModal
+          onClose={() => setIsImportModalOpen(false)}
+          onSuccess={() => {
+            setIsImportModalOpen(false);
+            setToast({
+              show: true,
+              type: 'success',
+              title: 'Import Selesai',
+              message: 'Data pelanggaran santri berhasil diimpor ke sistem.'
+            });
+            void loadData(true);
+          }}
+        />
       )}
     </div>
   );

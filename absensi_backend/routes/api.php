@@ -191,6 +191,7 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
 
     // Read access needed by admin and guru operational screens.
     Route::middleware('role:admin,guru')->group(function () {
+        Route::get('siswa/check-duplicate', [SiswaController::class, 'checkDuplicate']);
         Route::get('siswa', [SiswaController::class, 'index']);
         Route::get('siswa/{siswa}', [SiswaController::class, 'show']);
 
@@ -290,6 +291,9 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::put('settings/permissions', [PermissionController::class, 'update'])->middleware('permission:hak_akses,update');
 
         // 🚨 Modul Kedisiplinan & Pencatatan Pelanggaran Santri (Pengurus Keamanan & Admin)
+        Route::get('pelanggaran/export', [PelanggaranController::class, 'export']);
+        Route::post('pelanggaran/import', [PelanggaranController::class, 'import']);
+        Route::get('pelanggaran/template', [PelanggaranController::class, 'template']);
         Route::get('pelanggaran', [PelanggaranController::class, 'index']);
         Route::post('pelanggaran', [PelanggaranController::class, 'store']);
         Route::get('pelanggaran/stats', [PelanggaranController::class, 'stats']);
@@ -340,6 +344,9 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::post('boarding/complexes', [BoardingController::class, 'storeComplex'])->middleware('permission:absensi,create');
         Route::put('boarding/complexes/{complex}', [BoardingController::class, 'updateComplex'])->middleware('permission:absensi,update');
         Route::delete('boarding/complexes/{complex}', [BoardingController::class, 'destroyComplex'])->middleware('permission:absensi,delete');
+        Route::get('boarding/rooms/export', [BoardingController::class, 'exportRooms'])->middleware('permission:absensi,view');
+        Route::post('boarding/rooms/import', [BoardingController::class, 'importRooms'])->middleware('permission:absensi,update');
+        Route::get('boarding/rooms/template', [BoardingController::class, 'roomTemplate'])->middleware('permission:absensi,view');
         Route::post('boarding/rooms', [BoardingController::class, 'storeRoom'])->middleware('permission:absensi,create');
         Route::put('boarding/rooms/{room}', [BoardingController::class, 'updateRoom'])->middleware('permission:absensi,update');
         Route::delete('boarding/rooms/{room}', [BoardingController::class, 'destroyRoom'])->middleware('permission:absensi,delete');

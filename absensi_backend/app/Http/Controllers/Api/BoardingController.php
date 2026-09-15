@@ -17,6 +17,8 @@ use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\SantriPondokExport;
 use App\Imports\SantriPondokImport;
+use App\Exports\BoardingRoomExport;
+use App\Imports\BoardingRoomImport;
 
 class BoardingController extends Controller
 {
@@ -631,6 +633,60 @@ class BoardingController extends Controller
                 'message' => 'Gagal mengimport data: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function exportRooms(Request $request)
+    {
+        app(AuditLogService::class)->record($request, 'boarding', 'export_rooms');
+        return Excel::download(new BoardingRoomExport, 'Data_Kamar_Pondok_Qomaruddin.xlsx');
+    }
+
+    public function importRooms(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv|max:5120',
+        ]);
+
+        try {
+            $importer = new BoardingRoomImport();
+            Excel::import($importer, $request->file('file'));
+
+            app(AuditLogService::class)->record($request, 'boarding', 'import_rooms', null, null, [
+                'file' => $request->file('file')->getClientOriginalName(),
+                'imported' => $importer->getImportedCount(),
+                'updated' => $importer->getUpdatedCount(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Berhasil mengimpor data kamar ({$importer->getImportedCount()} baru, {$importer->getUpdatedCount()} diperbarui)",
+                'imported_count' => $importer->getImportedCount(),
+                'updated_count' => $importer->getUpdatedCount(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengimport data kamar: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function roomTemplate()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="Template_Import_Kamar.csv"',
+        ];
+
+        $callback = function () {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['NAMA_KAMAR', 'KOMPLEK_ASRAMA', 'KAPASITAS', 'KETERANGAN', 'STATUS']);
+            fputcsv($file, ['IBNU SINA', 'KOMPLEK PUTRA', '15', 'Kamar Santri Putra', 'Aktif']);
+            fputcsv($file, ['FATIMAH AZ ZAHRA', 'KOMPLEK PUTRI', '20', 'Kamar Santri Putri', 'Aktif']);
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     private function assignmentPayload(SantriPondok $assignment): array

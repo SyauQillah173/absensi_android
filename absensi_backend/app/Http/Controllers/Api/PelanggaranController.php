@@ -17,6 +17,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\PelanggaranExport;
+use App\Imports\PelanggaranImport;
 
 class PelanggaranController extends Controller
 {
@@ -655,5 +658,95 @@ class PelanggaranController extends Controller
                 // Ignore failure
             }
         }
+    }
+
+    public function export(Request $request)
+    {
+        $filters = [
+            'tingkat' => $request->tingkat,
+            'status_denda' => $request->status_denda,
+            'start_date' => $request->start_date,
+            'end_date' => $request->end_date,
+            'search' => $request->search,
+        ];
+
+        app(AuditLogService::class)->record($request, 'pelanggaran', 'export_excel', null, null, $filters);
+        $filename = 'Laporan_Kedisiplinan_Santri_' . now()->format('Ymd_His') . '.xlsx';
+        return Excel::download(new PelanggaranExport($filters), $filename);
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv|max:5120',
+        ]);
+
+        try {
+            $importer = new PelanggaranImport();
+            Excel::import($importer, $request->file('file'));
+
+            app(AuditLogService::class)->record($request, 'pelanggaran', 'import_excel', null, null, [
+                'file' => $request->file('file')->getClientOriginalName(),
+                'imported_count' => $importer->getImportedCount(),
+                'skipped_count' => count($importer->getSkippedRows()),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Berhasil mengimpor {$importer->getImportedCount()} catatan pelanggaran santri.",
+                'imported_count' => $importer->getImportedCount(),
+                'skipped_rows' => $importer->getSkippedRows(),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengimpor data pelanggaran: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function template()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="Template_Import_Pelanggaran.csv"',
+        ];
+
+        $callback = function () {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, [
+                'NIS',
+                'NAMA_SANTRI',
+                'TANGGAL',
+                'WAKTU',
+                'KATEGORI',
+                'JUDUL_PELANGGARAN',
+                'TINGKAT',
+                'POIN',
+                'DENDA_NOMINAL',
+                'STATUS_DENDA',
+                'TINDAKAN_TAKZIR',
+                'KETERANGAN',
+                'NAMA_PETUGAS'
+            ]);
+            fputcsv($file, [
+                '250146',
+                'ACHMAD RIFKI ALVIANSYAH',
+                date('Y-m-d'),
+                '07:15',
+                'Kedisiplinan Waktu',
+                'Terlambat masuk sekolah / madin',
+                'Ringan',
+                '5',
+                '0',
+                'tidak_ada',
+                'Membersihkan halaman asrama',
+                'Terlambat 15 menit',
+                'Ust. Keamanan'
+            ]);
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }

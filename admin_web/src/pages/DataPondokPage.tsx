@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { ComplexAssignSantriInPageForm, ComplexImportSantriForm, ComplexKamarForm, ComplexKomplekForm } from '../components/ComplexPondokKamarForms';
+import { ComplexImportKamarModal } from '../components/ComplexImportKamarModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
 
@@ -76,6 +77,7 @@ export function DataPondokPage() {
   const [roomModal, setRoomModal] = useState<ApiRecord | 'new' | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [importKamarOpen, setImportKamarOpen] = useState(false);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
 
@@ -428,6 +430,22 @@ export function DataPondokPage() {
     }
   }
 
+  async function downloadRoomsExcel() {
+    try {
+      const blob = await api.exportBoardingRooms();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Data_Kamar_Pondok_Qomaruddin.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError('Gagal mendownload file Excel kamar');
+    }
+  }
+
   // JIKA FORM IN-PAGE SEDANG TERBUKA, RENDER IN-PAGE CONTAINER TANPA POPUP
   if (complexModal !== null) {
     return (
@@ -529,10 +547,34 @@ export function DataPondokPage() {
             </button>
           ) : null}
           {activeTab === 'kamar' ? (
-            <button className="flex min-h-12 items-center gap-2 rounded-2xl bg-[#138F81] px-4 text-sm font-bold text-white" onClick={() => setRoomModal('new')} type="button">
-              <Plus size={18} />
-              Tambah Kamar
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                className="flex min-h-12 items-center gap-2 rounded-2xl bg-[#F0F7F4] hover:bg-teal-100/70 border border-teal-200/60 px-4 text-sm font-bold text-[#138F81] transition cursor-pointer"
+                onClick={() => void downloadRoomsExcel()}
+                type="button"
+                title="Unduh Laporan Excel Data Kamar"
+              >
+                <Download size={18} />
+                Export Excel
+              </button>
+              <button
+                className="flex min-h-12 items-center gap-2 rounded-2xl bg-teal-50 hover:bg-teal-100/70 border border-teal-200/60 px-4 text-sm font-bold text-[#138F81] transition cursor-pointer"
+                onClick={() => setImportKamarOpen(true)}
+                type="button"
+                title="Import Master Kamar via Excel/CSV"
+              >
+                <Upload size={18} />
+                Import Kamar
+              </button>
+              <button
+                className="flex min-h-12 items-center gap-2 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] px-4 text-sm font-bold text-white shadow-md shadow-teal-700/20 transition cursor-pointer"
+                onClick={() => setRoomModal('new')}
+                type="button"
+              >
+                <Plus size={18} />
+                Tambah Kamar
+              </button>
+            </div>
           ) : null}
           {activeTab === 'santri' ? (
             <>
@@ -563,17 +605,29 @@ export function DataPondokPage() {
         )}
       </section>
 
-      {confirmState ? (
-        <ConfirmDialog
-          title={confirmState.title}
-          message={confirmState.message}
-          confirmLabel={confirmState.confirmLabel}
-          tone={confirmState.tone}
-          isBusy={confirmBusy}
-          onCancel={() => setConfirmState(null)}
-          onConfirm={() => void runConfirm()}
+      <ConfirmDialog
+        open={confirmState !== null}
+        busy={confirmBusy}
+        title={confirmState?.title ?? ''}
+        message={confirmState?.message ?? ''}
+        confirmLabel={confirmState?.confirmLabel ?? 'Konfirmasi'}
+        tone={confirmState?.tone ?? 'danger'}
+        onConfirm={() => void runConfirm()}
+        onCancel={() => {
+          if (!confirmBusy) setConfirmState(null);
+        }}
+      />
+
+      {importKamarOpen && (
+        <ComplexImportKamarModal
+          onClose={() => setImportKamarOpen(false)}
+          onSuccess={() => {
+            setImportKamarOpen(false);
+            setNotice('Data kamar berhasil diimpor!');
+            void load(true);
+          }}
         />
-      ) : null}
+      )}
     </div>
   );
 }

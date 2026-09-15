@@ -643,6 +643,16 @@ export const api = {
   siswa(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>('/siswa', {}, params);
   },
+  checkDuplicateSiswa(nama: string, jenisKelamin?: string, excludeId?: number) {
+    const params: Record<string, string | number> = { nama };
+    if (jenisKelamin) params.jenis_kelamin = jenisKelamin;
+    if (excludeId) params.exclude_id = excludeId;
+    return request<{ duplicates: Array<{ id: number; nama: string; nis: string; kelas: string; komplek?: string; kamar?: string; similarity: number }> }>(
+      '/siswa/check-duplicate',
+      {},
+      params
+    );
+  },
   createSiswa(data: ApiRecord) {
     return request<ApiRecord>('/siswa', { method: 'POST', body: JSON.stringify(data) });
   },
@@ -878,6 +888,37 @@ export const api = {
       },
       body: formData
     }).then(res => res.json()) as Promise<ApiResponse>;
+  },
+  exportBoardingRooms() {
+    return fetch(`${apiBaseUrl()}/boarding/rooms/export`, {
+      headers: {
+        Authorization: `Bearer ${readSession()?.token ?? ''}`
+      }
+    }).then(res => {
+      if (!res.ok) throw new Error('Gagal mendownload data kamar');
+      return res.blob();
+    });
+  },
+  importBoardingRooms(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    return fetch(`${apiBaseUrl()}/boarding/rooms/import`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${readSession()?.token ?? ''}`
+      },
+      body: formData
+    }).then(res => res.json()) as Promise<ApiResponse>;
+  },
+  downloadBoardingRoomTemplate() {
+    return fetch(`${apiBaseUrl()}/boarding/rooms/template`, {
+      headers: {
+        Authorization: `Bearer ${readSession()?.token ?? ''}`
+      }
+    }).then(res => {
+      if (!res.ok) throw new Error('Gagal mendownload template kamar');
+      return res.blob();
+    });
   },
   absensi(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>('/absensi', {}, params);
@@ -1408,6 +1449,46 @@ export const api = {
   },
 
   // 🚨 Modul Kedisiplinan & Pencatatan Pelanggaran Santri (Pengurus Keamanan & Admin)
+  exportPelanggaran(params?: Record<string, any>) {
+    const query = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '' && v !== 'all') {
+          query.append(k, String(v));
+        }
+      });
+    }
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return fetch(`${apiBaseUrl()}/pelanggaran/export${qs}`, {
+      headers: {
+        Authorization: `Bearer ${readSession()?.token ?? ''}`
+      }
+    }).then(res => {
+      if (!res.ok) throw new Error('Gagal mendownload data pelanggaran');
+      return res.blob();
+    });
+  },
+  importPelanggaran(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    return fetch(`${apiBaseUrl()}/pelanggaran/import`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${readSession()?.token ?? ''}`
+      },
+      body: formData
+    }).then(res => res.json()) as Promise<ApiResponse>;
+  },
+  downloadPelanggaranTemplate() {
+    return fetch(`${apiBaseUrl()}/pelanggaran/template`, {
+      headers: {
+        Authorization: `Bearer ${readSession()?.token ?? ''}`
+      }
+    }).then(res => {
+      if (!res.ok) throw new Error('Gagal mendownload template pelanggaran');
+      return res.blob();
+    });
+  },
   getPelanggaran(params?: Record<string, any>) {
     return request<ApiRecord[]>('/pelanggaran', { method: 'GET' }, params);
   },
