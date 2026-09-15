@@ -431,6 +431,7 @@ Route::middleware(['api.auth', 'throttle:60,1'])->group(function () {
         Route::get('payment-types', [PaymentTypeController::class, 'index'])->middleware('permission:keuangan,view');
         Route::post('payment-types', [PaymentTypeController::class, 'store'])->middleware('permission:keuangan,create');
         Route::put('payment-types/{paymentType}', [PaymentTypeController::class, 'update'])->middleware('permission:keuangan,update');
+        Route::delete('payment-types/{paymentType}', [PaymentTypeController::class, 'destroy'])->middleware('permission:keuangan,delete');
         Route::delete('pembayaran/types/{type}', [PembayaranController::class, 'destroyType'])->middleware('permission:keuangan,delete');
 
         // PEMASUKAN LAIN / SUMBER DANA KAS
