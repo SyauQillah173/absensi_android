@@ -146,6 +146,9 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
   const [documentSettings, setDocumentSettings] = useState<ApiRecord | null>(null);
   const [successTransaction, setSuccessTransaction] = useState<ApiRecord | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: number; type: 'transaction' | 'legacy'; title: string } | null>(null);
+  const [deleteTypeTarget, setDeleteTypeTarget] = useState<ApiRecord | null>(null);
+  const [isForceDeleteType, setIsForceDeleteType] = useState(false);
+  const [isDeletingType, setIsDeletingType] = useState(false);
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -755,31 +758,8 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
               setModal('type');
             }}
             onDelete={async (row) => {
-              const name = str(row.nama);
-              const confirmed = window.confirm(`Apakah Anda yakin ingin menghapus pos tagihan "${name}"?`);
-              if (!confirmed) return;
-
-              try {
-                await api.deletePaymentType(idOf(row));
-                showToast(`Tipe tagihan "${name}" berhasil dihapus`, 'success');
-                await load();
-              } catch (err: any) {
-                const msg = err?.message || 'Gagal menghapus tipe tagihan';
-                if (err?.has_bills || err?.has_transactions || msg.includes('tagihan') || msg.includes('transaksi')) {
-                  const forceConfirm = window.confirm(`${msg}\n\nApakah Anda ingin HAPUS PAKSA (seluruh tagihan terkait tipe "${name}" akan dibersihkan)?`);
-                  if (forceConfirm) {
-                    try {
-                      await api.deletePaymentType(idOf(row), true);
-                      showToast(`Tipe tagihan "${name}" beserta data terkait berhasil dihapus`, 'success');
-                      await load();
-                    } catch (forceErr: any) {
-                      showToast(forceErr?.message || 'Gagal menghapus paksa', 'error');
-                    }
-                  }
-                } else {
-                  showToast(msg, 'error');
-                }
-              }
+              setDeleteTypeTarget(row);
+              setIsForceDeleteType(false);
             }}
           />
         ) : null}
@@ -821,6 +801,90 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
           <DocumentSettingsPanel settings={documentSettings} onSaved={load} showToast={showToast} />
         ) : null}
       </section>
+
+      {/* MODAL KONFIRMASI HAPUS POS TAGIHAN (KONSISTEN & ELEGAN) */}
+      {deleteTypeTarget && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3.5 mb-4">
+              <div className="p-3 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 shrink-0">
+                <Trash2 size={24} />
+              </div>
+              <div>
+                <h4 className="text-base font-black text-slate-900">Konfirmasi Hapus Pos Tagihan</h4>
+                <p className="text-xs text-slate-500">Tindakan ini akan menghapus pos tagihan dari sistem.</p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-2 mb-4">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-bold">Nama Pos Tagihan:</span>
+                <strong className="text-slate-900 text-sm font-black">{str(deleteTypeTarget.nama)}</strong>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-bold">Nominal:</span>
+                <span className="font-extrabold text-[#138F81]">{formatMoney(deleteTypeTarget.nominal_default)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-bold">Periode:</span>
+                <span className="uppercase font-bold text-slate-700">{str(deleteTypeTarget.periode)}</span>
+              </div>
+            </div>
+
+            <div className="mb-5 p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 text-amber-900 text-xs">
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isForceDeleteType}
+                  onChange={(e) => setIsForceDeleteType(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-amber-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
+                />
+                <span className="text-[11px] font-semibold leading-relaxed">
+                  <strong className="font-bold text-amber-950">Hapus Paksa (Force Delete)</strong>: Jika pos tagihan ini sudah memiliki tagihan siswa atau riwayat transaksi, otomatis bersihkan seluruh data tagihan terkait tipe ini.
+                </span>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isDeletingType}
+                onClick={() => setDeleteTypeTarget(null)}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingType}
+                onClick={async () => {
+                  try {
+                    setIsDeletingType(true);
+                    await api.deletePaymentType(idOf(deleteTypeTarget), isForceDeleteType);
+                    showToast(`Tipe tagihan "${str(deleteTypeTarget.nama)}" berhasil dihapus`, 'success');
+                    setDeleteTypeTarget(null);
+                    await load();
+                  } catch (err: any) {
+                    const msg = err?.message || 'Gagal menghapus tipe tagihan';
+                    if (err?.has_bills || err?.has_transactions || msg.includes('tagihan') || msg.includes('transaksi')) {
+                      setIsForceDeleteType(true);
+                      showToast(`${msg}. Centang kotak 'Hapus Paksa' lalu klik Hapus lagi.`, 'error');
+                    } else {
+                      showToast(msg, 'error');
+                    }
+                  } finally {
+                    setIsDeletingType(false);
+                  }
+                }}
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-rose-600/25"
+              >
+                {isDeletingType ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                <span>Ya, Hapus Sekarang</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

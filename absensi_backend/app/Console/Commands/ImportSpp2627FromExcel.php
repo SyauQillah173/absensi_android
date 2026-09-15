@@ -497,7 +497,7 @@ class ImportSpp2627FromExcel extends Command
 
             if ($paidBills->isNotEmpty()) {
                 $resolver = app(\App\Services\ReferenceResolver::class);
-                $methodId = $resolver->paymentMethodId('Tunai / Kasir Pondok') ?: 11;
+                $methodId = $resolver->paymentMethodId('Tunai / Bendahara Pondok') ?: ($resolver->paymentMethodId('Tunai') ?: 11);
                 $statusId = $resolver->paymentStatusId('Lunas') ?: 1;
                 $nowStr = now()->toDateTimeString();
 
@@ -516,7 +516,7 @@ class ImportSpp2627FromExcel extends Command
                         'created_by_user_id' => $adminUserId,
                         'updated_by_user_id' => $adminUserId,
                         'atas_nama' => $pb->siswa?->nama ?? 'Santri',
-                        'via' => 'Tunai / Kasir Pondok',
+                        'via' => 'Tunai / Bendahara Pondok',
                         'payment_method_id' => $methodId,
                         'payment_status_id' => $statusId,
                         'jumlah_total' => $pb->amount,
@@ -556,7 +556,7 @@ class ImportSpp2627FromExcel extends Command
                         'wali_id' => $pb->siswa?->wali_id,
                         'atas_nama' => $pb->siswa?->nama ?? 'Santri',
                         'jenis' => 'SPP Bulanan',
-                        'via' => 'Tunai / Kasir Pondok',
+                        'via' => 'Tunai / Bendahara Pondok',
                         'payment_method_id' => $methodId,
                         'payment_status_id' => $statusId,
                         'jumlah' => $pb->amount,

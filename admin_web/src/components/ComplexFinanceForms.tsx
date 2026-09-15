@@ -70,6 +70,11 @@ export function ComplexPaymentTypeForm({
     if (g === 'P' || g === 'PEREMPUAN' || g === 'PUTRI') return 'P';
     return 'ALL';
   });
+  const [targetMondok, setTargetMondok] = useState<string>(() => str(row?.target_mondok, 'mondok'));
+  const [tierPricingEnabled, setTierPricingEnabled] = useState<boolean>(() => Boolean(row?.tier_pricing_enabled));
+  const [nominalVip, setNominalVip] = useState<string>(() => String(row?.nominal_vip ?? ''));
+  const [nominalReguler, setNominalReguler] = useState<string>(() => String(row?.nominal_reguler ?? row?.nominal_default ?? ''));
+  const [nominalKeringanan, setNominalKeringanan] = useState<string>(() => String(row?.nominal_keringanan ?? ''));
   const [billedMonths, setBilledMonths] = useState<Set<number>>(() => {
     const allMonths = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
     if (Array.isArray(row?.billed_months) && row.billed_months.length > 0) {
@@ -121,6 +126,11 @@ export function ComplexPaymentTypeForm({
     const allMonths = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
     if (targetSemesterId === 0) {
       setAmount(String(row.nominal_default ?? ''));
+      setTargetMondok(str(row.target_mondok, 'mondok'));
+      setTierPricingEnabled(Boolean(row.tier_pricing_enabled));
+      setNominalVip(String(row.nominal_vip ?? ''));
+      setNominalReguler(String(row.nominal_reguler ?? row.nominal_default ?? ''));
+      setNominalKeringanan(String(row.nominal_keringanan ?? ''));
       setBilledMonths(
         new Set(
           Array.isArray(row.billed_months) && row.billed_months.length > 0
@@ -155,6 +165,9 @@ export function ComplexPaymentTypeForm({
     const rule = rulesArray.find((r: ApiRecord) => num(r.semester_id) === targetSemesterId);
     if (rule) {
       setAmount(String(rule.nominal ?? row.nominal_default ?? ''));
+      if (rule.target_mondok) setTargetMondok(str(rule.target_mondok));
+      if (rule.nominal_vip !== undefined && rule.nominal_vip !== null) setNominalVip(String(rule.nominal_vip));
+      if (rule.nominal_keringanan !== undefined && rule.nominal_keringanan !== null) setNominalKeringanan(String(rule.nominal_keringanan));
       setBilledMonths(
         new Set(
           Array.isArray(rule.billed_months) && rule.billed_months.length > 0
@@ -239,12 +252,17 @@ export function ComplexPaymentTypeForm({
 
       const payload = {
         nama: name.trim(),
-        nominal_default: num(amount),
+        nominal_default: tierPricingEnabled && nominalReguler !== '' ? num(nominalReguler) : num(amount),
         periode: str(selectedPeriod?.code ?? selectedPeriod?.name, 'umum'),
         payment_period_type_id: periodId,
         metode_pembayaran: Array.from(methods),
         status,
         target_gender: targetGender,
+        target_mondok: targetMondok,
+        tier_pricing_enabled: tierPricingEnabled,
+        nominal_vip: tierPricingEnabled && nominalVip !== '' ? num(nominalVip) : null,
+        nominal_reguler: tierPricingEnabled && nominalReguler !== '' ? num(nominalReguler) : num(amount),
+        nominal_keringanan: tierPricingEnabled && nominalKeringanan !== '' ? num(nominalKeringanan) : null,
         is_billed_to_all: isBilledToAll,
         billed_months: Array.from(billedMonths),
         month_amounts: Object.keys(customAmountsPayload).length > 0 ? customAmountsPayload : null,
@@ -505,6 +523,148 @@ export function ComplexPaymentTypeForm({
                     </button>
                   </div>
                 </div>
+
+                {/* TARGET KEBERADAAN SANTRI (MONDOK VS KALONG KAMPUNG) */}
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-black uppercase tracking-wider text-slate-800">
+                      🎯 Sasaran Keberadaan Santri
+                    </label>
+                    <span className="text-[11px] font-bold text-slate-500">Pemisah Asrama vs Warga Kampung</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {[
+                      { id: 'mondok', label: '🕌 Khusus Santri Mondok (Mukim)', desc: 'Santri asrama & kos makan. Anak kampung otomatis diskip.' },
+                      { id: 'kalong', label: '🏠 Khusus Santri Kalong (Kampung)', desc: 'Anak warga luar pondok yang hanya sekolah Madin.' },
+                      { id: 'all', label: '🌐 Seluruh Santri (Pondok & Kampung)', desc: 'Berlaku sama untuk semua santri (ujian, kitab, dll).' },
+                    ].map((tg) => (
+                      <button
+                        key={tg.id}
+                        type="button"
+                        onClick={() => setTargetMondok(tg.id)}
+                        className={`text-left p-3 rounded-2xl border transition cursor-pointer ${
+                          targetMondok === tg.id
+                            ? 'border-[#138F81] bg-teal-50/80 text-[#138F81] shadow-xs'
+                            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="text-xs font-extrabold flex items-center justify-between">
+                          <span>{tg.label}</span>
+                          {targetMondok === tg.id && <span className="text-[10px] font-black bg-[#138F81] text-white px-1.5 py-0.5 rounded-md">Dipilih</span>}
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-1 leading-snug">{tg.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* SKEMA TARIF (SATU TARIF VS MULTI-TIER BERTINGKAT) */}
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <label className="block text-xs font-black uppercase tracking-wider text-slate-800">
+                        💰 Skema Tarif Pembayaran
+                      </label>
+                      <p className="text-[11px] text-slate-500">Pilih apakah tarif sama rata atau bertingkat sesuai kelas finansial santri.</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setTierPricingEnabled(false)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                          !tierPricingEnabled ? 'bg-[#138F81] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Satu Tarif Rata
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTierPricingEnabled(true);
+                          if (!nominalReguler && amount) setNominalReguler(amount);
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                          tierPricingEnabled ? 'bg-[#138F81] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        ✨ Tarif Bertingkat (VIP/Reguler/Keringanan)
+                      </button>
+                    </div>
+                  </div>
+
+                  {tierPricingEnabled && (
+                    <div className="pt-2 border-t border-slate-200/80 space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {/* TIER 1: VIP */}
+                        <div className="rounded-2xl border border-amber-300/80 bg-amber-50/50 p-3 shadow-xs">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs font-black text-amber-900 flex items-center gap-1">
+                              ⭐ Kelas VIP (Atas)
+                            </span>
+                            <span className="text-[10px] font-extrabold bg-amber-200/80 text-amber-800 px-1.5 py-0.5 rounded">Fasilitas AC</span>
+                          </div>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-xs text-amber-600">Rp</span>
+                            <input
+                              type="text"
+                              value={nominalVip ? Number(nominalVip.replace(/\D/g, '')).toLocaleString('id-ID') : ''}
+                              onChange={(e) => setNominalVip(e.target.value.replace(/\D/g, ''))}
+                              placeholder="Contoh: 580.000"
+                              className="w-full rounded-xl border border-amber-300 bg-white pl-9 pr-3 py-2 text-xs sm:text-sm font-black text-amber-900 outline-hidden focus:border-amber-500 transition"
+                            />
+                          </div>
+                          <p className="text-[10px] text-amber-700 mt-1">Diberlakukan untuk santri berstatus VIP.</p>
+                        </div>
+
+                        {/* TIER 2: REGULER (DEFAULT) */}
+                        <div className="rounded-2xl border border-teal-300/80 bg-teal-50/50 p-3 shadow-xs">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs font-black text-teal-900 flex items-center gap-1">
+                              🏛️ Kelas Reguler (Standar)
+                            </span>
+                            <span className="text-[10px] font-extrabold bg-teal-200/80 text-teal-800 px-1.5 py-0.5 rounded">Mayoritas Santri</span>
+                          </div>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-xs text-teal-600">Rp</span>
+                            <input
+                              type="text"
+                              value={nominalReguler ? Number(nominalReguler.replace(/\D/g, '')).toLocaleString('id-ID') : (amount ? Number(amount.replace(/\D/g, '')).toLocaleString('id-ID') : '')}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, '');
+                                setNominalReguler(val);
+                                setAmount(val);
+                              }}
+                              placeholder="Contoh: 530.000"
+                              className="w-full rounded-xl border border-teal-300 bg-white pl-9 pr-3 py-2 text-xs sm:text-sm font-black text-teal-900 outline-hidden focus:border-[#138F81] transition"
+                            />
+                          </div>
+                          <p className="text-[10px] text-teal-700 mt-1">Tarif default santri biasa/menengah.</p>
+                        </div>
+
+                        {/* TIER 3: KERINGANAN / SUBSIDI */}
+                        <div className="rounded-2xl border border-emerald-300/80 bg-emerald-50/50 p-3 shadow-xs">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs font-black text-emerald-900 flex items-center gap-1">
+                              🤝 Subsidi / Keringanan
+                            </span>
+                            <span className="text-[10px] font-extrabold bg-emerald-200/80 text-emerald-800 px-1.5 py-0.5 rounded">Yatim / Dhuafa</span>
+                          </div>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-xs text-emerald-600">Rp</span>
+                            <input
+                              type="text"
+                              value={nominalKeringanan ? Number(nominalKeringanan.replace(/\D/g, '')).toLocaleString('id-ID') : ''}
+                              onChange={(e) => setNominalKeringanan(e.target.value.replace(/\D/g, ''))}
+                              placeholder="Contoh: 250.000"
+                              className="w-full rounded-xl border border-emerald-300 bg-white pl-9 pr-3 py-2 text-xs sm:text-sm font-black text-emerald-900 outline-hidden focus:border-emerald-500 transition"
+                            />
+                          </div>
+                          <p className="text-[10px] text-emerald-700 mt-1">Diberlakukan untuk santri penerima subsidi.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Step 2: Bulan Ditagihkan (Jika Bulanan) */}
@@ -736,15 +896,36 @@ export function ComplexPaymentTypeForm({
 
                   <p className="text-base font-black text-slate-900">{name || 'Nama Pos Tagihan'}</p>
 
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <p className="text-[11px] font-bold text-slate-400">Tarif Tagihan:</p>
-                    <p className="text-2xl font-black text-[#138F81] mt-0.5">
-                      {num(amount) > 0 ? formatRupiah(num(amount)) : 'Rp 0'}
-                    </p>
-                  </div>
+                  {tierPricingEnabled ? (
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-2">
+                      <p className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Tarif Bertingkat (Multi-Tier):</p>
+                      <div className="grid grid-cols-3 gap-1.5 text-center">
+                        <div className="p-2 rounded-lg bg-amber-50 border border-amber-200">
+                          <span className="text-[10px] font-extrabold text-amber-800 block">⭐ VIP</span>
+                          <span className="text-xs font-black text-amber-900">{num(nominalVip) > 0 ? formatRupiah(num(nominalVip)) : '-'}</span>
+                        </div>
+                        <div className="p-2 rounded-lg bg-teal-50 border border-teal-200">
+                          <span className="text-[10px] font-extrabold text-teal-800 block">🏛️ Reguler</span>
+                          <span className="text-xs font-black text-teal-900">{num(nominalReguler || amount) > 0 ? formatRupiah(num(nominalReguler || amount)) : '-'}</span>
+                        </div>
+                        <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+                          <span className="text-[10px] font-extrabold text-emerald-800 block">🤝 Keringanan</span>
+                          <span className="text-xs font-black text-emerald-900">{num(nominalKeringanan) > 0 ? formatRupiah(num(nominalKeringanan)) : '-'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                      <p className="text-[11px] font-bold text-slate-400">Tarif Tagihan:</p>
+                      <p className="text-2xl font-black text-[#138F81] mt-0.5">
+                        {num(amount) > 0 ? formatRupiah(num(amount)) : 'Rp 0'}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="text-[11px] font-semibold text-slate-500 space-y-1">
-                    <p>• Diterima via: {Array.from(methods).join(', ') || 'Semua metode'}</p>
+                    <p>• Diterima via: {Array.from(methods).join(', ').replace(/Kasir/g, 'Bendahara') || 'Semua metode'}</p>
+                    <p>• Keberadaan: {targetMondok === 'mondok' ? '🕌 Khusus Santri Mondok' : targetMondok === 'kalong' ? '🏠 Khusus Santri Kalong' : '🌐 Semua Santri'}</p>
                     <p>• Penagihan: {isBilledToAll ? 'Seluruh santri otomatis' : 'Manual santri tertentu'}</p>
                     {isBulanan && Object.keys(monthAmounts).length > 0 && (
                       <p className="text-amber-700 font-bold">• {Object.keys(monthAmounts).length} bulan diatur dengan nominal khusus</p>
