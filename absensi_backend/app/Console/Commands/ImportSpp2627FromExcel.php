@@ -158,8 +158,22 @@ class ImportSpp2627FromExcel extends Command
                 'target_gender' => 'ALL',
                 'is_billed_to_all' => true,
                 'billed_months' => [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6],
+                'target_mondok' => 'mondok',
+                'tier_pricing_enabled' => true,
+                'nominal_reguler' => 530000,
+                'nominal_vip' => 580000,
+                'nominal_keringanan' => 250000,
             ]
         );
+
+        $paymentType->update([
+            'target_mondok' => 'mondok',
+            'tier_pricing_enabled' => true,
+            'nominal_default' => 530000,
+            'nominal_reguler' => 530000,
+            'nominal_vip' => 580000,
+            'nominal_keringanan' => 250000,
+        ]);
 
         $rule = PaymentBillRule::firstOrCreate(
             [
@@ -171,6 +185,9 @@ class ImportSpp2627FromExcel extends Command
                 'billing_type' => 'bulanan',
                 'due_day' => 10,
                 'target_type' => 'all',
+                'target_mondok' => 'mondok',
+                'nominal_vip' => 580000,
+                'nominal_keringanan' => 250000,
                 'starts_on' => '2026-07-01',
                 'ends_on' => '2027-06-30',
                 'is_active' => true,
@@ -180,6 +197,13 @@ class ImportSpp2627FromExcel extends Command
                 'semester' => 'Ganjil',
             ]
         );
+
+        $rule->update([
+            'target_mondok' => 'mondok',
+            'nominal' => 530000,
+            'nominal_vip' => 580000,
+            'nominal_keringanan' => 250000,
+        ]);
 
         $this->info("✓ Master Tahun Ajaran ID: {$academicYear->id} [2026/2027]");
         $this->info("✓ Master Jenis Tagihan ID: {$paymentType->id} [{$paymentType->nama}]");
@@ -322,6 +346,7 @@ class ImportSpp2627FromExcel extends Command
                             'kamar' => $currentKamar ?: 'BELUM MASUK DATA',
                             'status' => 'Aktif',
                             'status_mondok' => 'mondok',
+                            'kategori_spp' => 'Reguler',
                             'jenis_santri' => 'Pondok',
                             'academic_year_id' => $academicYear->id,
                         ]);
@@ -362,6 +387,20 @@ class ImportSpp2627FromExcel extends Command
             } else {
                 $catatanS = trim((string)$sheet->getCell('S' . $r)->getValue());
                 $baseMonthlyRate = is_numeric($catatanS) && (int)$catatanS >= 100000 ? (int)$catatanS : 530000;
+            }
+
+            // Klasifikasikan tier santri dan sinkronkan ke profil siswa
+            $isVip = ($baseMonthlyRate >= 580000 || stripos($currentKamar, 'VIP') !== false || in_array(strtoupper($currentKamar), ['AL JAELANI', 'AL FAROBI', 'ABU MANSUR']));
+            $isKeringanan = ($baseMonthlyRate < 500000 && $baseMonthlyRate > 0);
+            $tierCategory = $isVip ? 'VIP' : ($isKeringanan ? 'Keringanan' : 'Reguler');
+
+            if (!$isDryRun && $siswa) {
+                if ($siswa->kategori_spp !== $tierCategory || $siswa->status_mondok !== 'mondok') {
+                    $siswa->update([
+                        'kategori_spp' => $tierCategory,
+                        'status_mondok' => 'mondok',
+                    ]);
+                }
             }
 
             $catatanS = trim((string)$sheet->getCell('S' . $r)->getValue());
