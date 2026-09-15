@@ -996,8 +996,8 @@ export const api = {
     }
     return request(`/pembayaran/${id}`, { method: 'DELETE' });
   },
-  deletePaymentType(id: number) {
-    return request(`/payment-types/${id}`, { method: 'DELETE' });
+  deletePaymentType(id: number, force?: boolean) {
+    return request(`/payment-types/${id}${force ? '?force=1' : ''}`, { method: 'DELETE' });
   },
   paymentMethods(params?: Record<string, string | number | boolean>) {
     return request<ApiRecord[]>('/payment-methods', {}, params);

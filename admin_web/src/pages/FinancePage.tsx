@@ -754,6 +754,33 @@ export function FinancePage({ initialTab = 'today', onTabChange }: FinancePagePr
               setEditing(row);
               setModal('type');
             }}
+            onDelete={async (row) => {
+              const name = str(row.nama);
+              const confirmed = window.confirm(`Apakah Anda yakin ingin menghapus pos tagihan "${name}"?`);
+              if (!confirmed) return;
+
+              try {
+                await api.deletePaymentType(idOf(row));
+                showToast(`Tipe tagihan "${name}" berhasil dihapus`, 'success');
+                await load();
+              } catch (err: any) {
+                const msg = err?.message || 'Gagal menghapus tipe tagihan';
+                if (err?.has_bills || err?.has_transactions || msg.includes('tagihan') || msg.includes('transaksi')) {
+                  const forceConfirm = window.confirm(`${msg}\n\nApakah Anda ingin HAPUS PAKSA (seluruh tagihan terkait tipe "${name}" akan dibersihkan)?`);
+                  if (forceConfirm) {
+                    try {
+                      await api.deletePaymentType(idOf(row), true);
+                      showToast(`Tipe tagihan "${name}" beserta data terkait berhasil dihapus`, 'success');
+                      await load();
+                    } catch (forceErr: any) {
+                      showToast(forceErr?.message || 'Gagal menghapus paksa', 'error');
+                    }
+                  }
+                } else {
+                  showToast(msg, 'error');
+                }
+              }
+            }}
           />
         ) : null}
         {!isLoading && activeTab === 'methods' ? (
@@ -2691,7 +2718,17 @@ function SummaryBox({ title, value, tone }: { title: string; value: unknown; ton
   );
 }
 
-function MasterPaymentTypes({ rows, onCreate, onEdit }: { rows: ApiRecord[]; onCreate: () => void; onEdit: (row: ApiRecord) => void }) {
+function MasterPaymentTypes({
+  rows,
+  onCreate,
+  onEdit,
+  onDelete
+}: {
+  rows: ApiRecord[];
+  onCreate: () => void;
+  onEdit: (row: ApiRecord) => void;
+  onDelete: (row: ApiRecord) => Promise<void>;
+}) {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -2766,9 +2803,19 @@ function MasterPaymentTypes({ rows, onCreate, onEdit }: { rows: ApiRecord[]; onC
             key: 'aksi',
             header: 'Aksi',
             render: (row) => (
-              <button className="rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-bold text-[#2E86DE] hover:bg-blue-100 transition-colors" onClick={() => onEdit(row)} type="button">
-                Edit
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button className="rounded-xl bg-[#EAF4FF] px-3 py-2 text-xs font-bold text-[#2E86DE] hover:bg-blue-100 transition-colors" onClick={() => onEdit(row)} type="button">
+                  Edit
+                </button>
+                <button
+                  className="rounded-xl bg-[#FDECEC] p-2 text-xs font-bold text-[#D63031] hover:bg-rose-100 transition-colors flex items-center justify-center"
+                  onClick={() => void onDelete(row)}
+                  type="button"
+                  title="Hapus Pos Tagihan"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
             )
           }
         ]}

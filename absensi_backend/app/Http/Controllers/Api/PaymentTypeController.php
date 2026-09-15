@@ -138,21 +138,42 @@ class PaymentTypeController extends Controller
 
     public function destroy(Request $request, PaymentType $paymentType)
     {
-        if ($paymentType->pembayaran()->exists()) {
+        $hasTransactions = $paymentType->pembayaran()->exists();
+        $billCount = $paymentType->bills()->count();
+        $isForce = $request->boolean('force');
+
+        if ($hasTransactions && !$isForce) {
             return response()->json([
                 'success' => false,
-                'message' => 'Tipe pembayaran sudah dipakai transaksi dan tidak bisa dihapus',
+                'has_transactions' => true,
+                'message' => 'Tipe pembayaran ini sudah memiliki riwayat transaksi pembayaran santri. Gunakan opsi hapus paksa jika benar-benar ingin membersihkannya.',
             ], 422);
         }
-        if ($paymentType->bills()->exists()) {
+
+        if ($billCount > 0 && !$isForce) {
             return response()->json([
                 'success' => false,
-                'message' => 'Tipe pembayaran sudah memiliki tagihan dan tidak bisa dihapus. Nonaktifkan tipe pembayaran jika tidak digunakan lagi.',
+                'has_bills' => true,
+                'bill_count' => $billCount,
+                'message' => "Tipe pembayaran ini memiliki {$billCount} tagihan siswa. Konfirmasi hapus paksa untuk membersihkan tagihan terkait.",
             ], 422);
         }
 
         $before = $paymentType->toArray();
-        $paymentType->delete();
+
+        DB::transaction(function () use ($paymentType, $isForce) {
+            if ($isForce) {
+                $billIds = $paymentType->bills()->pluck('id')->toArray();
+                if (!empty($billIds)) {
+                    \App\Models\Pembayaran::whereIn('payment_bill_id', $billIds)->delete();
+                    \App\Models\PaymentBill::whereIn('id', $billIds)->delete();
+                }
+                $paymentType->pembayaran()->delete();
+            }
+            $paymentType->billRules()->delete();
+            $paymentType->delete();
+        });
+
         app(AuditLogService::class)->record($request, 'payment_types', 'delete', $paymentType, $before, null);
 
         return response()->json([

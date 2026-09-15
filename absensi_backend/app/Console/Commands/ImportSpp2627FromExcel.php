@@ -148,10 +148,14 @@ class ImportSpp2627FromExcel extends Command
             ]
         );
 
-        $paymentType = PaymentType::firstOrCreate(
-            ['nama' => 'SPP Pondok 2026/2027'],
-            [
-                'deskripsi' => 'Tagihan SPP dan Kos Makan Santri Pondok Pesantren Qomaruddin Tahun Ajaran 2026/2027',
+        $paymentType = PaymentType::where('nama', 'SPP Pondok')
+            ->orWhere('nama', 'SPP Pondok 2026/2027')
+            ->first();
+
+        if (!$paymentType) {
+            $paymentType = PaymentType::create([
+                'nama' => 'SPP Pondok',
+                'deskripsi' => 'Tagihan SPP dan Kos Makan Santri Pondok Pesantren Qomaruddin',
                 'nominal_default' => 530000,
                 'periode' => 'bulanan',
                 'status' => 'Aktif',
@@ -163,17 +167,18 @@ class ImportSpp2627FromExcel extends Command
                 'nominal_reguler' => 530000,
                 'nominal_vip' => 580000,
                 'nominal_keringanan' => 250000,
-            ]
-        );
-
-        $paymentType->update([
-            'target_mondok' => 'mondok',
-            'tier_pricing_enabled' => true,
-            'nominal_default' => 530000,
-            'nominal_reguler' => 530000,
-            'nominal_vip' => 580000,
-            'nominal_keringanan' => 250000,
-        ]);
+            ]);
+        } else {
+            $paymentType->update([
+                'nama' => 'SPP Pondok',
+                'target_mondok' => 'mondok',
+                'tier_pricing_enabled' => true,
+                'nominal_default' => 530000,
+                'nominal_reguler' => 530000,
+                'nominal_vip' => 580000,
+                'nominal_keringanan' => 250000,
+            ]);
+        }
 
         $rule = PaymentBillRule::firstOrCreate(
             [
