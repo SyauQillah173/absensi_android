@@ -1843,6 +1843,20 @@ function columnsFor(variant: MasterVariant, callbacks: ColumnCallbacks): DataCol
                 🏠 {text(row.komplek)} - {text(row.kamar)}
               </span>
             ) : null}
+            {row.kategori_spp === 'VIP' ? (
+              <span className="font-extrabold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded shadow-xs">
+                ⭐ VIP
+              </span>
+            ) : row.kategori_spp === 'Keringanan' ? (
+              <span className="font-extrabold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded shadow-xs">
+                🤝 Keringanan
+              </span>
+            ) : null}
+            {row.status_mondok === 'kalong' ? (
+              <span className="font-extrabold text-purple-800 bg-purple-100 border border-purple-300 px-1.5 py-0.5 rounded shadow-xs">
+                🚶 Santri Kalong
+              </span>
+            ) : null}
           </div>
         </div>
       )

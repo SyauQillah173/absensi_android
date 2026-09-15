@@ -121,6 +121,8 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
       if (!parsed.agama_ayah) parsed.agama_ayah = 'Islam';
       if (!parsed.agama_ibu) parsed.agama_ibu = 'Islam';
       if (!parsed.agama_wali) parsed.agama_wali = 'Islam';
+      if (!parsed.status_mondok) parsed.status_mondok = 'mondok';
+      if (!parsed.kategori_spp) parsed.kategori_spp = 'Reguler';
       setForm(parsed);
       
       // Load cascade dropdowns if editing
@@ -139,6 +141,8 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
       setForm({
         jenis_kelamin: 'L',
         status: 'Aktif',
+        status_mondok: 'mondok',
+        kategori_spp: 'Reguler',
         kewarganegaraan: 'Indonesia',
         agama: 'Islam',
         agama_ayah: 'Islam',
@@ -202,7 +206,7 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
     }
 
     // Auto-uppercase for all text fields except email, dates, and phones
-    const lowercaseFields = ['email_siswa', 'email_wali', 'email', 'tanggal_lahir', 'tanggal_lahir_ayah', 'tanggal_lahir_ibu', 'tanggal_diterima_sekolah', 'tanggal_masuk', ...phoneFields];
+    const lowercaseFields = ['email_siswa', 'email_wali', 'email', 'tanggal_lahir', 'tanggal_lahir_ayah', 'tanggal_lahir_ibu', 'tanggal_diterima_sekolah', 'tanggal_masuk', 'status_mondok', 'kategori_spp', ...phoneFields];
     if (typeof value === 'string' && !lowercaseFields.includes(name) && !name.endsWith('_id') && !name.startsWith('foto')) {
       value = value.toUpperCase();
     }
@@ -927,6 +931,41 @@ export function ComplexSiswaForm({ initialData, readOnly = false, onClose, onSav
                     <label className="block">
                       <span className="mb-2 block text-sm font-bold text-[#636E72]">Jenis Santri</span>
                       <input list="jenis-santri-list" className="q-input uppercase" name="jenis_santri" value={String(form.jenis_santri || '')} onChange={handleChange} placeholder="Misal: SANTRI MADIN / MUKIM" />
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-bold text-[#138F81]">Status Keberadaan Santri</span>
+                      <select 
+                        className="q-input font-bold text-slate-800 bg-teal-50/40 border-teal-200" 
+                        name="status_mondok" 
+                        value={String(form.status_mondok || 'mondok')} 
+                        onChange={handleChange}
+                        disabled={readOnly}
+                      >
+                        <option value="mondok">🏡 Santri Pondok (Mukim di Asrama)</option>
+                        <option value="kalong">🚶 Santri Kalong (Warga Luar / Tidak Mukim)</option>
+                      </select>
+                      <span className="mt-1.5 block text-[11px] text-[#636E72]">
+                        *Santri Kalong otomatis tidak dikenakan iuran asrama & kos makan pondok.
+                      </span>
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-bold text-[#138F81]">Kategori Tarif SPP / Finansial</span>
+                      <select 
+                        className="q-input font-bold text-slate-800 bg-teal-50/40 border-teal-200" 
+                        name="kategori_spp" 
+                        value={String(form.kategori_spp || 'Reguler')} 
+                        onChange={handleChange}
+                        disabled={readOnly}
+                      >
+                        <option value="Reguler">🏛️ Santri Reguler (Menengah / Standar)</option>
+                        <option value="VIP">⭐ Santri VIP (Kelas Atas / Fasilitas Lebih)</option>
+                        <option value="Keringanan">🤝 Santri Keringanan (Bawah / Yatim / Dhuafa)</option>
+                      </select>
+                      <span className="mt-1.5 block text-[11px] text-[#636E72]">
+                        *Menentukan nominal jika tarif bertingkat (multi-tier) aktif. Default: Reguler.
+                      </span>
                     </label>
                   </div>
                   <datalist id="sekolah-list">{getRef('asal_sekolah').map(r => <option key={String(r.id)} value={String(r.nilai)} />)}</datalist>

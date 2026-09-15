@@ -19,7 +19,7 @@ class Siswa extends Model
         'kode_pos', 'no_whatsapp', 'email_siswa',
         'asal_sekolah', 'sekolah_formal', 'school_origin_id', 'previous_asal_sekolah', 'previous_school_origin_id',
         'tahun_lulus', 'tanggal_lulus', 'nomor_ijazah', 'catatan_kelulusan', 'tahun_akademik_masuk', 'tahun_akademik_masuk_formal', 'academic_year_id',
-        'jenis_santri', 'student_type_id',
+        'jenis_santri', 'student_type_id', 'kategori_spp',
         'anak_ke', 'jml_saudara',
         'nama_ayah', 'nik_ayah', 'tempat_lahir_ayah', 'tanggal_lahir_ayah', 'agama_ayah',
         'nama_ibu', 'nik_ibu', 'tempat_lahir_ibu', 'tanggal_lahir_ibu', 'agama_ibu',

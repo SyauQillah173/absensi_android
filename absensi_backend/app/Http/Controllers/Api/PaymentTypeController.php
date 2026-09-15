@@ -80,7 +80,10 @@ class PaymentTypeController extends Controller
                         if ($rule) {
                             $rule->update([
                                 'nominal' => $ruleOptions['nominal'] ?? $rule->nominal,
+                                'nominal_vip' => $ruleOptions['nominal_vip'] ?? $rule->nominal_vip,
+                                'nominal_keringanan' => $ruleOptions['nominal_keringanan'] ?? $rule->nominal_keringanan,
                                 'target_gender' => $ruleOptions['target_gender'] ?? $rule->target_gender,
+                                'target_mondok' => $ruleOptions['target_mondok'] ?? $rule->target_mondok,
                                 'billed_months' => $ruleOptions['billed_months'] ?? $rule->billed_months,
                                 'month_amounts' => array_key_exists('month_amounts', $ruleOptions) ? $ruleOptions['month_amounts'] : $rule->month_amounts,
                                 'month_notes' => array_key_exists('month_notes', $ruleOptions) ? $ruleOptions['month_notes'] : $rule->month_notes,
@@ -177,6 +180,11 @@ class PaymentTypeController extends Controller
             'metode_pembayaran.*' => ['string', 'max:255', Rule::exists('payment_methods', 'name')->where('is_active', true)],
             'status' => [...$requiredRules, 'in:Aktif,Nonaktif'],
             'target_gender' => 'nullable|string|max:20',
+            'target_mondok' => 'nullable|string|in:all,mondok,kalong,luar',
+            'tier_pricing_enabled' => 'nullable|boolean',
+            'nominal_vip' => 'nullable|integer|min:0',
+            'nominal_reguler' => 'nullable|integer|min:0',
+            'nominal_keringanan' => 'nullable|integer|min:0',
             'is_billed_to_all' => 'nullable|boolean',
             'billed_months' => 'nullable|array',
             'billed_months.*' => 'integer|between:1,12',
@@ -204,6 +212,11 @@ class PaymentTypeController extends Controller
             $validated['target_gender'] = 'ALL';
         }
 
+        $validated['target_mondok'] = strtolower(trim((string) ($validated['target_mondok'] ?? 'mondok')));
+        if (!in_array($validated['target_mondok'], ['all', 'mondok', 'kalong', 'luar'], true)) {
+            $validated['target_mondok'] = 'mondok';
+        }
+
         if (isset($validated['periode'])) {
             $validated['periode'] = strtolower(trim($validated['periode']));
             $validated['payment_period_type_id'] = $validated['payment_period_type_id']
@@ -224,7 +237,12 @@ class PaymentTypeController extends Controller
     private function paymentTypePayload(array $validated): array
     {
         return collect($validated)
-            ->only(['nama', 'deskripsi', 'nominal_default', 'periode', 'payment_period_type_id', 'metode_pembayaran', 'status', 'target_gender', 'is_billed_to_all', 'billed_months', 'month_amounts', 'month_notes'])
+            ->only([
+                'nama', 'deskripsi', 'nominal_default', 'periode', 'payment_period_type_id', 
+                'metode_pembayaran', 'status', 'target_gender', 'target_mondok', 
+                'tier_pricing_enabled', 'nominal_vip', 'nominal_reguler', 'nominal_keringanan', 
+                'is_billed_to_all', 'billed_months', 'month_amounts', 'month_notes'
+            ])
             ->all();
     }
 
@@ -235,12 +253,15 @@ class PaymentTypeController extends Controller
         return [
             'name' => $validated['nama'] ?? null,
             'nominal' => $validated['nominal_default'] ?? null,
+            'nominal_vip' => $validated['nominal_vip'] ?? null,
+            'nominal_keringanan' => $validated['nominal_keringanan'] ?? null,
             'billing_type' => $billingType,
             'due_day' => $billingType === 'bulanan'
                 ? ($validated['due_day'] ?? PaymentPeriodType::query()->find($validated['payment_period_type_id'] ?? null)?->due_day ?? 10)
                 : null,
             'target_type' => $validated['target_type'] ?? 'all',
             'target_gender' => $validated['target_gender'] ?? 'ALL',
+            'target_mondok' => $validated['target_mondok'] ?? 'mondok',
             'class_id' => $validated['class_id'] ?? null,
             'student_ids' => $validated['student_ids'] ?? [],
             'billed_months' => $validated['billed_months'] ?? null,

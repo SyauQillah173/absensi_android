@@ -19,6 +19,10 @@ class PaymentBillRule extends Model
         'due_day',
         'target_type',
         'target_gender',
+        'target_mondok',
+        'target_tier',
+        'nominal_vip',
+        'nominal_keringanan',
         'class_id',
         'starts_on',
         'ends_on',
@@ -35,6 +39,8 @@ class PaymentBillRule extends Model
     ];
 
     protected $casts = [
+        'nominal_vip' => 'integer',
+        'nominal_keringanan' => 'integer',
         'starts_on' => 'date',
         'ends_on' => 'date',
         'is_active' => 'boolean',

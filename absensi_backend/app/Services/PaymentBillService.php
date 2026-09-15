@@ -79,12 +79,15 @@ class PaymentBillService
             'payment_type_id' => $paymentType->id,
             'name' => $options['name'] ?? $paymentType->nama,
             'nominal' => (int) ($options['nominal'] ?? $paymentType->nominal_default ?? 0),
+            'nominal_vip' => array_key_exists('nominal_vip', $options) ? $options['nominal_vip'] : ($paymentType->nominal_vip ?? $rule?->nominal_vip),
+            'nominal_keringanan' => array_key_exists('nominal_keringanan', $options) ? $options['nominal_keringanan'] : ($paymentType->nominal_keringanan ?? $rule?->nominal_keringanan),
             'billing_type' => $options['billing_type'] ?? $paymentType->periode ?? 'sekali',
             'due_day' => array_key_exists('due_day', $options)
                 ? ($options['due_day'] === null ? null : $this->normalizeDueDay($options['due_day']))
                 : $this->normalizeDueDay($rule?->due_day ?? 10),
             'target_type' => $options['target_type'] ?? 'all',
             'target_gender' => $options['target_gender'] ?? $paymentType->target_gender ?? 'ALL',
+            'target_mondok' => $options['target_mondok'] ?? $paymentType->target_mondok ?? $rule?->target_mondok ?? 'mondok',
             'class_id' => $options['class_id'] ?? null,
             'billed_months' => $billedMonths,
             'month_amounts' => $options['month_amounts'] ?? $rule?->month_amounts ?? $paymentType->month_amounts ?? null,
@@ -1088,7 +1091,21 @@ class PaymentBillService
                 $ids->isEmpty() ? $query->whereRaw('1 = 0') : $query->whereIn('id', $ids);
             })
             ->when(in_array(strtoupper((string) ($rule->target_gender ?? $rule->paymentType?->target_gender ?? 'ALL')), ['L', 'LAKI-LAKI', 'PUTRA'], true), fn ($query) => $query->where('jenis_kelamin', 'L'))
-            ->when(in_array(strtoupper((string) ($rule->target_gender ?? $rule->paymentType?->target_gender ?? 'ALL')), ['P', 'PEREMPUAN', 'PUTRI'], true), fn ($query) => $query->where('jenis_kelamin', 'P'));
+            ->when(in_array(strtoupper((string) ($rule->target_gender ?? $rule->paymentType?->target_gender ?? 'ALL')), ['P', 'PEREMPUAN', 'PUTRI'], true), fn ($query) => $query->where('jenis_kelamin', 'P'))
+            ->when(strtolower(trim((string) ($rule->target_mondok ?? $rule->paymentType?->target_mondok ?? 'mondok'))) === 'mondok', function ($query) {
+                $query->where(function ($q) {
+                    $q->where('status_mondok', 'mondok')
+                      ->orWhereNull('status_mondok')
+                      ->orWhere('status_mondok', '');
+                });
+            })
+            ->when(in_array(strtolower(trim((string) ($rule->target_mondok ?? $rule->paymentType?->target_mondok ?? 'mondok'))), ['kalong', 'luar'], true), function ($query) {
+                $query->where(function ($q) {
+                    $q->where('status_mondok', 'kalong')
+                      ->orWhere('status_mondok', 'luar')
+                      ->orWhere('status_mondok', 'non-mondok');
+                });
+            });
     }
 
     private function dueDateForMonth(Carbon $month, ?int $dueDay): Carbon
@@ -1354,6 +1371,19 @@ class PaymentBillService
                 ->delete();
         }
 
+        $targetMondok = strtolower(trim((string) ($paymentType->target_mondok ?? $rule->target_mondok ?? 'mondok')));
+        if ($targetMondok === 'mondok') {
+            $students = $students->filter(function ($s) {
+                $st = strtolower(trim((string) ($s->status_mondok ?? 'mondok')));
+                return in_array($st, ['mondok', 'mukim', 'pondok', ''], true);
+            });
+        } elseif ($targetMondok === 'kalong' || $targetMondok === 'luar') {
+            $students = $students->filter(function ($s) {
+                $st = strtolower(trim((string) ($s->status_mondok ?? '')));
+                return in_array($st, ['kalong', 'luar', 'non-mondok', 'pulang'], true);
+            });
+        }
+
         $existingBills = PaymentBill::query()
             ->where('payment_type_id', $paymentType->id)
             ->whereNull('period_month')
@@ -1391,6 +1421,18 @@ class PaymentBillService
 
         foreach ($students as $student) {
             if (!in_array($student->id, $existingBills, true)) {
+                $billAmount = (int) ($paymentType->nominal_default ?? $rule->nominal);
+                if ($paymentType->tier_pricing_enabled) {
+                    $tier = strtoupper(trim((string) ($student->kategori_spp ?? 'REGULER')));
+                    if ($tier === 'VIP' && $paymentType->nominal_vip > 0) {
+                        $billAmount = (int) $paymentType->nominal_vip;
+                    } elseif ($tier === 'KERINGANAN' && $paymentType->nominal_keringanan !== null) {
+                        $billAmount = (int) $paymentType->nominal_keringanan;
+                    } elseif ($paymentType->nominal_reguler > 0) {
+                        $billAmount = (int) $paymentType->nominal_reguler;
+                    }
+                }
+
                 $inserts[] = [
                     'payment_bill_rule_id' => $rule->id,
                     'payment_type_id' => $paymentType->id,
@@ -1402,7 +1444,7 @@ class PaymentBillService
                     'period_month' => null,
                     'period_label' => $periodLabel,
                     'title' => trim($paymentType->nama . ' ' . $titleSuffix),
-                    'amount' => (int) ($paymentType->nominal_default ?? $rule->nominal),
+                    'amount' => $billAmount,
                     'due_date' => $dueDate->toDateString(),
                     'status' => $status,
                     'academic_year_id' => $insertAcademicYearId,
@@ -1499,6 +1541,19 @@ class PaymentBillService
                 ->delete();
         }
 
+        $targetMondok = strtolower(trim((string) ($paymentType->target_mondok ?? $rule->target_mondok ?? 'mondok')));
+        if ($targetMondok === 'mondok') {
+            $students = $students->filter(function ($s) {
+                $st = strtolower(trim((string) ($s->status_mondok ?? 'mondok')));
+                return in_array($st, ['mondok', 'mukim', 'pondok', ''], true);
+            });
+        } elseif ($targetMondok === 'kalong' || $targetMondok === 'luar') {
+            $students = $students->filter(function ($s) {
+                $st = strtolower(trim((string) ($s->status_mondok ?? '')));
+                return in_array($st, ['kalong', 'luar', 'non-mondok', 'pulang'], true);
+            });
+        }
+
         $existingBills = PaymentBill::query()
             ->where('payment_type_id', $paymentType->id)
             ->where('academic_year_id', $academicYear->id)
@@ -1534,7 +1589,7 @@ class PaymentBillService
                     'period_month' => $month,
                     'period_label' => $periodLabel,
                     'title' => trim($paymentType->nama . ' ' . $periodLabel),
-                    'amount' => $this->amountForMonth($paymentType, $rule, (int) $month),
+                    'amount' => $this->amountForMonth($paymentType, $rule, (int) $month, $student),
                     'notes' => $this->noteForMonth($paymentType, $rule, (int) $month),
                     'due_date' => $dueDate->toDateString(),
                     'status' => $status,
@@ -1561,7 +1616,8 @@ class PaymentBillService
             ->where('payment_type_id', $paymentType->id)
             ->whereNotNull('period_month')
             ->whereIn('status', ['Belum Lunas', 'Terlambat'])
-            ->whereDoesntHave('pembayaran');
+            ->whereDoesntHave('pembayaran')
+            ->with('siswa:id,kategori_spp,status_mondok');
 
         if ($academicYear) {
             $unpaidBillsQuery->where('academic_year_id', $academicYear->id);
@@ -1576,7 +1632,7 @@ class PaymentBillService
         $unpaidBills = $unpaidBillsQuery->get();
 
         foreach ($unpaidBills as $unpaidBill) {
-            $correctAmount = $this->amountForMonth($paymentType, $rule, (int) $unpaidBill->period_month);
+            $correctAmount = $this->amountForMonth($paymentType, $rule, (int) $unpaidBill->period_month, $unpaidBill->siswa);
             $correctNote = $this->noteForMonth($paymentType, $rule, (int) $unpaidBill->period_month);
             $updates = [];
             if ((int) $unpaidBill->amount !== (int) $correctAmount) {
@@ -1614,15 +1670,34 @@ class PaymentBillService
         }
     }
 
-    public function amountForMonth(?PaymentType $paymentType, ?PaymentBillRule $rule, int $month): int
+    public function amountForMonth(?PaymentType $paymentType, ?PaymentBillRule $rule, int $month, ?Siswa $student = null): int
     {
         $monthAmounts = $rule?->month_amounts ?? $paymentType?->month_amounts ?? [];
         if (is_array($monthAmounts)) {
-            if (isset($monthAmounts[$month]) && is_numeric($monthAmounts[$month]) && $monthAmounts[$month] > 0) {
+            if (isset($monthAmounts[$month]) && is_numeric($monthAmounts[$month]) && (int) $monthAmounts[$month] > 0) {
                 return (int) $monthAmounts[$month];
             }
-            if (isset($monthAmounts[(string) $month]) && is_numeric($monthAmounts[(string) $month]) && $monthAmounts[(string) $month] > 0) {
+            if (isset($monthAmounts[(string) $month]) && is_numeric($monthAmounts[(string) $month]) && (int) $monthAmounts[(string) $month] > 0) {
                 return (int) $monthAmounts[(string) $month];
+            }
+        }
+
+        // Cek Skema Tarif Bertingkat (Tier VIP, Reguler, Keringanan)
+        $isTierEnabled = (bool) ($paymentType?->tier_pricing_enabled ?? false);
+        $nominalVip = $paymentType?->nominal_vip ?? $rule?->nominal_vip;
+        $nominalKeringanan = $paymentType?->nominal_keringanan ?? $rule?->nominal_keringanan;
+        $nominalReguler = $paymentType?->nominal_reguler ?? $paymentType?->nominal_default ?? $rule?->nominal;
+
+        if ($student && ($isTierEnabled || $nominalVip > 0 || $nominalKeringanan !== null)) {
+            $tier = strtoupper(trim((string) ($student->kategori_spp ?? 'REGULER')));
+            if ($tier === 'VIP' && $nominalVip > 0) {
+                return (int) $nominalVip;
+            }
+            if ($tier === 'KERINGANAN' && $nominalKeringanan !== null) {
+                return (int) $nominalKeringanan;
+            }
+            if ($nominalReguler > 0) {
+                return (int) $nominalReguler;
             }
         }
 

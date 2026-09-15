@@ -18,6 +18,11 @@ class PaymentType extends Model
         'metode_pembayaran',
         'status',
         'target_gender',
+        'target_mondok',
+        'tier_pricing_enabled',
+        'nominal_vip',
+        'nominal_reguler',
+        'nominal_keringanan',
         'is_billed_to_all',
         'billed_months',
         'month_amounts',
@@ -30,6 +35,10 @@ class PaymentType extends Model
         'month_amounts' => 'array',
         'month_notes' => 'array',
         'is_billed_to_all' => 'boolean',
+        'tier_pricing_enabled' => 'boolean',
+        'nominal_vip' => 'integer',
+        'nominal_reguler' => 'integer',
+        'nominal_keringanan' => 'integer',
     ];
 
     public function pembayaran()

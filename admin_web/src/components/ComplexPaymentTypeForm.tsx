@@ -55,6 +55,11 @@ export function ComplexPaymentTypeForm({
   const [amount, setAmount] = useState(String(initialData?.nominal_default ?? ''));
   const [periodId, setPeriodId] = useState(num(initialData?.payment_period_type_id ?? paymentPeriods[0]?.id));
   const [status, setStatus] = useState(str(initialData?.status, 'Aktif'));
+  const [targetMondok, setTargetMondok] = useState<string>(str(initialData?.target_mondok, 'mondok'));
+  const [tierPricingEnabled, setTierPricingEnabled] = useState<boolean>(Boolean(initialData?.tier_pricing_enabled));
+  const [nominalVip, setNominalVip] = useState<string>(String(initialData?.nominal_vip ?? ''));
+  const [nominalReguler, setNominalReguler] = useState<string>(String(initialData?.nominal_reguler ?? initialData?.nominal_default ?? ''));
+  const [nominalKeringanan, setNominalKeringanan] = useState<string>(String(initialData?.nominal_keringanan ?? ''));
   const [methods, setMethods] = useState<Set<string>>(() => {
     return new Set(
       (Array.isArray(initialData?.metode_pembayaran)
@@ -182,7 +187,12 @@ export function ComplexPaymentTypeForm({
 
       const payload = {
         nama: name.trim(),
-        nominal_default: num(amount),
+        nominal_default: tierPricingEnabled && nominalReguler ? num(nominalReguler) : num(amount),
+        target_mondok: targetMondok,
+        tier_pricing_enabled: tierPricingEnabled,
+        nominal_vip: tierPricingEnabled && nominalVip ? num(nominalVip) : null,
+        nominal_reguler: tierPricingEnabled && nominalReguler ? num(nominalReguler) : num(amount),
+        nominal_keringanan: tierPricingEnabled && nominalKeringanan !== '' ? num(nominalKeringanan) : null,
         periode: str(period?.code ?? period?.name, 'umum'),
         payment_period_type_id: periodId,
         metode_pembayaran: Array.from(methods),
@@ -395,6 +405,169 @@ export function ComplexPaymentTypeForm({
                 </div>
               </div>
 
+              {/* TARGET KEBERADAAN SANTRI (MONDOK VS KALONG KAMPUNG) */}
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-800">
+                    🎯 Sasaran Keberadaan Santri
+                  </label>
+                  <span className="text-[11px] font-bold text-slate-500">Pemisah Asrama vs Warga Kampung</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {[
+                    { id: 'mondok', label: '🕌 Khusus Santri Mondok (Mukim)', desc: 'Santri asrama & kos makan. Anak kampung otomatis diskip.' },
+                    { id: 'kalong', label: '🏠 Khusus Santri Kalong (Kampung)', desc: 'Anak warga luar pondok yang hanya sekolah Madin.' },
+                    { id: 'all', label: '🌐 Seluruh Santri (Pondok & Kampung)', desc: 'Berlaku sama untuk semua santri (ujian, kitab, dll).' },
+                  ].map((tg) => (
+                    <button
+                      key={tg.id}
+                      type="button"
+                      onClick={() => setTargetMondok(tg.id)}
+                      className={`text-left p-3 rounded-2xl border transition cursor-pointer ${
+                        targetMondok === tg.id
+                          ? 'border-[#138F81] bg-teal-50/80 text-[#138F81] shadow-xs'
+                          : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="text-xs font-extrabold flex items-center justify-between">
+                        <span>{tg.label}</span>
+                        {targetMondok === tg.id && <span className="text-[10px] font-black bg-[#138F81] text-white px-1.5 py-0.5 rounded-md">Dipilih</span>}
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1 leading-snug">{tg.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* SKEMA TARIF (SATU TARIF VS MULTI-TIER BERTINGKAT) */}
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-wider text-slate-800">
+                      💰 Skema Tarif Pembayaran
+                    </label>
+                    <p className="text-[11px] text-slate-500">Pilih apakah tarif sama rata atau bertingkat sesuai kelas finansial santri.</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setTierPricingEnabled(false)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                        !tierPricingEnabled ? 'bg-[#138F81] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Satu Tarif Rata
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTierPricingEnabled(true);
+                        if (!nominalReguler && amount) setNominalReguler(amount);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                        tierPricingEnabled ? 'bg-[#138F81] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      ✨ Tarif Bertingkat (VIP/Reguler/Keringanan)
+                    </button>
+                  </div>
+                </div>
+
+                {!tierPricingEnabled ? (
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                      {targetSemesterId > 0 ? 'Nominal Semester Ini (Rp)' : 'Nominal Standar Semua Santri (Rp)'} <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-xs text-slate-400">Rp</span>
+                      <input
+                        type="text"
+                        value={amount ? Number(amount).toLocaleString('id-ID') : ''}
+                        onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))}
+                        placeholder="0"
+                        required
+                        className="w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-xs sm:text-sm font-black text-[#138F81] outline-none focus:border-[#138F81] transition"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="pt-2 border-t border-slate-200/80 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {/* TIER 1: VIP */}
+                      <div className="rounded-2xl border border-amber-300/80 bg-amber-50/50 p-3 shadow-xs">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-black text-amber-900 flex items-center gap-1">
+                            🥇 Kelas VIP (Atas)
+                          </span>
+                          <span className="text-[10px] font-extrabold bg-amber-200/80 text-amber-800 px-1.5 py-0.5 rounded">Fasilitas AC</span>
+                        </div>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-xs text-amber-600">Rp</span>
+                          <input
+                            type="text"
+                            value={nominalVip ? Number(nominalVip).toLocaleString('id-ID') : ''}
+                            onChange={(e) => setNominalVip(e.target.value.replace(/\D/g, ''))}
+                            placeholder="Contoh: 580.000"
+                            className="w-full rounded-xl border border-amber-300 bg-white pl-9 pr-3 py-2 text-xs sm:text-sm font-black text-amber-900 outline-none focus:border-amber-500 transition"
+                          />
+                        </div>
+                        <p className="text-[10px] text-amber-700 mt-1">Diberlakukan untuk santri berstatus VIP.</p>
+                      </div>
+
+                      {/* TIER 2: REGULER (DEFAULT) */}
+                      <div className="rounded-2xl border border-teal-300/80 bg-teal-50/50 p-3 shadow-xs">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-black text-teal-900 flex items-center gap-1">
+                            🥈 Kelas Reguler (Standar)
+                          </span>
+                          <span className="text-[10px] font-extrabold bg-teal-200/80 text-teal-800 px-1.5 py-0.5 rounded">Default Mayoritas</span>
+                        </div>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-xs text-teal-600">Rp</span>
+                          <input
+                            type="text"
+                            value={nominalReguler ? Number(nominalReguler).toLocaleString('id-ID') : (amount ? Number(amount).toLocaleString('id-ID') : '')}
+                            onChange={(e) => {
+                              const v = e.target.value.replace(/\D/g, '');
+                              setNominalReguler(v);
+                              setAmount(v);
+                            }}
+                            placeholder="Contoh: 530.000"
+                            required
+                            className="w-full rounded-xl border border-teal-300 bg-white pl-9 pr-3 py-2 text-xs sm:text-sm font-black text-teal-900 outline-none focus:border-[#138F81] transition"
+                          />
+                        </div>
+                        <p className="text-[10px] text-teal-700 mt-1">Tarif standar santri jika belum diubah.</p>
+                      </div>
+
+                      {/* TIER 3: KERINGANAN / SUBSIDI */}
+                      <div className="rounded-2xl border border-blue-300/80 bg-blue-50/50 p-3 shadow-xs">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-black text-blue-900 flex items-center gap-1">
+                            🥉 Kelas Keringanan (Bawah)
+                          </span>
+                          <span className="text-[10px] font-extrabold bg-blue-200/80 text-blue-800 px-1.5 py-0.5 rounded">Subsidi/Yatim</span>
+                        </div>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-xs text-blue-600">Rp</span>
+                          <input
+                            type="text"
+                            value={nominalKeringanan ? Number(nominalKeringanan).toLocaleString('id-ID') : ''}
+                            onChange={(e) => setNominalKeringanan(e.target.value.replace(/\D/g, ''))}
+                            placeholder="Contoh: 200.000 (0 jika gratis)"
+                            className="w-full rounded-xl border border-blue-300 bg-white pl-9 pr-3 py-2 text-xs sm:text-sm font-black text-blue-900 outline-none focus:border-blue-500 transition"
+                          />
+                        </div>
+                        <p className="text-[10px] text-blue-700 mt-1">Diberlakukan untuk santri keringanan.</p>
+                      </div>
+                    </div>
+                    <p className="text-xs font-medium text-slate-500 leading-relaxed">
+                      💡 <b>Sistem Smart Fallback:</b> Jika santri baru belum diatur kelasnya atau kolom nominal di atas ada yang dikosongkan, sistem otomatis mengenakan <b>Tarif Reguler</b> sehingga tidak akan pernah terjadi tagihan Rp 0 secara keliru.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Checkbox Ditagihkan ke Seluruh Santri */}
               <div className="flex items-center gap-3 rounded-2xl bg-teal-50/60 border border-teal-200/80 p-4">
                 <input
@@ -405,7 +578,7 @@ export function ComplexPaymentTypeForm({
                   className="h-5 w-5 rounded border-slate-300 text-[#138F81] focus:ring-[#138F81] cursor-pointer"
                 />
                 <label htmlFor="complex_is_billed_to_all" className="text-xs sm:text-sm font-bold text-slate-800 cursor-pointer">
-                  Masukkan ke tagihan seluruh santri secara otomatis saat semester/bulan berjalan?
+                  Masukkan ke tagihan seluruh santri yang sesuai sasaran secara otomatis saat semester/bulan berjalan?
                 </label>
               </div>
             </div>
