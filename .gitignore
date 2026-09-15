@@ -48,6 +48,8 @@ reset_*.sh
 !import_spp_26_27.sh
 !reset_sistem_keuangan.bat
 !reset_sistem_keuangan.sh
+!absensi_backend/deduplikasi_santri.bat
+!absensi_backend/deduplikasi_santri.sh
 
 # Folder Asisten AI & Konfigurasi Pribadi
 .agents/
