@@ -605,18 +605,19 @@ export function DataPondokPage() {
         )}
       </section>
 
-      <ConfirmDialog
-        open={confirmState !== null}
-        busy={confirmBusy}
-        title={confirmState?.title ?? ''}
-        message={confirmState?.message ?? ''}
-        confirmLabel={confirmState?.confirmLabel ?? 'Konfirmasi'}
-        tone={confirmState?.tone ?? 'danger'}
-        onConfirm={() => void runConfirm()}
-        onCancel={() => {
-          if (!confirmBusy) setConfirmState(null);
-        }}
-      />
+      {confirmState ? (
+        <ConfirmDialog
+          title={confirmState.title}
+          message={confirmState.message}
+          confirmLabel={confirmState.confirmLabel ?? 'Konfirmasi'}
+          tone={confirmState.tone ?? 'danger'}
+          isBusy={confirmBusy}
+          onConfirm={() => void runConfirm()}
+          onCancel={() => {
+            if (!confirmBusy) setConfirmState(null);
+          }}
+        />
+      ) : null}
 
       {importKamarOpen && (
         <ComplexImportKamarModal
