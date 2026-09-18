@@ -252,6 +252,38 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
     }
   };
 
+  const fetchMasterPmbStatus = async () => {
+    try {
+      const res = await api.getPmbInfo();
+      if (res && res.data) {
+        const info = res.data as any;
+        if (typeof info.pmb_is_open !== 'undefined') {
+          setPmbIsOpen(Boolean(info.pmb_is_open));
+        }
+        if (info.pmb_closed_message) {
+          setClosedMessageInput(info.pmb_closed_message);
+        }
+      }
+    } catch (e) {
+      console.warn('Gagal memuat master status PMB:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchMasterPmbStatus();
+  }, []);
+
+  // Dengarkan event sinkronisasi status PMB dari child tab / CMS
+  useEffect(() => {
+    const handleStatusEvent = (e: any) => {
+      if (typeof e.detail === 'boolean') {
+        setPmbIsOpen(e.detail);
+      }
+    };
+    window.addEventListener('pmb:status-changed', handleStatusEvent);
+    return () => window.removeEventListener('pmb:status-changed', handleStatusEvent);
+  }, []);
+
   useEffect(() => {
     if (initialTab) setActiveTab(initialTab);
   }, [initialTab]);
@@ -283,7 +315,9 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
       if (res && res.data) {
         setDashboard(res.data as unknown as PmbDashboardData);
         if (typeof (res.data as any).pmb_is_open !== 'undefined') {
-          setPmbIsOpen(Boolean((res.data as any).pmb_is_open));
+          const currentStatus = Boolean((res.data as any).pmb_is_open);
+          setPmbIsOpen(currentStatus);
+          window.dispatchEvent(new CustomEvent('pmb:status-changed', { detail: currentStatus }));
         }
       }
     } catch (e: any) {
@@ -363,6 +397,8 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
       });
       setPmbIsOpen(nextStatus);
       setPmbToggleModalOpen(false);
+      window.dispatchEvent(new CustomEvent('pmb:status-changed', { detail: nextStatus }));
+      window.dispatchEvent(new Event('app:data-updated'));
       showToast(`Pendaftaran PMB berhasil di-${nextStatus ? 'BUKA' : 'TUTUP'}.`);
     } catch (e: any) {
       showToast(e?.message || 'Gagal mengubah status pendaftaran PMB', 'error');
@@ -1184,7 +1220,12 @@ export function PmbAdminPage({ initialTab = 'dashboard', onTabChange }: PmbAdmin
       {activeTab === 'announcements' && <PmbAnnouncementsTab />}
 
       {/* 🌟 TAB 5: CMS WEB PROFIL PESANTREN (WORDPRESS-STYLE) */}
-      {activeTab === 'cms' && <PmbCmsTab />}
+      {activeTab === 'cms' && (
+        <PmbCmsTab
+          pmbIsOpen={pmbIsOpen}
+          onPmbStatusChange={(isOpen) => setPmbIsOpen(isOpen)}
+        />
+      )}
 
       {/* 🌟 MODAL AUDIT & PEMBAYARAN FORMULIR */}
       {auditModalItem && (

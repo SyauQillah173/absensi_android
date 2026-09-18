@@ -36,13 +36,18 @@ interface ProgramItem {
   icon: string;
 }
 
-export function PmbCmsTab() {
+export interface PmbCmsTabProps {
+  pmbIsOpen?: boolean;
+  onPmbStatusChange?: (isOpen: boolean) => void;
+}
+
+export function PmbCmsTab({ pmbIsOpen: externalPmbIsOpen, onPmbStatusChange }: PmbCmsTabProps = {}) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Form states
-  const [pmbIsOpen, setPmbIsOpen] = useState(true);
+  const [pmbIsOpen, setPmbIsOpen] = useState(typeof externalPmbIsOpen === 'boolean' ? externalPmbIsOpen : true);
   const [pmbClosedMessage, setPmbClosedMessage] = useState('');
   const [namaPesantren, setNamaPesantren] = useState('Pondok Pesantren Qomaruddin');
   const [pendiri, setPendiri] = useState('Kiai Qomaruddin (Mbah Kiai Qomaruddin)');
@@ -98,17 +103,43 @@ export function PmbCmsTab() {
     setTimeout(() => setToast(null), 4000);
   };
 
+  // Sinkronkan state jika parent (PmbAdminPage) berubah
+  useEffect(() => {
+    if (typeof externalPmbIsOpen === 'boolean') {
+      setPmbIsOpen(externalPmbIsOpen);
+    }
+  }, [externalPmbIsOpen]);
+
+  // Dengarkan event sinkronisasi status PMB dari mana pun (misal toggle header)
+  useEffect(() => {
+    const handleStatusEvent = (e: any) => {
+      if (typeof e.detail === 'boolean') {
+        setPmbIsOpen(e.detail);
+      }
+    };
+    window.addEventListener('pmb:status-changed', handleStatusEvent);
+    return () => window.removeEventListener('pmb:status-changed', handleStatusEvent);
+  }, []);
+
   const loadCmsSettings = async () => {
     setIsLoading(true);
     try {
       const res = await api.getPmbCmsSettingsAdmin();
-      if (Array.isArray(res)) {
-        res.forEach((s: any) => {
+      // Handle res baik berupa array langsung maupun dalam envelope { status: 'success', data: [...] }
+      const rawList = Array.isArray(res)
+        ? res
+        : (Array.isArray((res as any)?.data) ? (res as any).data : []);
+
+      if (Array.isArray(rawList)) {
+        rawList.forEach((s: any) => {
           const val = s.value;
           switch (s.key) {
-            case 'pmb_is_open':
-              setPmbIsOpen(val === '1' || val === true || val === 'true');
+            case 'pmb_is_open': {
+              const isOpen = val === '1' || val === true || val === 'true';
+              setPmbIsOpen(isOpen);
+              onPmbStatusChange?.(isOpen);
               break;
+            }
             case 'pmb_closed_message':
               setPmbClosedMessage(val || '');
               break;
@@ -182,6 +213,9 @@ export function PmbCmsTab() {
         closed_message: pmbClosedMessage
       });
       setPmbIsOpen(nextStatus);
+      onPmbStatusChange?.(nextStatus);
+      window.dispatchEvent(new CustomEvent('pmb:status-changed', { detail: nextStatus }));
+      window.dispatchEvent(new Event('app:data-updated'));
       showToast(`Status pendaftaran PMB berhasil di-${nextStatus ? 'BUKA' : 'TUTUP'}.`);
     } catch (e: any) {
       showToast(e?.message || 'Gagal mengubah status pendaftaran PMB', 'error');
@@ -232,6 +266,9 @@ export function PmbCmsTab() {
       ];
 
       await api.updatePmbCmsSettings(settingsPayload);
+      onPmbStatusChange?.(pmbIsOpen);
+      window.dispatchEvent(new CustomEvent('pmb:status-changed', { detail: pmbIsOpen }));
+      window.dispatchEvent(new Event('app:data-updated'));
       showToast('Alhamdulillah! Seluruh pengaturan Web Profil Pesantren (CMS) berhasil disimpan.');
     } catch (e: any) {
       showToast(e?.message || 'Gagal menyimpan pengaturan CMS', 'error');

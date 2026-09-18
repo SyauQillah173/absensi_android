@@ -78,7 +78,8 @@ export function PmbAnnouncementsTab() {
       if (searchQuery) params.search = searchQuery;
 
       const res = await api.getPmbAnnouncementsAdmin(params);
-      setAnnouncements(Array.isArray(res) ? (res as PmbAnnouncementItem[]) : []);
+      const list = Array.isArray(res) ? res : (Array.isArray((res as any)?.data) ? (res as any).data : []);
+      setAnnouncements(list as PmbAnnouncementItem[]);
     } catch (e: any) {
       showToast(e?.message || 'Gagal memuat berita & agenda PMB', 'error');
     } finally {
