@@ -421,50 +421,32 @@ export function PelanggaranPage() {
         <div className="absolute right-0 top-0 -mr-16 -mt-16 h-64 w-64 rounded-full bg-[#138F81]/15 blur-3xl pointer-events-none" />
         <div className="absolute right-1/3 bottom-0 -mb-12 h-44 w-44 rounded-full bg-amber-400/10 blur-2xl pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-black text-emerald-300 border border-emerald-400/30 backdrop-blur-md">
-                <ShieldCheck size={14} /> Biro Keamanan & Ketertiban Santri
-              </span>
-              <span className="rounded-full bg-amber-400/20 px-3 py-1 text-xs font-black text-amber-300 border border-amber-400/30">
-                Pondok Pesantren Qomaruddin
-              </span>
+        <div className="relative z-10 flex flex-col gap-5">
+          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+            <div className="max-w-3xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-black text-emerald-300 border border-emerald-400/30 backdrop-blur-md">
+                  <ShieldCheck size={14} /> Biro Keamanan & Ketertiban Santri
+                </span>
+                <span className="rounded-full bg-amber-400/20 px-3 py-1 text-xs font-black text-amber-300 border border-amber-400/30">
+                  Pondok Pesantren Qomaruddin
+                </span>
+              </div>
+              <h1 className="mt-3 text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white">
+                Pusat Pengawasan Kedisiplinan & Pelanggaran
+              </h1>
+              <p className="mt-2 text-xs sm:text-sm font-medium text-slate-300 leading-relaxed">
+                Pencatatan pelanggaran santri, akumulasi poin kedisiplinan otomatis, tindakan takzir edukatif, penerbitan surat panggilan wali santri resmi, dan integrasi notifikasi real-time ke orang tua.
+              </p>
             </div>
-            <h1 className="mt-3 text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white">
-              Pusat Pengawasan Kedisiplinan & Pelanggaran
-            </h1>
-            <p className="mt-2 text-xs sm:text-sm font-medium text-slate-300 max-w-2xl leading-relaxed">
-              Pencatatan pelanggaran santri, akumulasi poin kedisiplinan otomatis, tindakan takzir edukatif, penerbitan surat panggilan wali santri resmi, dan integrasi notifikasi real-time ke orang tua.
-            </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            <button
-              type="button"
-              onClick={() => void handleExportExcel()}
-              disabled={exportingExcel}
-              className="inline-flex items-center gap-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 px-4 py-3 text-xs sm:text-sm font-bold text-white transition backdrop-blur-md cursor-pointer disabled:opacity-50"
-              title="Export Laporan Rekap Pelanggaran ke Excel"
-            >
-              <Download size={16} className={exportingExcel ? 'animate-bounce' : ''} />
-              <span className="hidden sm:inline">{exportingExcel ? 'Mengunduh...' : 'Export Excel'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsImportModalOpen(true)}
-              className="inline-flex items-center gap-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 px-4 py-3 text-xs sm:text-sm font-bold text-white transition backdrop-blur-md cursor-pointer"
-              title="Import Data Pelanggaran via Excel/CSV"
-            >
-              <Upload size={16} />
-              <span className="hidden sm:inline">Import Excel</span>
-            </button>
-
+          {/* ACTION BUTTONS TOOLBAR (RESPONSIF PENUH & TIDAK AKAN TERPOTONG) */}
+          <div className="flex flex-wrap items-center justify-start lg:justify-end gap-2 sm:gap-2.5 pt-4 border-t border-white/10">
             <button
               type="button"
               onClick={() => handleOpenCreateModal()}
-              className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] px-5 py-3 text-xs sm:text-sm font-black text-white shadow-lg shadow-[#138F81]/30 transition transform active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-2xl bg-[#138F81] hover:bg-[#0D7A6F] px-4 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-black text-white shadow-lg shadow-[#138F81]/40 transition transform active:scale-95 cursor-pointer"
             >
               <PlusCircle size={18} />
               <span>+ Catat Pelanggaran</span>
@@ -472,12 +454,33 @@ export function PelanggaranPage() {
 
             <button
               type="button"
+              onClick={() => void handleExportExcel()}
+              disabled={exportingExcel}
+              className="inline-flex items-center gap-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-white transition backdrop-blur-md cursor-pointer disabled:opacity-50"
+              title="Export Laporan Rekap Pelanggaran ke Excel"
+            >
+              <Download size={16} className={exportingExcel ? 'animate-bounce' : ''} />
+              <span>{exportingExcel ? 'Mengunduh...' : 'Export Excel'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsImportModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-white transition backdrop-blur-md cursor-pointer"
+              title="Import Data Pelanggaran via Excel/CSV"
+            >
+              <Upload size={16} />
+              <span>Import Excel</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setIsSettingsModalOpen(true)}
-              className="inline-flex items-center gap-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 px-4 py-3 text-xs sm:text-sm font-bold text-white transition backdrop-blur-md cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-white transition backdrop-blur-md cursor-pointer"
               title="Atur Ambang Batas Poin Peringatan"
             >
-              <ShieldAlert size={16} className="text-amber-300" />
-              <span className="hidden sm:inline">Batas Poin:</span>
+              <ShieldAlert size={16} className="text-amber-300 shrink-0" />
+              <span>Batas:</span>
               <strong className="text-amber-300">{settingThreshold} Poin</strong>
             </button>
 
@@ -485,7 +488,7 @@ export function PelanggaranPage() {
               type="button"
               onClick={() => void loadData()}
               disabled={loading}
-              className="inline-flex items-center justify-center h-11 w-11 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 text-white transition cursor-pointer"
+              className="inline-flex items-center justify-center h-10 sm:h-11 w-10 sm:w-11 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 text-white transition cursor-pointer"
               title="Muat Ulang Data"
             >
               <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />

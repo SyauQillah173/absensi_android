@@ -1,4 +1,4 @@
-import { ArrowRight, Check, Copy, ExternalLink, Eye, EyeOff, HelpCircle, LockKeyhole, MessageSquare, ShieldCheck, UserRound, X } from 'lucide-react';
+import { ArrowRight, Building2, Check, Copy, Cpu, ExternalLink, Eye, EyeOff, HelpCircle, LockKeyhole, MessageSquare, Shield, ShieldAlert, ShieldCheck, Terminal, UserRound, X } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { ThemeToggle } from '../components/ThemeToggle';
@@ -16,6 +16,84 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [turnstileToken, setTurnstileToken] = useState('');
+
+  // Persona Portal Mode: 'keamanan' | 'admin_it' | 'pengurus_umum'
+  type PortalMode = 'keamanan' | 'admin_it' | 'pengurus_umum';
+  const [portalMode, setPortalMode] = useState<PortalMode>('pengurus_umum');
+
+  const handleIdentifierChange = (val: string) => {
+    setIdentifier(val);
+    const lower = val.toLowerCase();
+    if (lower.includes('keamanan') || lower.includes('tatib') || lower.includes('security')) {
+      setPortalMode('keamanan');
+    } else if (lower.includes('syauqillah') || lower.includes('admin_it') || lower.includes('superadmin')) {
+      setPortalMode('admin_it');
+    }
+  };
+
+  const portalConfig = useMemo(() => {
+    if (portalMode === 'keamanan') {
+      return {
+        bgMain: 'bg-gradient-to-br from-[#04120E] via-[#08241C] to-[#030C09]',
+        cardBg: 'bg-[#0B1E19]/95 border-emerald-500/40 text-white shadow-2xl shadow-emerald-950/70 backdrop-blur-xl',
+        badgeBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40',
+        badgeLabel: '🛡️ BIRO KEAMANAN & KETERTIBAN',
+        title: 'Posko Kedisiplinan',
+        subtitle: 'Pengawasan Tata Tertib, Poin & Takzir Santri',
+        inputBoxShadow: 'inset 3px 3px 6px #051310, inset -3px -3px 6px #12332a',
+        inputClass: 'bg-[#071713] text-emerald-100 placeholder:text-emerald-700/50 border border-emerald-500/30 focus-within:ring-2 focus-within:ring-emerald-400/50',
+        inputIcon: 'text-emerald-400',
+        titleColor: 'text-white',
+        subtitleColor: 'text-emerald-300/80',
+        btnBg: 'bg-gradient-to-r from-[#0D7A6F] to-[#059669] hover:from-[#0B685F] hover:to-[#047857] text-white shadow-lg shadow-emerald-700/40 border border-emerald-400/30',
+        btnText: 'MASUK KE POSKO KEDISIPLINAN',
+        placeholderUser: 'Email / Akun Keamanan (keamanan@absensi.com)',
+        placeholderPass: 'Password Petugas Keamanan',
+        footerBadge: 'TIM KEAMANAN SANTRI',
+        logoHalo: 'ring-2 ring-emerald-400/50 shadow-emerald-500/30 shadow-lg',
+      };
+    }
+    if (portalMode === 'admin_it') {
+      return {
+        bgMain: 'bg-gradient-to-br from-[#060D1A] via-[#0B172A] to-[#0A1120]',
+        cardBg: 'bg-[#0F1B2F]/95 border-sky-500/40 text-white shadow-2xl shadow-sky-950/70 backdrop-blur-xl',
+        badgeBg: 'bg-sky-500/20 text-sky-300 border-sky-400/40',
+        badgeLabel: '💻 IT MASTER & SYSTEM ARCHITECT',
+        title: 'Pusat Kendali IT',
+        subtitle: 'Akses Server, Database, & Konfigurasi Sistem',
+        inputBoxShadow: 'inset 3px 3px 6px #070e1a, inset -3px -3px 6px #16263f',
+        inputClass: 'bg-[#0A1322] text-sky-100 placeholder:text-sky-700/50 border border-sky-500/30 focus-within:ring-2 focus-within:ring-sky-400/50',
+        inputIcon: 'text-sky-400',
+        titleColor: 'text-white',
+        subtitleColor: 'text-sky-300/80',
+        btnBg: 'bg-gradient-to-r from-[#0369A1] to-[#0284C7] hover:from-[#075985] hover:to-[#0369A1] text-white shadow-lg shadow-sky-700/40 border border-sky-400/30',
+        btnText: 'AKSES KENDALI IT MASTER',
+        placeholderUser: 'Username / Email Admin IT',
+        placeholderPass: 'Password Master IT',
+        footerBadge: 'CYBER IT QOMARUDDIN',
+        logoHalo: 'ring-2 ring-sky-400/50 shadow-sky-500/30 shadow-lg',
+      };
+    }
+    return {
+      bgMain: 'bg-[#FFDC80] dark:bg-[#0B1120]',
+      cardBg: 'bg-[#f8fafc] dark:bg-[#1E293B] border-slate-100/90 dark:border-slate-800 text-[#2D3436] dark:text-white',
+      badgeBg: 'bg-teal-500/15 text-[#138F81] dark:text-[#2DD4BF] border-teal-500/30',
+      badgeLabel: '🏛️ PONDOK PESANTREN QOMARUDDIN',
+      title: 'Portal Administrasi',
+      subtitle: 'Satu Data Pengurus, Bendahara, Guru & Wali',
+      inputBoxShadow: 'inset 3.5px 3.5px 7px #ccd6e2, inset -3.5px -3.5px 7px #ffffff',
+      inputClass: 'bg-[#edf2f7] dark:bg-slate-800/80 text-[#2D3436] dark:text-slate-100 placeholder:text-[#9AA5B1] dark:placeholder:text-slate-500 border-transparent focus-within:ring-2 focus-within:ring-[#138F81]/40',
+      inputIcon: 'text-[#7B8794] dark:text-slate-400',
+      titleColor: 'text-[#2D3436] dark:text-white',
+      subtitleColor: 'text-[#7B8794] dark:text-slate-400',
+      btnBg: 'bg-[#138F81] hover:bg-[#0e7467] text-white shadow-[#138F81]/30',
+      btnText: 'SIGN IN AKUN RESMI',
+      placeholderUser: 'Nama / Email / Kode Guru / NIS',
+      placeholderPass: 'Password Akun',
+      footerBadge: 'ITQOM',
+      logoHalo: '',
+    };
+  }, [portalMode]);
 
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -154,23 +232,86 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
   }
 
   return (
-    <main className="relative min-h-[100dvh] w-full flex items-center justify-center p-3 sm:p-4 bg-[#FFDC80] dark:bg-[#0B1120] font-sans select-none overflow-y-auto transition-colors duration-300">
-      {/* CORNER THEME TOGGLE DENGAN MIKRO-ANIMASI CERDAS */}
+    <main className={`relative min-h-[100dvh] w-full flex items-center justify-center p-3 sm:p-4 font-sans select-none overflow-y-auto transition-all duration-500 ${portalConfig.bgMain}`}>
+      {/* CORNER THEME TOGGLE */}
       <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-30">
         <ThemeToggle showDropdown={true} />
       </div>
 
-      {/* COMPACT & RESPONSIVE 3D CARD (TIDAK MEMANJANG) */}
-      <div className="w-full max-w-[360px] sm:max-w-[380px] my-auto">
+      {/* COMPACT & RESPONSIVE 3D CARD */}
+      <div className="w-full max-w-[370px] sm:max-w-[400px] my-auto transition-all duration-500">
         <div
-          className="w-full rounded-[28px] sm:rounded-[36px] bg-[#f8fafc] dark:bg-[#1E293B] px-5 py-4 sm:px-6 sm:py-5 transition-all duration-300 border border-slate-100/90 dark:border-slate-800"
+          className={`w-full rounded-[28px] sm:rounded-[36px] px-5 py-4 sm:px-6 sm:py-5.5 transition-all duration-500 border ${portalConfig.cardBg}`}
           style={{
-            boxShadow: '0 16px 36px -8px rgba(150, 110, 20, 0.28), 0 6px 14px -4px rgba(0, 0, 0, 0.06)',
+            boxShadow:
+              portalMode === 'keamanan'
+                ? '0 20px 45px -10px rgba(5, 150, 105, 0.35), 0 8px 20px -6px rgba(0, 0, 0, 0.4)'
+                : portalMode === 'admin_it'
+                ? '0 20px 45px -10px rgba(2, 132, 199, 0.35), 0 8px 20px -6px rgba(0, 0, 0, 0.4)'
+                : '0 16px 36px -8px rgba(150, 110, 20, 0.28), 0 6px 14px -4px rgba(0, 0, 0, 0.06)',
           }}
         >
-          {/* LOGO QOMARUDDIN & TITLE (PROPORSIONAL & RINGKAS) */}
-          <div className="flex flex-col items-center text-center mb-2.5 sm:mb-3">
-            <div className="h-14 w-14 sm:h-15 sm:w-15 flex items-center justify-center mb-1.5 transition-transform duration-300 hover:scale-105">
+          {/* 🌟 SELECTOR PORTAL CERDAS & INTERAKTIF */}
+          <div className="flex items-center justify-between p-1 rounded-2xl bg-black/10 dark:bg-black/35 mb-3 gap-1 border border-white/5">
+            <button
+              type="button"
+              onClick={() => {
+                setPortalMode('keamanan');
+                if (!identifier || identifier.includes('syauqillah') || identifier.includes('admin@')) {
+                  setIdentifier('keamanan@absensi.com');
+                }
+              }}
+              className={`flex-1 py-1.5 px-1.5 rounded-xl text-[10px] sm:text-[11px] font-black transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                portalMode === 'keamanan'
+                  ? 'bg-gradient-to-r from-[#0D7A6F] to-[#059669] text-white shadow-md shadow-emerald-950/50 scale-[1.03]'
+                  : 'text-slate-400 hover:text-emerald-300'
+              }`}
+              title="Portal Khusus Biro Keamanan & Ketertiban Santri"
+            >
+              <ShieldAlert size={13} />
+              <span>Kedisiplinan</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPortalMode('admin_it');
+                if (!identifier || identifier.includes('keamanan') || identifier.includes('admin@')) {
+                  setIdentifier('syauqillah@absensi.com');
+                }
+              }}
+              className={`flex-1 py-1.5 px-1.5 rounded-xl text-[10px] sm:text-[11px] font-black transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                portalMode === 'admin_it'
+                  ? 'bg-gradient-to-r from-[#0369A1] to-[#0284C7] text-white shadow-md shadow-sky-950/50 scale-[1.03]'
+                  : 'text-slate-400 hover:text-sky-300'
+              }`}
+              title="Pusat Kendali Master IT & Sistem"
+            >
+              <Terminal size={13} />
+              <span>Admin IT</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPortalMode('pengurus_umum');
+                if (identifier.includes('keamanan') || identifier.includes('syauqillah')) {
+                  setIdentifier('');
+                }
+              }}
+              className={`flex-1 py-1.5 px-1.5 rounded-xl text-[10px] sm:text-[11px] font-black transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                portalMode === 'pengurus_umum'
+                  ? 'bg-[#138F81] text-white shadow-md shadow-teal-950/40 scale-[1.03]'
+                  : 'text-slate-500 hover:text-[#138F81]'
+              }`}
+              title="Portal Administrasi Yayasan, Pengurus, Bendahara & Wali"
+            >
+              <Building2 size={13} />
+              <span>Pengurus</span>
+            </button>
+          </div>
+
+          {/* LOGO QOMARUDDIN & TITLE */}
+          <div className="flex flex-col items-center text-center mb-2.5 sm:mb-3.5">
+            <div className={`h-14 w-14 sm:h-15 sm:w-15 flex items-center justify-center mb-2 transition-all duration-300 rounded-2xl ${portalConfig.logoHalo}`}>
               <img
                 className="h-full w-full object-contain drop-shadow-md rounded-2xl"
                 src={qomaruddinLogo}
@@ -178,11 +319,16 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
               />
             </div>
 
-            <h1 className="text-xl sm:text-2xl font-black text-[#2D3436] dark:text-white tracking-tight leading-tight">
-              Login
+            {/* BADGE PERSONA AKTIF */}
+            <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black tracking-wider border mb-1 transition-all ${portalConfig.badgeBg}`}>
+              {portalConfig.badgeLabel}
+            </span>
+
+            <h1 className={`text-xl sm:text-2xl font-black tracking-tight leading-tight transition-colors ${portalConfig.titleColor}`}>
+              {portalConfig.title}
             </h1>
-            <p className="text-[11px] font-semibold text-[#7B8794] dark:text-slate-400">
-              Sign in to your account
+            <p className={`text-[11px] font-medium transition-colors ${portalConfig.subtitleColor}`}>
+              {portalConfig.subtitle}
             </p>
           </div>
 
@@ -190,47 +336,47 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
           <form className="space-y-2.5 sm:space-y-3" onSubmit={handleSubmit}>
             {/* USERNAME INPUT */}
             <div
-              className="relative rounded-[18px] bg-[#edf2f7] dark:bg-slate-800/80 transition-all focus-within:ring-2 focus-within:ring-[#138F81]/40 border border-transparent"
+              className={`relative rounded-[18px] transition-all border ${portalConfig.inputClass}`}
               style={{
-                boxShadow: 'inset 3.5px 3.5px 7px #ccd6e2, inset -3.5px -3.5px 7px #ffffff',
+                boxShadow: portalMode === 'pengurus_umum' ? portalConfig.inputBoxShadow : undefined,
               }}
             >
               <UserRound
-                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#7B8794] dark:text-slate-400"
+                className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors ${portalConfig.inputIcon}`}
                 size={17}
               />
               <input
-                className="w-full bg-transparent pl-10 pr-3.5 py-2.5 sm:py-2.8 text-xs sm:text-[13px] font-bold text-[#2D3436] dark:text-slate-100 placeholder:text-[#9AA5B1] dark:placeholder:text-slate-500 placeholder:font-normal outline-hidden"
+                className="w-full bg-transparent pl-10 pr-3.5 py-2.5 sm:py-2.8 text-xs sm:text-[13px] font-bold outline-hidden"
                 value={identifier}
-                onChange={(event) => setIdentifier(event.target.value)}
+                onChange={(event) => handleIdentifierChange(event.target.value)}
                 autoComplete="username"
-                placeholder="Nama / Email / Kode Guru / NIS"
+                placeholder={portalConfig.placeholderUser}
                 required
               />
             </div>
 
             {/* PASSWORD INPUT */}
             <div
-              className="relative rounded-[18px] bg-[#edf2f7] dark:bg-slate-800/80 transition-all focus-within:ring-2 focus-within:ring-[#138F81]/40 border border-transparent"
+              className={`relative rounded-[18px] transition-all border ${portalConfig.inputClass}`}
               style={{
-                boxShadow: 'inset 3.5px 3.5px 7px #ccd6e2, inset -3.5px -3.5px 7px #ffffff',
+                boxShadow: portalMode === 'pengurus_umum' ? portalConfig.inputBoxShadow : undefined,
               }}
             >
               <LockKeyhole
-                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#7B8794] dark:text-slate-400"
+                className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors ${portalConfig.inputIcon}`}
                 size={17}
               />
               <input
-                className="w-full bg-transparent pl-10 pr-10 py-2.5 sm:py-2.8 text-xs sm:text-[13px] font-bold text-[#2D3436] dark:text-slate-100 placeholder:text-[#9AA5B1] dark:placeholder:text-slate-500 placeholder:font-normal outline-hidden"
+                className="w-full bg-transparent pl-10 pr-10 py-2.5 sm:py-2.8 text-xs sm:text-[13px] font-bold outline-hidden"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete="current-password"
-                placeholder="Password"
+                placeholder={portalConfig.placeholderPass}
                 required
               />
               <button
-                className="absolute right-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg text-[#7B8794] dark:text-slate-400 hover:text-[#2D3436] dark:hover:text-slate-200 transition-colors cursor-pointer"
+                className={`absolute right-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg transition-colors cursor-pointer ${portalConfig.inputIcon} hover:text-white`}
                 onClick={() => setShowPassword((value) => !value)}
                 type="button"
                 aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
@@ -240,8 +386,8 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
             </div>
 
             {/* REMEMBER ME & LUPA PASSWORD */}
-            <div className="flex items-center justify-between text-xs font-semibold text-[#7B8794] dark:text-slate-400 px-1 pt-0.5">
-              <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+            <div className="flex items-center justify-between text-xs font-semibold px-1 pt-0.5">
+              <label className={`inline-flex items-center gap-1.5 cursor-pointer select-none ${portalConfig.subtitleColor}`}>
                 <input
                   type="checkbox"
                   checked={rememberMe}
@@ -254,10 +400,16 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
               <button
                 type="button"
                 onClick={openForgotModal}
-                className="text-[#138F81] dark:text-[#2DD4BF] hover:text-[#0c6b61] hover:underline text-[11px] font-bold transition-all cursor-pointer inline-flex items-center gap-1"
+                className={`text-[11px] font-bold transition-all cursor-pointer inline-flex items-center gap-1 hover:underline ${
+                  portalMode === 'keamanan'
+                    ? 'text-emerald-400 hover:text-emerald-300'
+                    : portalMode === 'admin_it'
+                    ? 'text-sky-400 hover:text-sky-300'
+                    : 'text-[#138F81] dark:text-[#2DD4BF] hover:text-[#0c6b61]'
+                }`}
               >
                 <HelpCircle size={12} />
-                <span>Lupa Password?</span>
+                <span>Bantuan Akun?</span>
               </button>
             </div>
 
@@ -278,12 +430,12 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
               theme="auto"
             />
 
-            {/* 3D TEAL BRAND ACTION BUTTON */}
+            {/* 3D BRAND ACTION BUTTON */}
             <button
-              className={`w-full py-3.5 px-5 min-h-[48px] rounded-2xl text-xs sm:text-sm font-black tracking-widest uppercase transition-all duration-200 flex items-center justify-center gap-2 shadow-md ${
+              className={`w-full py-3.5 px-5 min-h-[48px] rounded-2xl text-xs sm:text-sm font-black tracking-wider uppercase transition-all duration-200 flex items-center justify-center gap-2 shadow-md ${
                 !turnstileToken || isSubmitting
                   ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed shadow-none'
-                  : 'bg-[#138F81] hover:bg-[#0e7467] text-white active:scale-[0.98] cursor-pointer shadow-[#138F81]/30'
+                  : `${portalConfig.btnBg} active:scale-[0.98] cursor-pointer`
               }`}
               disabled={!turnstileToken || isSubmitting}
               type="submit"
@@ -297,11 +449,11 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
               ) : isSubmitting ? (
                 <>
                   <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                  <span>SIGNING IN...</span>
+                  <span>MEMVERIFIKASI AKUN...</span>
                 </>
               ) : (
                 <>
-                  <span>SIGN IN</span>
+                  <span>{portalConfig.btnText}</span>
                   <ArrowRight size={17} />
                 </>
               )}
@@ -312,7 +464,7 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
               <button
                 type="button"
                 onClick={onOpenPmb}
-                className="w-full py-2.5 sm:py-3 px-4 min-h-[42px] rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-slate-800 dark:to-teal-950/40 hover:from-emerald-100 hover:to-teal-100 text-[#0f766e] dark:text-[#2DD4BF] text-xs font-extrabold border border-teal-200/80 dark:border-teal-800/60 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
+                className="w-full py-2.5 sm:py-3 px-4 min-h-[42px] rounded-xl bg-white/10 hover:bg-white/15 text-xs font-extrabold border border-white/20 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
               >
                 <span>🌟 Profil Pesantren & PMB Online</span>
                 <ArrowRight size={14} />
@@ -320,18 +472,18 @@ export function LoginPage({ onOpenPmb }: LoginPageProps = {}) {
             )}
           </form>
 
-          {/* FOOTER TEXT (COMPACT & SLEEK) */}
-          <div className="mt-3 pt-2 border-t border-slate-200/60 dark:border-slate-800 text-center">
-            <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#138F81] dark:text-[#2DD4BF]">
+          {/* FOOTER TEXT */}
+          <div className="mt-3.5 pt-2.5 border-t border-white/10 text-center">
+            <p className={`text-[10px] font-extrabold uppercase tracking-wider ${portalConfig.subtitleColor}`}>
               Pondok Pesantren Qomaruddin
             </p>
-            <p className="text-[9px] font-medium text-[#7B8794] dark:text-slate-400">
+            <p className="text-[9px] font-medium opacity-70">
               Sampurnan Bungah Gresik • Jawa Timur
             </p>
-            <div className="mt-1 flex items-center justify-center gap-1 text-[9px] font-semibold text-slate-400 dark:text-slate-500">
-              <span>Engineered by</span>
-              <span className="px-1.5 py-0.2 rounded-md bg-teal-50 dark:bg-teal-950/60 text-[#138F81] dark:text-[#2DD4BF] font-black border border-teal-200/60 dark:border-teal-800/50 text-[9px] tracking-wide">
-                ITQOM
+            <div className="mt-1 flex items-center justify-center gap-1 text-[9px] font-semibold opacity-80">
+              <span>Persona Portal:</span>
+              <span className="px-2 py-0.5 rounded-md bg-white/10 font-black border border-white/15 text-[9px] tracking-wide">
+                {portalConfig.footerBadge}
               </span>
             </div>
           </div>

@@ -44,6 +44,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   Tag,
+  Terminal,
   Trash2,
   TrendingUp,
   UserCheck,
@@ -757,18 +758,60 @@ export function AdminLayout({
     >
       <div className={`mb-6 pt-2 text-center ${collapsed ? "px-0" : ""}`}>
         <img
-          className={`q-brand-logo mx-auto rounded-2xl ${collapsed ? "h-11 w-11" : "h-14 w-14"}`}
+          className={`q-brand-logo mx-auto rounded-2xl transition-all duration-300 ${
+            isKeamanan
+              ? "ring-2 ring-emerald-500/50 shadow-md shadow-emerald-500/20"
+              : isItAdmin
+              ? "ring-2 ring-sky-500/50 shadow-md shadow-sky-500/20"
+              : isTreasurer
+              ? "ring-2 ring-amber-500/40 shadow-md shadow-amber-500/20"
+              : ""
+          } ${collapsed ? "h-11 w-11" : "h-14 w-14"}`}
           src={qomaruddinLogo}
           alt="Logo Qomaruddin"
         />
         {!collapsed ? (
           <>
-            <h1 className="mt-3 text-sm font-extrabold leading-5 text-[#138F81]">
-              Pondok Pesantren Qomaruddin
-            </h1>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#636E72]">
-              Admin Dashboard
-            </p>
+            {isKeamanan ? (
+              <>
+                <h1 className="mt-3 text-sm font-black leading-5 text-emerald-800 dark:text-emerald-400 flex items-center justify-center gap-1.5">
+                  <ShieldCheck size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>Biro Keamanan Santri</span>
+                </h1>
+                <p className="mt-1 inline-block rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-300">
+                  Kedisiplinan & Tatib
+                </p>
+              </>
+            ) : isItAdmin ? (
+              <>
+                <h1 className="mt-3 text-sm font-black leading-5 text-sky-800 dark:text-sky-400 flex items-center justify-center gap-1.5">
+                  <Terminal size={15} className="text-sky-600 dark:text-sky-400 shrink-0" />
+                  <span>Pusat Kendali IT Master</span>
+                </h1>
+                <p className="mt-1 inline-block rounded-full bg-sky-500/15 border border-sky-500/30 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-sky-700 dark:text-sky-300">
+                  Super Admin IT
+                </p>
+              </>
+            ) : isTreasurer ? (
+              <>
+                <h1 className="mt-3 text-sm font-black leading-5 text-[#138F81] dark:text-[#2DD4BF] flex items-center justify-center gap-1.5">
+                  <WalletCards size={16} className="text-amber-500 shrink-0" />
+                  <span>Keuangan Pesantren</span>
+                </h1>
+                <p className="mt-1 inline-block rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-amber-800 dark:text-amber-300">
+                  Bendahara & Kas
+                </p>
+              </>
+            ) : (
+              <>
+                <h1 className="mt-3 text-sm font-extrabold leading-5 text-[#138F81]">
+                  Pondok Pesantren Qomaruddin
+                </h1>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#636E72]">
+                  Admin Dashboard
+                </p>
+              </>
+            )}
           </>
         ) : null}
       </div>
@@ -950,6 +993,44 @@ export function AdminLayout({
               </div>
             </div>
             <div className="q-topbar-actions flex shrink-0 items-center gap-1.5 sm:gap-2.5">
+              {/* PERSONA BADGE DINAMIS (KEDISIPLINAN / IT MASTER / BENDAHARA / GURU / PENGURUS) */}
+              {isKeamanan ? (
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-black text-xs shadow-2xs">
+                  <ShieldCheck size={14} className="text-emerald-600 dark:text-emerald-400" />
+                  <span>Posko Keamanan & Tatib</span>
+                </div>
+              ) : isItAdmin ? (
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-700 dark:text-sky-300 font-black text-xs shadow-2xs">
+                  <Terminal size={14} className="text-sky-600 dark:text-sky-400" />
+                  <span>Pusat Kendali IT Master</span>
+                </div>
+              ) : isTreasurer ? (
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 font-black text-xs shadow-2xs">
+                  <WalletCards size={14} className="text-amber-600 dark:text-amber-400" />
+                  <span>Kantor Keuangan & Kas</span>
+                </div>
+              ) : isGuru ? (
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-800 dark:text-teal-300 font-black text-xs shadow-2xs">
+                  <GraduationCap size={14} className="text-teal-600 dark:text-teal-400" />
+                  <span>Portal {teacherTitle}</span>
+                </div>
+              ) : isKepalaSekolah ? (
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-800 dark:text-indigo-300 font-black text-xs shadow-2xs">
+                  <Activity size={14} className="text-indigo-600 dark:text-indigo-400" />
+                  <span>Monitoring Kepala Madrasah</span>
+                </div>
+              ) : isPmbAdmin ? (
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-black text-xs shadow-2xs">
+                  <UserPlus size={14} className="text-emerald-600 dark:text-emerald-400" />
+                  <span>Panitia PMB</span>
+                </div>
+              ) : (
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-500/15 border border-teal-500/30 text-[#138F81] dark:text-[#2DD4BF] font-black text-xs shadow-2xs">
+                  <Building2 size={14} className="text-[#138F81] dark:text-[#2DD4BF]" />
+                  <span>Pengurus Yayasan</span>
+                </div>
+              )}
+
               {/* Tombol Akses Langsung Web Publik PMB - Hanya tampil jika user diizinkan melihat PMB */}
               {canView('pmb') ? (
                 <button
@@ -1200,15 +1281,39 @@ export function AdminLayout({
                   }}
                   type="button"
                 >
-                  <div className="grid h-7 w-7 place-items-center rounded-xl bg-[#138F81] text-white">
-                    <UserRound size={15} />
+                  <div className={`grid h-7 w-7 place-items-center rounded-xl text-white transition-all ${
+                    isKeamanan
+                      ? "bg-[#0D7A6F] ring-2 ring-emerald-400/40"
+                      : isItAdmin
+                      ? "bg-slate-900 ring-2 ring-sky-400/40 text-sky-300"
+                      : isTreasurer
+                      ? "bg-amber-600 ring-2 ring-amber-400/40 text-white"
+                      : "bg-[#138F81]"
+                  }`}>
+                    {isKeamanan ? (
+                      <ShieldCheck size={15} />
+                    ) : isItAdmin ? (
+                      <Terminal size={14} />
+                    ) : isTreasurer ? (
+                      <WalletCards size={14} />
+                    ) : isGuru ? (
+                      <GraduationCap size={15} />
+                    ) : (
+                      <UserRound size={15} />
+                    )}
                   </div>
                   <div className="hidden text-left sm:block">
                     <p className="max-w-36 truncate text-xs font-extrabold text-[#2D3436]">
                       {session?.name ?? (isGuru ? teacherTitle : roleTitle)}
                     </p>
-                    <p className="text-[10px] font-bold text-[#138F81] tracking-wide">
-                      {roleTitle}
+                    <p className={`text-[10px] font-bold tracking-wide ${
+                      isKeamanan
+                        ? "text-emerald-700 dark:text-emerald-400"
+                        : isItAdmin
+                        ? "text-sky-700 dark:text-sky-400"
+                        : "text-[#138F81]"
+                    }`}>
+                      {isKeamanan ? "Biro Keamanan Santri" : isItAdmin ? "Master IT Superadmin" : roleTitle}
                     </p>
                   </div>
                   <ChevronDown
