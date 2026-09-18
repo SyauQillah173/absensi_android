@@ -44,6 +44,7 @@ import { GuruDashboardView } from '../components/GuruDashboardView';
 import { KepalaSekolahDashboardView } from '../components/KepalaSekolahDashboardView';
 import { BendaharaDashboardView } from '../components/BendaharaDashboardView';
 import { KeamananDashboardView } from '../components/KeamananDashboardView';
+import { PmbAdminPage } from './PmbAdminPage';
 import { api, type ApiRecord } from '../services/api';
 
 import type { AbsensiNavigationTarget } from './AbsensiPage';
@@ -156,7 +157,7 @@ export function DashboardPage({
   onNavigatePelanggaran,
   onNavigateKamar
 }: DashboardPageProps) {
-  const { session, canView, isKepalaSekolah, isTreasurer, isKeamanan } = useAuth();
+  const { session, canView, isKepalaSekolah, isTreasurer, isKeamanan, isPmbAdmin } = useAuth();
 
 
   const [dashboard, setDashboard] = useState<ApiRecord | null>(null);
@@ -478,6 +479,15 @@ export function DashboardPage({
           onNavigateToKamar={onNavigateKamar}
           onRefresh={() => void load()}
         />
+      </div>
+    );
+  }
+
+  // KHUSUS ROLE ADMIN PMB (PENERIMAAN SANTRI BARU): TAMPILAN DASHBOARD PMB TERPADU
+  if (isPmbAdmin) {
+    return (
+      <div className="q-page-enter">
+        <PmbAdminPage initialTab="dashboard" />
       </div>
     );
   }

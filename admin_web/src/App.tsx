@@ -268,17 +268,21 @@ function AdminShell() {
       )}
       <Suspense fallback={<PageLoader />}>
         {safePage === 'dashboard' ? (
-          <DashboardPage
-            onOpenFinance={() => navigate('keuangan', { financeTab: 'today' })}
-            onNavigateFinance={(tab) => navigate('keuangan', { financeTab: tab })}
-            onNavigatePelanggaran={() => navigate('pelanggaran')}
-            onNavigateKamar={() => navigate('master', { masterSection: 'pondok' })}
-            onOpenAttendance={(target) => {
-              setAbsensiTarget({ ...target, key: Date.now() });
-              setAbsensiTab(target.tab);
-              setActivePage('absensi');
-            }}
-          />
+          isPmbAdmin ? (
+            <PmbAdminPage initialTab={pmbTab || 'dashboard'} onTabChange={setPmbTab} />
+          ) : (
+            <DashboardPage
+              onOpenFinance={() => navigate('keuangan', { financeTab: 'today' })}
+              onNavigateFinance={(tab) => navigate('keuangan', { financeTab: tab })}
+              onNavigatePelanggaran={() => navigate('pelanggaran')}
+              onNavigateKamar={() => navigate('master', { masterSection: 'pondok' })}
+              onOpenAttendance={(target) => {
+                setAbsensiTarget({ ...target, key: Date.now() });
+                setAbsensiTab(target.tab);
+                setActivePage('absensi');
+              }}
+            />
+          )
         ) : null}
 
         {safePage === 'keuangan' ? (

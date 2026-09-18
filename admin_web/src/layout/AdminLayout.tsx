@@ -765,6 +765,10 @@ export function AdminLayout({
               ? "ring-2 ring-sky-500/50 shadow-md shadow-sky-500/20"
               : isTreasurer
               ? "ring-2 ring-amber-500/40 shadow-md shadow-amber-500/20"
+              : isPmbAdmin
+              ? "ring-2 ring-teal-500/50 shadow-md shadow-teal-500/20"
+              : isKepalaSekolah
+              ? "ring-2 ring-indigo-500/50 shadow-md shadow-indigo-500/20"
               : ""
           } ${collapsed ? "h-11 w-11" : "h-14 w-14"}`}
           src={qomaruddinLogo}
@@ -800,6 +804,26 @@ export function AdminLayout({
                 </h1>
                 <p className="mt-1 inline-block rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-amber-800 dark:text-amber-300">
                   Bendahara & Kas
+                </p>
+              </>
+            ) : isPmbAdmin ? (
+              <>
+                <h1 className="mt-3 text-sm font-black leading-5 text-teal-800 dark:text-teal-400 flex items-center justify-center gap-1.5">
+                  <UserPlus size={16} className="text-[#138F81] dark:text-[#2DD4BF] shrink-0" />
+                  <span>Panitia PMB Pesantren</span>
+                </h1>
+                <p className="mt-1 inline-block rounded-full bg-teal-500/15 border border-teal-500/30 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#138F81] dark:text-[#2DD4BF]">
+                  Penerimaan Santri Baru
+                </p>
+              </>
+            ) : isKepalaSekolah ? (
+              <>
+                <h1 className="mt-3 text-sm font-black leading-5 text-indigo-800 dark:text-indigo-400 flex items-center justify-center gap-1.5">
+                  <GraduationCap size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <span>Kepala Madrasah</span>
+                </h1>
+                <p className="mt-1 inline-block rounded-full bg-indigo-500/15 border border-indigo-500/30 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-indigo-700 dark:text-indigo-300">
+                  Monitoring & Pemantauan
                 </p>
               </>
             ) : (
@@ -1296,7 +1320,9 @@ export function AdminLayout({
                       <Terminal size={14} />
                     ) : isTreasurer ? (
                       <WalletCards size={14} />
-                    ) : isGuru ? (
+                    ) : isPmbAdmin ? (
+                      <UserPlus size={14} />
+                    ) : isGuru || isKepalaSekolah ? (
                       <GraduationCap size={15} />
                     ) : (
                       <UserRound size={15} />
@@ -1311,9 +1337,23 @@ export function AdminLayout({
                         ? "text-emerald-700 dark:text-emerald-400"
                         : isItAdmin
                         ? "text-sky-700 dark:text-sky-400"
+                        : isPmbAdmin
+                        ? "text-[#138F81] dark:text-[#2DD4BF]"
+                        : isTreasurer
+                        ? "text-amber-700 dark:text-amber-400"
+                        : isKepalaSekolah
+                        ? "text-indigo-700 dark:text-indigo-400"
                         : "text-[#138F81] dark:text-[#2DD4BF]"
                     }`}>
-                      {isKeamanan ? "Biro Keamanan Santri" : isItAdmin ? "Master IT Superadmin" : roleTitle}
+                      {isKeamanan
+                        ? "Biro Keamanan Santri"
+                        : isItAdmin
+                        ? "Master IT Superadmin"
+                        : isPmbAdmin
+                        ? "Panitia PMB Qomaruddin"
+                        : isKepalaSekolah
+                        ? "Kepala Madrasah"
+                        : roleTitle}
                     </p>
                   </div>
                   <ChevronDown
