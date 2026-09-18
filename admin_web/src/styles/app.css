@@ -38,7 +38,7 @@ body {
 
 html.dark body {
   background: #0b1120;
-  color: #2d3436;
+  color: #f1f5f9;
 }
 
 button,
@@ -64,11 +64,24 @@ button:disabled {
   transition: transform 210ms ease, box-shadow 210ms ease, background-color 210ms ease, border-color 210ms ease;
 }
 
-/* Di Mode Malam: Kotak/Card TETAP PUTIH BERSIH sesuai aslinya dengan bayangan tegas di atas kanvas gelap */
+/* 🌙 Di Mode Malam: Kotak/Card bergaya Dark Obsidian Slate elegan dengan kontras teks tajam & borders lembut */
 .dark .q-card {
-  background: #ffffff;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
-  color: #2d3436;
+  background: #1e293b;
+  border: 1px solid #334155;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
+  color: #f1f5f9;
+}
+
+.dark .q-card h1,
+.dark .q-card h2,
+.dark .q-card h3 {
+  color: #f8fafc;
+}
+
+.dark .q-card p.text-slate-500,
+.dark .q-card p[class*="636E72"],
+.dark .q-card .text-gray-500 {
+  color: #94a3b8;
 }
 
 .q-card:hover {
@@ -77,12 +90,19 @@ button:disabled {
 }
 
 .dark .q-card:hover {
-  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.6);
+  border-color: #475569;
 }
 
 .q-panel {
   border-radius: 24px;
   background: #e1eff7;
+}
+
+.dark .q-panel {
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #f1f5f9;
 }
 
 .q-input {
@@ -823,7 +843,10 @@ button:disabled {
   }
 
   .q-topbar p {
-    max-width: 7.25rem;
+    max-width: 8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .q-mobile-drawer aside {

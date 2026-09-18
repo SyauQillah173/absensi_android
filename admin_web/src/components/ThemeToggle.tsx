@@ -20,7 +20,7 @@ export function ThemeToggle({ className = '' }: ThemeToggleProps) {
     <button
       type="button"
       onClick={toggleTheme}
-      className={`group relative flex items-center justify-between h-9 sm:h-10 px-2 sm:px-2.5 rounded-full transition-all duration-500 ease-out cursor-pointer select-none shadow-sm hover:shadow-md active:scale-95 ${
+      className={`group relative flex items-center justify-center sm:justify-between h-9 sm:h-10 px-1.5 sm:px-2.5 rounded-full transition-all duration-500 ease-out cursor-pointer select-none shadow-sm hover:shadow-md active:scale-95 shrink-0 ${
         isDark
           ? 'bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-amber-300 border border-slate-700/80 shadow-slate-950/40 hover:border-amber-400/40'
           : 'bg-gradient-to-r from-amber-100 via-amber-50 to-orange-100 text-amber-800 border border-amber-300/80 shadow-amber-900/10 hover:border-amber-400'
@@ -59,8 +59,8 @@ export function ThemeToggle({ className = '' }: ThemeToggleProps) {
           )}
         </div>
 
-        {/* Teks Label Siang / Malam yang Elegan */}
-        <span className="text-[11px] sm:text-xs font-black tracking-tight uppercase px-1 transition-colors duration-300">
+        {/* Teks Label Siang / Malam yang Elegan (Hanya di layar sm ke atas agar tidak memakan tempat di HP) */}
+        <span className="hidden sm:inline text-[11px] sm:text-xs font-black tracking-tight uppercase px-1 transition-colors duration-300">
           {isDark ? (
             <span className="text-amber-200 flex items-center gap-1">
               <span>Malam</span>

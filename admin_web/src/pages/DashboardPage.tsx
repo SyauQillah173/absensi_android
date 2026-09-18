@@ -56,19 +56,19 @@ function CustomClassTooltip({ active, payload }: any) {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="rounded-2xl border border-slate-100 bg-white/95 backdrop-blur-md p-3.5 shadow-xl text-xs">
-        <p className="font-black text-slate-800 text-sm mb-1.5">{data.name || data.kelas}</p>
+      <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-3.5 shadow-xl text-xs">
+        <p className="font-black text-slate-800 dark:text-slate-100 text-sm mb-1.5">{data.name || data.kelas}</p>
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-4">
-            <span className="font-semibold text-slate-500">Total Santri:</span>
-            <span className="font-black text-[#138F81] text-sm">{data.value} Siswa</span>
+            <span className="font-semibold text-slate-500 dark:text-slate-400">Total Santri:</span>
+            <span className="font-black text-[#138F81] dark:text-[#2DD4BF] text-sm">{data.value} Siswa</span>
           </div>
           {(data.putra !== undefined || data.putri !== undefined) && (
-            <div className="flex items-center gap-3 pt-1.5 border-t border-slate-100 text-[11px] font-bold">
-              <span className="text-sky-600 flex items-center gap-1">
+            <div className="flex items-center gap-3 pt-1.5 border-t border-slate-100 dark:border-slate-700 text-[11px] font-bold">
+              <span className="text-sky-600 dark:text-sky-400 flex items-center gap-1">
                 <span className="h-2 w-2 rounded-full bg-sky-500 inline-block" /> Putra: {data.putra ?? 0}
               </span>
-              <span className="text-rose-500 flex items-center gap-1">
+              <span className="text-rose-500 dark:text-rose-400 flex items-center gap-1">
                 <span className="h-2 w-2 rounded-full bg-rose-500 inline-block" /> Putri: {data.putri ?? 0}
               </span>
             </div>
@@ -87,19 +87,19 @@ function CustomPondokTooltip({ active, payload }: any) {
     const value = Number(data.value || 0);
     const pct = capacity > 0 ? Math.round((value / capacity) * 100) : null;
     return (
-      <div className="rounded-2xl border border-slate-100 bg-white/95 backdrop-blur-md p-3.5 shadow-xl text-xs">
-        <p className="font-black text-slate-800 text-sm mb-1">{data.name}</p>
+      <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-3.5 shadow-xl text-xs">
+        <p className="font-black text-slate-800 dark:text-slate-100 text-sm mb-1">{data.name}</p>
         {data.komplek && data.komplek !== '-' && data.komplek !== data.name && (
-          <p className="text-[11px] text-teal-700 font-bold mb-1.5">Komplek / Asrama: {data.komplek}</p>
+          <p className="text-[11px] text-teal-700 dark:text-teal-400 font-bold mb-1.5">Komplek / Asrama: {data.komplek}</p>
         )}
         <div className="flex items-center justify-between gap-4">
-          <span className="font-semibold text-slate-500">Santri Penghuni:</span>
-          <span className="font-black text-teal-900 text-sm">{value} Santri</span>
+          <span className="font-semibold text-slate-500 dark:text-slate-400">Santri Penghuni:</span>
+          <span className="font-black text-teal-900 dark:text-teal-300 text-sm">{value} Santri</span>
         </div>
         {pct !== null && (
-          <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[11px] font-bold text-slate-600 flex items-center justify-between gap-2">
+          <div className="mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-700 text-[11px] font-bold text-slate-600 dark:text-slate-400 flex items-center justify-between gap-2">
             <span>Kapasitas: {capacity}</span>
-            <span className={pct > 90 ? 'text-rose-600' : 'text-emerald-600'}>Terisi {pct}%</span>
+            <span className={pct > 90 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}>Terisi {pct}%</span>
           </div>
         )}
       </div>

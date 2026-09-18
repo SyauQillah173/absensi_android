@@ -991,10 +991,10 @@ export function AdminLayout({
         ) : null}
 
         <main className="min-w-0 flex-1 max-w-full overflow-x-hidden print:p-0 print:m-0 print:overflow-visible print:w-full">
-          <header className="q-topbar mb-5 sm:mb-6 lg:mb-8 flex min-h-14 sm:min-h-16 items-center justify-between gap-2 sm:gap-3 rounded-2xl sm:rounded-[26px] bg-[#FFFDF7] dark:bg-slate-900/95 px-3 sm:px-6 shadow-xl shadow-black/10 transition-colors duration-300 print:hidden">
-            <div className="min-w-0 flex flex-1 items-center gap-2 sm:gap-3">
+          <header className="q-topbar mb-5 sm:mb-6 lg:mb-8 flex min-h-14 sm:min-h-16 items-center justify-between gap-1.5 sm:gap-3 rounded-2xl sm:rounded-[26px] bg-[#FFFDF7] dark:bg-slate-900/95 px-2.5 sm:px-6 shadow-xl shadow-black/10 transition-colors duration-300 print:hidden">
+            <div className="min-w-0 flex flex-1 items-center gap-2 sm:gap-3 overflow-hidden">
               <button
-                className="q-icon-button grid h-9 w-9 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-xl sm:rounded-2xl bg-[#E1EFF7] text-[#138F81] transition hover:scale-105"
+                className="q-icon-button grid h-9 w-9 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-xl sm:rounded-2xl bg-[#E1EFF7] text-[#138F81] transition hover:scale-105 cursor-pointer"
                 onClick={() => {
                   if (window.innerWidth >= 1024) {
                     setSidebarCollapsed((value) => !value);
@@ -1007,16 +1007,16 @@ export function AdminLayout({
               >
                 <Menu size={18} />
               </button>
-              <div className="min-w-0 shrink-0">
-                <p className="text-xs sm:text-sm font-black text-[#138F81] whitespace-nowrap">
+              <div className="min-w-0 flex-1 overflow-hidden">
+                <p className="text-xs sm:text-sm font-black text-[#138F81] dark:text-[#2DD4BF] truncate leading-tight">
                   Pondok Qomaruddin
                 </p>
-                <p className="hidden text-[11px] font-semibold text-[#636E72] dark:text-slate-400 2xl:block whitespace-nowrap">
+                <p className="hidden text-[11px] font-semibold text-[#636E72] dark:text-slate-400 2xl:block whitespace-nowrap truncate">
                   Satu data admin, bendahara, dan aplikasi Android
                 </p>
               </div>
             </div>
-            <div className="q-topbar-actions flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <div className="q-topbar-actions flex shrink-0 items-center gap-1 sm:gap-2">
               {/* PERSONA BADGE DINAMIS (KEDISIPLINAN / IT MASTER / BENDAHARA / GURU / PENGURUS) - TAMPIL RESPONSIF PADA LAYAR LEBAR */}
               {isKeamanan ? (
                 <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-black text-xs shadow-2xs whitespace-nowrap">
@@ -1069,8 +1069,10 @@ export function AdminLayout({
                 </button>
               ) : null}
 
-              {/* TOMBOL INSTAL APLIKASI DI HEADER (RAPI & TIDAK MENGGANGGU) */}
-              <PwaHeaderInstallButton />
+              {/* TOMBOL INSTAL APLIKASI DI HEADER (Hanya di layar sm+ agar tidak menabrak header di HP) */}
+              <div className="hidden sm:flex shrink-0">
+                <PwaHeaderInstallButton />
+              </div>
 
               {/* CANGGIH & MODERN THEME TOGGLE DENGAN MIKRO-ANIMASI */}
               <ThemeToggle showDropdown={true} />
