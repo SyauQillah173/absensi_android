@@ -983,59 +983,59 @@ export function AdminLayout({
               >
                 <Menu size={18} />
               </button>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs sm:text-sm font-extrabold text-[#138F81]">
+              <div className="min-w-0 shrink-0">
+                <p className="text-xs sm:text-sm font-black text-[#138F81] whitespace-nowrap">
                   Pondok Qomaruddin
                 </p>
-                <p className="hidden text-xs font-semibold text-[#636E72] sm:block">
+                <p className="hidden text-[11px] font-semibold text-[#636E72] dark:text-slate-400 2xl:block whitespace-nowrap">
                   Satu data admin, bendahara, dan aplikasi Android
                 </p>
               </div>
             </div>
-            <div className="q-topbar-actions flex shrink-0 items-center gap-1.5 sm:gap-2.5">
-              {/* PERSONA BADGE DINAMIS (KEDISIPLINAN / IT MASTER / BENDAHARA / GURU / PENGURUS) */}
+            <div className="q-topbar-actions flex shrink-0 items-center gap-1.5 sm:gap-2">
+              {/* PERSONA BADGE DINAMIS (KEDISIPLINAN / IT MASTER / BENDAHARA / GURU / PENGURUS) - TAMPIL RESPONSIF PADA LAYAR LEBAR */}
               {isKeamanan ? (
-                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-black text-xs shadow-2xs">
+                <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-black text-xs shadow-2xs whitespace-nowrap">
                   <ShieldCheck size={14} className="text-emerald-600 dark:text-emerald-400" />
-                  <span>Posko Keamanan & Tatib</span>
+                  <span>Posko Keamanan</span>
                 </div>
               ) : isItAdmin ? (
-                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-700 dark:text-sky-300 font-black text-xs shadow-2xs">
+                <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-700 dark:text-sky-300 font-black text-xs shadow-2xs whitespace-nowrap">
                   <Terminal size={14} className="text-sky-600 dark:text-sky-400" />
-                  <span>Pusat Kendali IT Master</span>
+                  <span>IT Master</span>
                 </div>
               ) : isTreasurer ? (
-                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 font-black text-xs shadow-2xs">
+                <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 font-black text-xs shadow-2xs whitespace-nowrap">
                   <WalletCards size={14} className="text-amber-600 dark:text-amber-400" />
-                  <span>Kantor Keuangan & Kas</span>
+                  <span>Keuangan & Kas</span>
                 </div>
               ) : isGuru ? (
-                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-800 dark:text-teal-300 font-black text-xs shadow-2xs">
+                <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-800 dark:text-teal-300 font-black text-xs shadow-2xs whitespace-nowrap">
                   <GraduationCap size={14} className="text-teal-600 dark:text-teal-400" />
                   <span>Portal {teacherTitle}</span>
                 </div>
               ) : isKepalaSekolah ? (
-                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-800 dark:text-indigo-300 font-black text-xs shadow-2xs">
+                <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-800 dark:text-indigo-300 font-black text-xs shadow-2xs whitespace-nowrap">
                   <Activity size={14} className="text-indigo-600 dark:text-indigo-400" />
-                  <span>Monitoring Kepala Madrasah</span>
+                  <span>Monitoring</span>
                 </div>
               ) : isPmbAdmin ? (
-                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-black text-xs shadow-2xs">
+                <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-black text-xs shadow-2xs whitespace-nowrap">
                   <UserPlus size={14} className="text-emerald-600 dark:text-emerald-400" />
                   <span>Panitia PMB</span>
                 </div>
               ) : (
-                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-500/15 border border-teal-500/30 text-[#138F81] dark:text-[#2DD4BF] font-black text-xs shadow-2xs">
+                <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-teal-500/15 border border-teal-500/30 text-[#138F81] dark:text-[#2DD4BF] font-black text-xs shadow-2xs whitespace-nowrap">
                   <Building2 size={14} className="text-[#138F81] dark:text-[#2DD4BF]" />
-                  <span>Pengurus Yayasan</span>
+                  <span>Pengurus</span>
                 </div>
               )}
 
-              {/* Tombol Akses Langsung Web Publik PMB - Hanya tampil jika user diizinkan melihat PMB */}
+              {/* Tombol Akses Langsung Web Publik PMB - Tampil pada layar lebar agar tidak menindih header di laptop */}
               {canView('pmb') ? (
                 <button
                   onClick={() => window.open('/?pmb=1', '_blank')}
-                  className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#E8F7F3] dark:bg-slate-800 text-[#138F81] dark:text-[#2DD4BF] hover:bg-[#d8f0ea] dark:hover:bg-slate-700 transition border border-teal-200 dark:border-slate-700 shadow-2xs cursor-pointer"
+                  className="hidden 2xl:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#E8F7F3] dark:bg-slate-800 text-[#138F81] dark:text-[#2DD4BF] hover:bg-[#d8f0ea] dark:hover:bg-slate-700 transition border border-teal-200 dark:border-slate-700 shadow-2xs cursor-pointer whitespace-nowrap"
                   title="Buka Web Publik PMB & Profil Pesantren (Tab Baru)"
                   type="button"
                 >
@@ -1302,16 +1302,16 @@ export function AdminLayout({
                       <UserRound size={15} />
                     )}
                   </div>
-                  <div className="hidden text-left sm:block">
-                    <p className="max-w-36 truncate text-xs font-extrabold text-[#2D3436]">
+                  <div className="hidden text-left md:block">
+                    <p className="max-w-28 xl:max-w-36 truncate text-xs font-black text-[#2D3436] dark:text-slate-200">
                       {session?.name ?? (isGuru ? teacherTitle : roleTitle)}
                     </p>
-                    <p className={`text-[10px] font-bold tracking-wide ${
+                    <p className={`text-[10px] font-bold tracking-wide truncate max-w-28 xl:max-w-36 ${
                       isKeamanan
                         ? "text-emerald-700 dark:text-emerald-400"
                         : isItAdmin
                         ? "text-sky-700 dark:text-sky-400"
-                        : "text-[#138F81]"
+                        : "text-[#138F81] dark:text-[#2DD4BF]"
                     }`}>
                       {isKeamanan ? "Biro Keamanan Santri" : isItAdmin ? "Master IT Superadmin" : roleTitle}
                     </p>
