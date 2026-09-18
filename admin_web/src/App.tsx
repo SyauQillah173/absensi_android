@@ -271,6 +271,8 @@ function AdminShell() {
           <DashboardPage
             onOpenFinance={() => navigate('keuangan', { financeTab: 'today' })}
             onNavigateFinance={(tab) => navigate('keuangan', { financeTab: tab })}
+            onNavigatePelanggaran={() => navigate('pelanggaran')}
+            onNavigateKamar={() => navigate('master', { masterSection: 'pondok' })}
             onOpenAttendance={(target) => {
               setAbsensiTarget({ ...target, key: Date.now() });
               setAbsensiTab(target.tab);

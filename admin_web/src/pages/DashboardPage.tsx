@@ -43,6 +43,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { GuruDashboardView } from '../components/GuruDashboardView';
 import { KepalaSekolahDashboardView } from '../components/KepalaSekolahDashboardView';
 import { BendaharaDashboardView } from '../components/BendaharaDashboardView';
+import { KeamananDashboardView } from '../components/KeamananDashboardView';
 import { api, type ApiRecord } from '../services/api';
 
 import type { AbsensiNavigationTarget } from './AbsensiPage';
@@ -110,6 +111,8 @@ interface DashboardPageProps {
   onOpenFinance: () => void;
   onOpenAttendance: (target: AbsensiNavigationTarget) => void;
   onNavigateFinance?: (tab: 'today' | 'student' | 'history' | 'pemasukan_lain' | 'pengeluaran' | 'types') => void;
+  onNavigatePelanggaran?: () => void;
+  onNavigateKamar?: () => void;
 }
 
 
@@ -146,8 +149,14 @@ function activityTimestamp(row: ApiRecord): number {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
-export function DashboardPage({ onOpenFinance, onOpenAttendance, onNavigateFinance }: DashboardPageProps) {
-  const { session, canView, isKepalaSekolah, isTreasurer } = useAuth();
+export function DashboardPage({
+  onOpenFinance,
+  onOpenAttendance,
+  onNavigateFinance,
+  onNavigatePelanggaran,
+  onNavigateKamar
+}: DashboardPageProps) {
+  const { session, canView, isKepalaSekolah, isTreasurer, isKeamanan } = useAuth();
 
 
   const [dashboard, setDashboard] = useState<ApiRecord | null>(null);
@@ -453,6 +462,20 @@ export function DashboardPage({ onOpenFinance, onOpenAttendance, onNavigateFinan
               onOpenFinance();
             }
           }}
+          onRefresh={() => void load()}
+        />
+      </div>
+    );
+  }
+
+  // KHUSUS ROLE KEAMANAN / KEDISIPLINAN: TAMPILAN DASHBOARD KOMANDO TATA TERTIB & PELANGGARAN
+  if (isKeamanan) {
+    return (
+      <div className="q-page-enter space-y-6">
+        <KeamananDashboardView
+          session={session}
+          onNavigateToPelanggaran={onNavigatePelanggaran}
+          onNavigateToKamar={onNavigateKamar}
           onRefresh={() => void load()}
         />
       </div>
